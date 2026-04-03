@@ -18,6 +18,20 @@ export type Step = {
   y: number;
 };
 
+export type Draft = {
+  id: number;
+  title: string;
+  body: string;
+  dueDate: string;
+  minutes: number;
+  importance: Importance;
+  aiSteps: Step[];
+  boardId: string;
+  boardType: BoardType;
+  boardName: string;
+  savedAt: string;
+};
+
 export type Note = {
   id: number;
   boardId: string;

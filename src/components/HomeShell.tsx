@@ -3,7 +3,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
-import type { ThemeMode, BoardType, Importance, FlowMode, Board, Step, Note } from "@/lib/board";
+import type { ThemeMode, BoardType, Importance, FlowMode, Board, Step, Note, Draft } from "@/lib/board";
 
 const BOARD_W = 6800;
 const BOARD_H = 4200;
@@ -302,6 +302,9 @@ export function HomeShell() {
   const [focusNoteId, setFocusNoteId] = useState<number | null>(null);
   const [focusSecondsLeft, setFocusSecondsLeft] = useState(0);
 
+  const [drafts, setDrafts] = useState<Draft[]>([]);
+  const [draftPromptOpen, setDraftPromptOpen] = useState(false);
+
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const boardMenuRef = useRef<HTMLDivElement | null>(null);
   const boardButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -409,11 +412,13 @@ export function HomeShell() {
           boards?: Board[];
           notes?: Note[];
           activeBoardId?: string;
+          drafts?: Draft[];
         };
         if (data.theme) setTheme(data.theme);
         if (Array.isArray(data.boards) && data.boards.length > 0) setBoards(data.boards);
         if (Array.isArray(data.notes)) setNotes(data.notes);
         if (data.activeBoardId) setActiveBoardId(data.activeBoardId);
+        if (Array.isArray(data.drafts)) setDrafts(data.drafts);
       }
     } catch {}
     setIsHydrated(true);
@@ -423,9 +428,9 @@ export function HomeShell() {
   useEffect(() => {
     if (!isHydrated) return;
     try {
-      localStorage.setItem("boardtivity", JSON.stringify({ theme, boards, notes, activeBoardId }));
+      localStorage.setItem("boardtivity", JSON.stringify({ theme, boards, notes, activeBoardId, drafts }));
     } catch {}
-  }, [isHydrated, theme, boards, notes, activeBoardId]);
+  }, [isHydrated, theme, boards, notes, activeBoardId, drafts]);
 
   useEffect(() => {
     function onDocPointerDown(e: PointerEvent) {
@@ -651,13 +656,65 @@ export function HomeShell() {
     };
 
     setNotes((prev) => [...prev, note]);
+    resetComposer();
     setComposerOpen(false);
+  }
+
+  function hasComposerContent() {
+    return title.trim() !== "" || body.trim() !== "" || dueDate !== "" || importance !== "none" || aiSteps.length > 0;
+  }
+
+  function resetComposer() {
     setTitle("");
     setBody("");
     setDueDate("");
     setMinutes(30);
     setImportance("none");
     setAiSteps([]);
+    setComposerError({});
+  }
+
+  function closeComposer() {
+    if (hasComposerContent()) {
+      setDraftPromptOpen(true);
+    } else {
+      resetComposer();
+      setComposerOpen(false);
+    }
+  }
+
+  function saveDraft() {
+    const draft: Draft = {
+      id: Date.now(),
+      title: title.trim(),
+      body: body.trim(),
+      dueDate,
+      minutes,
+      importance,
+      aiSteps,
+      boardId: activeBoardId,
+      boardType: activeBoard.type,
+      boardName: activeBoard.name,
+      savedAt: new Date().toISOString(),
+    };
+    setDrafts((prev) => [draft, ...prev].slice(0, 10));
+    setDraftPromptOpen(false);
+    resetComposer();
+    setComposerOpen(false);
+  }
+
+  function loadDraft(draft: Draft) {
+    setTitle(draft.title);
+    setBody(draft.body);
+    setDueDate(draft.dueDate);
+    setMinutes(draft.minutes);
+    setImportance(draft.importance);
+    setAiSteps(draft.aiSteps);
+    setDrafts((prev) => prev.filter((d) => d.id !== draft.id));
+  }
+
+  function deleteDraft(draftId: number) {
+    setDrafts((prev) => prev.filter((d) => d.id !== draftId));
   }
 
   function openBreakdownFromDetails(note: Note) {
@@ -1323,7 +1380,7 @@ export function HomeShell() {
             padding: 16,
           }}
           onClick={(e) => {
-            if (e.target === e.currentTarget) setComposerOpen(false);
+            if (e.target === e.currentTarget) closeComposer();
           }}
         >
           <div
@@ -1346,15 +1403,29 @@ export function HomeShell() {
                   {thoughtMode ? "Add a thought" : "Add a task"}
                 </div>
               </div>
-              <button onClick={() => setComposerOpen(false)} style={circleButton(theme, 42)}>✕</button>
+              <button onClick={closeComposer} style={circleButton(theme, 42)}>✕</button>
             </div>
+
+            {drafts.length > 0 && (
+              <div style={{ borderBottom: `1px solid ${border(theme)}`, padding: "8px 20px", display: "flex", gap: 8, overflowX: "auto", alignItems: "center" }}>
+                <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".12em", color: muted(theme), flexShrink: 0, fontWeight: 700 }}>Drafts</div>
+                {drafts.map((d) => (
+                  <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0, borderRadius: 99, border: `1px solid ${border(theme)}`, backgroundColor: panel(theme), padding: "4px 4px 4px 10px" }}>
+                    <button onClick={() => loadDraft(d)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600, color: pageText(theme), padding: 0 }}>
+                      {d.title || "Untitled"} <span style={{ color: muted(theme), fontWeight: 400 }}>· {new Date(d.savedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
+                    </button>
+                    <button onClick={() => deleteDraft(d.id)} style={{ ...circleButton(theme, 20), fontSize: 12, flexShrink: 0 }}>×</button>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div style={{ display: "grid", gridTemplateColumns: thoughtMode ? "1fr" : "1fr 360px", gap: 16, padding: 18, alignItems: "start" }}>
               <div style={{ display: "grid", gap: 12 }}>
                 <div
                   style={{
                     borderRadius: 24,
-                    backgroundColor: thoughtMode ? (theme === "dark" ? "#3f444b" : "#e6e7ea") : (theme === "dark" ? "#66551e" : "#f3efcf"),
+                    backgroundColor: noteBg(activeBoard.type, importance, theme),
                     border: composerError.title ? "1px solid rgba(200,40,40,.5)" : "1px solid rgba(0,0,0,.05)",
                     padding: 18,
                     minHeight: thoughtMode ? 160 : 250,
@@ -1407,7 +1478,7 @@ export function HomeShell() {
 
                 {!thoughtMode && (
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-                    <div
+                    <label
                       style={{
                         ...fieldStyle(theme),
                         position: "relative",
@@ -1415,7 +1486,6 @@ export function HomeShell() {
                         border: composerError.dueDate ? "1px solid rgba(200,40,40,.55)" : fieldStyle(theme).border,
                         boxShadow: composerError.dueDate ? "0 0 0 3px rgba(200,40,40,.12)" : "none",
                       }}
-                      onClick={() => (dateInputRef.current as HTMLInputElement & { showPicker?: () => void })?.showPicker?.() ?? dateInputRef.current?.click()}
                     >
                       <span style={{ color: dueDate ? pageText(theme) : muted(theme), pointerEvents: "none" }}>
                         {dueDate ? formatDate(dueDate) : "Due date"}
@@ -1435,10 +1505,9 @@ export function HomeShell() {
                           width: "100%",
                           height: "100%",
                           cursor: "pointer",
-                          pointerEvents: "none",
                         }}
                       />
-                    </div>
+                    </label>
 
                     <select
                       value={importance}
@@ -1527,7 +1596,7 @@ export function HomeShell() {
                     </div>
                   )}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                    <button onClick={() => setComposerOpen(false)} style={buttonStyle(theme)}>Cancel</button>
+                    <button onClick={closeComposer} style={buttonStyle(theme)}>Cancel</button>
                     <button onClick={createNote} style={buttonStyle(theme, true)}>{thoughtMode ? "Create thought" : "Create task"}</button>
                   </div>
                 </div>
@@ -1536,7 +1605,7 @@ export function HomeShell() {
               {thoughtMode && (
                 <div style={{ display: "grid", gap: 10 }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                    <button onClick={() => setComposerOpen(false)} style={buttonStyle(theme)}>Cancel</button>
+                    <button onClick={closeComposer} style={buttonStyle(theme)}>Cancel</button>
                     <button onClick={createNote} style={buttonStyle(theme, true)}>Create thought</button>
                   </div>
                 </div>
@@ -1822,6 +1891,54 @@ export function HomeShell() {
             >
               Exit and reset
             </button>
+          </div>
+        </div>
+      )}
+
+      {draftPromptOpen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 50,
+            backgroundColor: theme === "dark" ? "rgba(6,8,12,.7)" : "rgba(10,10,12,.36)",
+            backdropFilter: "blur(10px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 16,
+          }}
+        >
+          <div
+            style={{
+              width: "min(360px, 100%)",
+              backgroundColor: theme === "dark" ? "#1f2329" : "#fbf8f1",
+              color: pageText(theme),
+              borderRadius: 24,
+              border: `1px solid ${border(theme)}`,
+              boxShadow: "0 30px 80px rgba(0,0,0,.28)",
+              padding: 24,
+            }}
+          >
+            <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-.02em" }}>Save as draft?</div>
+            <div style={{ marginTop: 8, fontSize: 14, lineHeight: 1.65, color: muted(theme) }}>
+              You have unsaved content. Save it as a draft to pick up where you left off.
+            </div>
+            <div style={{ marginTop: 20, display: "grid", gap: 8 }}>
+              <button onClick={saveDraft} style={buttonStyle(theme, true)}>Save draft</button>
+              <button
+                onClick={() => { setDraftPromptOpen(false); resetComposer(); setComposerOpen(false); }}
+                style={buttonStyle(theme)}
+              >
+                Discard
+              </button>
+              <button
+                onClick={() => setDraftPromptOpen(false)}
+                style={{ ...buttonStyle(theme), color: muted(theme) }}
+              >
+                Keep editing
+              </button>
+            </div>
           </div>
         </div>
       )}
