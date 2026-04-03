@@ -16,13 +16,33 @@ const NOTE_PALETTE = [
   { light: "#f1f1fb", dark: "#1e1e30", halo: "rgba(120,120,220,.20)" },   // periwinkle
 ];
 
-function paletteBg(colorIdx: number, theme: ThemeMode): string {
-  const p = NOTE_PALETTE[colorIdx % NOTE_PALETTE.length];
+function paletteBg(colorIdx: number | undefined, theme: ThemeMode): string {
+  const p = NOTE_PALETTE[(colorIdx ?? 0) % NOTE_PALETTE.length];
   return theme === "dark" ? p.dark : p.light;
 }
 
-function paletteHalo(colorIdx: number): string {
-  return NOTE_PALETTE[colorIdx % NOTE_PALETTE.length].halo;
+function paletteHalo(colorIdx: number | undefined): string {
+  return NOTE_PALETTE[(colorIdx ?? 0) % NOTE_PALETTE.length].halo;
+}
+
+function taskBg(importance: Importance | undefined, theme: ThemeMode): string {
+  if (theme === "dark") {
+    if (importance === "High") return "#3d1515";
+    if (importance === "Medium") return "#373014";
+    if (importance === "Low") return "#14301a";
+    return "#4a4036";
+  }
+  if (importance === "High") return "#fde8e8";
+  if (importance === "Medium") return "#fdf8e0";
+  if (importance === "Low") return "#e8f5ea";
+  return "#eee8e2";
+}
+
+function taskHalo(importance: Importance | undefined): string {
+  if (importance === "High") return "rgba(215,70,70,.20)";
+  if (importance === "Medium") return "rgba(210,180,55,.22)";
+  if (importance === "Low") return "rgba(70,185,70,.20)";
+  return "rgba(145,126,88,.12)";
 }
 
 const BOARD_W = 6800;
@@ -1025,7 +1045,7 @@ export function HomeShell() {
                         minHeight: STEP_H,
                         borderRadius: 14,
                         border: `1px solid ${border(theme)}`,
-                        backgroundColor: paletteBg(note.colorIdx, theme),
+                        backgroundColor: taskBg(note.importance, theme),
                         boxShadow: "0 10px 18px rgba(0,0,0,.08)",
                         padding: "10px 12px",
                         textAlign: "left",
@@ -1120,13 +1140,17 @@ export function HomeShell() {
                         : "1px solid rgba(0,0,0,.05)",
                     display: "flex",
                     flexDirection: "column",
-                    backgroundColor: paletteBg(note.colorIdx, theme),
+                    backgroundColor: note.type === "task"
+                      ? taskBg(note.importance, theme)
+                      : paletteBg(note.colorIdx, theme),
                     opacity: note.completed ? 0.62 : 1,
                     boxShadow: thoughtDropTarget === note.id
                       ? `0 0 0 4px ${theme === "dark" ? "rgba(140,150,230,.28)" : "rgba(100,110,200,.18)"}, 0 0 20px ${theme === "dark" ? "rgba(140,150,230,.22)" : "rgba(100,110,200,.16)"}, 0 10px 18px rgba(59,43,16,.06)`
                       : thoughtUnlinkTarget === note.id
                         ? "0 0 0 4px rgba(220,60,60,.25), 0 0 20px rgba(220,60,60,.20), 0 10px 18px rgba(59,43,16,.06)"
-                        : `0 0 0 3px ${paletteHalo(note.colorIdx)}, 0 10px 18px rgba(59,43,16,.06)`,
+                        : note.type === "task"
+                          ? `0 0 0 3px ${taskHalo(note.importance)}, 0 10px 18px rgba(59,43,16,.06)`
+                          : `0 0 0 3px ${paletteHalo(note.colorIdx)}, 0 10px 18px rgba(59,43,16,.06)`,
                     textAlign: "left",
                     cursor: "pointer",
                     transition: "box-shadow .18s ease, border-color .18s ease",
@@ -1168,9 +1192,9 @@ export function HomeShell() {
                           );
                         })}
                       </div>
-                      {note.importance && note.importance !== "none" && (
-                        <span style={pill(theme)}>{note.importance} priority</span>
-                      )}
+                      <span style={pill(theme)}>
+                        {note.importance && note.importance !== "none" ? `${note.importance} priority` : "No priority"}
+                      </span>
                     </div>
                   )}
                 </button>

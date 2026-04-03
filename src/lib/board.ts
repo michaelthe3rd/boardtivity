@@ -49,5 +49,5 @@ export type Note = {
   showFlow: boolean;
   flowMode: FlowMode;
   linkedNoteIds: number[];
-  colorIdx: number;
+  colorIdx?: number;
 };
