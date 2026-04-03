@@ -166,6 +166,17 @@ function noteHalo(type: BoardType, importance: Importance | undefined) {
   if (importance === "Medium") return "rgba(111,149,104,.16)";
   return "rgba(145,126,88,.12)";
 }
+function noteAccent(type: BoardType, importance: Importance | undefined) {
+  if (type === "thought") return "rgba(130,130,200,.6)";
+  if (importance === "High") return "#c9a93a";
+  if (importance === "Medium") return "#5a9a5e";
+  return "rgba(160,140,100,.45)";
+}
+function priorityColor(importance: Importance | undefined, theme: ThemeMode) {
+  if (importance === "High") return theme === "dark" ? "#f5d76e" : "#9a7a1a";
+  if (importance === "Medium") return theme === "dark" ? "#89c98e" : "#3a7040";
+  return theme === "dark" ? "rgba(255,255,255,.45)" : "rgba(0,0,0,.38)";
+}
 function buttonStyle(theme: ThemeMode, dark = false, compact = false): CSSProperties {
   return {
     height: compact ? 36 : 40,
@@ -318,7 +329,7 @@ export function HomeShell() {
   const boardStyle = useMemo<CSSProperties>(
     () => ({
       position: "relative",
-      minHeight: 620,
+      minHeight: 700,
       borderRadius: 28,
       overflow: "hidden",
       border: `1px solid ${border(theme)}`,
@@ -857,10 +868,13 @@ export function HomeShell() {
                         top: step.y,
                         width: STEP_W,
                         minHeight: STEP_H,
-                        borderRadius: 16,
+                        borderRadius: 14,
                         border: `1px solid ${border(theme)}`,
+                        borderLeft: `2px solid ${noteAccent(note.type, note.importance)}`,
                         backgroundColor: noteBg(note.type, note.importance, theme),
-                        boxShadow: "0 10px 18px rgba(0,0,0,.08)",
+                        boxShadow: theme === "dark"
+                          ? "0 2px 8px rgba(0,0,0,.28), 0 8px 18px rgba(0,0,0,.14)"
+                          : "0 2px 6px rgba(59,43,16,.06), 0 8px 18px rgba(59,43,16,.08)",
                         padding: "10px 12px",
                         textAlign: "left",
                         cursor: "pointer",
@@ -889,12 +903,26 @@ export function HomeShell() {
 
               {activeNotes.length === 0 && (
                 <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", textAlign: "center" }}>
-                  <div style={{ width: 360, color: theme === "dark" ? "#d8d8d6" : "#70695e" }}>
-                    <div style={{ fontSize: 24, fontWeight: 700, lineHeight: 1.15 }}>
-                      Click + to create your first {thoughtMode ? "thought" : "task"}
+                  <div style={{ width: 340 }}>
+                    <div style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: 14,
+                      border: `1px solid ${border(theme)}`,
+                      backgroundColor: theme === "dark" ? "#23262b" : "#ffffff",
+                      display: "grid",
+                      placeItems: "center",
+                      margin: "0 auto 16px",
+                      fontSize: 22,
+                      boxShadow: theme === "dark" ? "0 4px 16px rgba(0,0,0,.24)" : "0 4px 16px rgba(0,0,0,.08)",
+                    }}>
+                      {thoughtMode ? "💭" : "✓"}
                     </div>
-                    <div style={{ marginTop: 10, fontSize: 15, lineHeight: 1.6 }}>
-                      Drag the board, zoom in or out, and build your workspace from there.
+                    <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.2, color: pageText(theme), letterSpacing: "-.02em" }}>
+                      Your board is empty
+                    </div>
+                    <div style={{ marginTop: 8, fontSize: 14, lineHeight: 1.65, color: muted(theme) }}>
+                      Press <strong style={{ color: pageText(theme) }}>+</strong> to add your first {thoughtMode ? "thought" : "task"}, then drag and arrange freely.
                     </div>
                   </div>
                 </div>
@@ -935,54 +963,59 @@ export function HomeShell() {
                     top: note.y,
                     width: NOTE_W,
                     minHeight: NOTE_H,
-                    padding: "11px 11px 12px",
-                    borderRadius: 16,
-                    border: "1px solid rgba(0,0,0,.05)",
+                    padding: "12px 13px 13px 15px",
+                    borderRadius: 20,
+                    border: `1px solid ${border(theme)}`,
+                    borderLeft: `3px solid ${noteAccent(note.type, note.importance)}`,
                     backgroundColor: noteBg(note.type, note.importance, theme),
-                    opacity: note.completed ? 0.62 : 1,
-                    boxShadow: `0 0 0 0 ${noteHalo(note.type, note.importance)}, 0 10px 18px rgba(59,43,16,.06)`,
+                    opacity: note.completed ? 0.5 : 1,
+                    boxShadow: theme === "dark"
+                      ? "0 2px 8px rgba(0,0,0,.28), 0 12px 28px rgba(0,0,0,.18)"
+                      : "0 2px 6px rgba(59,43,16,.07), 0 10px 22px rgba(59,43,16,.10)",
                     textAlign: "left",
                     cursor: "pointer",
                   }}
                 >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                    <div style={pill(theme)}>{note.type === "task" ? "Task" : "Thought"}</div>
-                    {note.type === "task" && note.dueDate && <div style={{ ...pill(theme), fontWeight: 800 }}>Due {formatDate(note.dueDate)}</div>}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase", color: muted(theme) }}>
+                      {note.type === "task" ? "Task" : "Thought"}
+                    </div>
+                    {note.type === "task" && note.dueDate && (
+                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: ".03em", color: muted(theme) }}>
+                        {formatDate(note.dueDate)}
+                      </div>
+                    )}
                   </div>
 
-                  <div style={{ marginTop: 10, fontSize: 17, lineHeight: 1.12, fontWeight: 700, color: noteText(theme), maxWidth: 196 }}>
+                  <div style={{ marginTop: 8, fontSize: 15, lineHeight: 1.25, fontWeight: 700, color: noteText(theme), maxWidth: 192, letterSpacing: "-.01em" }}>
                     {note.title}
                   </div>
 
                   {note.body && note.type === "thought" && (
-                    <div style={{ marginTop: 8, fontSize: 13, lineHeight: 1.45, color: noteSub(theme), maxWidth: 196 }}>
+                    <div style={{ marginTop: 6, fontSize: 12, lineHeight: 1.5, color: noteSub(theme), maxWidth: 192 }}>
                       {note.body}
                     </div>
                   )}
 
                   {note.type === "task" && (
-                    <div style={{ marginTop: 12, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-                      <div style={{ display: "flex", gap: 7, alignItems: "center" }}>
-                        {Array.from({ length: Math.max(note.steps.length, 1) }).map((_, index) => {
-                          const done = note.steps[index]?.done;
-                          return (
-                            <span
-                              key={index}
-                              style={{
-                                width: 10,
-                                height: 10,
-                                borderRadius: "50%",
-                                border: done ? "1px solid #3d8b40" : "1px solid rgba(0,0,0,.18)",
-                                backgroundColor: done ? "#6fc46b" : theme === "dark" ? "rgba(255,255,255,.12)" : "#f1f1ef",
-                                display: "inline-block",
-                              }}
-                            />
-                          );
-                        })}
+                    <div style={{ marginTop: 11 }}>
+                      {note.steps.length > 0 && (
+                        <div style={{ height: 3, borderRadius: 2, backgroundColor: theme === "dark" ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.09)", overflow: "hidden", marginBottom: 7 }}>
+                          <div style={{ height: "100%", width: `${(note.steps.filter(s => s.done).length / note.steps.length) * 100}%`, backgroundColor: "#6fc46b", borderRadius: 2 }} />
+                        </div>
+                      )}
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: 11, color: muted(theme) }}>
+                          {note.steps.length > 0
+                            ? `${note.steps.filter(s => s.done).length}/${note.steps.length} steps`
+                            : note.completed ? "Completed" : "No steps yet"}
+                        </span>
+                        {note.importance && note.importance !== "none" && (
+                          <span style={{ fontSize: 11, fontWeight: 700, color: priorityColor(note.importance, theme) }}>
+                            {note.importance}
+                          </span>
+                        )}
                       </div>
-                      <span style={pill(theme)}>
-                        {note.importance && note.importance !== "none" ? `${note.importance} priority` : "No priority"}
-                      </span>
                     </div>
                   )}
                 </button>
@@ -991,7 +1024,18 @@ export function HomeShell() {
           </div>
 
           <div style={{ position: "absolute", top: 12, left: 16, right: 16, zIndex: 3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ fontSize: 18, fontWeight: 700, color: pageText(theme) }}>
+            <div style={{
+              fontSize: 14,
+              fontWeight: 700,
+              color: pageText(theme),
+              backgroundColor: theme === "dark" ? "rgba(31,35,41,.85)" : "rgba(255,255,255,.90)",
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
+              borderRadius: 99,
+              padding: "7px 16px",
+              border: `1px solid ${border(theme)}`,
+              boxShadow: theme === "dark" ? "0 2px 12px rgba(0,0,0,.28)" : "0 2px 12px rgba(0,0,0,.08)",
+            }}>
               {activeBoard.name}
             </div>
 
@@ -1352,11 +1396,13 @@ export function HomeShell() {
                       style={{
                         ...fieldStyle(theme),
                         position: "relative",
+                        cursor: "pointer",
                         border: composerError.dueDate ? "1px solid rgba(200,40,40,.55)" : fieldStyle(theme).border,
                         boxShadow: composerError.dueDate ? "0 0 0 3px rgba(200,40,40,.12)" : "none",
                       }}
+                      onClick={() => (dateInputRef.current as HTMLInputElement & { showPicker?: () => void })?.showPicker?.() ?? dateInputRef.current?.click()}
                     >
-                      <span style={{ color: pageText(theme), opacity: 0.92 }}>
+                      <span style={{ color: dueDate ? pageText(theme) : muted(theme), pointerEvents: "none" }}>
                         {dueDate ? formatDate(dueDate) : "Due date"}
                       </span>
                       <input
@@ -1370,8 +1416,11 @@ export function HomeShell() {
                         style={{
                           position: "absolute",
                           inset: 0,
-                          opacity: 0.001,
+                          opacity: 0,
+                          width: "100%",
+                          height: "100%",
                           cursor: "pointer",
+                          pointerEvents: "none",
                         }}
                       />
                     </div>
