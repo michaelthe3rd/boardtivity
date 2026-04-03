@@ -870,11 +870,8 @@ export function HomeShell() {
                         minHeight: STEP_H,
                         borderRadius: 14,
                         border: `1px solid ${border(theme)}`,
-                        borderLeft: `2px solid ${noteAccent(note.type, note.importance)}`,
                         backgroundColor: noteBg(note.type, note.importance, theme),
-                        boxShadow: theme === "dark"
-                          ? "0 2px 8px rgba(0,0,0,.28), 0 8px 18px rgba(0,0,0,.14)"
-                          : "0 2px 6px rgba(59,43,16,.06), 0 8px 18px rgba(59,43,16,.08)",
+                        boxShadow: "0 10px 18px rgba(0,0,0,.08)",
                         padding: "10px 12px",
                         textAlign: "left",
                         cursor: "pointer",
@@ -903,26 +900,12 @@ export function HomeShell() {
 
               {activeNotes.length === 0 && (
                 <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", textAlign: "center" }}>
-                  <div style={{ width: 340 }}>
-                    <div style={{
-                      width: 48,
-                      height: 48,
-                      borderRadius: 14,
-                      border: `1px solid ${border(theme)}`,
-                      backgroundColor: theme === "dark" ? "#23262b" : "#ffffff",
-                      display: "grid",
-                      placeItems: "center",
-                      margin: "0 auto 16px",
-                      fontSize: 22,
-                      boxShadow: theme === "dark" ? "0 4px 16px rgba(0,0,0,.24)" : "0 4px 16px rgba(0,0,0,.08)",
-                    }}>
-                      {thoughtMode ? "💭" : "✓"}
+                  <div style={{ width: 360, color: theme === "dark" ? "#d8d8d6" : "#70695e" }}>
+                    <div style={{ fontSize: 24, fontWeight: 700, lineHeight: 1.15 }}>
+                      Click + to create your first {thoughtMode ? "thought" : "task"}
                     </div>
-                    <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.2, color: pageText(theme), letterSpacing: "-.02em" }}>
-                      Your board is empty
-                    </div>
-                    <div style={{ marginTop: 8, fontSize: 14, lineHeight: 1.65, color: muted(theme) }}>
-                      Press <strong style={{ color: pageText(theme) }}>+</strong> to add your first {thoughtMode ? "thought" : "task"}, then drag and arrange freely.
+                    <div style={{ marginTop: 10, fontSize: 15, lineHeight: 1.6 }}>
+                      Drag the board, zoom in or out, and build your workspace from there.
                     </div>
                   </div>
                 </div>
@@ -963,59 +946,54 @@ export function HomeShell() {
                     top: note.y,
                     width: NOTE_W,
                     minHeight: NOTE_H,
-                    padding: "12px 13px 13px 15px",
-                    borderRadius: 20,
-                    border: `1px solid ${border(theme)}`,
-                    borderLeft: `3px solid ${noteAccent(note.type, note.importance)}`,
+                    padding: "11px 11px 12px",
+                    borderRadius: 14,
+                    border: "1px solid rgba(0,0,0,.05)",
                     backgroundColor: noteBg(note.type, note.importance, theme),
-                    opacity: note.completed ? 0.5 : 1,
-                    boxShadow: theme === "dark"
-                      ? "0 2px 8px rgba(0,0,0,.28), 0 12px 28px rgba(0,0,0,.18)"
-                      : "0 2px 6px rgba(59,43,16,.07), 0 10px 22px rgba(59,43,16,.10)",
+                    opacity: note.completed ? 0.62 : 1,
+                    boxShadow: `0 0 0 3px ${noteHalo(note.type, note.importance)}, 0 10px 18px rgba(59,43,16,.06)`,
                     textAlign: "left",
                     cursor: "pointer",
                   }}
                 >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase", color: muted(theme) }}>
-                      {note.type === "task" ? "Task" : "Thought"}
-                    </div>
-                    {note.type === "task" && note.dueDate && (
-                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: ".03em", color: muted(theme) }}>
-                        {formatDate(note.dueDate)}
-                      </div>
-                    )}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                    <div style={pill(theme)}>{note.type === "task" ? "Task" : "Thought"}</div>
+                    {note.type === "task" && note.dueDate && <div style={{ ...pill(theme), fontWeight: 800 }}>Due {formatDate(note.dueDate)}</div>}
                   </div>
 
-                  <div style={{ marginTop: 8, fontSize: 15, lineHeight: 1.25, fontWeight: 700, color: noteText(theme), maxWidth: 192, letterSpacing: "-.01em" }}>
+                  <div style={{ marginTop: 10, fontSize: 17, lineHeight: 1.12, fontWeight: 700, color: noteText(theme), maxWidth: 196 }}>
                     {note.title}
                   </div>
 
                   {note.body && note.type === "thought" && (
-                    <div style={{ marginTop: 6, fontSize: 12, lineHeight: 1.5, color: noteSub(theme), maxWidth: 192 }}>
+                    <div style={{ marginTop: 8, fontSize: 13, lineHeight: 1.45, color: noteSub(theme), maxWidth: 196 }}>
                       {note.body}
                     </div>
                   )}
 
                   {note.type === "task" && (
-                    <div style={{ marginTop: 11 }}>
-                      {note.steps.length > 0 && (
-                        <div style={{ height: 3, borderRadius: 2, backgroundColor: theme === "dark" ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.09)", overflow: "hidden", marginBottom: 7 }}>
-                          <div style={{ height: "100%", width: `${(note.steps.filter(s => s.done).length / note.steps.length) * 100}%`, backgroundColor: "#6fc46b", borderRadius: 2 }} />
-                        </div>
-                      )}
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ fontSize: 11, color: muted(theme) }}>
-                          {note.steps.length > 0
-                            ? `${note.steps.filter(s => s.done).length}/${note.steps.length} steps`
-                            : note.completed ? "Completed" : "No steps yet"}
-                        </span>
-                        {note.importance && note.importance !== "none" && (
-                          <span style={{ fontSize: 11, fontWeight: 700, color: priorityColor(note.importance, theme) }}>
-                            {note.importance}
-                          </span>
-                        )}
+                    <div style={{ marginTop: 12, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+                      <div style={{ display: "flex", gap: 7, alignItems: "center" }}>
+                        {Array.from({ length: Math.max(note.steps.length, 1) }).map((_, index) => {
+                          const done = note.steps[index]?.done;
+                          return (
+                            <span
+                              key={index}
+                              style={{
+                                width: 10,
+                                height: 10,
+                                borderRadius: "50%",
+                                border: done ? "1px solid #3d8b40" : "1px solid rgba(0,0,0,.18)",
+                                backgroundColor: done ? "#6fc46b" : theme === "dark" ? "rgba(255,255,255,.12)" : "#f1f1ef",
+                                display: "inline-block",
+                              }}
+                            />
+                          );
+                        })}
                       </div>
+                      <span style={pill(theme)}>
+                        {note.importance && note.importance !== "none" ? `${note.importance} priority` : "No priority"}
+                      </span>
                     </div>
                   )}
                 </button>
