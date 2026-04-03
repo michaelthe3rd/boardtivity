@@ -308,7 +308,9 @@ export function HomeShell() {
   const dateInputRef = useRef<HTMLInputElement | null>(null);
 
   const boardDragRef = useRef<null | { startX: number; startY: number; panX: number; panY: number }>(null);
-  const noteDragRef = useRef<null | { pointerId: number; noteId: number; startX: number; startY: number; noteX: number; noteY: number }>(null);
+  const noteDragRef = useRef<null | { pointerId: number; noteId: number; noteType: BoardType; boardId: string; startX: number; startY: number; noteX: number; noteY: number }>(null);
+  const thoughtDropTargetRef = useRef<number | null>(null);
+  const [thoughtDropTarget, setThoughtDropTarget] = useState<number | null>(null);
   const stepDragRef = useRef<null | { pointerId: number; noteId: number; stepId: number; startX: number; startY: number; stepX: number; stepY: number }>(null);
   const pointerMapRef = useRef<Map<number, { x: number; y: number }>>(new Map());
   const pinchRef = useRef<null | { distance: number; scale: number }>(null);
@@ -555,6 +557,23 @@ export function HomeShell() {
         const nextY = Math.max(0, Math.min(BOARD_H - NOTE_H - 32, drag.noteY + dy));
         setNotes((prev) => prev.map((n) => (n.id === drag.noteId ? { ...n, x: nextX, y: nextY } : n)));
         draggedRef.current = true;
+
+        if (drag.noteType === "thought") {
+          const cx = nextX + NOTE_W / 2;
+          const cy = nextY + NOTE_H / 2;
+          const target = notes.find(
+            (n) => n.id !== drag.noteId && n.type === "thought" && n.boardId === drag.boardId &&
+              cx >= n.x - 24 && cx <= n.x + NOTE_W + 24 && cy >= n.y - 24 && cy <= n.y + NOTE_H + 24
+          );
+          const targetId = target?.id ?? null;
+          if (targetId !== thoughtDropTargetRef.current) {
+            thoughtDropTargetRef.current = targetId;
+            setThoughtDropTarget(targetId);
+          }
+        } else if (thoughtDropTargetRef.current !== null) {
+          thoughtDropTargetRef.current = null;
+          setThoughtDropTarget(null);
+        }
       }
       return;
     }
@@ -583,6 +602,8 @@ export function HomeShell() {
       boardDragRef.current = null;
       noteDragRef.current = null;
       stepDragRef.current = null;
+      thoughtDropTargetRef.current = null;
+      setThoughtDropTarget(null);
     }
   }
 
@@ -921,6 +942,8 @@ export function HomeShell() {
                     noteDragRef.current = {
                       pointerId: e.pointerId,
                       noteId: note.id,
+                      noteType: note.type,
+                      boardId: note.boardId,
                       startX: e.clientX,
                       startY: e.clientY,
                       noteX: note.x,
@@ -930,6 +953,13 @@ export function HomeShell() {
                   }}
                   onPointerUp={(e) => {
                     e.stopPropagation();
+                    const drag = noteDragRef.current;
+                    const target = thoughtDropTargetRef.current;
+                    if (drag && drag.noteType === "thought" && target !== null && target !== drag.noteId) {
+                      toggleThoughtLink(drag.noteId, target);
+                    }
+                    thoughtDropTargetRef.current = null;
+                    setThoughtDropTarget(null);
                     noteDragRef.current = null;
                   }}
                   onClick={(e) => {
@@ -948,15 +978,19 @@ export function HomeShell() {
                     minHeight: NOTE_H,
                     padding: "6px 7px 6px",
                     borderRadius: 14,
-                    border: "1px solid rgba(0,0,0,.05)",
+                    border: thoughtDropTarget === note.id
+                      ? `1.5px solid ${theme === "dark" ? "rgba(160,170,240,.7)" : "rgba(100,110,200,.55)"}`
+                      : "1px solid rgba(0,0,0,.05)",
                     display: "flex",
                     flexDirection: "column",
-                    justifyContent: "space-between",
                     backgroundColor: noteBg(note.type, note.importance, theme),
                     opacity: note.completed ? 0.62 : 1,
-                    boxShadow: `0 0 0 3px ${noteHalo(note.type, note.importance)}, 0 10px 18px rgba(59,43,16,.06)`,
+                    boxShadow: thoughtDropTarget === note.id
+                      ? `0 0 0 4px ${theme === "dark" ? "rgba(140,150,230,.28)" : "rgba(100,110,200,.18)"}, 0 0 20px ${theme === "dark" ? "rgba(140,150,230,.22)" : "rgba(100,110,200,.16)"}, 0 10px 18px rgba(59,43,16,.06)`
+                      : `0 0 0 3px ${noteHalo(note.type, note.importance)}, 0 10px 18px rgba(59,43,16,.06)`,
                     textAlign: "left",
                     cursor: "pointer",
+                    transition: "box-shadow .18s ease, border-color .18s ease",
                   }}
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
@@ -964,18 +998,18 @@ export function HomeShell() {
                     {note.type === "task" && note.dueDate && <div style={{ ...pill(theme), fontWeight: 800 }}>Due {formatDate(note.dueDate)}</div>}
                   </div>
 
-                  <div style={{ fontSize: 17, lineHeight: 1.12, fontWeight: 700, color: noteText(theme), maxWidth: 196 }}>
+                  <div style={{ marginTop: 8, fontSize: 17, lineHeight: 1.12, fontWeight: 700, color: noteText(theme), maxWidth: 196 }}>
                     {note.title}
                   </div>
 
                   {note.body && note.type === "thought" && (
-                    <div style={{ fontSize: 13, lineHeight: 1.45, color: noteSub(theme), maxWidth: 196 }}>
+                    <div style={{ marginTop: 6, fontSize: 13, lineHeight: 1.45, color: noteSub(theme), maxWidth: 196 }}>
                       {note.body}
                     </div>
                   )}
 
                   {note.type === "task" && (
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+                    <div style={{ marginTop: "auto", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
                       <div style={{ display: "flex", gap: 7, alignItems: "center" }}>
                         {Array.from({ length: Math.max(note.steps.length, 1) }).map((_, index) => {
                           const done = note.steps[index]?.done;
