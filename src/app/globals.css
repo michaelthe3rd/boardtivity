@@ -3,3 +3,11 @@ html,body{margin:0;padding:0}
 body{font-family:Inter,Arial,sans-serif}
 button,input,textarea,select{font:inherit}
 textarea{resize:none}
+@keyframes thoughtVibrate{
+  0%,100%{transform:translateX(0)}
+  15%{transform:translateX(-4px)}
+  35%{transform:translateX(4px)}
+  55%{transform:translateX(-3px)}
+  75%{transform:translateX(3px)}
+}
+.thought-vibrate{animation:thoughtVibrate .28s ease infinite}

@@ -5,6 +5,26 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import type { ThemeMode, BoardType, Importance, FlowMode, Board, Step, Note, Draft } from "@/lib/board";
 
+const NOTE_PALETTE = [
+  { light: "#e8f1fb", dark: "#1b2d3e", halo: "rgba(90,150,230,.20)" },   // sky blue
+  { light: "#fbeee8", dark: "#3a2318", halo: "rgba(220,130,80,.20)" },    // peach
+  { light: "#eef7ee", dark: "#1c301c", halo: "rgba(80,180,80,.20)" },     // sage
+  { light: "#f6eeff", dark: "#291a3c", halo: "rgba(140,80,230,.20)" },    // lavender
+  { light: "#fff8e6", dark: "#352c12", halo: "rgba(210,175,60,.20)" },    // butter
+  { light: "#eef8f8", dark: "#192e2e", halo: "rgba(70,190,190,.20)" },    // teal
+  { light: "#ffedf0", dark: "#36191c", halo: "rgba(220,90,105,.20)" },    // rose
+  { light: "#f1f1fb", dark: "#1e1e30", halo: "rgba(120,120,220,.20)" },   // periwinkle
+];
+
+function paletteBg(colorIdx: number, theme: ThemeMode): string {
+  const p = NOTE_PALETTE[colorIdx % NOTE_PALETTE.length];
+  return theme === "dark" ? p.dark : p.light;
+}
+
+function paletteHalo(colorIdx: number): string {
+  return NOTE_PALETTE[colorIdx % NOTE_PALETTE.length].halo;
+}
+
 const BOARD_W = 6800;
 const BOARD_H = 4200;
 const NOTE_W = 228;
@@ -304,6 +324,10 @@ export function HomeShell() {
 
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [draftPromptOpen, setDraftPromptOpen] = useState(false);
+  const [composerColorIdx, setComposerColorIdx] = useState(0);
+  const [thoughtUnlinkTarget, setThoughtUnlinkTarget] = useState<number | null>(null);
+  const thoughtUnlinkTargetRef = useRef<number | null>(null);
+  const thoughtHoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const boardMenuRef = useRef<HTMLDivElement | null>(null);
@@ -571,13 +595,50 @@ export function HomeShell() {
               cx >= n.x - 24 && cx <= n.x + NOTE_W + 24 && cy >= n.y - 24 && cy <= n.y + NOTE_H + 24
           );
           const targetId = target?.id ?? null;
-          if (targetId !== thoughtDropTargetRef.current) {
-            thoughtDropTargetRef.current = targetId;
-            setThoughtDropTarget(targetId);
+
+          if (targetId === null) {
+            // Moved away — clear both states and cancel timer
+            if (thoughtDropTargetRef.current !== null) { thoughtDropTargetRef.current = null; setThoughtDropTarget(null); }
+            if (thoughtUnlinkTargetRef.current !== null) {
+              if (thoughtHoverTimerRef.current) { clearTimeout(thoughtHoverTimerRef.current); thoughtHoverTimerRef.current = null; }
+              thoughtUnlinkTargetRef.current = null;
+              setThoughtUnlinkTarget(null);
+            }
+          } else {
+            const draggedNote = notes.find(n => n.id === drag.noteId);
+            const targetNote = notes.find(n => n.id === targetId);
+            const isLinked =
+              (draggedNote?.linkedNoteIds.includes(targetId) ?? false) ||
+              (targetNote?.linkedNoteIds.includes(drag.noteId) ?? false);
+
+            if (isLinked) {
+              // Over a LINKED thought — show red glow and start unlink timer
+              if (thoughtDropTargetRef.current !== null) { thoughtDropTargetRef.current = null; setThoughtDropTarget(null); }
+              if (thoughtUnlinkTargetRef.current !== targetId) {
+                if (thoughtHoverTimerRef.current) { clearTimeout(thoughtHoverTimerRef.current); thoughtHoverTimerRef.current = null; }
+                thoughtUnlinkTargetRef.current = targetId;
+                setThoughtUnlinkTarget(targetId);
+                thoughtHoverTimerRef.current = setTimeout(() => {
+                  unlinkNotes(drag.noteId, targetId);
+                  thoughtUnlinkTargetRef.current = null;
+                  setThoughtUnlinkTarget(null);
+                  thoughtHoverTimerRef.current = null;
+                }, 3000);
+              }
+            } else {
+              // Over an UNLINKED thought — show blue glow, link on drop
+              if (thoughtUnlinkTargetRef.current !== null) {
+                if (thoughtHoverTimerRef.current) { clearTimeout(thoughtHoverTimerRef.current); thoughtHoverTimerRef.current = null; }
+                thoughtUnlinkTargetRef.current = null;
+                setThoughtUnlinkTarget(null);
+              }
+              if (thoughtDropTargetRef.current !== targetId) { thoughtDropTargetRef.current = targetId; setThoughtDropTarget(targetId); }
+            }
           }
-        } else if (thoughtDropTargetRef.current !== null) {
-          thoughtDropTargetRef.current = null;
-          setThoughtDropTarget(null);
+        } else if (thoughtDropTargetRef.current !== null || thoughtUnlinkTargetRef.current !== null) {
+          if (thoughtHoverTimerRef.current) { clearTimeout(thoughtHoverTimerRef.current); thoughtHoverTimerRef.current = null; }
+          thoughtDropTargetRef.current = null; setThoughtDropTarget(null);
+          thoughtUnlinkTargetRef.current = null; setThoughtUnlinkTarget(null);
         }
       }
       return;
@@ -609,6 +670,9 @@ export function HomeShell() {
       stepDragRef.current = null;
       thoughtDropTargetRef.current = null;
       setThoughtDropTarget(null);
+      if (thoughtHoverTimerRef.current) { clearTimeout(thoughtHoverTimerRef.current); thoughtHoverTimerRef.current = null; }
+      thoughtUnlinkTargetRef.current = null;
+      setThoughtUnlinkTarget(null);
     }
   }
 
@@ -653,6 +717,7 @@ export function HomeShell() {
       showFlow: false,
       flowMode: "web",
       linkedNoteIds: [],
+      colorIdx: composerColorIdx,
     };
 
     setNotes((prev) => [...prev, note]);
@@ -752,6 +817,18 @@ export function HomeShell() {
           ...n,
           linkedNoteIds: exists ? n.linkedNoteIds.filter((id) => id !== targetId) : [...n.linkedNoteIds, targetId],
         };
+      })
+    );
+  }
+
+  function unlinkNotes(noteIdA: number, noteIdB: number) {
+    setNotes((prev) =>
+      prev.map((n) => {
+        if (n.id === noteIdA && n.linkedNoteIds.includes(noteIdB))
+          return { ...n, linkedNoteIds: n.linkedNoteIds.filter((id) => id !== noteIdB) };
+        if (n.id === noteIdB && n.linkedNoteIds.includes(noteIdA))
+          return { ...n, linkedNoteIds: n.linkedNoteIds.filter((id) => id !== noteIdA) };
+        return n;
       })
     );
   }
@@ -948,7 +1025,7 @@ export function HomeShell() {
                         minHeight: STEP_H,
                         borderRadius: 14,
                         border: `1px solid ${border(theme)}`,
-                        backgroundColor: noteBg(note.type, note.importance, theme),
+                        backgroundColor: paletteBg(note.colorIdx, theme),
                         boxShadow: "0 10px 18px rgba(0,0,0,.08)",
                         padding: "10px 12px",
                         textAlign: "left",
@@ -1011,12 +1088,13 @@ export function HomeShell() {
                   onPointerUp={(e) => {
                     e.stopPropagation();
                     const drag = noteDragRef.current;
-                    const target = thoughtDropTargetRef.current;
-                    if (drag && drag.noteType === "thought" && target !== null && target !== drag.noteId) {
-                      toggleThoughtLink(drag.noteId, target);
+                    const linkTarget = thoughtDropTargetRef.current;
+                    if (drag && drag.noteType === "thought" && linkTarget !== null && linkTarget !== drag.noteId) {
+                      toggleThoughtLink(drag.noteId, linkTarget);
                     }
-                    thoughtDropTargetRef.current = null;
-                    setThoughtDropTarget(null);
+                    if (thoughtHoverTimerRef.current) { clearTimeout(thoughtHoverTimerRef.current); thoughtHoverTimerRef.current = null; }
+                    thoughtDropTargetRef.current = null; setThoughtDropTarget(null);
+                    thoughtUnlinkTargetRef.current = null; setThoughtUnlinkTarget(null);
                     noteDragRef.current = null;
                   }}
                   onClick={(e) => {
@@ -1037,18 +1115,23 @@ export function HomeShell() {
                     borderRadius: 14,
                     border: thoughtDropTarget === note.id
                       ? `1.5px solid ${theme === "dark" ? "rgba(160,170,240,.7)" : "rgba(100,110,200,.55)"}`
-                      : "1px solid rgba(0,0,0,.05)",
+                      : thoughtUnlinkTarget === note.id
+                        ? `1.5px solid rgba(220,60,60,.65)`
+                        : "1px solid rgba(0,0,0,.05)",
                     display: "flex",
                     flexDirection: "column",
-                    backgroundColor: noteBg(note.type, note.importance, theme),
+                    backgroundColor: paletteBg(note.colorIdx, theme),
                     opacity: note.completed ? 0.62 : 1,
                     boxShadow: thoughtDropTarget === note.id
                       ? `0 0 0 4px ${theme === "dark" ? "rgba(140,150,230,.28)" : "rgba(100,110,200,.18)"}, 0 0 20px ${theme === "dark" ? "rgba(140,150,230,.22)" : "rgba(100,110,200,.16)"}, 0 10px 18px rgba(59,43,16,.06)`
-                      : `0 0 0 3px ${noteHalo(note.type, note.importance)}, 0 10px 18px rgba(59,43,16,.06)`,
+                      : thoughtUnlinkTarget === note.id
+                        ? "0 0 0 4px rgba(220,60,60,.25), 0 0 20px rgba(220,60,60,.20), 0 10px 18px rgba(59,43,16,.06)"
+                        : `0 0 0 3px ${paletteHalo(note.colorIdx)}, 0 10px 18px rgba(59,43,16,.06)`,
                     textAlign: "left",
                     cursor: "pointer",
                     transition: "box-shadow .18s ease, border-color .18s ease",
                   }}
+                  className={thoughtUnlinkTarget === note.id ? "thought-vibrate" : undefined}
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                     <div style={pill(theme)}>{note.type === "task" ? "Task" : "Thought"}</div>
@@ -1085,9 +1168,9 @@ export function HomeShell() {
                           );
                         })}
                       </div>
-                      <span style={pill(theme)}>
-                        {note.importance && note.importance !== "none" ? `${note.importance} priority` : "No priority"}
-                      </span>
+                      {note.importance && note.importance !== "none" && (
+                        <span style={pill(theme)}>{note.importance} priority</span>
+                      )}
                     </div>
                   )}
                 </button>
@@ -1212,7 +1295,7 @@ export function HomeShell() {
           </div>
 
           <button
-            onClick={() => setComposerOpen(true)}
+            onClick={() => { setComposerColorIdx(Math.floor(Math.random() * NOTE_PALETTE.length)); setComposerOpen(true); }}
             style={{
               position: "absolute",
               right: 18,
@@ -1425,7 +1508,7 @@ export function HomeShell() {
                 <div
                   style={{
                     borderRadius: 24,
-                    backgroundColor: noteBg(activeBoard.type, importance, theme),
+                    backgroundColor: paletteBg(composerColorIdx, theme),
                     border: composerError.title ? "1px solid rgba(200,40,40,.5)" : "1px solid rgba(0,0,0,.05)",
                     padding: 18,
                     minHeight: thoughtMode ? 160 : 250,
@@ -1720,23 +1803,21 @@ export function HomeShell() {
                   </div>
                 ) : (
                   <div style={{ marginTop: 18 }}>
-                    <div style={{ fontSize: 14, color: muted(theme), marginBottom: 10 }}>Connected thoughts</div>
-                    <div style={{ display: "grid", gap: 8 }}>
-                      {activeNotes.filter((n) => n.type === "thought" && n.id !== detailNote.id).length === 0 ? (
-                        <div style={{ color: muted(theme) }}>Add more thought notes to connect them.</div>
-                      ) : (
-                        activeNotes
-                          .filter((n) => n.type === "thought" && n.id !== detailNote.id)
-                          .map((n) => {
-                            const linked = detailNote.linkedNoteIds.includes(n.id);
-                            return (
-                              <button key={n.id} onClick={() => toggleThoughtLink(detailNote.id, n.id)} style={buttonStyle(theme, linked, false)}>
-                                {linked ? "Unlink" : "Link"} {n.title}
-                              </button>
-                            );
-                          })
-                      )}
-                    </div>
+                    <div style={{ fontSize: 14, color: muted(theme), marginBottom: 6 }}>Connections</div>
+                    {detailNote.linkedNoteIds.length === 0 ? (
+                      <div style={{ color: muted(theme), fontSize: 14, lineHeight: 1.6 }}>
+                        Drag this thought over another to connect them. Hold over a connected thought to unlink.
+                      </div>
+                    ) : (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                        {detailNote.linkedNoteIds.map((linkedId) => {
+                          const linked = activeNotes.find(n => n.id === linkedId);
+                          return linked ? (
+                            <span key={linkedId} style={{ ...pill(theme), fontSize: 13 }}>{linked.title}</span>
+                          ) : null;
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
