@@ -946,7 +946,7 @@ export function HomeShell() {
                     top: note.y,
                     width: NOTE_W,
                     minHeight: NOTE_H,
-                    padding: "11px 11px 12px",
+                    padding: "7px 7px 9px",
                     borderRadius: 14,
                     border: "1px solid rgba(0,0,0,.05)",
                     backgroundColor: noteBg(note.type, note.importance, theme),
