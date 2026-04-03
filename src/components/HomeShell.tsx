@@ -946,9 +946,12 @@ export function HomeShell() {
                     top: note.y,
                     width: NOTE_W,
                     minHeight: NOTE_H,
-                    padding: "7px 7px 9px",
+                    padding: "6px 7px 6px",
                     borderRadius: 14,
                     border: "1px solid rgba(0,0,0,.05)",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "space-between",
                     backgroundColor: noteBg(note.type, note.importance, theme),
                     opacity: note.completed ? 0.62 : 1,
                     boxShadow: `0 0 0 3px ${noteHalo(note.type, note.importance)}, 0 10px 18px rgba(59,43,16,.06)`,
@@ -961,18 +964,18 @@ export function HomeShell() {
                     {note.type === "task" && note.dueDate && <div style={{ ...pill(theme), fontWeight: 800 }}>Due {formatDate(note.dueDate)}</div>}
                   </div>
 
-                  <div style={{ marginTop: 10, fontSize: 17, lineHeight: 1.12, fontWeight: 700, color: noteText(theme), maxWidth: 196 }}>
+                  <div style={{ fontSize: 17, lineHeight: 1.12, fontWeight: 700, color: noteText(theme), maxWidth: 196 }}>
                     {note.title}
                   </div>
 
                   {note.body && note.type === "thought" && (
-                    <div style={{ marginTop: 8, fontSize: 13, lineHeight: 1.45, color: noteSub(theme), maxWidth: 196 }}>
+                    <div style={{ fontSize: 13, lineHeight: 1.45, color: noteSub(theme), maxWidth: 196 }}>
                       {note.body}
                     </div>
                   )}
 
                   {note.type === "task" && (
-                    <div style={{ marginTop: 12, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
                       <div style={{ display: "flex", gap: 7, alignItems: "center" }}>
                         {Array.from({ length: Math.max(note.steps.length, 1) }).map((_, index) => {
                           const done = note.steps[index]?.done;
