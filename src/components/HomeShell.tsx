@@ -3152,9 +3152,9 @@ export function HomeShell() {
       {/* ── Feedback Board ── */}
       <section ref={feedbackRef} id="feedback" style={{ maxWidth: 900, margin: "0 auto", padding: isMobile ? "60px 20px 80px" : "100px 48px 120px" }}>
         <div style={{ textAlign: "center", marginBottom: 56 }}>
-          <div style={{ fontSize: 13, letterSpacing: ".18em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 16, opacity: .55 }}>Community</div>
-          <h2 style={{ margin: "0 0 16px", fontSize: "clamp(32px,4vw,52px)", fontWeight: 900, letterSpacing: "-.05em", color: pageText(theme), lineHeight: 1.06 }}>Feature Requests & Feedback</h2>
-          <p style={{ margin: 0, fontSize: 17, color: muted(theme), opacity: .6, lineHeight: 1.75, maxWidth: 520, marginLeft: "auto", marginRight: "auto" }}>Drop ideas, report bugs, or tell us what's missing. Your voice shapes what we build.</p>
+          <div style={{ fontSize: 17, letterSpacing: ".14em", textTransform: "uppercase", color: muted(theme), fontWeight: 800, marginBottom: 16 }}>Community</div>
+          <h2 style={{ margin: "0 0 18px", fontSize: "clamp(36px,4.5vw,58px)", fontWeight: 900, letterSpacing: "-.05em", color: pageText(theme), lineHeight: 1.04 }}>Feature Requests & Feedback</h2>
+          <p style={{ margin: 0, fontSize: 18, color: muted(theme), opacity: .65, lineHeight: 1.75, maxWidth: 540, marginLeft: "auto", marginRight: "auto" }}>Drop ideas, report bugs, or tell us what's missing. Your voice shapes what we build.</p>
         </div>
 
         {/* Post form */}
@@ -3236,17 +3236,17 @@ export function HomeShell() {
                 </div>
                 {/* Content */}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 15, color: pageText(theme), lineHeight: 1.7, marginBottom: 12, wordBreak: "break-word" }}>{p.content}</div>
+                  <div style={{ fontSize: 16, color: pageText(theme), lineHeight: 1.75, marginBottom: 14, wordBreak: "break-word", fontWeight: 450 }}>{p.content}</div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                    <div style={{ fontSize: 13, color: muted(theme), opacity: .45 }}>
+                    <div style={{ fontSize: 13, color: muted(theme), opacity: .5 }}>
                       {p.authorName} · {new Date(p.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
                     </div>
                     {p.isOwner && (
                       <button
                         onClick={async () => { await deleteFeedback({ postId: p._id }); }}
-                        style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: muted(theme), opacity: .35, padding: "2px 4px", fontFamily: "inherit", flexShrink: 0 }}
+                        style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "#c03030", opacity: .6, padding: "2px 6px", fontFamily: "inherit", flexShrink: 0 }}
                         onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
-                        onMouseLeave={e => (e.currentTarget.style.opacity = "0.35")}
+                        onMouseLeave={e => (e.currentTarget.style.opacity = "0.6")}
                       >
                         Delete
                       </button>
