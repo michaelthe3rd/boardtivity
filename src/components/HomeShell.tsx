@@ -652,8 +652,10 @@ export function HomeShell() {
     return () => clearTimeout(t);
   }, [activeBoardId]);
 
-  // Load persisted state from localStorage on first mount
+  // Load persisted state — wait for Clerk to resolve before hydrating
   useEffect(() => {
+    // isSignedIn is undefined while Clerk is still loading — wait for it
+    if (isSignedIn === undefined) return;
     try {
       const saved = localStorage.getItem("boardtivity");
       if (saved) {
