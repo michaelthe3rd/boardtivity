@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Boardtivity — Pitch Deck</title>
+<style>
+  @font-face {
+    font-family: "Satoshi";
+    src: url("/fonts/Satoshi-Variable.woff2") format("woff2");
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ink: #111315;
+    --ink2: rgba(17,19,21,.55);
+    --ink3: rgba(17,19,21,.3);
+    --cream: #f3f1eb;
+    --white: #ffffff;
+    --border: rgba(17,19,21,.09);
+    --green: #3a9e56;
+    --blue: #4a7ef5;
+    --purple: #9b6fe8;
+    --orange: #e07b54;
+    --accent: #111315;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: "Satoshi", -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+    background: var(--cream);
+    color: var(--ink);
+    line-height: 1.5;
+  }
+
+  /* ─── NAV ─── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: rgba(243,241,235,.88);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--border);
+    height: 52px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 28px;
+  }
+  nav .logo { display: flex; align-items: center; gap: 10px; }
+  nav .logo img { height: 22px; }
+  nav .slides { display: flex; gap: 4px; }
+  nav .slides a {
+    font-size: 12px; font-weight: 600; color: var(--ink2);
+    text-decoration: none; padding: 5px 10px; border-radius: 7px;
+    transition: background .15s, color .15s;
+  }
+  nav .slides a:hover { background: rgba(17,19,21,.06); color: var(--ink); }
+
+  /* ─── SLIDES ─── */
+  .slide {
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 80px 40px 60px;
+    position: relative;
+  }
+  .slide-inner { width: 100%; max-width: 860px; }
+
+  .eyebrow {
+    font-size: 11px; font-weight: 700; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--ink3); margin-bottom: 16px;
+  }
+  .headline {
+    font-size: clamp(38px, 6vw, 64px);
+    font-weight: 800; letter-spacing: -.035em; line-height: 1.05;
+    color: var(--ink);
+  }
+  .headline em { font-style: normal; color: var(--ink2); }
+  .subline {
+    font-size: clamp(16px, 2vw, 19px);
+    color: var(--ink2); line-height: 1.65; margin-top: 20px;
+    max-width: 620px; font-weight: 500;
+  }
+
+  /* ─── DIVIDER ─── */
+  .slide + .slide { border-top: 1px solid var(--border); }
+
+  /* ─── SLIDE 1: COVER ─── */
+  #cover {
+    background: var(--ink);
+    color: #f5f5f2;
+  }
+  #cover .eyebrow { color: rgba(255,255,255,.3); }
+  #cover .headline { color: #f5f5f2; }
+  #cover .headline em { color: rgba(255,255,255,.35); }
+  #cover .subline { color: rgba(255,255,255,.5); }
+  #cover .tag {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+    border-radius: 99px; padding: 6px 14px; font-size: 13px;
+    color: rgba(255,255,255,.55); font-weight: 600; margin-bottom: 32px;
+  }
+  #cover .tag span { width: 6px; height: 6px; border-radius: 50%; background: #6fc46b; display: inline-block; }
+  #cover .logo-img { height: 36px; margin-bottom: 40px; filter: invert(1); opacity: .9; }
+
+  /* ─── PROBLEM ─── */
+  #problem .cards {
+    display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-top: 36px;
+  }
+  .problem-card {
+    background: var(--white); border-radius: 14px;
+    border: 1px solid var(--border); padding: 24px 22px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.04);
+  }
+  .problem-card .icon { font-size: 28px; margin-bottom: 14px; }
+  .problem-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+  .problem-card p { font-size: 14px; color: var(--ink2); line-height: 1.6; }
+
+  /* ─── SOLUTION ─── */
+  #solution .features {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 36px;
+  }
+  .feature-card {
+    background: var(--white); border-radius: 14px;
+    border: 1px solid var(--border); padding: 24px 22px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.04);
+    display: flex; gap: 16px; align-items: flex-start;
+  }
+  .feature-card .dot {
+    width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .feature-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 5px; }
+  .feature-card p { font-size: 13px; color: var(--ink2); line-height: 1.55; }
+
+  /* ─── PRODUCT ─── */
+  #product .product-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 36px;
+  }
+  .product-module {
+    background: var(--white); border-radius: 14px; border: 1px solid var(--border);
+    padding: 26px 24px; box-shadow: 0 2px 8px rgba(0,0,0,.04);
+  }
+  .product-module .badge {
+    display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .1em;
+    text-transform: uppercase; padding: 4px 10px; border-radius: 99px;
+    margin-bottom: 14px;
+  }
+  .product-module h3 { font-size: 17px; font-weight: 800; margin-bottom: 8px; }
+  .product-module p { font-size: 14px; color: var(--ink2); line-height: 1.6; }
+  .product-module ul { margin-top: 12px; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .product-module ul li { font-size: 13px; color: var(--ink2); display: flex; align-items: flex-start; gap: 8px; }
+  .product-module ul li::before { content: "→"; color: var(--ink3); flex-shrink: 0; }
+
+  /* ─── AI ─── */
+  #ai .ai-inner {
+    margin-top: 36px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+  }
+  .ai-card {
+    background: var(--white); border-radius: 14px; border: 1px solid var(--border);
+    padding: 26px 24px; box-shadow: 0 2px 8px rgba(0,0,0,.04);
+  }
+  .ai-card .num {
+    font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--ink3); margin-bottom: 10px;
+  }
+  .ai-card h3 { font-size: 16px; font-weight: 800; margin-bottom: 8px; }
+  .ai-card p { font-size: 14px; color: var(--ink2); line-height: 1.6; }
+
+  /* ─── MARKET ─── */
+  #market .stats-row {
+    display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-top: 36px;
+  }
+  .stat-box {
+    background: var(--white); border-radius: 14px; border: 1px solid var(--border);
+    padding: 28px 24px; box-shadow: 0 2px 8px rgba(0,0,0,.04); text-align: center;
+  }
+  .stat-box .big {
+    font-size: 42px; font-weight: 800; letter-spacing: -.04em; line-height: 1;
+    margin-bottom: 6px;
+  }
+  .stat-box .label { font-size: 13px; color: var(--ink2); font-weight: 500; }
+  .market-note {
+    margin-top: 24px; font-size: 14px; color: var(--ink2); line-height: 1.7;
+    background: var(--white); border-radius: 12px; border: 1px solid var(--border);
+    padding: 18px 22px;
+  }
+
+  /* ─── BUSINESS ─── */
+  #business .tiers {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 36px;
+  }
+  .tier {
+    background: var(--white); border-radius: 14px; border: 1px solid var(--border);
+    padding: 28px 24px; box-shadow: 0 2px 8px rgba(0,0,0,.04);
+  }
+  .tier.featured { background: var(--ink); color: #f5f5f2; border-color: var(--ink); }
+  .tier .tier-name { font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 10px; }
+  .tier .price { font-size: 36px; font-weight: 800; letter-spacing: -.04em; margin-bottom: 4px; }
+  .tier .price sub { font-size: 16px; font-weight: 600; letter-spacing: 0; }
+  .tier .price-note { font-size: 13px; color: var(--ink2); margin-bottom: 18px; }
+  .tier.featured .price-note { color: rgba(255,255,255,.45); }
+  .tier .tier-perks { list-style: none; display: flex; flex-direction: column; gap: 9px; }
+  .tier .tier-perks li { font-size: 14px; display: flex; align-items: center; gap: 10px; }
+  .tier .tier-perks li::before { content: "✓"; font-weight: 800; color: var(--green); }
+  .tier.featured .tier-name { color: rgba(255,255,255,.4); }
+
+  /* ─── TRACTION ─── */
+  #traction .traction-grid {
+    display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-top: 36px;
+  }
+  .traction-card {
+    background: var(--white); border-radius: 14px; border: 1px solid var(--border);
+    padding: 24px 22px; box-shadow: 0 2px 8px rgba(0,0,0,.04);
+  }
+  .traction-card .num { font-size: 36px; font-weight: 800; letter-spacing: -.04em; margin-bottom: 4px; }
+  .traction-card .desc { font-size: 13px; color: var(--ink2); line-height: 1.5; }
+  .roadmap {
+    margin-top: 24px; background: var(--white); border-radius: 14px;
+    border: 1px solid var(--border); padding: 22px 24px;
+  }
+  .roadmap h3 { font-size: 13px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink3); margin-bottom: 16px; }
+  .roadmap-items { display: flex; flex-direction: column; gap: 10px; }
+  .roadmap-item { display: flex; gap: 14px; align-items: flex-start; }
+  .roadmap-item .q { font-size: 12px; font-weight: 700; color: var(--ink3); min-width: 40px; margin-top: 2px; }
+  .roadmap-item .text { font-size: 14px; color: var(--ink); font-weight: 600; }
+  .roadmap-item .sub { font-size: 13px; color: var(--ink2); }
+
+  /* ─── WHY NOW ─── */
+  #why .why-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 36px;
+  }
+  .why-card {
+    background: var(--white); border-radius: 14px; border: 1px solid var(--border);
+    padding: 26px 24px; box-shadow: 0 2px 8px rgba(0,0,0,.04);
+  }
+  .why-card h3 { font-size: 16px; font-weight: 800; margin-bottom: 8px; }
+  .why-card p { font-size: 14px; color: var(--ink2); line-height: 1.6; }
+
+  /* ─── CLOSING ─── */
+  #closing {
+    background: var(--ink); color: #f5f5f2;
+    text-align: center;
+  }
+  #closing .eyebrow { color: rgba(255,255,255,.28); }
+  #closing .headline { color: #f5f5f2; }
+  #closing .subline { color: rgba(255,255,255,.45); margin: 0 auto; }
+  #closing .links {
+    margin-top: 40px; display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;
+  }
+  #closing .links a {
+    padding: 12px 24px; border-radius: 12px; font-size: 14px; font-weight: 700;
+    text-decoration: none; letter-spacing: -.01em;
+  }
+  #closing .links a.primary {
+    background: #f5f5f2; color: var(--ink);
+  }
+  #closing .links a.secondary {
+    background: rgba(255,255,255,.07); color: rgba(255,255,255,.65);
+    border: 1px solid rgba(255,255,255,.12);
+  }
+  #closing .logo-img { height: 30px; margin-bottom: 40px; filter: invert(1); opacity: .7; }
+
+  /* ─── SLIDE NUMBERS ─── */
+  .slide-num {
+    position: absolute; bottom: 28px; right: 36px;
+    font-size: 11px; font-weight: 600; color: var(--ink3); letter-spacing: .06em;
+  }
+  #cover .slide-num, #closing .slide-num { color: rgba(255,255,255,.2); }
+
+  @media (max-width: 680px) {
+    #problem .cards,
+    #solution .features,
+    #product .product-grid,
+    #ai .ai-inner,
+    #market .stats-row,
+    #business .tiers,
+    #traction .traction-grid,
+    #why .why-grid { grid-template-columns: 1fr; }
+    nav .slides { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="logo">
+    <img src="/logo-horizontal.svg" alt="Boardtivity" />
+  </div>
+  <div class="slides">
+    <a href="#cover">Intro</a>
+    <a href="#problem">Problem</a>
+    <a href="#solution">Solution</a>
+    <a href="#product">Product</a>
+    <a href="#ai">AI</a>
+    <a href="#market">Market</a>
+    <a href="#business">Business</a>
+    <a href="#traction">Traction</a>
+    <a href="#closing">Contact</a>
+  </div>
+</nav>
+
+<!-- SLIDE 1: COVER -->
+<section class="slide" id="cover">
+  <div class="slide-inner">
+    <img src="/logo-horizontal.svg" alt="Boardtivity" class="logo-img" />
+    <div class="tag"><span></span> Launching on Product Hunt</div>
+    <div class="headline">The visual board for tasks,<br/><em>ideas, and deep focus.</em></div>
+    <div class="subline">Boardtivity turns scattered to-dos and half-formed thoughts into a visual workspace — with AI-powered breakdowns, a countdown focus timer, and real-time sync across all your devices.</div>
+  </div>
+  <div class="slide-num">01 / 09</div>
+</section>
+
+<!-- SLIDE 2: PROBLEM -->
+<section class="slide" id="problem">
+  <div class="slide-inner">
+    <div class="eyebrow">The problem</div>
+    <div class="headline">Productivity tools are<br/><em>busy, not useful.</em></div>
+    <div class="subline">Most apps demand more overhead than the work they're managing. You end up managing your tools instead of doing your work.</div>
+    <div class="cards">
+      <div class="problem-card">
+        <div class="icon">🗂</div>
+        <h3>Tab overload</h3>
+        <p>Tasks live in one app, notes in another, ideas in a third. Context-switching kills flow before it starts.</p>
+      </div>
+      <div class="problem-card">
+        <div class="icon">⏱</div>
+        <h3>No sense of time</h3>
+        <p>Lists have no urgency. You can add 50 tasks but still feel lost about what to actually work on right now.</p>
+      </div>
+      <div class="problem-card">
+        <div class="icon">💭</div>
+        <h3>Ideas get buried</h3>
+        <p>Fleeting thoughts belong somewhere visual and connected — not in a bullet-point graveyard.</p>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">02 / 09</div>
+</section>
+
+<!-- SLIDE 3: SOLUTION -->
+<section class="slide" id="solution">
+  <div class="slide-inner">
+    <div class="eyebrow">Our solution</div>
+    <div class="headline">One canvas.<br/><em>Everything in it.</em></div>
+    <div class="subline">Boardtivity is a visual, draggable workspace where tasks and ideas live side-by-side — and where AI helps you break work down and lock in to get it done.</div>
+    <div class="features">
+      <div class="feature-card">
+        <div class="dot" style="background:#e8f4ff;">🗓</div>
+        <div>
+          <h3>Task boards</h3>
+          <p>Add tasks with due dates, priorities, and subtasks. Drag them around a free-form canvas. See exactly what's due and when.</p>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="dot" style="background:#f0ebff;">💡</div>
+        <div>
+          <h3>Idea boards</h3>
+          <p>Capture thoughts as colorful cards and connect them visually. Build your own constellation of ideas.</p>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="dot" style="background:#eafff0;">⏳</div>
+        <div>
+          <h3>Focus mode</h3>
+          <p>A fullscreen countdown timer locks you into one task. No notifications. No distractions. Just the work.</p>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="dot" style="background:#fff5e8;">🔄</div>
+        <div>
+          <h3>Cross-device sync</h3>
+          <p>Your boards are automatically saved and synced in real time. Pick up on any device, instantly.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">03 / 09</div>
+</section>
+
+<!-- SLIDE 4: PRODUCT DEEP DIVE -->
+<section class="slide" id="product">
+  <div class="slide-inner">
+    <div class="eyebrow">Product</div>
+    <div class="headline">Built around how<br/><em>you actually think.</em></div>
+    <div class="product-grid">
+      <div class="product-module">
+        <span class="badge" style="background:#e8f4ff;color:#3060c0;">Task Board</span>
+        <h3>Structure your work</h3>
+        <p>Tasks with due dates, importance levels (Low / Medium / High), and AI-generated subtask breakdowns.</p>
+        <ul>
+          <li>Drag-and-drop canvas layout</li>
+          <li>Priority color coding</li>
+          <li>Subtask time estimation</li>
+          <li>Progress tracking per task</li>
+        </ul>
+      </div>
+      <div class="product-module">
+        <span class="badge" style="background:#f0ebff;color:#6a3ec2;">Idea Board</span>
+        <h3>Capture your thinking</h3>
+        <p>Colorful sticky-style cards that you can drag, link, and connect to build a map of your thinking.</p>
+        <ul>
+          <li>Drag-to-link idea connections</li>
+          <li>Visual web of related thoughts</li>
+          <li>Per-board color palettes</li>
+          <li>Hover-to-unlink interactions</li>
+        </ul>
+      </div>
+      <div class="product-module">
+        <span class="badge" style="background:#eafff0;color:#256838;">Focus Mode</span>
+        <h3>Lock in and execute</h3>
+        <p>One-click fullscreen timer attached to a specific task. Subtask chain or free-form — your choice.</p>
+        <ul>
+          <li>Taskchain: sequential subtask flow</li>
+          <li>Taskweb: visual node map</li>
+          <li>Auto-completes tasks on finish</li>
+          <li>Immersive, distraction-free UI</li>
+        </ul>
+      </div>
+      <div class="product-module">
+        <span class="badge" style="background:#fff5e8;color:#b05020;">Sync & Boards</span>
+        <h3>Your workspace, everywhere</h3>
+        <p>Multiple named boards, sign-in with Clerk, and Convex real-time sync so nothing is ever lost.</p>
+        <ul>
+          <li>Instant cloud save on every change</li>
+          <li>Multiple boards per type</li>
+          <li>Dark mode + light mode</li>
+          <li>Grid, dots, or blank canvas</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">04 / 09</div>
+</section>
+
+<!-- SLIDE 5: AI -->
+<section class="slide" id="ai">
+  <div class="slide-inner">
+    <div class="eyebrow">AI-powered</div>
+    <div class="headline">From vague goal<br/><em>to actionable plan.</em></div>
+    <div class="subline">Describe a task — Boardtivity's AI breaks it into timed subtasks automatically, with realistic time estimates for each step.</div>
+    <div class="ai-inner">
+      <div class="ai-card">
+        <div class="num">01 — Breakdown</div>
+        <h3>"Ship the landing page redesign"</h3>
+        <p>AI generates: Write copy (20 min) → Design mockup (45 min) → Build in code (60 min) → QA + deploy (20 min). Total: 145 min. Editable and re-generatable.</p>
+      </div>
+      <div class="ai-card">
+        <div class="num">02 — Time linking</div>
+        <h3>Subtasks drive the total</h3>
+        <p>Adjust any subtask's time estimate and the total updates automatically. No more guessing how long something will take — build from the bottom up.</p>
+      </div>
+      <div class="ai-card">
+        <div class="num">03 — Focus flow</div>
+        <h3>One subtask at a time</h3>
+        <p>After breakdown, hit Start Focus. The timer walks you through each subtask sequentially, showing what's next and keeping you locked in until it's done.</p>
+      </div>
+      <div class="ai-card">
+        <div class="num">04 — No AI overhead</div>
+        <h3>It disappears when not needed</h3>
+        <p>AI features are opt-in. Skip breakdown entirely and Boardtivity works as a fast, clean task and idea board — no AI clutter in the way.</p>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">05 / 09</div>
+</section>
+
+<!-- SLIDE 6: MARKET -->
+<section class="slide" id="market">
+  <div class="slide-inner">
+    <div class="eyebrow">Market opportunity</div>
+    <div class="headline">A massive market<br/><em>still looking for better.</em></div>
+    <div class="subline">The productivity software market is large and growing — but dominated by tools built before visual thinking and AI became expectations.</div>
+    <div class="stats-row">
+      <div class="stat-box">
+        <div class="big" style="color:var(--blue);">$131B</div>
+        <div class="label">Global productivity software market (2024)</div>
+      </div>
+      <div class="stat-box">
+        <div class="big" style="color:var(--purple);">14.4%</div>
+        <div class="label">Projected CAGR through 2030</div>
+      </div>
+      <div class="stat-box">
+        <div class="big" style="color:var(--green);">1.25B</div>
+        <div class="label">Knowledge workers globally — our addressable audience</div>
+      </div>
+    </div>
+    <div class="market-note">
+      <strong>Our wedge:</strong> Boardtivity targets individuals and small teams who find Notion too heavy, Trello too simple, and Obsidian too nerdy. We sit at the intersection of visual task management, idea capture, and AI-assisted focus — a combination no one else owns.
+    </div>
+  </div>
+  <div class="slide-num">06 / 09</div>
+</section>
+
+<!-- SLIDE 7: BUSINESS MODEL -->
+<section class="slide" id="business">
+  <div class="slide-inner">
+    <div class="eyebrow">Business model</div>
+    <div class="headline">Free to start.<br/><em>Plus for power users.</em></div>
+    <div class="subline">A freemium model that gets users hooked on the core experience before converting to paid.</div>
+    <div class="tiers">
+      <div class="tier">
+        <div class="tier-name">Free</div>
+        <div class="price">$0</div>
+        <div class="price-note">Forever free, no credit card needed</div>
+        <ul class="tier-perks">
+          <li>1 task board + 1 idea board</li>
+          <li>AI task breakdown</li>
+          <li>Focus mode</li>
+          <li>Cross-device sync</li>
+          <li>Dark mode</li>
+        </ul>
+      </div>
+      <div class="tier featured">
+        <div class="tier-name">Plus</div>
+        <div class="price">$8<sub>/mo</sub></div>
+        <div class="price-note">Everything in Free, plus:</div>
+        <ul class="tier-perks">
+          <li>Unlimited task boards</li>
+          <li>Unlimited idea boards</li>
+          <li>Priority support</li>
+          <li>Early access to new features</li>
+          <li>Export &amp; integrations (roadmap)</li>
+        </ul>
+      </div>
+    </div>
+    <div class="market-note" style="margin-top:16px;">
+      <strong>Why this works:</strong> The free tier is genuinely useful — users build a habit. The moment they want a second board for a new project or client, Plus pays for itself instantly. No arbitrary feature lockouts, just natural expansion.
+    </div>
+  </div>
+  <div class="slide-num">07 / 09</div>
+</section>
+
+<!-- SLIDE 8: TRACTION & ROADMAP -->
+<section class="slide" id="traction">
+  <div class="slide-inner">
+    <div class="eyebrow">Traction &amp; roadmap</div>
+    <div class="headline">Live, growing,<br/><em>just getting started.</em></div>
+    <div class="traction-grid">
+      <div class="traction-card">
+        <div class="num" style="color:var(--blue);">Day 1</div>
+        <div class="desc">Launching publicly on Product Hunt today — built in stealth, now open to the world.</div>
+      </div>
+      <div class="traction-card">
+        <div class="num" style="color:var(--green);">Full</div>
+        <div class="desc">Working product with AI breakdown, focus mode, sync, idea boards, and admin dashboard.</div>
+      </div>
+      <div class="traction-card">
+        <div class="num" style="color:var(--purple);">Solo</div>
+        <div class="desc">Built end-to-end by a solo founder — fast iteration, lean operations, high conviction.</div>
+      </div>
+    </div>
+    <div class="roadmap">
+      <h3>Roadmap</h3>
+      <div class="roadmap-items">
+        <div class="roadmap-item">
+          <div class="q">Q2 '25</div>
+          <div>
+            <div class="text">Mobile-responsive layout + PWA</div>
+            <div class="sub">Full touch support, install on iOS/Android</div>
+          </div>
+        </div>
+        <div class="roadmap-item">
+          <div class="q">Q3 '25</div>
+          <div>
+            <div class="text">Team boards &amp; shared workspaces</div>
+            <div class="sub">Invite collaborators, comment on cards, role permissions</div>
+          </div>
+        </div>
+        <div class="roadmap-item">
+          <div class="q">Q4 '25</div>
+          <div>
+            <div class="text">Integrations: Calendar, GitHub, Linear</div>
+            <div class="sub">Pull tasks from external tools into Boardtivity</div>
+          </div>
+        </div>
+        <div class="roadmap-item">
+          <div class="q">2026</div>
+          <div>
+            <div class="text">AI goal coaching + weekly review</div>
+            <div class="sub">Proactive suggestions based on your history and patterns</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">08 / 09</div>
+</section>
+
+<!-- SLIDE 9: CLOSING -->
+<section class="slide" id="closing">
+  <div class="slide-inner">
+    <img src="/logo-horizontal.svg" alt="Boardtivity" class="logo-img" />
+    <div class="eyebrow">Let's build together</div>
+    <div class="headline">Ready to back<br/>the future of focus?</div>
+    <div class="subline">Boardtivity is looking for early believers — advisors, angels, and power users who want to shape what productivity looks like for the next generation of builders.</div>
+    <div class="links">
+      <a href="https://boardtivity.com" class="primary">Try Boardtivity free</a>
+      <a href="mailto:hello@boardtivity.com" class="secondary">Get in touch</a>
+    </div>
+  </div>
+  <div class="slide-num">09 / 09</div>
+</section>
+
+</body>
+</html>
