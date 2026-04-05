@@ -504,6 +504,7 @@ export function HomeShell() {
   const [whyVisible, setWhyVisible] = useState(false);
   const [featuresVisible, setFeaturesVisible] = useState(false);
   const [pricingVisible, setPricingVisible] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [waitlistOpen, setWaitlistOpen] = useState(false);
   const [waitlistEmail, setWaitlistEmail] = useState("");
   const [waitlistDone, setWaitlistDone] = useState(false);
@@ -730,6 +731,13 @@ export function HomeShell() {
       document.exitFullscreen();
     }
   }
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   useEffect(() => {
     const observe = (el: HTMLDivElement | null, set: (v: boolean) => void) => {
@@ -1199,23 +1207,23 @@ export function HomeShell() {
 
   return (
     <main style={{ minHeight: "100vh", backgroundColor: pageBg(theme), color: pageText(theme), fontFamily: "'Satoshi', Arial, sans-serif" }}>
-      <section style={{ padding: "24px 40px 0" }}>
-        <header style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "center" }}>
+      <section style={{ padding: isMobile ? "16px 18px 0" : "24px 40px 0" }}>
+        <header style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-            <BoardtivityLogo size={52} dark={theme === "dark"} />
-            <span style={{ fontSize: 17, letterSpacing: ".02em", color: pageText(theme), fontWeight: 700 }}>Boardtivity</span>
+            <BoardtivityLogo size={isMobile ? 36 : 52} dark={theme === "dark"} />
+            <span style={{ fontSize: isMobile ? 15 : 17, letterSpacing: ".02em", color: pageText(theme), fontWeight: 700 }}>Boardtivity</span>
           </div>
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <ThemeToggle theme={theme} onToggle={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} />
             {isSignedIn ? (
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 13, color: muted(theme) }}>{user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress}</span>
+                {!isMobile && <span style={{ fontSize: 13, color: muted(theme) }}>{user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress}</span>}
                 <button onClick={() => signOut()} style={buttonStyle(theme, false)}>Sign out</button>
               </div>
             ) : (
               <>
                 <button onClick={() => openSignIn()} style={buttonStyle(theme, false)}>Sign in</button>
-                <button onClick={() => setWaitlistOpen(true)} style={buttonStyle(theme, true)}>Join waitlist</button>
+                {!isMobile && <button onClick={() => setWaitlistOpen(true)} style={buttonStyle(theme, true)}>Join waitlist</button>}
               </>
             )}
           </div>
@@ -1224,7 +1232,7 @@ export function HomeShell() {
 
       {/* ── HERO ── */}
       <section ref={heroRef} style={{
-        maxWidth: 720, margin: "0 auto", padding: "80px 24px 72px",
+        maxWidth: 720, margin: "0 auto", padding: isMobile ? "48px 20px 48px" : "80px 24px 72px",
         textAlign: "center",
         opacity: heroVisible ? 1 : 0,
         transform: heroVisible ? "none" : "translateY(20px)",
@@ -1280,7 +1288,14 @@ export function HomeShell() {
       </section>
 
       <section id="boardtivity-board" style={{ maxWidth: 1220, margin: "0 auto", padding: "0 20px 24px" }}>
-        <div ref={boardContainerRef} style={{ ...boardStyle, ...(isFullscreen ? { borderRadius: 0, border: "none", minHeight: "100vh" } : {}) }}>
+        {isMobile && (
+          <div style={{ borderRadius: 16, border: `1px solid ${border(theme)}`, backgroundColor: paper(theme), padding: "32px 24px", textAlign: "center" }}>
+            <div style={{ fontSize: 28, marginBottom: 12 }}>🖥️</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: pageText(theme), marginBottom: 8 }}>Best on desktop</div>
+            <div style={{ fontSize: 13, color: muted(theme), lineHeight: 1.7, opacity: .7 }}>The interactive board is designed for larger screens. Open Boardtivity on your computer to try it.</div>
+          </div>
+        )}
+        <div ref={boardContainerRef} style={{ ...boardStyle, ...(isFullscreen ? { borderRadius: 0, border: "none", minHeight: "100vh" } : {}), ...(isMobile ? { display: "none" } : {}) }}>
           <div
             style={{
               position: "absolute",
@@ -2851,7 +2866,7 @@ export function HomeShell() {
       </div>
       </section>
 
-      <section style={{ maxWidth: 1100, margin: "0 auto", padding: "100px 24px 140px" }}>
+      <section style={{ maxWidth: 1100, margin: "0 auto", padding: isMobile ? "60px 20px 80px" : "100px 24px 140px" }}>
 
         {/* Section label */}
         <div style={{ textAlign: "center", marginBottom: 96 }}>
@@ -2866,9 +2881,9 @@ export function HomeShell() {
         <div ref={whyRef} style={{ marginBottom: 100, opacity: whyVisible ? 1 : 0, transform: whyVisible ? "none" : "translateY(24px)", transition: "opacity .7s ease, transform .7s ease" }}>
           <div style={{ borderRadius: 24, overflow: "hidden", backgroundColor: theme === "dark" ? "#0a0b0e" : "#0d0f12", position: "relative" }}>
             <div style={{ position: "absolute", top: 0, left: "15%", right: "15%", height: 1, background: "linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent)", pointerEvents: "none" }}/>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", minHeight: 460 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", minHeight: isMobile ? "auto" : 460 }}>
               {/* Left: actual focus mode UI replica */}
-              <div style={{ padding: "64px 60px", borderRight: "1px solid rgba(255,255,255,.05)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ padding: isMobile ? "40px 24px" : "64px 60px", borderRight: isMobile ? "none" : "1px solid rgba(255,255,255,.05)", borderBottom: isMobile ? "1px solid rgba(255,255,255,.05)" : "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <div style={{ width: "100%", maxWidth: 320, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
                   <div style={{ fontSize: 13, letterSpacing: ".16em", color: "rgba(247,248,251,.45)", fontWeight: 600 }}>1 / 3</div>
                   <div style={{ marginTop: 12, fontSize: 18, fontWeight: 600, color: "rgba(247,248,251,.72)", letterSpacing: "-.01em", lineHeight: 1.4 }}>
@@ -2902,7 +2917,7 @@ export function HomeShell() {
                 </div>
               </div>
               {/* Right: copy */}
-              <div style={{ padding: "64px 60px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+              <div style={{ padding: isMobile ? "32px 24px 40px" : "64px 60px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
                 <h3 style={{ margin: "0 0 18px", fontSize: "clamp(26px,2.8vw,40px)", fontWeight: 800, letterSpacing: "-.04em", color: "#f7f8fb", lineHeight: 1.08 }}>Lock in.<br/>Step by step.</h3>
                 <p style={{ margin: "0 0 36px", fontSize: 15, color: "rgba(255,255,255,.42)", lineHeight: 1.9 }}>
                   Enter a timed focus session for any task or subtask. Boardtivity chains through your steps automatically — so you stay on track without thinking about it.
@@ -2922,7 +2937,7 @@ export function HomeShell() {
 
         {/* ── Features — 3-col editorial ── */}
         <div ref={featuresRef}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, marginBottom: 88, opacity: featuresVisible ? 1 : 0, transform: featuresVisible ? "none" : "translateY(20px)", transition: "opacity .6s ease, transform .6s ease" }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: isMobile ? 28 : 0, marginBottom: 88, opacity: featuresVisible ? 1 : 0, transform: featuresVisible ? "none" : "translateY(20px)", transition: "opacity .6s ease, transform .6s ease" }}>
             {([
               {
                 label: "Visual Boards",
@@ -2940,7 +2955,7 @@ export function HomeShell() {
                 body: "Drop color-coded thought notes anywhere on your board. Link them to tasks so ideas and action stay together.",
               },
             ] as const).map((f, i) => (
-              <div key={i} style={{ borderTop: `1px solid ${border(theme)}`, paddingTop: 28, paddingRight: i < 2 ? 48 : 0, paddingBottom: 0 }}>
+              <div key={i} style={{ borderTop: `1px solid ${border(theme)}`, paddingTop: 28, paddingRight: isMobile ? 0 : (i < 2 ? 48 : 0), paddingBottom: 0 }}>
                 <div style={{ fontSize: 10, letterSpacing: ".18em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 20, opacity: .5 }}>{f.label}</div>
                 <h3 style={{ margin: "0 0 16px", fontSize: 20, fontWeight: 800, letterSpacing: "-.03em", color: pageText(theme), lineHeight: 1.22 }}>{f.heading.split("\n").map((line, j) => <span key={j}>{line}{j === 0 ? <br/> : null}</span>)}</h3>
                 <p style={{ margin: 0, fontSize: 14, color: muted(theme), lineHeight: 1.85, opacity: .68 }}>{f.body}</p>
@@ -2950,7 +2965,7 @@ export function HomeShell() {
         </div>
 
         {/* ── Pricing ── */}
-        <div ref={pricingRef} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+        <div ref={pricingRef} style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 16 }}>
           {/* Free */}
           <div style={{ position: "relative", overflow: "hidden", borderRadius: 18, border: `1px solid ${border(theme)}`, backgroundColor: panel(theme), padding: "36px 28px", display: "flex", flexDirection: "column", opacity: pricingVisible ? 1 : 0, transform: pricingVisible ? "none" : "translateY(28px)", transition: "opacity .65s ease 0s, transform .65s ease 0s" }}>
             <div style={{ fontSize: 10, letterSpacing: ".16em", textTransform: "uppercase", fontWeight: 700, color: muted(theme), marginBottom: 16 }}>Free</div>
