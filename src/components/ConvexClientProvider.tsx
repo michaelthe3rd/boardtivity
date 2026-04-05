@@ -8,9 +8,7 @@ const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
 const clerkAppearance = {
   layout: {
-    logoImageUrl: typeof window !== "undefined" && window.location.hostname !== "localhost"
-      ? "https://boardtivity.com/logo-horizontal.svg"
-      : "http://localhost:3000/logo-horizontal.svg",
+    logoImageUrl: "https://boardtivity.com/logo-horizontal.svg",
     logoLinkUrl: "/",
     showOptionalFields: true,
     socialButtonsVariant: "blockButton" as const,
