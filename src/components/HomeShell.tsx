@@ -2361,8 +2361,9 @@ export function HomeShell() {
                               <button
                                 onClick={() => {
                                   const newMins = Math.max(5, step.minutes - 5);
+                                  const diff = newMins - step.minutes; // 0 if already at min, -5 otherwise
                                   setAiSteps((prev) => prev.map((s) => s.id === step.id ? { ...s, minutes: newMins } : s));
-                                  setMinutes((m) => Math.max(5, m - 5));
+                                  setMinutes((m) => Math.max(5, m + diff));
                                 }}
                                 style={{ background: "none", border: "none", cursor: "pointer", color: muted(boardTheme), fontSize: 16, padding: "0 2px", lineHeight: 1, fontWeight: 700 }}
                               >−</button>
