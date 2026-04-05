@@ -128,3 +128,66 @@ export const adminDeleteUser = mutation({
     await ctx.db.delete(id);
   },
 });
+
+export const getAnalytics = query({
+  args: {},
+  handler: async (ctx) => {
+    if (!(await isAdmin(ctx))) return null;
+    const [users, waitlist] = await Promise.all([
+      ctx.db.query("userBoards").take(2000),
+      ctx.db.query("waitlist").take(2000),
+    ]);
+
+    const now = Date.now();
+    const DAY = 86400000;
+    const dayKey = (ms: number) => {
+      const d = new Date(ms);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    };
+
+    const days30: string[] = [];
+    for (let i = 29; i >= 0; i--) days30.push(dayKey(now - i * DAY));
+
+    const userSignups: Record<string, number> = Object.fromEntries(days30.map((d) => [d, 0]));
+    const userActivity: Record<string, number> = Object.fromEntries(days30.map((d) => [d, 0]));
+    const waitlistSignups: Record<string, number> = Object.fromEntries(days30.map((d) => [d, 0]));
+
+    for (const u of users) {
+      const ck = dayKey(u._creationTime);
+      if (ck in userSignups) userSignups[ck]++;
+      const ak = dayKey(u.updatedAt);
+      if (ak in userActivity) userActivity[ak]++;
+    }
+    for (const w of waitlist) {
+      const k = dayKey(w.joinedAt);
+      if (k in waitlistSignups) waitlistSignups[k]++;
+    }
+
+    const totalStorage = users.reduce((s, u) => s + u.boardState.length, 0);
+    const avgStorage = users.length > 0 ? Math.round(totalStorage / users.length) : 0;
+    const active7d = users.filter((u) => u.updatedAt > now - 7 * DAY).length;
+    const active30d = users.filter((u) => u.updatedAt > now - 30 * DAY).length;
+
+    const topUsers = [...users]
+      .sort((a, b) => b.boardState.length - a.boardState.length)
+      .slice(0, 10)
+      .map((u) => ({
+        tokenIdentifier: u.tokenIdentifier,
+        size: u.boardState.length,
+        updatedAt: u.updatedAt,
+        createdAt: u._creationTime,
+      }));
+
+    return {
+      days: days30,
+      userSignups: days30.map((d) => userSignups[d]),
+      userActivity: days30.map((d) => userActivity[d]),
+      waitlistSignups: days30.map((d) => waitlistSignups[d]),
+      totalStorage,
+      avgStorage,
+      active7d,
+      active30d,
+      topUsers,
+    };
+  },
+});
