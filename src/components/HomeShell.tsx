@@ -3151,7 +3151,7 @@ export function HomeShell() {
       {/* ── Feedback Board ── */}
       <section ref={feedbackRef} id="feedback" style={{ maxWidth: 760, margin: "0 auto", padding: isMobile ? "60px 20px 80px" : "100px 48px 120px" }}>
         <div style={{ textAlign: "center", marginBottom: 48 }}>
-          <div style={{ fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 14, opacity: .5 }}>Community</div>
+          <div style={{ fontSize: 13, letterSpacing: ".18em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 14, opacity: .6 }}>Community</div>
           <h2 style={{ margin: "0 0 14px", fontSize: "clamp(26px,3.5vw,40px)", fontWeight: 900, letterSpacing: "-.05em", color: pageText(theme), lineHeight: 1.08 }}>Feature Requests & Feedback</h2>
           <p style={{ margin: 0, fontSize: 15, color: muted(theme), opacity: .65, lineHeight: 1.75 }}>Upvote what you want to see. The most requested features get built first.</p>
         </div>
