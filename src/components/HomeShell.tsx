@@ -941,7 +941,7 @@ export function HomeShell() {
 
   function addBoard(type: BoardType) {
     const existingOfType = boards.filter((b) => b.type === type);
-    if (existingOfType.length >= 1) {
+    if (existingOfType.length >= 3) {
       setUpgradeType(type);
       setUpgradeOpen(true);
       setBoardsOpen(false);
@@ -3555,7 +3555,7 @@ export function HomeShell() {
                 Unlock unlimited boards
               </div>
               <div style={{ fontSize: 15, color: theme === "dark" ? "rgba(255,255,255,.5)" : "rgba(0,0,0,.5)", lineHeight: 1.6, marginBottom: 24 }}>
-                Free accounts get one {upgradeType === "task" ? "task" : "idea"} board. Upgrade to Pro for unlimited boards, priority sync, and everything we build next.
+                Free accounts get up to 3 {upgradeType === "task" ? "task" : "idea"} boards. Upgrade to Pro for unlimited boards, priority sync, and everything we build next.
               </div>
               {/* Feature list */}
               <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 }}>
