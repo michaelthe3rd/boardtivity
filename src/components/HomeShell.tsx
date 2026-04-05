@@ -667,11 +667,10 @@ export function HomeShell() {
           activeBoardId?: string;
           drafts?: Draft[];
         };
-        // Always restore theme preferences
-        if (data.theme) setTheme(data.theme);
-        if (data.boardTheme) setBoardTheme(data.boardTheme);
-        // Only restore board data if signed in
+        // Only restore data for signed in users
         if (isSignedIn) {
+          if (data.theme) setTheme(data.theme);
+          if (data.boardTheme) setBoardTheme(data.boardTheme);
           if (Array.isArray(data.boards) && data.boards.length > 0) setBoards(data.boards);
           if (Array.isArray(data.notes)) setNotes(data.notes);
           if (data.activeBoardId) setActiveBoardId(data.activeBoardId);
@@ -693,16 +692,14 @@ export function HomeShell() {
     };
   }, [theme]);
 
-  // Persist state to localStorage — board data only when signed in
+  // Persist state to localStorage — only for signed in users
   useEffect(() => {
     if (!isHydrated) return;
     try {
-      const base = { theme, boardTheme };
       if (isSignedIn) {
-        localStorage.setItem("boardtivity", JSON.stringify({ ...base, boards, notes, activeBoardId, drafts }));
+        localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme, boards, notes, activeBoardId, drafts }));
       } else {
-        // Only save theme prefs; clear any previously saved board data
-        localStorage.setItem("boardtivity", JSON.stringify(base));
+        localStorage.removeItem("boardtivity");
       }
     } catch {}
   }, [isHydrated, isSignedIn, theme, boardTheme, boards, notes, activeBoardId, drafts]);
