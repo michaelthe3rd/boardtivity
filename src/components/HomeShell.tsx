@@ -1227,7 +1227,7 @@ export function HomeShell() {
 
   return (
     <main style={{ minHeight: "100vh", backgroundColor: pageBg(theme), color: pageText(theme), fontFamily: "'Satoshi', Arial, sans-serif" }}>
-      <section style={{ padding: isMobile ? "16px 18px 0" : "24px 40px 0" }}>
+      <section style={{ padding: isMobile ? "16px 18px 0" : "24px 48px 0" }}>
         <header style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
             <BoardtivityLogo size={isMobile ? 36 : 52} dark={theme === "dark"} />
@@ -1307,14 +1307,14 @@ export function HomeShell() {
         )}
         </section>
 
-      <section style={{ maxWidth: 1600, margin: "0 auto", padding: "0 20px 16px", textAlign: "center" }}>
+      <section style={{ maxWidth: 1440, margin: "0 auto", padding: "0 48px 16px", textAlign: "center" }}>
         <div style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 700, letterSpacing: ".14em", textTransform: "uppercase", color: muted(theme), opacity: .55 }}>
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="7" y1="2" x2="7" y2="12"/><polyline points="3,8 7,12 11,8"/></svg>
           Try the board
         </div>
       </section>
 
-      <section id="boardtivity-board" style={{ maxWidth: 1600, margin: "0 auto", padding: "0 20px 24px" }}>
+      <section id="boardtivity-board" style={{ maxWidth: 1440, margin: "0 auto", padding: "0 48px 24px" }}>
         {isMobile && (
           <div style={{ borderRadius: 16, border: `1px solid ${border(theme)}`, backgroundColor: paper(theme), padding: "32px 24px", textAlign: "center" }}>
             <div style={{ marginBottom: 12, display: "flex", justifyContent: "center" }}>
@@ -1869,7 +1869,19 @@ export function HomeShell() {
               {/* Account */}
               <div style={{ borderTop: `1px solid ${border(boardTheme)}`, paddingTop: 20, display: "grid", gap: 8 }}>
                 <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), fontWeight: 700, marginBottom: 2 }}>Account</div>
-                <button onClick={() => { setSettingsOpen(false); setWaitlistOpen(true); }} style={{ ...buttonStyle(boardTheme, true), width: "100%", fontSize: 14, height: 42 }}>Join waitlist</button>
+                {isSignedIn ? (
+                  <>
+                    <div style={{ fontSize: 13, color: muted(boardTheme), opacity: .7, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {user?.firstName ? `${user.firstName}${user.lastName ? ` ${user.lastName}` : ""}` : user?.emailAddresses?.[0]?.emailAddress}
+                    </div>
+                    <button onClick={() => { setSettingsOpen(false); signOut(); }} style={{ ...buttonStyle(boardTheme, false), width: "100%", fontSize: 14, height: 42 }}>Sign out</button>
+                  </>
+                ) : (
+                  <>
+                    <button onClick={() => { setSettingsOpen(false); openSignIn(); }} style={{ ...buttonStyle(boardTheme, false), width: "100%", fontSize: 14, height: 42 }}>Sign in</button>
+                    <button onClick={() => { setSettingsOpen(false); setWaitlistOpen(true); }} style={{ ...buttonStyle(boardTheme, true), width: "100%", fontSize: 14, height: 42 }}>Join waitlist</button>
+                  </>
+                )}
               </div>
             </div>
           </div>
