@@ -76,7 +76,7 @@ const STEP_H = 62;
 
 const INITIAL_BOARDS: Board[] = [
   { id: "my-board", name: "My Board", type: "task" },
-  { id: "my-thoughts", name: "My Thoughts", type: "thought" },
+  { id: "my-thoughts", name: "My Ideas", type: "thought" },
 ];
 
 function formatDate(date?: string) {
@@ -89,7 +89,7 @@ function formatDate(date?: string) {
 }
 
 function nextBoardName(existing: Board[], type: BoardType) {
-  const base = type === "task" ? "My Board" : "My Thoughts";
+  const base = type === "task" ? "My Board" : "My Ideas";
   const count = existing.filter((b) => b.type === type).length;
   return count === 0 ? base : `${base} #${count + 1}`;
 }
@@ -879,7 +879,7 @@ export function HomeShell() {
 
     if (sameType.length <= 1) {
       // Last board of this type — clear notes and reset name instead of deleting
-      const defaultName = board.type === "task" ? "My Board" : "My Thoughts";
+      const defaultName = board.type === "task" ? "My Board" : "My Ideas";
       setBoards((prev) => prev.map((b) => b.id === boardId ? { ...b, name: defaultName } : b));
       setNotes((prev) => prev.filter((n) => n.boardId !== boardId));
       setActiveBoardId(boardId);
@@ -1290,7 +1290,7 @@ export function HomeShell() {
           The <span className="hue-rotate">Board</span> and the Produc<span className="hue-rotate">tivity</span><br/>in one.
         </h1>
         <p style={{ margin: "0 auto 40px", maxWidth: 460, fontSize: 17, color: muted(theme), lineHeight: 1.82, opacity: .7 }}>
-          Boardtivity is a freeform visual board for your tasks, thoughts, and focus. Drag tasks anywhere, let AI break them down into steps, link ideas, chain subtasks, and lock into focus mode — all in one place.
+          Boardtivity is a freeform visual board for your tasks, ideas, and focus. Drag tasks anywhere, let AI break them down into steps, link ideas, chain subtasks, and lock into focus mode — all in one place.
         </p>
 
         {/* Inline email capture */}
@@ -1564,7 +1564,7 @@ export function HomeShell() {
                     <img src="/logo-vertical.svg" alt="Boardtivity" style={{ width: 180, opacity: boardTheme === "dark" ? 0.65 : 0.55, filter: boardTheme === "dark" ? "invert(1)" : "none", pointerEvents: "none", userSelect: "none" }} />
                     <div style={{ width: 360 }}>
                       <div style={{ fontSize: 24, fontWeight: 700, lineHeight: 1.15 }}>
-                        Click + to create your first {thoughtMode ? "thought" : "task"}
+                        Click + to create your first {thoughtMode ? "idea" : "task"}
                       </div>
                       <div style={{ marginTop: 10, fontSize: 15, lineHeight: 1.6 }}>
                         Drag the board, zoom in or out, and build your workspace from there.
@@ -1653,7 +1653,7 @@ export function HomeShell() {
                   className={thoughtUnlinkTarget === note.id ? "thought-vibrate" : undefined}
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                    <div style={pill(boardTheme)}>{note.type === "task" ? "Task" : "Thought"}</div>
+                    <div style={pill(boardTheme)}>{note.type === "task" ? "Task" : "Idea"}</div>
                     {note.type === "task" && note.dueDate && <div style={{ ...pill(boardTheme), fontWeight: 800 }}>Due {formatDate(note.dueDate)}</div>}
                   </div>
 
@@ -1770,7 +1770,7 @@ export function HomeShell() {
                       color: pageText(boardTheme), cursor: "pointer",
                     }}>
                       {board.name}
-                      <span style={{ marginLeft: 6, fontSize: 10, color: muted(boardTheme), fontWeight: 400 }}>{board.type === "task" ? "Task" : "Thought"}</span>
+                      <span style={{ marginLeft: 6, fontSize: 10, color: muted(boardTheme), fontWeight: 400 }}>{board.type === "task" ? "Task" : "Idea"}</span>
                     </button>
                     <button onClick={() => { setRenameBoardId(board.id); setRenameValue(board.name); }} style={{ background: "none", border: "none", padding: "4px 6px", cursor: "pointer", color: muted(boardTheme), fontSize: 11 }} title="Rename">✎</button>
                     {confirmDeleteId === board.id ? (
@@ -1786,7 +1786,7 @@ export function HomeShell() {
                 <div style={{ height: 1, backgroundColor: border(boardTheme), margin: "6px 10px" }} />
                 <div style={{ display: "flex", gap: 6, padding: "4px 10px 6px" }}>
                   <button onClick={() => addBoard("task")} style={{ ...buttonStyle(boardTheme, false, true), flex: 1, fontSize: 12 }}>+ Task</button>
-                  <button onClick={() => addBoard("thought")} style={{ ...buttonStyle(boardTheme, false, true), flex: 1, fontSize: 12 }}>+ Thought</button>
+                  <button onClick={() => addBoard("thought")} style={{ ...buttonStyle(boardTheme, false, true), flex: 1, fontSize: 12 }}>+ Idea board</button>
                 </div>
               </div>
             </div>
@@ -1865,7 +1865,7 @@ export function HomeShell() {
 
               {/* Thought Note Color */}
               <div>
-                <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), fontWeight: 700, marginBottom: 10 }}>Thought Note Color</div>
+                <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), fontWeight: 700, marginBottom: 10 }}>Idea Note Color</div>
                 <div style={{ display: "flex", gap: 6, marginBottom: 12, padding: 3, backgroundColor: boardTheme === "dark" ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", borderRadius: 10, border: `1px solid ${border(boardTheme)}` }}>
                   {(["random","fixed"] as const).map(mode => (
                     <button key={mode} onClick={() => setThoughtColorMode(mode)} style={{
@@ -2032,7 +2032,7 @@ export function HomeShell() {
                   Adding to {activeBoard.name}
                 </div>
                 <div style={{ marginTop: 6, fontSize: 18, fontWeight: 700 }}>
-                  {thoughtMode ? "Add a thought" : "Add a task"}
+                  {thoughtMode ? "Add an idea" : "Add a task"}
                 </div>
               </div>
               <button onClick={closeComposer} style={circleButton(boardTheme, 42)}>✕</button>
@@ -2060,12 +2060,12 @@ export function HomeShell() {
                     backgroundColor: thoughtMode ? paletteBg(composerColorIdx, boardTheme) : getBg(importance === "none" ? undefined : importance),
                     border: composerError.title ? "1px solid rgba(200,40,40,.5)" : "1px solid rgba(0,0,0,.05)",
                     padding: 18,
-                    minHeight: thoughtMode ? 160 : 250,
+                    minHeight: thoughtMode ? 220 : 250,
                     transition: "background-color .25s ease",
                   }}
                 >
                   <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: muted(boardTheme) }}>
-                    {thoughtMode ? "Thought" : "Task"}
+                    {thoughtMode ? "Idea" : "Task"}
                   </div>
                   <textarea
                     value={title}
@@ -2076,19 +2076,20 @@ export function HomeShell() {
                         setMinutes(estimateTime(e.target.value));
                       }
                     }}
-                    placeholder={thoughtMode ? "What’s on your mind?" : "What do you need to do?"}
+                    placeholder={thoughtMode ? "What’s your idea?" : "What do you need to do?"}
                     style={{
                       width: "100%",
-                      minHeight: thoughtMode ? 68 : 110,
+                      minHeight: thoughtMode ? 130 : 110,
                       marginTop: 10,
                       border: "none",
                       background: "transparent",
                       resize: "none",
                       outline: "none",
                       color: pageText(boardTheme),
-                      fontSize: 26,
-                      lineHeight: 1.08,
+                      fontSize: thoughtMode ? 28 : 26,
+                      lineHeight: 1.12,
                       fontWeight: 700,
+                      fontFamily: "inherit",
                     }}
                   />
                   <textarea
@@ -2097,14 +2098,15 @@ export function HomeShell() {
                     placeholder={thoughtMode ? "Optional note" : "Optional details"}
                     style={{
                       width: "100%",
-                      minHeight: 44,
+                      minHeight: thoughtMode ? 28 : 44,
                       border: "none",
                       background: "transparent",
                       resize: "none",
                       outline: "none",
                       color: muted(boardTheme),
-                      fontSize: 15,
+                      fontSize: thoughtMode ? 13 : 15,
                       lineHeight: 1.6,
+                      fontFamily: "inherit",
                     }}
                   />
                 </div>
@@ -2286,7 +2288,7 @@ export function HomeShell() {
                   )}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                     <button onClick={closeComposer} style={buttonStyle(boardTheme)}>Cancel</button>
-                    <button onClick={createNote} style={buttonStyle(boardTheme, true)}>{thoughtMode ? "Create thought" : "Create task"}</button>
+                    <button onClick={createNote} style={buttonStyle(boardTheme, true)}>{thoughtMode ? "Create idea" : "Create task"}</button>
                   </div>
                 </div>
               </div>
@@ -2295,7 +2297,7 @@ export function HomeShell() {
                 <div style={{ display: "grid", gap: 10 }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                     <button onClick={closeComposer} style={buttonStyle(boardTheme)}>Cancel</button>
-                    <button onClick={createNote} style={buttonStyle(boardTheme, true)}>Create thought</button>
+                    <button onClick={createNote} style={buttonStyle(boardTheme, true)}>Create idea</button>
                   </div>
                 </div>
               )}
@@ -2336,7 +2338,7 @@ export function HomeShell() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
                   <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: muted(boardTheme) }}>
-                    {detailNote.type === "task" ? "Task details" : "Thought"}
+                    {detailNote.type === "task" ? "Task details" : "Idea"}
                   </div>
                   {detailNote.type !== "task" && detailNote.createdAt && (
                     <div style={{ fontSize: 11, color: muted(boardTheme), opacity: .5 }}>
@@ -2360,7 +2362,7 @@ export function HomeShell() {
                   <button
                     onClick={() => { setDetailEditTitle(detailNote.title); setDetailEditBody(detailNote.body ?? ""); setDetailEditing(true); }}
                     style={{ ...circleButton(boardTheme, 36), fontSize: 14 }}
-                    title="Edit thought"
+                    title="Edit idea"
                   >✎</button>
                 )}
                 <button onClick={() => { setDetailNoteId(null); setDetailEditing(false); }} style={circleButton(boardTheme, 36)}>✕</button>
@@ -2491,7 +2493,7 @@ export function HomeShell() {
                     <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), marginBottom: 10 }}>Connections</div>
                     {detailNote.linkedNoteIds.length === 0 ? (
                       <div style={{ color: muted(boardTheme), fontSize: 14, lineHeight: 1.6 }}>
-                        Drag this thought over another to connect them. Hold over a connected thought to unlink.
+                        Drag this idea over another to connect them. Hold over a connected idea to unlink.
                       </div>
                     ) : (
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -2628,7 +2630,7 @@ export function HomeShell() {
                         </div>
                       ) : (
                         <button onClick={() => setConfirmDeleteId(detailNote.id)} style={{ width: "100%", height: 36, background: "none", border: "none", color: boardTheme === "dark" ? "rgba(255,100,100,.65)" : "rgba(160,40,40,.55)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-                          Delete {detailNote.type === "task" ? "task" : "thought"}
+                          Delete {detailNote.type === "task" ? "task" : "idea"}
                         </button>
                       )}
                     </div>
@@ -3108,9 +3110,9 @@ export function HomeShell() {
                 body: "Expand tasks into a subtask web you can see at once, or a sequential chain you step through one at a time.",
               },
               {
-                label: "Thought Notes",
+                label: "Idea Notes",
                 heading: "Capture ideas\nnext to the work.",
-                body: "Drop color-coded thought notes anywhere on your board. Link them to tasks so ideas and action stay together.",
+                body: "Drop color-coded idea notes anywhere on your board. Link them to tasks so ideas and action stay together.",
               },
             ] as const).map((f, i) => (
               <div key={i} style={{ borderTop: `1px solid ${border(theme)}`, paddingTop: 28, paddingRight: isMobile ? 0 : (i < 2 ? 48 : 0), paddingBottom: 0 }}>
@@ -3128,9 +3130,9 @@ export function HomeShell() {
           <div style={{ position: "relative", overflow: "hidden", borderRadius: 18, border: `1px solid ${border(theme)}`, backgroundColor: panel(theme), padding: "36px 28px", display: "flex", flexDirection: "column", opacity: pricingVisible ? 1 : 0, transform: pricingVisible ? "none" : "translateY(28px)", transition: "opacity .65s ease 0s, transform .65s ease 0s" }}>
             <div style={{ fontSize: 10, letterSpacing: ".16em", textTransform: "uppercase", fontWeight: 700, color: muted(theme), marginBottom: 16 }}>Free</div>
             <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1.08, letterSpacing: "-.035em", color: pageText(theme), marginBottom: 14 }}>Free forever</div>
-            <div style={{ fontSize: 13, color: muted(theme), marginBottom: 18, lineHeight: 1.75, flexGrow: 1 }}>Full access to every feature — boards, tasks, subtasks, focus sessions, and thought notes. No credit card needed.</div>
+            <div style={{ fontSize: 13, color: muted(theme), marginBottom: 18, lineHeight: 1.75, flexGrow: 1 }}>Full access to every feature — boards, tasks, subtasks, focus sessions, and idea notes. No credit card needed.</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 26 }}>
-              {["Up to 3 boards", "Unlimited tasks & thoughts", "Focus mode & subtasks", "Taskweb & Taskchain"].map((f) => (
+              {["Up to 3 boards", "Unlimited tasks & ideas", "Focus mode & subtasks", "Taskweb & Taskchain"].map((f) => (
                 <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: pageText(theme) }}>
                   <div style={{ width: 16, height: 16, borderRadius: "50%", backgroundColor: hexToRgba("#6fc46b", .15), border: "1px solid rgba(111,196,107,.35)", display: "grid", placeItems: "center", flexShrink: 0 }}>
                     <svg width="8" height="8" viewBox="0 0 10 10"><polyline points="2,5.5 4.2,7.5 8,3" stroke="#6fc46b" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -3151,7 +3153,7 @@ export function HomeShell() {
             <div style={{ fontSize: 34, fontWeight: 800, lineHeight: 1.08, letterSpacing: "-.035em", color: "#f7f8fb", marginBottom: 14 }}>$5.99 / mo</div>
             <div style={{ fontSize: 13, lineHeight: 1.75, color: "rgba(255,255,255,.42)", marginBottom: 18, flexGrow: 1 }}>Everything in Free, plus more boards and personalization to match your workflow.</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 26 }}>
-              {["Up to 10 boards", "Custom thought note colors", "Google & Apple Calendar sync", "Priority support"].map((f) => (
+              {["Up to 10 boards", "Custom idea note colors", "Google & Apple Calendar sync", "Priority support"].map((f) => (
                 <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "rgba(255,255,255,.72)" }}>
                   <div style={{ width: 16, height: 16, borderRadius: "50%", backgroundColor: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.18)", display: "grid", placeItems: "center", flexShrink: 0 }}>
                     <svg width="8" height="8" viewBox="0 0 10 10"><polyline points="2,5.5 4.2,7.5 8,3" stroke="rgba(255,255,255,.7)" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
