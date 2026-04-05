@@ -11,8 +11,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: `(function(){try{var s=localStorage.getItem("boardtivity");if(s){var d=JSON.parse(s);var t=d.theme||"light";var bt=d.boardTheme||t;document.documentElement.setAttribute("data-theme",t);document.documentElement.setAttribute("data-board-theme",bt);var bg=t==="dark"?"#0d0f12":"#f3f1eb";document.documentElement.style.backgroundColor=bg;}}catch(e){}})();`}} />
+      </head>
+      <body suppressHydrationWarning>
         <ConvexClientProvider>{children}</ConvexClientProvider>
         <Analytics />
       </body>

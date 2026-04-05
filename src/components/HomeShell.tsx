@@ -693,6 +693,7 @@ export function HomeShell() {
           drafts?: Draft[];
           thoughtColorMode?: "random" | "fixed";
           thoughtFixedColorIdx?: number;
+          boardGrid?: "grid" | "dots" | "blank";
         };
         // Only restore data for signed in users
         if (isSignedIn) {
@@ -704,6 +705,7 @@ export function HomeShell() {
           if (Array.isArray(data.drafts)) setDrafts(data.drafts);
           if (data.thoughtColorMode) setThoughtColorMode(data.thoughtColorMode);
           if (typeof data.thoughtFixedColorIdx === "number") setThoughtFixedColorIdx(data.thoughtFixedColorIdx);
+          if (data.boardGrid) setBoardGrid(data.boardGrid);
         }
       }
     } catch {}
@@ -726,12 +728,12 @@ export function HomeShell() {
     if (!isHydrated) return;
     try {
       if (isSignedIn) {
-        localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx }));
+        localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid }));
       } else {
         localStorage.removeItem("boardtivity");
       }
     } catch {}
-  }, [isHydrated, isSignedIn, theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx]);
+  }, [isHydrated, isSignedIn, theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid]);
 
   useEffect(() => {
     function onDocPointerDown(e: PointerEvent) {
@@ -1364,7 +1366,7 @@ export function HomeShell() {
             <div style={{ fontSize: 13, color: muted(theme), lineHeight: 1.7, opacity: .7 }}>The interactive board is designed for larger screens. Try it on your computer or iPad.</div>
           </div>
         )}
-        <div ref={boardContainerRef} style={{ ...boardStyle, ...(isFullscreen ? { borderRadius: 0, border: "none", minHeight: "100vh" } : {}), ...(isMobile ? { display: "none" } : {}) }}>
+        <div id="board-shell" ref={boardContainerRef} style={{ ...boardStyle, ...(isFullscreen ? { borderRadius: 0, border: "none", minHeight: "100vh" } : {}), ...(isMobile ? { display: "none" } : {}) }}>
           <div
             style={{
               position: "absolute",
