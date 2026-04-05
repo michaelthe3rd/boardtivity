@@ -2945,18 +2945,18 @@ export function HomeShell() {
               {/* Left: actual focus mode UI replica */}
               <div style={{ padding: isMobile ? "40px 24px" : "64px 60px", borderRight: isMobile ? "none" : "1px solid rgba(255,255,255,.05)", borderBottom: isMobile ? "1px solid rgba(255,255,255,.05)" : "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <div style={{ width: "100%", maxWidth: 320, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
-                  <div style={{ fontSize: 13, letterSpacing: ".16em", color: "rgba(247,248,251,.45)", fontWeight: 600 }}>1 / 3</div>
+                  <div style={{ fontSize: 13, letterSpacing: ".16em", color: "rgba(247,248,251,.45)", fontWeight: 600 }}>2 / 3</div>
                   <div style={{ marginTop: 12, fontSize: 18, fontWeight: 600, color: "rgba(247,248,251,.72)", letterSpacing: "-.01em", lineHeight: 1.4 }}>
-                    Design the landing page
+                    Study for Chemistry exam
                   </div>
                   <div style={{ marginTop: 28, fontSize: 92, fontWeight: 700, letterSpacing: "-.04em", fontVariantNumeric: "tabular-nums", lineHeight: 1, color: "#f7f8fb" }}>
-                    24:38
+                    18:45
                   </div>
                   {/* Progress — current step */}
                   <div style={{ marginTop: 44, width: "100%" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
-                      <span style={{ fontSize: 14, fontWeight: 600, color: "rgba(247,248,251,.8)" }}>Research</span>
-                      <span style={{ fontSize: 14, color: "rgba(247,248,251,.4)" }}>1 / 3</span>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: "rgba(247,248,251,.8)" }}>Practice problems</span>
+                      <span style={{ fontSize: 14, color: "rgba(247,248,251,.4)" }}>2 / 3</span>
                     </div>
                     <div style={{ height: 6, borderRadius: 999, backgroundColor: "rgba(255,255,255,.1)", overflow: "hidden", marginBottom: 18 }}>
                       <div style={{ height: "100%", width: "68%", borderRadius: 999, backgroundColor: "rgba(247,248,251,.88)" }}/>
