@@ -721,10 +721,12 @@ export function HomeShell() {
     setIsHydrated(true);
   }, [isSignedIn]);
 
-  // Reveal page (was hidden by inline script to prevent flash)
+  // Reveal page only after Clerk auth + localStorage have resolved (prevents signed-out flash)
   useEffect(() => {
-    document.documentElement.style.visibility = "";
-  }, []);
+    if (isHydrated) {
+      document.documentElement.style.visibility = "";
+    }
+  }, [isHydrated]);
 
   // Sync theme attributes to document root so CSS data-theme rules apply reactively
   useEffect(() => {
