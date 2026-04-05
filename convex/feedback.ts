@@ -4,6 +4,23 @@ import { v } from "convex/values";
 const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
 const MAX_CONTENT_LENGTH = 500;
 
+const ADJECTIVES = ["Swift","Bright","Calm","Bold","Keen","Vast","Crisp","Neat","Sage","Zeal","Jade","Nova","Peak","Dusk","Flux","Glow","Haze","Iris","Jest","Lush","Mist","Nimble","Opal","Pure","Quill","Rift","Snap","Teal","Urge","Vivid","Wren","Lynx","Yoke","Zinc","Arch","Blaze","Crest","Drift","Echo","Fern"];
+const NOUNS = ["Fox","Wolf","Hawk","Bear","Lynx","Owl","Deer","Crow","Elk","Hare","Mink","Puma","Rook","Swan","Toad","Vole","Wren","Bison","Crane","Drake","Eagle","Finch","Grebe","Heron","Ibis","Jay","Kite","Lark","Moose","Newt","Otter","Pike","Quail","Robin","Stoat","Trout","Urchin","Viper","Wasp","Zebra"];
+
+function generateUsername(tokenIdentifier: string): string {
+  // Simple deterministic hash from token
+  let hash = 0;
+  for (let i = 0; i < tokenIdentifier.length; i++) {
+    hash = ((hash << 5) - hash) + tokenIdentifier.charCodeAt(i);
+    hash |= 0;
+  }
+  const h = Math.abs(hash);
+  const adj = ADJECTIVES[h % ADJECTIVES.length];
+  const noun = NOUNS[Math.floor(h / ADJECTIVES.length) % NOUNS.length];
+  const num = (h % 90) + 10; // 10–99
+  return `${adj}${noun}${num}`;
+}
+
 export const list = query({
   args: {},
   handler: async (ctx) => {
@@ -54,7 +71,7 @@ export const post = mutation({
       throw new Error(`rate_limit:${hoursLeft}`);
     }
 
-    const authorName = identity.name ?? identity.email ?? "Anonymous";
+    const authorName = generateUsername(identity.tokenIdentifier);
 
     return await ctx.db.insert("feedbackPosts", {
       tokenIdentifier: identity.tokenIdentifier,
