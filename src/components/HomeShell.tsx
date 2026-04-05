@@ -730,6 +730,12 @@ export function HomeShell() {
     }
   }, [isHydrated]);
 
+  // Safety fallback: if Clerk fails to initialize (e.g. domain not whitelisted), never leave page blank
+  useEffect(() => {
+    const t = setTimeout(() => { document.documentElement.style.visibility = ""; }, 4000);
+    return () => clearTimeout(t);
+  }, []);
+
   // Hydrate from Convex when data arrives — enables cross-device sync for signed-in users
   useEffect(() => {
     if (!isSignedIn || savedBoard === undefined) return; // still loading or not signed in
@@ -1333,7 +1339,12 @@ export function HomeShell() {
             <ThemeToggle theme={theme} onToggle={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} />
             {isSignedIn ? (
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {!isMobile && <span style={{ fontSize: 13, color: muted(theme) }}>{user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress}</span>}
+                {!isMobile && (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 1 }}>
+                    <span style={{ fontSize: 13, color: muted(theme) }}>{user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress}</span>
+                    <span style={{ fontSize: 10.5, color: muted(theme), opacity: .55, letterSpacing: ".01em" }}>Saves automatically · syncs across devices</span>
+                  </div>
+                )}
                 <button onClick={() => signOut()} style={buttonStyle(theme, false)}>Sign out</button>
               </div>
             ) : (
