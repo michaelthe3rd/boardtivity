@@ -18,7 +18,7 @@ const maskToken = (t: string) => t.slice(0, 12) + "…" + t.slice(-6);
 
 export default function AdminClient() {
   const { user, isLoaded } = useUser();
-  const { signOut } = useClerk();
+  const { signOut, openSignIn } = useClerk();
   const [tab, setTab] = useState<Tab>("overview");
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
@@ -32,9 +32,21 @@ export default function AdminClient() {
   const deleteUser = useMutation(api.admin.adminDeleteUser);
 
   if (!isLoaded) return <Loading />;
-  if (!user) return <Gate message="Sign in to access the admin panel." />;
+  if (!user) return (
+    <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", fontFamily: "'Satoshi', Arial, sans-serif", backgroundColor: "#f5f5f3" }}>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: "-.02em", marginBottom: 28, color: "#111315" }}>Boardtivity / admin</div>
+        <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-.03em", marginBottom: 10, color: "#111315" }}>Admin access</div>
+        <div style={{ fontSize: 15, color: "rgba(0,0,0,.45)", marginBottom: 28 }}>Sign in with your admin account to continue.</div>
+        <button
+          onClick={() => openSignIn({ afterSignInUrl: "/admin" } as Parameters<typeof openSignIn>[0])}
+          style={{ padding: "12px 28px", borderRadius: 12, border: "none", backgroundColor: "#111315", color: "#f5f5f3", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-.01em" }}
+        >Sign in</button>
+      </div>
+    </div>
+  );
   if (stats === undefined) return <Loading />;
-  if (stats === null) return <Gate message="You don't have access to this page." />;
+  if (stats === null) return <Gate message="This account doesn't have admin access." />;
 
   const TABS: { id: Tab; label: string }[] = [
     { id: "overview", label: "Overview" },
