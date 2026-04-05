@@ -487,6 +487,7 @@ export function HomeShell() {
   const [breakSecondsLeft, setBreakSecondsLeft] = useState(0);
   const [focusChainMode, setFocusChainMode] = useState(false);
   const [focusNextStep, setFocusNextStep] = useState<{ id: number; title: string; minutes: number } | null>(null);
+  const [focusExitConfirm, setFocusExitConfirm] = useState(false);
   const focusNoteIdRef = useRef<number | null>(null);
   const focusStepIdRef = useRef<number | null>(null);
   const notesRef = useRef<typeof notes>([]);
@@ -1316,7 +1317,7 @@ export function HomeShell() {
               position: "absolute",
               inset: 0,
               backgroundColor: paper(boardTheme),
-              ...(boardGrid === "grid" ? { backgroundImage: `linear-gradient(${grid(boardTheme)} 1px, transparent 1px), linear-gradient(90deg, ${grid(boardTheme)} 1px, transparent 1px)`, backgroundSize: `${48 * scale}px ${48 * scale}px`, backgroundPosition: `${pan.x % (48 * scale)}px ${pan.y % (48 * scale)}px` } : boardGrid === "dots" ? { backgroundImage: `radial-gradient(circle, ${grid(boardTheme)} 1.5px, transparent 1.5px)`, backgroundSize: `${32 * scale}px ${32 * scale}px`, backgroundPosition: `${pan.x % (32 * scale)}px ${pan.y % (32 * scale)}px` } : {}),
+              ...(boardGrid === "grid" ? { backgroundImage: `linear-gradient(${grid(boardTheme)} 1px, transparent 1px), linear-gradient(90deg, ${grid(boardTheme)} 1px, transparent 1px)`, backgroundSize: `${48 * scale}px ${48 * scale}px`, backgroundPosition: `${pan.x % (48 * scale)}px ${pan.y % (48 * scale)}px` } : boardGrid === "dots" ? { backgroundImage: `radial-gradient(circle, ${grid(boardTheme)} ${Math.max(0.6, 1.5 * scale)}px, transparent ${Math.max(0.6, 1.5 * scale)}px)`, backgroundSize: `${32 * scale}px ${32 * scale}px`, backgroundPosition: `${pan.x % (32 * scale)}px ${pan.y % (32 * scale)}px` } : {}),
               pointerEvents: "none",
             }}
           />
@@ -1379,6 +1380,9 @@ export function HomeShell() {
                 transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
                 transformOrigin: "0 0",
                 backgroundColor: "transparent",
+                willChange: "transform",
+                backfaceVisibility: "hidden",
+                WebkitBackfaceVisibility: "hidden",
               }}
             >
               <svg width={BOARD_W} height={BOARD_H} style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
@@ -2774,13 +2778,7 @@ export function HomeShell() {
                   <button onClick={() => { setFocusPaused(false); setBreakSecondsLeft(0); }} style={focusBtnPrimary}>
                     Resume now
                   </button>
-                  <button
-                    onClick={() => {
-                      setFocusOpen(false); setFocusPaused(false); setBreakSecondsLeft(0);
-                      setFocusSecondsLeft(0); setFocusNoteId(null); setFocusStepId(null); setFocusChainMode(false);
-                    }}
-                    style={focusBtnGhost}
-                  >
+                  <button onClick={() => setFocusExitConfirm(true)} style={focusBtnGhost}>
                     Exit
                   </button>
                 </div>
@@ -2814,14 +2812,34 @@ export function HomeShell() {
                   <button onClick={() => setFocusSecondsLeft(1)} style={focusBtnSecondary}>
                     Skip
                   </button>
+                  <button onClick={() => setFocusExitConfirm(true)} style={focusBtnGhost}>
+                    Exit
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Exit confirmation overlay */}
+            {focusExitConfirm && (
+              <div style={{ position: "absolute", inset: 0, zIndex: 10, backgroundColor: "rgba(6,7,10,.88)", backdropFilter: "blur(8px)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 0, textAlign: "center", padding: "40px 28px" }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#f7f8fb", marginBottom: 10 }}>Exit focus mode?</div>
+                <div style={{ fontSize: 14, color: "rgba(247,248,251,.45)", marginBottom: 28, lineHeight: 1.65 }}>Your timer will reset and your progress won't be saved.</div>
+                <div style={{ display: "flex", gap: 10 }}>
                   <button
                     onClick={() => {
-                      setFocusOpen(false); setFocusSecondsLeft(0);
+                      setFocusOpen(false); setFocusExitConfirm(false); setFocusPaused(false);
+                      setBreakSecondsLeft(0); setFocusSecondsLeft(0);
                       setFocusNoteId(null); setFocusStepId(null); setFocusChainMode(false);
                     }}
-                    style={focusBtnGhost}
+                    style={{ height: 40, padding: "0 20px", borderRadius: 999, border: "1px solid rgba(220,60,60,.3)", backgroundColor: "rgba(220,60,60,.15)", color: "rgba(255,150,150,.85)", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
                   >
-                    Exit
+                    Exit anyway
+                  </button>
+                  <button
+                    onClick={() => setFocusExitConfirm(false)}
+                    style={{ height: 40, padding: "0 20px", borderRadius: 999, border: "1px solid rgba(255,255,255,.14)", backgroundColor: "rgba(255,255,255,.08)", color: "rgba(247,248,251,.75)", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+                  >
+                    Keep going
                   </button>
                 </div>
               </div>
