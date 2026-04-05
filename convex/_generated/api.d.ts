@@ -9,6 +9,7 @@
  */
 
 import type * as boards from "../boards.js";
+import type * as feedback from "../feedback.js";
 import type * as waitlist from "../waitlist.js";
 
 import type {
@@ -19,6 +20,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   boards: typeof boards;
+  feedback: typeof feedback;
   waitlist: typeof waitlist;
 }>;
 
