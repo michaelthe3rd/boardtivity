@@ -1290,7 +1290,13 @@ export function HomeShell() {
       <section id="boardtivity-board" style={{ maxWidth: 1220, margin: "0 auto", padding: "0 20px 24px" }}>
         {isMobile && (
           <div style={{ borderRadius: 16, border: `1px solid ${border(theme)}`, backgroundColor: paper(theme), padding: "32px 24px", textAlign: "center" }}>
-            <div style={{ fontSize: 28, marginBottom: 12 }}>🖥️</div>
+            <div style={{ marginBottom: 12, display: "flex", justifyContent: "center" }}>
+              <svg width="36" height="36" viewBox="0 0 36 36" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ color: muted(theme), opacity: .5 }}>
+                <rect x="3" y="5" width="30" height="20" rx="2.5"/>
+                <line x1="11" y1="31" x2="25" y2="31"/>
+                <line x1="18" y1="25" x2="18" y2="31"/>
+              </svg>
+            </div>
             <div style={{ fontSize: 15, fontWeight: 700, color: pageText(theme), marginBottom: 8 }}>Best on desktop</div>
             <div style={{ fontSize: 13, color: muted(theme), lineHeight: 1.7, opacity: .7 }}>The interactive board is designed for larger screens. Open Boardtivity on your computer to try it.</div>
           </div>
