@@ -507,6 +507,9 @@ export function HomeShell() {
   const [focusChainMode, setFocusChainMode] = useState(false);
   const [focusNextStep, setFocusNextStep] = useState<{ id: number; title: string; minutes: number } | null>(null);
   const [focusExitConfirm, setFocusExitConfirm] = useState(false);
+
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [onboardingStep, setOnboardingStep] = useState(0);
   const focusNoteIdRef = useRef<number | null>(null);
   const focusStepIdRef = useRef<number | null>(null);
   const notesRef = useRef<typeof notes>([]);
@@ -721,6 +724,9 @@ export function HomeShell() {
       }
     } catch {}
     setIsHydrated(true);
+    if (isSignedIn && !localStorage.getItem("boardtivity_onboarding")) {
+      setOnboardingOpen(true);
+    }
   }, [isSignedIn]);
 
   // Reveal page only after Clerk auth + localStorage have resolved (prevents signed-out flash)
@@ -1633,17 +1639,41 @@ export function HomeShell() {
                 )}
 
               {activeNotes.length === 0 && (
-                <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", textAlign: "center" }}>
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 24, color: boardTheme === "dark" ? "#d8d8d6" : "#70695e" }}>
-                    <img src="/logo-vertical.svg" alt="Boardtivity" style={{ width: 180, opacity: boardTheme === "dark" ? 0.65 : 0.55, filter: boardTheme === "dark" ? "invert(1)" : "none", pointerEvents: "none", userSelect: "none" }} />
-                    <div style={{ width: 360 }}>
-                      <div style={{ fontSize: 24, fontWeight: 700, lineHeight: 1.15 }}>
-                        Click + to create your first {thoughtMode ? "idea" : "task"}
+                <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 28, textAlign: "center", maxWidth: 380, padding: "0 24px" }}>
+                    <img src="/logo-vertical.svg" alt="" style={{ width: 120, opacity: boardTheme === "dark" ? 0.45 : 0.35, filter: boardTheme === "dark" ? "invert(1)" : "none", pointerEvents: "none", userSelect: "none" }} />
+                    <div>
+                      <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-.02em", color: boardTheme === "dark" ? "#e8e8e6" : "#2a2822", lineHeight: 1.2 }}>
+                        {thoughtMode ? "Your idea board is empty" : "Your task board is empty"}
                       </div>
-                      <div style={{ marginTop: 10, fontSize: 15, lineHeight: 1.6 }}>
-                        Drag the board, zoom in or out, and build your workspace from there.
+                      <div style={{ marginTop: 6, fontSize: 14, color: boardTheme === "dark" ? "rgba(255,255,255,.38)" : "rgba(0,0,0,.38)" }}>
+                        {thoughtMode ? "Start capturing and connecting your ideas" : "Start adding tasks and breaking them down"}
                       </div>
                     </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%", textAlign: "left" }}>
+                      {(thoughtMode ? [
+                        { icon: "✦", text: "Click + to add an idea card to the board" },
+                        { icon: "⇄", text: "Drag one idea over another to link them together" },
+                        { icon: "⊙", text: "Hold over a linked idea to unlink it" },
+                        { icon: "✎", text: "Click an idea card to view, edit, or add a note" },
+                      ] : [
+                        { icon: "✦", text: "Click + to create a task — name it, set priority & due date" },
+                        { icon: "≡", text: "Open a task to add subtasks and break down the work" },
+                        { icon: "◎", text: "Hit Start Focus Mode to work through subtasks with a timer" },
+                      ]).map(({ icon, text }) => (
+                        <div key={text} style={{ display: "flex", alignItems: "flex-start", gap: 10, backgroundColor: boardTheme === "dark" ? "rgba(255,255,255,.04)" : "rgba(0,0,0,.04)", borderRadius: 10, padding: "10px 14px" }}>
+                          <span style={{ fontSize: 13, color: boardTheme === "dark" ? "rgba(255,255,255,.35)" : "rgba(0,0,0,.3)", flexShrink: 0, marginTop: 1 }}>{icon}</span>
+                          <span style={{ fontSize: 13, color: boardTheme === "dark" ? "rgba(255,255,255,.55)" : "rgba(0,0,0,.55)", lineHeight: 1.5 }}>{text}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => setComposerOpen(true)}
+                      style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 22px", borderRadius: 999, border: "none", backgroundColor: boardTheme === "dark" ? "#f7f8fb" : "#111315", color: boardTheme === "dark" ? "#111315" : "#f7f8fb", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-.01em" }}
+                    >
+                      <span style={{ fontSize: 18, lineHeight: 1 }}>+</span>
+                      {thoughtMode ? "Add your first idea" : "Add your first task"}
+                    </button>
                   </div>
                 </div>
               )}
@@ -3500,6 +3530,91 @@ export function HomeShell() {
           })}
         </div>
       </section>
+
+      {/* ── Onboarding modal ── */}
+      {onboardingOpen && isSignedIn && (() => {
+        const steps = [
+          {
+            icon: "✦",
+            iconColor: "#5a8df5",
+            title: "Create a task",
+            desc: "Click the + button on any task board. Give it a name, set a priority level, and optionally add a due date.",
+            tip: "You can have multiple task boards — one per project or area of your life.",
+          },
+          {
+            icon: "≡",
+            iconColor: "#e07b54",
+            title: "Break it into subtasks",
+            desc: "Open any task to see its detail view. Add subtasks inside it and check them off one by one as you go.",
+            tip: "Each subtask can have its own time estimate for more accurate planning.",
+          },
+          {
+            icon: "◎",
+            iconColor: "#6fc46b",
+            title: "Lock in with Focus Mode",
+            desc: "Open a task and tap \"Start Focus Mode\". A countdown timer keeps you on one subtask at a time until it's done.",
+            tip: "Chain mode automatically moves to the next subtask when the timer ends — no stopping.",
+          },
+          {
+            icon: "⇄",
+            iconColor: "#b57fe8",
+            title: "Capture and link ideas",
+            desc: "Switch to an Ideas board and click + to add idea cards. Drag one card over another to link them. Hold over a linked idea to unlink it.",
+            tip: "Click any idea card to open it, add a note, or edit its title.",
+          },
+        ];
+        const s = steps[onboardingStep];
+        const isLast = onboardingStep === steps.length - 1;
+        const dismiss = () => { setOnboardingOpen(false); localStorage.setItem("boardtivity_onboarding", "1"); };
+        return (
+          <div
+            style={{ position: "fixed", inset: 0, zIndex: 60, backgroundColor: "rgba(0,0,0,.45)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+            onClick={(e) => { if (e.target === e.currentTarget) dismiss(); }}
+          >
+            <div style={{ width: "min(440px,100%)", backgroundColor: theme === "dark" ? "#1a1d22" : "#ffffff", borderRadius: 22, boxShadow: "0 40px 120px rgba(0,0,0,.35)", padding: "36px 32px 28px", display: "flex", flexDirection: "column", gap: 0, color: pageText(theme), fontFamily: "inherit" }}>
+              {/* Step dots */}
+              <div style={{ display: "flex", gap: 6, justifyContent: "center", marginBottom: 28 }}>
+                {steps.map((_, i) => (
+                  <div key={i} style={{ width: i === onboardingStep ? 20 : 6, height: 6, borderRadius: 999, backgroundColor: i === onboardingStep ? s.iconColor : (theme === "dark" ? "rgba(255,255,255,.15)" : "rgba(0,0,0,.12)"), transition: "width .25s ease, background-color .25s ease" }} />
+                ))}
+              </div>
+              {/* Icon */}
+              <div style={{ width: 52, height: 52, borderRadius: 14, backgroundColor: s.iconColor + "18", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 18 }}>
+                <span style={{ fontSize: 24, color: s.iconColor }}>{s.icon}</span>
+              </div>
+              {/* Step label */}
+              <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: s.iconColor, fontWeight: 700, marginBottom: 8 }}>Step {onboardingStep + 1} of {steps.length}</div>
+              {/* Title */}
+              <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-.03em", lineHeight: 1.15, marginBottom: 12 }}>{s.title}</div>
+              {/* Description */}
+              <div style={{ fontSize: 15, lineHeight: 1.7, color: theme === "dark" ? "rgba(255,255,255,.65)" : "rgba(0,0,0,.6)", marginBottom: 16 }}>{s.desc}</div>
+              {/* Tip */}
+              <div style={{ backgroundColor: theme === "dark" ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: theme === "dark" ? "rgba(255,255,255,.42)" : "rgba(0,0,0,.42)", lineHeight: 1.6, marginBottom: 28 }}>
+                <span style={{ fontWeight: 700, color: theme === "dark" ? "rgba(255,255,255,.55)" : "rgba(0,0,0,.55)" }}>Tip: </span>{s.tip}
+              </div>
+              {/* Buttons */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <button onClick={dismiss} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, color: theme === "dark" ? "rgba(255,255,255,.35)" : "rgba(0,0,0,.35)", fontFamily: "inherit", padding: "8px 0" }}>
+                  Skip tutorial
+                </button>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {onboardingStep > 0 && (
+                    <button onClick={() => setOnboardingStep(s => s - 1)} style={{ padding: "10px 18px", borderRadius: 10, border: `1px solid ${theme === "dark" ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.12)"}`, background: "none", cursor: "pointer", fontSize: 14, fontWeight: 600, color: pageText(theme), fontFamily: "inherit" }}>
+                      Back
+                    </button>
+                  )}
+                  <button
+                    onClick={() => { if (isLast) dismiss(); else setOnboardingStep(s => s + 1); }}
+                    style={{ padding: "10px 22px", borderRadius: 10, border: "none", backgroundColor: s.iconColor, color: "#fff", cursor: "pointer", fontSize: 14, fontWeight: 700, fontFamily: "inherit", letterSpacing: "-.01em" }}
+                  >
+                    {isLast ? "Get started →" : "Next →"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
     </main>
   );
