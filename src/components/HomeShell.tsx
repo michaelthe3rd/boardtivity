@@ -1289,14 +1289,14 @@ export function HomeShell() {
         )}
       </section>
 
-      <section style={{ maxWidth: 1220, margin: "0 auto", padding: "0 20px 16px", textAlign: "center" }}>
+      <section style={{ maxWidth: 1600, margin: "0 auto", padding: "0 20px 16px", textAlign: "center" }}>
         <div style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 700, letterSpacing: ".14em", textTransform: "uppercase", color: muted(theme), opacity: .55 }}>
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="7" y1="2" x2="7" y2="12"/><polyline points="3,8 7,12 11,8"/></svg>
           Try the board
         </div>
       </section>
 
-      <section id="boardtivity-board" style={{ maxWidth: 1220, margin: "0 auto", padding: "0 20px 24px" }}>
+      <section id="boardtivity-board" style={{ maxWidth: 1600, margin: "0 auto", padding: "0 20px 24px" }}>
         {isMobile && (
           <div style={{ borderRadius: 16, border: `1px solid ${border(theme)}`, backgroundColor: paper(theme), padding: "32px 24px", textAlign: "center" }}>
             <div style={{ marginBottom: 12, display: "flex", justifyContent: "center" }}>
