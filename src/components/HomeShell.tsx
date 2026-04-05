@@ -71,6 +71,14 @@ const BOARD_W = 6800;
 const BOARD_H = 4200;
 const NOTE_W = 228;
 const NOTE_H = 138;
+
+function ideaNoteWidth(title: string): number {
+  const len = title.length;
+  if (len <= 32) return 228;
+  if (len <= 60) return 280;
+  if (len <= 100) return 330;
+  return 370;
+}
 const STEP_W = 166;
 const STEP_H = 62;
 
@@ -1617,7 +1625,7 @@ export function HomeShell() {
                     position: "absolute",
                     left: note.x,
                     top: note.y,
-                    width: NOTE_W,
+                    width: note.type === "thought" ? ideaNoteWidth(note.title) : NOTE_W,
                     minHeight: NOTE_H,
                     padding: "6px 7px 6px",
                     borderRadius: 10,
@@ -1657,12 +1665,12 @@ export function HomeShell() {
                     {note.type === "task" && note.dueDate && <div style={{ ...pill(boardTheme), fontWeight: 800 }}>Due {formatDate(note.dueDate)}</div>}
                   </div>
 
-                  <div style={{ marginTop: 18, marginBottom: 6, fontSize: 17, lineHeight: 1.12, fontWeight: 700, color: noteText(boardTheme), maxWidth: 196 }}>
+                  <div style={{ marginTop: 18, marginBottom: 6, fontSize: 17, lineHeight: 1.12, fontWeight: 700, color: noteText(boardTheme) }}>
                     {note.title}
                   </div>
 
                   {note.body && note.type === "thought" && (
-                    <div style={{ marginTop: 6, fontSize: 13, lineHeight: 1.45, color: noteSub(boardTheme), maxWidth: 196 }}>
+                    <div style={{ marginTop: 6, fontSize: 13, lineHeight: 1.45, color: noteSub(boardTheme) }}>
                       {note.body}
                     </div>
                   )}
@@ -2505,6 +2513,19 @@ export function HomeShell() {
                         })}
                       </div>
                     )}
+                    {/* Delete idea */}
+                    <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${border(boardTheme)}` }}>
+                      {confirmDeleteId === detailNote.id ? (
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button onClick={() => setConfirmDeleteId(null)} style={{ ...buttonStyle(boardTheme, false, true), flex: 1, fontSize: 13 }}>Cancel</button>
+                          <button onClick={() => { deleteTask(detailNote.id); setConfirmDeleteId(null); }} style={{ flex: 1, height: 38, borderRadius: 999, border: "1px solid rgba(200,50,50,.4)", backgroundColor: boardTheme === "dark" ? "rgba(200,50,50,.18)" : "rgba(200,50,50,.10)", color: boardTheme === "dark" ? "rgba(255,130,130,.9)" : "rgba(160,30,30,.85)", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Confirm delete</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setConfirmDeleteId(detailNote.id)} style={{ width: "100%", height: 38, background: "none", border: "none", color: boardTheme === "dark" ? "rgba(255,100,100,.65)" : "rgba(160,40,40,.55)", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                          Delete idea
+                        </button>
+                      )}
+                    </div>
                   </>
                 )}
               </div>
