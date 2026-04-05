@@ -20,12 +20,14 @@ export default defineSchema({
     content: v.string(),
     createdAt: v.number(),
     upvotes: v.number(),
+    downvotes: v.number(),
   }).index("by_token", ["tokenIdentifier"])
     .index("by_upvotes", ["upvotes"]),
 
   feedbackUpvotes: defineTable({
     postId: v.id("feedbackPosts"),
     tokenIdentifier: v.string(),
+    direction: v.union(v.literal("up"), v.literal("down")),
   }).index("by_post", ["postId"])
     .index("by_post_and_user", ["postId", "tokenIdentifier"]),
 });

@@ -525,7 +525,7 @@ export function HomeShell() {
   const joinWaitlist = useMutation(api.waitlist.join);
   const feedbackPosts = useQuery(api.feedback.list);
   const postFeedback = useMutation(api.feedback.post);
-  const upvoteFeedback = useMutation(api.feedback.upvote);
+  const voteFeedback = useMutation(api.feedback.vote);
   const deleteFeedback = useMutation(api.feedback.remove);
   const { user, isSignedIn } = useUser();
   const { openSignIn, openSignUp, signOut } = useClerk();
@@ -3150,26 +3150,26 @@ export function HomeShell() {
       )}
 
       {/* ── Feedback Board ── */}
-      <section ref={feedbackRef} id="feedback" style={{ maxWidth: 760, margin: "0 auto", padding: isMobile ? "60px 20px 80px" : "100px 48px 120px" }}>
-        <div style={{ textAlign: "center", marginBottom: 48 }}>
-          <div style={{ fontSize: 16, letterSpacing: ".14em", textTransform: "uppercase", color: muted(theme), fontWeight: 800, marginBottom: 14 }}>Community</div>
-          <h2 style={{ margin: "0 0 14px", fontSize: "clamp(26px,3.5vw,40px)", fontWeight: 900, letterSpacing: "-.05em", color: pageText(theme), lineHeight: 1.08 }}>Feature Requests & Feedback</h2>
-          <p style={{ margin: 0, fontSize: 15, color: muted(theme), opacity: .65, lineHeight: 1.75 }}>Upvote what you want to see. The most requested features get built first.</p>
+      <section ref={feedbackRef} id="feedback" style={{ maxWidth: 900, margin: "0 auto", padding: isMobile ? "60px 20px 80px" : "100px 48px 120px" }}>
+        <div style={{ textAlign: "center", marginBottom: 56 }}>
+          <div style={{ fontSize: 13, letterSpacing: ".18em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 16, opacity: .55 }}>Community</div>
+          <h2 style={{ margin: "0 0 16px", fontSize: "clamp(32px,4vw,52px)", fontWeight: 900, letterSpacing: "-.05em", color: pageText(theme), lineHeight: 1.06 }}>Feature Requests & Feedback</h2>
+          <p style={{ margin: 0, fontSize: 17, color: muted(theme), opacity: .6, lineHeight: 1.75, maxWidth: 520, marginLeft: "auto", marginRight: "auto" }}>Drop ideas, report bugs, or tell us what's missing. Your voice shapes what we build.</p>
         </div>
 
-        {/* Post form — signed in only */}
+        {/* Post form */}
         {isSignedIn ? (
-          <div style={{ marginBottom: 32, backgroundColor: theme === "dark" ? "#17191d" : "#ffffff", border: `1px solid ${border(theme)}`, borderRadius: 14, padding: "18px 20px" }}>
+          <div style={{ marginBottom: 36, backgroundColor: theme === "dark" ? "#17191d" : "#ffffff", border: `1px solid ${border(theme)}`, borderRadius: 18, padding: "24px 26px", boxShadow: theme === "dark" ? "0 4px 24px rgba(0,0,0,.18)" : "0 4px 24px rgba(0,0,0,.06)" }}>
             <textarea
               placeholder="Share feedback, request a feature, or report a bug…"
               value={feedbackContent}
               onChange={e => { setFeedbackContent(e.target.value); setFeedbackError(null); }}
               maxLength={500}
-              rows={3}
-              style={{ width: "100%", background: "none", border: "none", outline: "none", resize: "none", fontSize: 14, color: pageText(theme), fontFamily: "inherit", lineHeight: 1.65, boxSizing: "border-box" }}
+              rows={4}
+              style={{ width: "100%", background: "none", border: "none", outline: "none", resize: "none", fontSize: 15, color: pageText(theme), fontFamily: "inherit", lineHeight: 1.7, boxSizing: "border-box" }}
             />
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10, gap: 12 }}>
-              <div style={{ fontSize: 12, color: feedbackError ? "#c03030" : muted(theme), opacity: feedbackError ? 1 : .45 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 14, gap: 12, borderTop: `1px solid ${border(theme)}`, paddingTop: 14 }}>
+              <div style={{ fontSize: 13, color: feedbackError ? "#c03030" : muted(theme), opacity: feedbackError ? 1 : .4 }}>
                 {feedbackError ?? `${feedbackContent.length}/500`}
               </div>
               <button
@@ -3191,58 +3191,71 @@ export function HomeShell() {
                   }
                   setFeedbackPosting(false);
                 }}
-                style={{ height: 34, padding: "0 16px", borderRadius: 8, border: "none", backgroundColor: theme === "dark" ? "#f7f8fb" : "#111315", color: theme === "dark" ? "#111315" : "#f7f8fb", fontSize: 13, fontWeight: 700, cursor: feedbackPosting || !feedbackContent.trim() ? "not-allowed" : "pointer", opacity: feedbackPosting || !feedbackContent.trim() ? .45 : 1, fontFamily: "inherit" }}
+                style={{ height: 38, padding: "0 20px", borderRadius: 10, border: "none", backgroundColor: theme === "dark" ? "#f7f8fb" : "#111315", color: theme === "dark" ? "#111315" : "#f7f8fb", fontSize: 14, fontWeight: 700, cursor: feedbackPosting || !feedbackContent.trim() ? "not-allowed" : "pointer", opacity: feedbackPosting || !feedbackContent.trim() ? .4 : 1, fontFamily: "inherit" }}
               >
                 {feedbackPosting ? "Posting…" : "Post"}
               </button>
             </div>
           </div>
         ) : (
-          <div style={{ marginBottom: 32, backgroundColor: theme === "dark" ? "#17191d" : "#ffffff", border: `1px solid ${border(theme)}`, borderRadius: 14, padding: "18px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-            <span style={{ fontSize: 14, color: muted(theme), opacity: .6 }}>Sign in to post feedback or upvote.</span>
-            <button onClick={() => openSignIn()} style={{ ...buttonStyle(theme, true), fontSize: 13, height: 34 }}>Sign in</button>
+          <div style={{ marginBottom: 36, backgroundColor: theme === "dark" ? "#17191d" : "#ffffff", border: `1px solid ${border(theme)}`, borderRadius: 18, padding: "24px 26px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, boxShadow: theme === "dark" ? "0 4px 24px rgba(0,0,0,.18)" : "0 4px 24px rgba(0,0,0,.06)" }}>
+            <span style={{ fontSize: 15, color: muted(theme), opacity: .65 }}>Sign in to post feedback or vote.</span>
+            <button onClick={() => openSignIn()} style={{ ...buttonStyle(theme, true), fontSize: 14, height: 38 }}>Sign in</button>
           </div>
         )}
 
         {/* Posts list */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {feedbackPosts === undefined ? (
-            <div style={{ textAlign: "center", padding: "40px 0", fontSize: 13, color: muted(theme), opacity: .4 }}>Loading…</div>
+            <div style={{ textAlign: "center", padding: "60px 0", fontSize: 14, color: muted(theme), opacity: .4 }}>Loading…</div>
           ) : feedbackPosts.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "40px 0", fontSize: 14, color: muted(theme), opacity: .4 }}>No feedback yet — be the first!</div>
-          ) : feedbackPosts.map((p) => (
-            <div key={p._id} style={{ display: "flex", gap: 14, backgroundColor: theme === "dark" ? "#17191d" : "#ffffff", border: `1px solid ${border(theme)}`, borderRadius: 14, padding: "16px 18px", alignItems: "flex-start" }}>
-              {/* Upvote button */}
-              <button
-                onClick={async () => { if (isSignedIn) await upvoteFeedback({ postId: p._id }); else openSignIn(); }}
-                style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, flexShrink: 0, background: "none", border: `1px solid ${p.hasUpvoted ? (theme === "dark" ? "rgba(111,196,107,.5)" : "rgba(60,180,90,.4)") : border(theme)}`, borderRadius: 8, padding: "6px 10px", cursor: "pointer", backgroundColor: p.hasUpvoted ? (theme === "dark" ? "rgba(111,196,107,.1)" : "rgba(60,180,90,.07)") : "transparent", transition: "all .12s" }}
-              >
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                  <path d="M6 2L10 8H2L6 2Z" fill={p.hasUpvoted ? "#6fc46b" : muted(theme)} opacity={p.hasUpvoted ? 1 : 0.5}/>
-                </svg>
-                <span style={{ fontSize: 12, fontWeight: 700, color: p.hasUpvoted ? "#6fc46b" : muted(theme), lineHeight: 1 }}>{p.upvotes}</span>
-              </button>
-              {/* Content */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, color: pageText(theme), lineHeight: 1.65, marginBottom: 8, wordBreak: "break-word" }}>{p.content}</div>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                  <div style={{ fontSize: 12, color: muted(theme), opacity: .45 }}>
-                    {p.authorName} · {new Date(p.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+            <div style={{ textAlign: "center", padding: "60px 0", fontSize: 15, color: muted(theme), opacity: .4 }}>No posts yet — be the first!</div>
+          ) : feedbackPosts.map((p) => {
+            const score = p.upvotes - p.downvotes;
+            return (
+              <div key={p._id} style={{ display: "flex", gap: 16, backgroundColor: theme === "dark" ? "#17191d" : "#ffffff", border: `1px solid ${border(theme)}`, borderRadius: 18, padding: "22px 24px", alignItems: "flex-start", boxShadow: theme === "dark" ? "0 2px 12px rgba(0,0,0,.14)" : "0 2px 12px rgba(0,0,0,.05)" }}>
+                {/* Vote buttons */}
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, flexShrink: 0 }}>
+                  <button
+                    onClick={async () => { if (isSignedIn) await voteFeedback({ postId: p._id, direction: "up" }); else openSignIn(); }}
+                    style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: 10, border: `1px solid ${p.userVote === "up" ? (theme === "dark" ? "rgba(111,196,107,.5)" : "rgba(60,180,90,.4)") : border(theme)}`, backgroundColor: p.userVote === "up" ? (theme === "dark" ? "rgba(111,196,107,.12)" : "rgba(60,180,90,.08)") : "transparent", cursor: "pointer", transition: "all .12s" }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                      <path d="M7 2L12 9H2L7 2Z" fill={p.userVote === "up" ? "#6fc46b" : muted(theme)} opacity={p.userVote === "up" ? 1 : 0.5}/>
+                    </svg>
+                  </button>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: score > 0 ? "#6fc46b" : score < 0 ? "#c03030" : muted(theme), lineHeight: 1, minWidth: 20, textAlign: "center" }}>{score}</span>
+                  <button
+                    onClick={async () => { if (isSignedIn) await voteFeedback({ postId: p._id, direction: "down" }); else openSignIn(); }}
+                    style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: 10, border: `1px solid ${p.userVote === "down" ? (theme === "dark" ? "rgba(200,60,60,.5)" : "rgba(180,40,40,.35)") : border(theme)}`, backgroundColor: p.userVote === "down" ? (theme === "dark" ? "rgba(200,60,60,.12)" : "rgba(180,40,40,.07)") : "transparent", cursor: "pointer", transition: "all .12s" }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                      <path d="M7 12L2 5H12L7 12Z" fill={p.userVote === "down" ? "#c03030" : muted(theme)} opacity={p.userVote === "down" ? 1 : 0.5}/>
+                    </svg>
+                  </button>
+                </div>
+                {/* Content */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 15, color: pageText(theme), lineHeight: 1.7, marginBottom: 12, wordBreak: "break-word" }}>{p.content}</div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                    <div style={{ fontSize: 13, color: muted(theme), opacity: .45 }}>
+                      {p.authorName} · {new Date(p.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                    </div>
+                    {p.isOwner && (
+                      <button
+                        onClick={async () => { await deleteFeedback({ postId: p._id }); }}
+                        style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: muted(theme), opacity: .35, padding: "2px 4px", fontFamily: "inherit", flexShrink: 0 }}
+                        onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
+                        onMouseLeave={e => (e.currentTarget.style.opacity = "0.35")}
+                      >
+                        Delete
+                      </button>
+                    )}
                   </div>
-                  {p.isOwner && (
-                    <button
-                      onClick={async () => { await deleteFeedback({ postId: p._id }); }}
-                      style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: muted(theme), opacity: .4, padding: "2px 4px", fontFamily: "inherit", flexShrink: 0 }}
-                      onMouseEnter={e => (e.currentTarget.style.opacity = "0.9")}
-                      onMouseLeave={e => (e.currentTarget.style.opacity = "0.4")}
-                    >
-                      Delete
-                    </button>
-                  )}
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
