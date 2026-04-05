@@ -296,7 +296,7 @@ function paper(theme: ThemeMode) {
   return theme === "dark" ? "#2d3137" : "#fafaf7";
 }
 function grid(theme: ThemeMode) {
-  return theme === "dark" ? "rgba(255,255,255,.055)" : "rgba(78,78,78,.10)";
+  return theme === "dark" ? "rgba(255,255,255,.032)" : "rgba(78,78,78,.065)";
 }
 function panel(theme: ThemeMode) {
   return theme === "dark" ? "#1f2329" : "#ffffff";
