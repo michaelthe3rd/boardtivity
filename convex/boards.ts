@@ -7,6 +7,9 @@ export const save = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return null;
 
+    // Limit boardState size to 1MB
+    if (boardState.length > 1_000_000) return null;
+
     const existing = await ctx.db
       .query("userBoards")
       .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))

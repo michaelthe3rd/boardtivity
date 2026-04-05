@@ -1,4 +1,4 @@
-import { mutation, query } from "./_generated/server";
+import { mutation } from "./_generated/server";
 import { v } from "convex/values";
 
 export const join = mutation({
@@ -7,13 +7,19 @@ export const join = mutation({
     boardState: v.optional(v.string()),
   },
   handler: async (ctx, { email, boardState }) => {
+    // Basic email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email) || email.length > 254) return null;
+
+    // Limit boardState size to 500KB
+    if (boardState && boardState.length > 500_000) return null;
+
     const existing = await ctx.db
       .query("waitlist")
       .withIndex("by_email", (q) => q.eq("email", email))
       .first();
 
     if (existing) {
-      // Update board state if already signed up
       await ctx.db.patch(existing._id, { boardState });
       return existing._id;
     }
@@ -23,15 +29,5 @@ export const join = mutation({
       boardState,
       joinedAt: Date.now(),
     });
-  },
-});
-
-export const getByEmail = query({
-  args: { email: v.string() },
-  handler: async (ctx, { email }) => {
-    return await ctx.db
-      .query("waitlist")
-      .withIndex("by_email", (q) => q.eq("email", email))
-      .first();
   },
 });
