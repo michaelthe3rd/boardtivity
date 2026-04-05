@@ -695,10 +695,11 @@ export function HomeShell() {
           thoughtFixedColorIdx?: number;
           boardGrid?: "grid" | "dots" | "blank";
         };
-        // Only restore data for signed in users
+        // Theme always restores — signed in or not
+        if (data.theme) setTheme(data.theme);
+        if (data.boardTheme) setBoardTheme(data.boardTheme);
+        // Everything else only restores for signed-in users
         if (isSignedIn) {
-          if (data.theme) setTheme(data.theme);
-          if (data.boardTheme) setBoardTheme(data.boardTheme);
           if (Array.isArray(data.boards) && data.boards.length > 0) setBoards(data.boards);
           if (Array.isArray(data.notes)) setNotes(data.notes);
           if (data.activeBoardId) setActiveBoardId(data.activeBoardId);
@@ -723,14 +724,16 @@ export function HomeShell() {
     };
   }, [theme]);
 
-  // Persist state to localStorage — only for signed in users
+  // Persist state to localStorage
   useEffect(() => {
     if (!isHydrated) return;
     try {
       if (isSignedIn) {
+        // Signed in: save everything
         localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid }));
       } else {
-        localStorage.removeItem("boardtivity");
+        // Signed out: only save theme preferences so dark/light mode survives refresh
+        localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme }));
       }
     } catch {}
   }, [isHydrated, isSignedIn, theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid]);
