@@ -1298,7 +1298,7 @@ export function HomeShell() {
               </svg>
             </div>
             <div style={{ fontSize: 15, fontWeight: 700, color: pageText(theme), marginBottom: 8 }}>Best on desktop</div>
-            <div style={{ fontSize: 13, color: muted(theme), lineHeight: 1.7, opacity: .7 }}>The interactive board is designed for larger screens. Open Boardtivity on your computer to try it.</div>
+            <div style={{ fontSize: 13, color: muted(theme), lineHeight: 1.7, opacity: .7 }}>The interactive board is designed for larger screens. Try it on your computer or iPad.</div>
           </div>
         )}
         <div ref={boardContainerRef} style={{ ...boardStyle, ...(isFullscreen ? { borderRadius: 0, border: "none", minHeight: "100vh" } : {}), ...(isMobile ? { display: "none" } : {}) }}>
