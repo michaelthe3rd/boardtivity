@@ -1,0 +1,27 @@
+<svg width="1584" height="396" viewBox="0 0 1584 396" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1584" height="396" fill="#0d0f12"/>
+
+  <!-- Grid texture -->
+  <defs>
+    <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
+      <path d="M 50 0 L 0 0 0 50" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1584" height="396" fill="url(#grid)"/>
+
+  <!-- Glow -->
+  <ellipse cx="792" cy="198" rx="500" ry="180" fill="rgba(90,141,245,0.05)"/>
+
+  <!-- Logo icon -->
+  <rect x="502" y="98" width="200" height="200" rx="36" ry="36" fill="none" stroke="white" stroke-width="10"/>
+  <path d="M524 120 H546 M524 120 V142" fill="none" stroke="white" stroke-width="7.5" stroke-linecap="round"/>
+  <path d="M682 120 H660 M682 120 V142" fill="none" stroke="white" stroke-width="7.5" stroke-linecap="round"/>
+  <path d="M524 278 H546 M524 278 V256" fill="none" stroke="white" stroke-width="7.5" stroke-linecap="round"/>
+  <path d="M682 278 H660 M682 278 V256" fill="none" stroke="white" stroke-width="7.5" stroke-linecap="round"/>
+  <text x="602" y="252" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="110" text-anchor="middle" fill="white">B</text>
+
+  <!-- Wordmark -->
+  <text x="724" y="224" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="78" text-anchor="start" fill="white" letter-spacing="-2">Boardtivity</text>
+  <text x="726" y="264" font-family="Arial, sans-serif" font-weight="400" font-size="24" text-anchor="start" fill="rgba(255,255,255,0.4)" letter-spacing="0.5">Tasks · Ideas · Focus</text>
+</svg>
