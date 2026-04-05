@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import type { ThemeMode, BoardType, Importance, FlowMode, Board, Step, Note, Draft } from "@/lib/board";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { useUser, useClerk } from "@clerk/nextjs";
 import { api } from "../../convex/_generated/api";
 
@@ -509,6 +509,10 @@ export function HomeShell() {
   const whyRef = useRef<HTMLDivElement | null>(null);
   const featuresRef = useRef<HTMLDivElement | null>(null);
   const pricingRef = useRef<HTMLDivElement | null>(null);
+  const feedbackRef = useRef<HTMLDivElement | null>(null);
+  const [feedbackContent, setFeedbackContent] = useState("");
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
+  const [feedbackPosting, setFeedbackPosting] = useState(false);
   const [heroVisible, setHeroVisible] = useState(false);
   const [whyVisible, setWhyVisible] = useState(false);
   const [featuresVisible, setFeaturesVisible] = useState(false);
@@ -519,6 +523,9 @@ export function HomeShell() {
   const [waitlistDone, setWaitlistDone] = useState(false);
 
   const joinWaitlist = useMutation(api.waitlist.join);
+  const feedbackPosts = useQuery(api.feedback.list);
+  const postFeedback = useMutation(api.feedback.post);
+  const upvoteFeedback = useMutation(api.feedback.upvote);
   const { user, isSignedIn } = useUser();
   const { openSignIn, openSignUp, signOut } = useClerk();
 
@@ -1233,6 +1240,14 @@ export function HomeShell() {
             <span style={{ fontSize: isMobile ? 15 : 17, letterSpacing: ".02em", color: pageText(theme), fontWeight: 700 }}>Boardtivity</span>
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {!isMobile && (
+              <button
+                onClick={() => feedbackRef.current?.scrollIntoView({ behavior: "smooth" })}
+                style={{ ...buttonStyle(theme, false), fontSize: 13 }}
+              >
+                Feedback
+              </button>
+            )}
             <ThemeToggle theme={theme} onToggle={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} />
             {isSignedIn ? (
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -3132,6 +3147,91 @@ export function HomeShell() {
           </div>
         </div>
       )}
+
+      {/* ── Feedback Board ── */}
+      <section ref={feedbackRef} id="feedback" style={{ maxWidth: 760, margin: "0 auto", padding: isMobile ? "60px 20px 80px" : "100px 48px 120px" }}>
+        <div style={{ textAlign: "center", marginBottom: 48 }}>
+          <div style={{ fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 14, opacity: .5 }}>Community</div>
+          <h2 style={{ margin: "0 0 14px", fontSize: "clamp(26px,3.5vw,40px)", fontWeight: 900, letterSpacing: "-.05em", color: pageText(theme), lineHeight: 1.08 }}>Feature Requests & Feedback</h2>
+          <p style={{ margin: 0, fontSize: 15, color: muted(theme), opacity: .65, lineHeight: 1.75 }}>Upvote what you want to see. The most requested features get built first.</p>
+        </div>
+
+        {/* Post form — signed in only */}
+        {isSignedIn ? (
+          <div style={{ marginBottom: 32, backgroundColor: theme === "dark" ? "#17191d" : "#ffffff", border: `1px solid ${border(theme)}`, borderRadius: 14, padding: "18px 20px" }}>
+            <textarea
+              placeholder="Share feedback, request a feature, or report a bug…"
+              value={feedbackContent}
+              onChange={e => { setFeedbackContent(e.target.value); setFeedbackError(null); }}
+              maxLength={500}
+              rows={3}
+              style={{ width: "100%", background: "none", border: "none", outline: "none", resize: "none", fontSize: 14, color: pageText(theme), fontFamily: "inherit", lineHeight: 1.65, boxSizing: "border-box" }}
+            />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10, gap: 12 }}>
+              <div style={{ fontSize: 12, color: feedbackError ? "#c03030" : muted(theme), opacity: feedbackError ? 1 : .45 }}>
+                {feedbackError ?? `${feedbackContent.length}/500`}
+              </div>
+              <button
+                disabled={feedbackPosting || !feedbackContent.trim()}
+                onClick={async () => {
+                  setFeedbackPosting(true);
+                  setFeedbackError(null);
+                  try {
+                    await postFeedback({ content: feedbackContent });
+                    setFeedbackContent("");
+                  } catch (e: any) {
+                    const msg = e?.message ?? "";
+                    if (msg.startsWith("rate_limit:")) {
+                      const h = msg.split(":")[1];
+                      setFeedbackError(`You can post again in ${h}h`);
+                    } else {
+                      setFeedbackError("Something went wrong, try again.");
+                    }
+                  }
+                  setFeedbackPosting(false);
+                }}
+                style={{ height: 34, padding: "0 16px", borderRadius: 8, border: "none", backgroundColor: theme === "dark" ? "#f7f8fb" : "#111315", color: theme === "dark" ? "#111315" : "#f7f8fb", fontSize: 13, fontWeight: 700, cursor: feedbackPosting || !feedbackContent.trim() ? "not-allowed" : "pointer", opacity: feedbackPosting || !feedbackContent.trim() ? .45 : 1, fontFamily: "inherit" }}
+              >
+                {feedbackPosting ? "Posting…" : "Post"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ marginBottom: 32, backgroundColor: theme === "dark" ? "#17191d" : "#ffffff", border: `1px solid ${border(theme)}`, borderRadius: 14, padding: "18px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+            <span style={{ fontSize: 14, color: muted(theme), opacity: .6 }}>Sign in to post feedback or upvote.</span>
+            <button onClick={() => openSignIn()} style={{ ...buttonStyle(theme, true), fontSize: 13, height: 34 }}>Sign in</button>
+          </div>
+        )}
+
+        {/* Posts list */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {feedbackPosts === undefined ? (
+            <div style={{ textAlign: "center", padding: "40px 0", fontSize: 13, color: muted(theme), opacity: .4 }}>Loading…</div>
+          ) : feedbackPosts.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "40px 0", fontSize: 14, color: muted(theme), opacity: .4 }}>No feedback yet — be the first!</div>
+          ) : feedbackPosts.map((p) => (
+            <div key={p._id} style={{ display: "flex", gap: 14, backgroundColor: theme === "dark" ? "#17191d" : "#ffffff", border: `1px solid ${border(theme)}`, borderRadius: 14, padding: "16px 18px", alignItems: "flex-start" }}>
+              {/* Upvote button */}
+              <button
+                onClick={async () => { if (isSignedIn) await upvoteFeedback({ postId: p._id }); else openSignIn(); }}
+                style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, flexShrink: 0, background: "none", border: `1px solid ${p.hasUpvoted ? (theme === "dark" ? "rgba(111,196,107,.5)" : "rgba(60,180,90,.4)") : border(theme)}`, borderRadius: 8, padding: "6px 10px", cursor: "pointer", backgroundColor: p.hasUpvoted ? (theme === "dark" ? "rgba(111,196,107,.1)" : "rgba(60,180,90,.07)") : "transparent", transition: "all .12s" }}
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <path d="M6 2L10 8H2L6 2Z" fill={p.hasUpvoted ? "#6fc46b" : muted(theme)} opacity={p.hasUpvoted ? 1 : 0.5}/>
+                </svg>
+                <span style={{ fontSize: 12, fontWeight: 700, color: p.hasUpvoted ? "#6fc46b" : muted(theme), lineHeight: 1 }}>{p.upvotes}</span>
+              </button>
+              {/* Content */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, color: pageText(theme), lineHeight: 1.65, marginBottom: 8, wordBreak: "break-word" }}>{p.content}</div>
+                <div style={{ fontSize: 12, color: muted(theme), opacity: .45 }}>
+                  {p.authorName} · {new Date(p.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
 
     </main>
   );

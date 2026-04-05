@@ -13,4 +13,19 @@ export default defineSchema({
     boardState: v.string(), // JSON: { boards, notes, activeBoardId }
     updatedAt: v.number(),
   }).index("by_token", ["tokenIdentifier"]),
+
+  feedbackPosts: defineTable({
+    tokenIdentifier: v.string(),
+    authorName: v.string(),
+    content: v.string(),
+    createdAt: v.number(),
+    upvotes: v.number(),
+  }).index("by_token", ["tokenIdentifier"])
+    .index("by_upvotes", ["upvotes"]),
+
+  feedbackUpvotes: defineTable({
+    postId: v.id("feedbackPosts"),
+    tokenIdentifier: v.string(),
+  }).index("by_post", ["postId"])
+    .index("by_post_and_user", ["postId", "tokenIdentifier"]),
 });
