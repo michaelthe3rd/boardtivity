@@ -9,14 +9,14 @@ import { useUser, useClerk } from "@clerk/nextjs";
 import { api } from "../../convex/_generated/api";
 
 const NOTE_PALETTE = [
-  { light: "#e8f1fb", dark: "#1b2d3e", halo: "rgba(90,150,230,.20)" },   // sky blue
-  { light: "#fbeee8", dark: "#3a2318", halo: "rgba(220,130,80,.20)" },    // peach
-  { light: "#eef7ee", dark: "#1c301c", halo: "rgba(80,180,80,.20)" },     // sage
-  { light: "#f6eeff", dark: "#291a3c", halo: "rgba(140,80,230,.20)" },    // lavender
-  { light: "#fff8e6", dark: "#352c12", halo: "rgba(210,175,60,.20)" },    // butter
-  { light: "#eef8f8", dark: "#192e2e", halo: "rgba(70,190,190,.20)" },    // teal
-  { light: "#ffedf0", dark: "#36191c", halo: "rgba(220,90,105,.20)" },    // rose
-  { light: "#f1f1fb", dark: "#1e1e30", halo: "rgba(120,120,220,.20)" },   // periwinkle
+  { light: "#e8f1fb", dark: "#1b2d3e", halo: "rgba(90,150,230,.20)",  swatch: "#4a8fe0" },  // sky blue
+  { light: "#fbeee8", dark: "#3a2318", halo: "rgba(220,130,80,.20)",   swatch: "#e07a38" },  // peach
+  { light: "#eef7ee", dark: "#1c301c", halo: "rgba(80,180,80,.20)",    swatch: "#3db83d" },  // sage
+  { light: "#f6eeff", dark: "#291a3c", halo: "rgba(140,80,230,.20)",   swatch: "#8a40e8" },  // lavender
+  { light: "#fff8e6", dark: "#352c12", halo: "rgba(210,175,60,.20)",   swatch: "#c8980a" },  // butter
+  { light: "#eef8f8", dark: "#192e2e", halo: "rgba(70,190,190,.20)",   swatch: "#1ab8b8" },  // teal
+  { light: "#ffedf0", dark: "#36191c", halo: "rgba(220,90,105,.20)",   swatch: "#e0445a" },  // rose
+  { light: "#f1f1fb", dark: "#1e1e30", halo: "rgba(120,120,220,.20)",  swatch: "#6060d8" },  // periwinkle
 ];
 
 function hexToRgba(hex: string, alpha: number): string {
@@ -1878,9 +1878,9 @@ export function HomeShell() {
                       <button key={i} onClick={() => setThoughtFixedColorIdx(i)} style={{
                         width: 26, height: 26, borderRadius: "50%",
                         border: thoughtFixedColorIdx === i ? `2.5px solid ${pageText(boardTheme)}` : "2.5px solid transparent",
-                        outline: thoughtFixedColorIdx === i ? `1px solid ${boardTheme === "dark" ? p.dark : p.light}` : "none",
-                        outlineOffset: 1,
-                        backgroundColor: boardTheme === "dark" ? p.dark : p.light, cursor: "pointer", padding: 0,
+                        outline: thoughtFixedColorIdx === i ? `2px solid ${p.swatch}` : "none",
+                        outlineOffset: 2,
+                        backgroundColor: p.swatch, cursor: "pointer", padding: 0,
                       }} />
                     ))}
                   </div>
@@ -1926,7 +1926,7 @@ export function HomeShell() {
 
           {/* Add note button — bottom right */}
           <button
-            onClick={() => { setComposerColorIdx(Math.floor(Math.random() * NOTE_PALETTE.length)); setComposerOpen(true); }}
+            onClick={() => { setComposerColorIdx(thoughtColorMode === "fixed" ? thoughtFixedColorIdx : Math.floor(Math.random() * NOTE_PALETTE.length)); setComposerOpen(true); }}
             style={{ ...circleButton(boardTheme, 34), position: "absolute", right: 18, bottom: 18, zIndex: 3, boxShadow: "0 8px 16px rgba(89,72,48,.08)" }}
             aria-label="Add note"
           >
