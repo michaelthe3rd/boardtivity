@@ -513,6 +513,10 @@ export function HomeShell() {
   const [feedbackContent, setFeedbackContent] = useState("");
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
   const [feedbackPosting, setFeedbackPosting] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyContent, setReplyContent] = useState("");
+  const [replyError, setReplyError] = useState<string | null>(null);
+  const [replyPosting, setReplyPosting] = useState(false);
   const [heroVisible, setHeroVisible] = useState(false);
   const [whyVisible, setWhyVisible] = useState(false);
   const [featuresVisible, setFeaturesVisible] = useState(false);
@@ -527,6 +531,8 @@ export function HomeShell() {
   const postFeedback = useMutation(api.feedback.post);
   const voteFeedback = useMutation(api.feedback.vote);
   const deleteFeedback = useMutation(api.feedback.remove);
+  const replyFeedback = useMutation(api.feedback.reply);
+  const deleteReplyFeedback = useMutation(api.feedback.removeReply);
   const { user, isSignedIn } = useUser();
   const { openSignIn, openSignUp, signOut } = useClerk();
 
@@ -1267,7 +1273,7 @@ export function HomeShell() {
 
       {/* ── HERO ── */}
       <section ref={heroRef} style={{
-        maxWidth: 720, margin: "0 auto", padding: isMobile ? "48px 20px 48px" : "80px 24px 72px",
+        maxWidth: 560, margin: "0 auto", padding: isMobile ? "48px 20px 48px" : "80px 24px 72px",
         textAlign: "center",
         opacity: heroVisible ? 1 : 0,
         transform: heroVisible ? "none" : "translateY(20px)",
@@ -1276,15 +1282,9 @@ export function HomeShell() {
         <h1 style={{ margin: "0 0 24px", fontSize: "clamp(34px,4.8vw,64px)", lineHeight: 1.0, fontWeight: 900, letterSpacing: "-.055em", color: pageText(theme) }}>
           The <span className="hue-rotate">Board</span> and the Produc<span className="hue-rotate">tivity</span><br/>in one.
         </h1>
-        <p style={{ margin: "0 auto 28px", maxWidth: 500, fontSize: 17, color: muted(theme), lineHeight: 1.82, opacity: .7 }}>
+        <p style={{ margin: "0 auto 40px", maxWidth: 460, fontSize: 17, color: muted(theme), lineHeight: 1.82, opacity: .7 }}>
           Boardtivity is a freeform visual board for your tasks, thoughts, and focus. Drag tasks anywhere, let AI break them down into steps, link ideas, chain subtasks, and lock into focus mode — all in one place.
         </p>
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: 28 }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12, fontWeight: 600, letterSpacing: ".06em", color: muted(theme), opacity: .75, backgroundColor: theme === "dark" ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.05)", border: `1px solid ${border(theme)}`, borderRadius: 999, padding: "6px 14px" }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><rect x="5" y="2" width="14" height="20" rx="3" stroke="currentColor" strokeWidth="2"/><circle cx="12" cy="18" r="1" fill="currentColor"/></svg>
-            App coming soon
-          </div>
-        </div>
 
         {/* Inline email capture */}
         {isSignedIn ? (
@@ -3161,26 +3161,26 @@ export function HomeShell() {
       )}
 
       {/* ── Feedback Board ── */}
-      <section ref={feedbackRef} id="feedback" style={{ maxWidth: 900, margin: "0 auto", padding: isMobile ? "60px 20px 80px" : "100px 48px 120px" }}>
-        <div style={{ textAlign: "center", marginBottom: 56 }}>
-          <div style={{ fontSize: 17, letterSpacing: ".14em", textTransform: "uppercase", color: muted(theme), fontWeight: 800, marginBottom: 16 }}>Community</div>
-          <h2 style={{ margin: "0 0 18px", fontSize: "clamp(36px,4.5vw,58px)", fontWeight: 900, letterSpacing: "-.05em", color: pageText(theme), lineHeight: 1.04 }}>Feature Requests & Feedback</h2>
-          <p style={{ margin: 0, fontSize: 18, color: muted(theme), opacity: .65, lineHeight: 1.75, maxWidth: 540, marginLeft: "auto", marginRight: "auto" }}>Drop ideas, report bugs, or tell us what's missing. Your voice shapes what we build.</p>
+      <section ref={feedbackRef} id="feedback" style={{ maxWidth: 720, margin: "0 auto", padding: isMobile ? "60px 20px 80px" : "100px 32px 120px" }}>
+        <div style={{ marginBottom: 40 }}>
+          <div style={{ fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 10, opacity: .5 }}>Community</div>
+          <h2 style={{ margin: "0 0 8px", fontSize: "clamp(26px,3vw,38px)", fontWeight: 900, letterSpacing: "-.04em", color: pageText(theme), lineHeight: 1.1 }}>Feature Requests & Feedback</h2>
+          <p style={{ margin: 0, fontSize: 15, color: muted(theme), opacity: .6, lineHeight: 1.7 }}>Drop ideas, vote on what matters. The most wanted features get built first.</p>
         </div>
 
         {/* Post form */}
         {isSignedIn ? (
-          <div style={{ marginBottom: 36, backgroundColor: theme === "dark" ? "#17191d" : "#ffffff", border: `1px solid ${border(theme)}`, borderRadius: 18, padding: "24px 26px", boxShadow: theme === "dark" ? "0 4px 24px rgba(0,0,0,.18)" : "0 4px 24px rgba(0,0,0,.06)" }}>
+          <div style={{ marginBottom: 28, backgroundColor: theme === "dark" ? "#17191d" : "#ffffff", border: `1px solid ${border(theme)}`, borderRadius: 14, padding: "18px 20px" }}>
             <textarea
               placeholder="Share feedback, request a feature, or report a bug…"
               value={feedbackContent}
               onChange={e => { setFeedbackContent(e.target.value); setFeedbackError(null); }}
               maxLength={500}
-              rows={4}
-              style={{ width: "100%", background: "none", border: "none", outline: "none", resize: "none", fontSize: 15, color: pageText(theme), fontFamily: "inherit", lineHeight: 1.7, boxSizing: "border-box" }}
+              rows={3}
+              style={{ width: "100%", background: "none", border: "none", outline: "none", resize: "none", fontSize: 14, color: pageText(theme), fontFamily: "inherit", lineHeight: 1.65, boxSizing: "border-box" }}
             />
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 14, gap: 12, borderTop: `1px solid ${border(theme)}`, paddingTop: 14 }}>
-              <div style={{ fontSize: 13, color: feedbackError ? "#c03030" : muted(theme), opacity: feedbackError ? 1 : .4 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10, gap: 12, borderTop: `1px solid ${border(theme)}`, paddingTop: 10 }}>
+              <div style={{ fontSize: 12, color: feedbackError ? "#c03030" : muted(theme), opacity: feedbackError ? 1 : .4 }}>
                 {feedbackError ?? `${feedbackContent.length}/500`}
               </div>
               <button
@@ -3195,76 +3195,152 @@ export function HomeShell() {
                     const msg = e?.message ?? "";
                     const rlMatch = msg.match(/rate_limit:(\d+)/);
                     if (rlMatch) {
-                      const h = rlMatch[1];
-                      setFeedbackError(`You already posted today. Try again in ${h}h.`);
+                      setFeedbackError(`You already posted today. Try again in ${rlMatch[1]}h.`);
                     } else {
                       setFeedbackError("Something went wrong, try again.");
                     }
                   }
                   setFeedbackPosting(false);
                 }}
-                style={{ height: 38, padding: "0 20px", borderRadius: 10, border: "none", backgroundColor: theme === "dark" ? "#f7f8fb" : "#111315", color: theme === "dark" ? "#111315" : "#f7f8fb", fontSize: 14, fontWeight: 700, cursor: feedbackPosting || !feedbackContent.trim() ? "not-allowed" : "pointer", opacity: feedbackPosting || !feedbackContent.trim() ? .4 : 1, fontFamily: "inherit" }}
+                style={{ height: 34, padding: "0 16px", borderRadius: 8, border: "none", backgroundColor: theme === "dark" ? "#f7f8fb" : "#111315", color: theme === "dark" ? "#111315" : "#f7f8fb", fontSize: 13, fontWeight: 700, cursor: feedbackPosting || !feedbackContent.trim() ? "not-allowed" : "pointer", opacity: feedbackPosting || !feedbackContent.trim() ? .4 : 1, fontFamily: "inherit" }}
               >
                 {feedbackPosting ? "Posting…" : "Post"}
               </button>
             </div>
           </div>
         ) : (
-          <div style={{ marginBottom: 36, backgroundColor: theme === "dark" ? "#17191d" : "#ffffff", border: `1px solid ${border(theme)}`, borderRadius: 18, padding: "24px 26px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, boxShadow: theme === "dark" ? "0 4px 24px rgba(0,0,0,.18)" : "0 4px 24px rgba(0,0,0,.06)" }}>
-            <span style={{ fontSize: 15, color: muted(theme), opacity: .65 }}>Sign in to post feedback or vote.</span>
-            <button onClick={() => openSignIn()} style={{ ...buttonStyle(theme, true), fontSize: 14, height: 38 }}>Sign in</button>
+          <div style={{ marginBottom: 28, backgroundColor: theme === "dark" ? "#17191d" : "#ffffff", border: `1px solid ${border(theme)}`, borderRadius: 14, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+            <span style={{ fontSize: 14, color: muted(theme), opacity: .65 }}>Sign in to post or vote.</span>
+            <button onClick={() => openSignIn()} style={{ ...buttonStyle(theme, true), fontSize: 13, height: 34 }}>Sign in</button>
           </div>
         )}
 
         {/* Posts list */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           {feedbackPosts === undefined ? (
             <div style={{ textAlign: "center", padding: "60px 0", fontSize: 14, color: muted(theme), opacity: .4 }}>Loading…</div>
           ) : feedbackPosts.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "60px 0", fontSize: 15, color: muted(theme), opacity: .4 }}>No posts yet — be the first!</div>
+            <div style={{ textAlign: "center", padding: "60px 0", fontSize: 14, color: muted(theme), opacity: .4 }}>No posts yet — be the first!</div>
           ) : feedbackPosts.map((p) => {
             const score = p.upvotes - p.downvotes;
+            const isReplying = replyingTo === p._id;
             return (
-              <div key={p._id} style={{ display: "flex", gap: 16, backgroundColor: theme === "dark" ? "#17191d" : "#ffffff", border: `1px solid ${border(theme)}`, borderRadius: 18, padding: "22px 24px", alignItems: "flex-start", boxShadow: theme === "dark" ? "0 2px 12px rgba(0,0,0,.14)" : "0 2px 12px rgba(0,0,0,.05)" }}>
-                {/* Vote buttons */}
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, flexShrink: 0 }}>
-                  <button
-                    onClick={async () => { if (isSignedIn) await voteFeedback({ postId: p._id, direction: "up" }); else openSignIn(); }}
-                    style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: 10, border: `1px solid ${p.userVote === "up" ? (theme === "dark" ? "rgba(111,196,107,.5)" : "rgba(60,180,90,.4)") : border(theme)}`, backgroundColor: p.userVote === "up" ? (theme === "dark" ? "rgba(111,196,107,.12)" : "rgba(60,180,90,.08)") : "transparent", cursor: "pointer", transition: "all .12s" }}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                      <path d="M7 2L12 9H2L7 2Z" fill={p.userVote === "up" ? "#6fc46b" : muted(theme)} opacity={p.userVote === "up" ? 1 : 0.5}/>
-                    </svg>
-                  </button>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: score > 0 ? "#6fc46b" : score < 0 ? "#c03030" : muted(theme), lineHeight: 1, minWidth: 20, textAlign: "center" }}>{score}</span>
-                  <button
-                    onClick={async () => { if (isSignedIn) await voteFeedback({ postId: p._id, direction: "down" }); else openSignIn(); }}
-                    style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: 10, border: `1px solid ${p.userVote === "down" ? (theme === "dark" ? "rgba(200,60,60,.5)" : "rgba(180,40,40,.35)") : border(theme)}`, backgroundColor: p.userVote === "down" ? (theme === "dark" ? "rgba(200,60,60,.12)" : "rgba(180,40,40,.07)") : "transparent", cursor: "pointer", transition: "all .12s" }}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                      <path d="M7 12L2 5H12L7 12Z" fill={p.userVote === "down" ? "#c03030" : muted(theme)} opacity={p.userVote === "down" ? 1 : 0.5}/>
-                    </svg>
-                  </button>
-                </div>
-                {/* Content */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 16, color: pageText(theme), lineHeight: 1.75, marginBottom: 14, wordBreak: "break-word", fontWeight: 450 }}>{p.content}</div>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                    <div style={{ fontSize: 13, color: muted(theme), opacity: .5 }}>
-                      {p.authorName} · {new Date(p.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+              <div key={p._id} style={{ borderRadius: 12, overflow: "hidden" }}>
+                {/* Post row */}
+                <div style={{ display: "flex", gap: 0, backgroundColor: theme === "dark" ? "#17191d" : "#ffffff", border: `1px solid ${border(theme)}`, borderRadius: isReplying || (p.replies && p.replies.length > 0) ? "12px 12px 0 0" : 12, padding: "14px 16px", alignItems: "flex-start" }}>
+                  {/* Vote column */}
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, flexShrink: 0, marginRight: 12, paddingTop: 1 }}>
+                    <button
+                      onClick={async () => { if (isSignedIn) await voteFeedback({ postId: p._id, direction: "up" }); else openSignIn(); }}
+                      style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 26, height: 26, borderRadius: 6, border: "none", backgroundColor: p.userVote === "up" ? (theme === "dark" ? "rgba(111,196,107,.18)" : "rgba(60,180,90,.12)") : "transparent", cursor: "pointer", transition: "all .1s" }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1.5L10.5 8H1.5L6 1.5Z" fill={p.userVote === "up" ? "#6fc46b" : muted(theme)} opacity={p.userVote === "up" ? 1 : 0.45}/></svg>
+                    </button>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: score > 0 ? "#6fc46b" : score < 0 ? "#c03030" : muted(theme), lineHeight: 1, minWidth: 16, textAlign: "center" }}>{score}</span>
+                    <button
+                      onClick={async () => { if (isSignedIn) await voteFeedback({ postId: p._id, direction: "down" }); else openSignIn(); }}
+                      style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 26, height: 26, borderRadius: 6, border: "none", backgroundColor: p.userVote === "down" ? (theme === "dark" ? "rgba(200,60,60,.18)" : "rgba(180,40,40,.1)") : "transparent", cursor: "pointer", transition: "all .1s" }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 10.5L1.5 4H10.5L6 10.5Z" fill={p.userVote === "down" ? "#c03030" : muted(theme)} opacity={p.userVote === "down" ? 1 : 0.45}/></svg>
+                    </button>
+                  </div>
+                  {/* Content */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, color: muted(theme), opacity: .5, marginBottom: 6 }}>
+                      {p.authorName} · {new Date(p.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                     </div>
-                    {p.isOwner && (
+                    <div style={{ fontSize: 15, color: pageText(theme), lineHeight: 1.7, marginBottom: 10, wordBreak: "break-word" }}>{p.content}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                       <button
-                        onClick={async () => { await deleteFeedback({ postId: p._id }); }}
-                        style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "#c03030", opacity: .6, padding: "2px 6px", fontFamily: "inherit", flexShrink: 0 }}
+                        onClick={() => { setReplyingTo(isReplying ? null : p._id); setReplyContent(""); setReplyError(null); }}
+                        style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, color: muted(theme), opacity: .55, padding: 0, fontFamily: "inherit" }}
                         onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
-                        onMouseLeave={e => (e.currentTarget.style.opacity = "0.6")}
+                        onMouseLeave={e => (e.currentTarget.style.opacity = "0.55")}
                       >
-                        Delete
+                        {isReplying ? "Cancel" : `Reply${p.replies && p.replies.length > 0 ? ` (${p.replies.length})` : ""}`}
                       </button>
-                    )}
+                      {p.isOwner && (
+                        <button
+                          onClick={async () => { await deleteFeedback({ postId: p._id }); }}
+                          style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "#c03030", opacity: .5, padding: 0, fontFamily: "inherit" }}
+                          onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
+                          onMouseLeave={e => (e.currentTarget.style.opacity = "0.5")}
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
+
+                {/* Replies */}
+                {(p.replies && p.replies.length > 0) && (
+                  <div style={{ backgroundColor: theme === "dark" ? "#13151a" : "#f8f8f9", border: `1px solid ${border(theme)}`, borderTop: "none", borderRadius: isReplying ? "0" : "0 0 12px 12px" }}>
+                    {p.replies.map((r, i) => (
+                      <div key={r._id} style={{ display: "flex", gap: 10, padding: "12px 16px 12px 52px", borderTop: i > 0 ? `1px solid ${border(theme)}` : "none" }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 12, color: muted(theme), opacity: .45, marginBottom: 4 }}>
+                            {r.authorName} · {new Date(r.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                          </div>
+                          <div style={{ fontSize: 14, color: pageText(theme), lineHeight: 1.65, wordBreak: "break-word", opacity: .85 }}>{r.content}</div>
+                        </div>
+                        {r.isOwner && (
+                          <button
+                            onClick={async () => { await deleteReplyFeedback({ replyId: r._id }); }}
+                            style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, fontWeight: 600, color: "#c03030", opacity: .4, padding: 0, fontFamily: "inherit", flexShrink: 0, alignSelf: "flex-start", marginTop: 2 }}
+                            onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
+                            onMouseLeave={e => (e.currentTarget.style.opacity = "0.4")}
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Reply form */}
+                {isReplying && (
+                  <div style={{ backgroundColor: theme === "dark" ? "#13151a" : "#f8f8f9", border: `1px solid ${border(theme)}`, borderTop: "none", borderRadius: "0 0 12px 12px", padding: "12px 16px 12px 52px" }}>
+                    <textarea
+                      autoFocus
+                      placeholder="Write a reply…"
+                      value={replyContent}
+                      onChange={e => { setReplyContent(e.target.value); setReplyError(null); }}
+                      maxLength={300}
+                      rows={2}
+                      style={{ width: "100%", background: theme === "dark" ? "rgba(255,255,255,.04)" : "rgba(0,0,0,.03)", border: `1px solid ${border(theme)}`, borderRadius: 8, outline: "none", resize: "none", fontSize: 13, color: pageText(theme), fontFamily: "inherit", lineHeight: 1.6, boxSizing: "border-box", padding: "8px 12px" }}
+                    />
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8, gap: 8 }}>
+                      <div style={{ fontSize: 11, color: replyError ? "#c03030" : muted(theme), opacity: replyError ? 1 : .4 }}>
+                        {replyError ?? `${replyContent.length}/300`}
+                      </div>
+                      <button
+                        disabled={replyPosting || !replyContent.trim()}
+                        onClick={async () => {
+                          setReplyPosting(true);
+                          setReplyError(null);
+                          try {
+                            await replyFeedback({ postId: p._id, content: replyContent });
+                            setReplyContent("");
+                            setReplyingTo(null);
+                          } catch (e: any) {
+                            const msg = e?.message ?? "";
+                            if (msg.includes("reply_rate_limit")) {
+                              setReplyError("You've replied 5 times today. Try again tomorrow.");
+                            } else {
+                              setReplyError("Something went wrong, try again.");
+                            }
+                          }
+                          setReplyPosting(false);
+                        }}
+                        style={{ height: 30, padding: "0 14px", borderRadius: 7, border: "none", backgroundColor: theme === "dark" ? "#f7f8fb" : "#111315", color: theme === "dark" ? "#111315" : "#f7f8fb", fontSize: 12, fontWeight: 700, cursor: replyPosting || !replyContent.trim() ? "not-allowed" : "pointer", opacity: replyPosting || !replyContent.trim() ? .4 : 1, fontFamily: "inherit" }}
+                      >
+                        {replyPosting ? "…" : "Reply"}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}

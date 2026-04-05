@@ -30,4 +30,13 @@ export default defineSchema({
     direction: v.union(v.literal("up"), v.literal("down")),
   }).index("by_post", ["postId"])
     .index("by_post_and_user", ["postId", "tokenIdentifier"]),
+
+  feedbackReplies: defineTable({
+    postId: v.id("feedbackPosts"),
+    tokenIdentifier: v.string(),
+    authorName: v.string(),
+    content: v.string(),
+    createdAt: v.number(),
+  }).index("by_post", ["postId"])
+    .index("by_token", ["tokenIdentifier"]),
 });
