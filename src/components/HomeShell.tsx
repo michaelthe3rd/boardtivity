@@ -527,6 +527,7 @@ export function HomeShell() {
 
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const boardContainerRef = useRef<HTMLDivElement | null>(null);
+  const fullscreenRootRef = useRef<HTMLElement | null>(null);
   const boardMenuRef = useRef<HTMLDivElement | null>(null);
   const boardButtonRef = useRef<HTMLButtonElement | null>(null);
   const settingsButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -846,9 +847,8 @@ export function HomeShell() {
   }, []);
 
   function toggleFullscreen() {
-    if (!boardContainerRef.current) return;
     if (!document.fullscreenElement) {
-      boardContainerRef.current.requestFullscreen();
+      (fullscreenRootRef.current ?? boardContainerRef.current)?.requestFullscreen();
     } else {
       document.exitFullscreen();
     }
@@ -1335,7 +1335,7 @@ export function HomeShell() {
   }
 
   return (
-    <main style={{ minHeight: "100vh", fontFamily: "'Satoshi', Arial, sans-serif" }}>
+    <main ref={fullscreenRootRef} style={{ minHeight: "100vh", fontFamily: "'Satoshi', Arial, sans-serif" }}>
       <section style={{ padding: isMobile ? "16px 18px 0" : "24px 48px 0" }}>
         <header style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
