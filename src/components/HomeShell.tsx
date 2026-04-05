@@ -724,9 +724,6 @@ export function HomeShell() {
       }
     } catch {}
     setIsHydrated(true);
-    if (isSignedIn && !localStorage.getItem("boardtivity_onboarding")) {
-      setOnboardingOpen(true);
-    }
   }, [isSignedIn]);
 
   // Reveal page only after Clerk auth + localStorage have resolved (prevents signed-out flash)
@@ -741,6 +738,20 @@ export function HomeShell() {
     const t = setTimeout(() => { document.documentElement.style.visibility = ""; }, 4000);
     return () => clearTimeout(t);
   }, []);
+
+  // Show onboarding only when the board scrolls into view for the first time
+  useEffect(() => {
+    if (!isSignedIn || !isHydrated) return;
+    if (localStorage.getItem("boardtivity_onboarding")) return;
+    const el = boardContainerRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setOnboardingOpen(true); observer.disconnect(); } },
+      { threshold: 0.25 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isSignedIn, isHydrated]);
 
   // Hydrate from Convex when data arrives — enables cross-device sync for signed-in users
   useEffect(() => {
