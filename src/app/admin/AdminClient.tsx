@@ -73,10 +73,8 @@ function AdminGate({ onUnlock }: { onUnlock: () => void }) {
       <div style={{ width: "min(400px, calc(100vw - 40px))" }}>
         {/* Logo */}
         <div style={{ marginBottom: 40, textAlign: "center" }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "8px 16px", borderRadius: 99, border: "1px solid rgba(255,255,255,.1)", backgroundColor: "rgba(255,255,255,.04)", marginBottom: 32 }}>
-            <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#6fc46b", display: "inline-block" }} />
-            <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,.4)", letterSpacing: ".1em", textTransform: "uppercase" }}>Boardtivity Admin</span>
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-horizontal.svg" alt="Boardtivity" style={{ height: 32, marginBottom: 32, opacity: 0.9 }} />
           <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-.03em", color: "#f5f5f2", marginBottom: 8 }}>
             Admin Access
           </div>
@@ -152,7 +150,8 @@ export default function AdminClient() {
       {/* Sidebar */}
       <aside style={S.sidebar}>
         <div style={S.sidebarTop}>
-          <div style={S.sidebarLogo}>Boardtivity</div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-horizontal.svg" alt="Boardtivity" style={{ height: 22, display: "block", opacity: 0.9 }} />
           <div style={S.sidebarSub}>Admin</div>
         </div>
 
