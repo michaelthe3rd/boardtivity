@@ -461,9 +461,17 @@ function ThemeToggle({ theme, onToggle }: { theme: ThemeMode; onToggle: () => vo
   );
 }
 
+function readLocal<T>(key: string, fallback: T): T {
+  try {
+    const s = localStorage.getItem("boardtivity");
+    if (s) { const d = JSON.parse(s); if (d[key] !== undefined) return d[key] as T; }
+  } catch {}
+  return fallback;
+}
+
 export function HomeShell() {
-  const [theme, setTheme] = useState<ThemeMode>("light");
-  const [boardTheme, setBoardTheme] = useState<ThemeMode>("light");
+  const [theme, setTheme] = useState<ThemeMode>(() => readLocal("theme", "light"));
+  const [boardTheme, setBoardTheme] = useState<ThemeMode>(() => readLocal("boardTheme", "light"));
   const [boards, setBoards] = useState<Board[]>(INITIAL_BOARDS);
   const [activeBoardId, setActiveBoardId] = useState("my-board");
   const [boardsOpen, setBoardsOpen] = useState(false);
@@ -561,9 +569,9 @@ export function HomeShell() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false); // noteId (number) or boardId (string)
-  const [boardGrid, setBoardGrid] = useState<"grid" | "dots" | "blank">("grid");
-  const [thoughtColorMode, setThoughtColorMode] = useState<"random" | "fixed">("random");
-  const [thoughtFixedColorIdx, setThoughtFixedColorIdx] = useState(0);
+  const [boardGrid, setBoardGrid] = useState<"grid" | "dots" | "blank">(() => readLocal("boardGrid", "grid"));
+  const [thoughtColorMode, setThoughtColorMode] = useState<"random" | "fixed">(() => readLocal("thoughtColorMode", "random"));
+  const [thoughtFixedColorIdx, setThoughtFixedColorIdx] = useState<number>(() => readLocal("thoughtFixedColorIdx", 0));
   const settingsRef = useRef<HTMLDivElement | null>(null);
 
   const boardDragRef = useRef<null | { startX: number; startY: number; panX: number; panY: number }>(null);
