@@ -1266,7 +1266,14 @@ export function HomeShell() {
         </p>
 
         {/* Inline email capture */}
-        {waitlistDone ? (
+        {isSignedIn ? (
+          <div style={{ maxWidth: 400, margin: "0 auto", textAlign: "center" }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, color: muted(theme), opacity: .65, backgroundColor: theme === "dark" ? "rgba(111,196,107,.08)" : "rgba(60,190,90,.07)", border: `1px solid ${theme === "dark" ? "rgba(111,196,107,.2)" : "rgba(60,190,90,.2)"}`, borderRadius: 999, padding: "8px 16px" }}>
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><polyline points="2,7 5.5,10.5 12,3.5" stroke="#6fc46b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              Signed in — your board saves automatically
+            </div>
+          </div>
+        ) : waitlistDone ? (
           <div style={{ maxWidth: 500, margin: "0 auto", textAlign: "center", padding: "8px 0" }}>
             <div style={{ width: 60, height: 60, borderRadius: "50%", backgroundColor: theme === "dark" ? "rgba(111,196,107,.12)" : "rgba(60,190,90,.08)", border: `1.5px solid ${theme === "dark" ? "rgba(111,196,107,.32)" : "rgba(60,190,90,.28)"}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><polyline points="5,13 9.5,17.5 19,8" stroke="#6fc46b" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -1298,7 +1305,7 @@ export function HomeShell() {
             <div style={{ marginTop: 10, fontSize: 12, color: muted(theme), opacity: .4 }}>Free · No credit card needed</div>
           </div>
         )}
-      </section>
+        </section>
 
       <section style={{ maxWidth: 1600, margin: "0 auto", padding: "0 20px 16px", textAlign: "center" }}>
         <div style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 700, letterSpacing: ".14em", textTransform: "uppercase", color: muted(theme), opacity: .55 }}>
@@ -1338,7 +1345,7 @@ export function HomeShell() {
           </div>
 
           {/* Save your board prompt */}
-          {!waitlistDone && activeNotes.length > 0 && (
+          {!waitlistDone && !isSignedIn && activeNotes.length > 0 && (
             <div style={{
               position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)", zIndex: 4,
               display: "flex", alignItems: "center", gap: 10,
