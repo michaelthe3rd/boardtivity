@@ -151,6 +151,7 @@ export default function AdminClient() {
   const [tab, setTab] = useState<Tab>("overview");
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [isDark, setIsDark] = useState(true);
+  const [bulbFlicker, setBulbFlicker] = useState(false);
 
   const t = isDark ? dark : light;
 
@@ -212,13 +213,39 @@ export default function AdminClient() {
         </nav>
 
         <div style={{ padding: "16px 20px", borderTop: `1px solid ${t.sidebarBorder}`, display: "flex", flexDirection: "column", gap: 10 }}>
-          {/* Dark/light toggle */}
-          <button onClick={() => setIsDark(!isDark)} style={{
-            display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "7px 12px",
-            borderRadius: 9, border: `1px solid ${t.toggleBorder}`, background: t.toggleBg,
-            color: t.toggleText, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-          }}>
-            <span style={{ fontSize: 15 }}>{isDark ? "☀️" : "🌙"}</span>
+          {/* Dark/light toggle — lightbulb */}
+          <button
+            onClick={() => { setBulbFlicker(true); setIsDark(!isDark); }}
+            onAnimationEnd={() => setBulbFlicker(false)}
+            style={{
+              display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "7px 12px",
+              borderRadius: 9, border: `1px solid ${t.toggleBorder}`, background: t.toggleBg,
+              color: t.toggleText, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+              boxShadow: !isDark ? "0 0 8px rgba(255,200,40,.25)" : undefined,
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+              className={bulbFlicker ? "bulb-flicker" : undefined}>
+              {/* bulb globe */}
+              <path d="M12 2C8.686 2 6 4.686 6 8c0 2.21 1.13 4.16 2.85 5.28V15a1 1 0 0 0 1 1h4.3a1 1 0 0 0 1-1v-1.72C16.87 12.16 18 10.21 18 8c0-3.314-2.686-6-6-6Z"
+                fill={!isDark ? "rgba(255,210,60,.95)" : "currentColor"}
+                stroke={!isDark ? "rgba(200,155,20,.7)" : "currentColor"}
+                strokeWidth={!isDark ? "0" : "0.5"}
+                opacity={!isDark ? 1 : 0.55}
+              />
+              {/* base bands */}
+              <line x1="9.5" y1="17" x2="14.5" y2="17" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity={!isDark ? 0.8 : 0.5}/>
+              <line x1="10" y1="19" x2="14" y2="19" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity={!isDark ? 0.8 : 0.5}/>
+              <line x1="10.5" y1="21" x2="13.5" y2="21" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity={!isDark ? 0.6 : 0.35}/>
+              {/* glow rays — only when light mode (on) */}
+              {!isDark && [[-5,-5],[5,-5],[0,-7],[-7,0],[7,0]].map(([dx,dy],i) => (
+                <line key={i}
+                  x1={12+dx*0.55} y1={8+dy*0.55}
+                  x2={12+dx} y2={8+dy}
+                  stroke="rgba(255,220,60,.7)" strokeWidth="1.3" strokeLinecap="round"
+                />
+              ))}
+            </svg>
             {isDark ? "Light mode" : "Dark mode"}
           </button>
           <div style={{ fontSize: 12, color: t.emailText, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>
