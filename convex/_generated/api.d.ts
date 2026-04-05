@@ -11,6 +11,7 @@
 import type * as admin from "../admin.js";
 import type * as boards from "../boards.js";
 import type * as feedback from "../feedback.js";
+import type * as sessions from "../sessions.js";
 import type * as waitlist from "../waitlist.js";
 
 import type {
@@ -23,6 +24,7 @@ declare const fullApi: ApiFromModules<{
   admin: typeof admin;
   boards: typeof boards;
   feedback: typeof feedback;
+  sessions: typeof sessions;
   waitlist: typeof waitlist;
 }>;
 
