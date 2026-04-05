@@ -463,6 +463,9 @@ export function HomeShell() {
 
   const [notes, setNotes] = useState<Note[]>([]);
   const [detailNoteId, setDetailNoteId] = useState<number | null>(null);
+  const [detailEditing, setDetailEditing] = useState(false);
+  const [detailEditTitle, setDetailEditTitle] = useState("");
+  const [detailEditBody, setDetailEditBody] = useState("");
   const [activeStep, setActiveStep] = useState<{ noteId: number; stepId: number } | null>(null);
 
   const [composerOpen, setComposerOpen] = useState(false);
@@ -1604,7 +1607,7 @@ export function HomeShell() {
                       draggedRef.current = false;
                       return;
                     }
-                    setDetailNoteId(note.id);
+                    setDetailNoteId(note.id); setDetailEditing(false);
                   }}
                   style={{
                     position: "absolute",
@@ -2311,7 +2314,7 @@ export function HomeShell() {
             padding: 16,
           }}
           onClick={(e) => {
-            if (e.target === e.currentTarget) setDetailNoteId(null);
+            if (e.target === e.currentTarget) { setDetailNoteId(null); setDetailEditing(false); }
           }}
         >
           <div
@@ -2325,14 +2328,39 @@ export function HomeShell() {
               overflow: "hidden",
             }}
           >
-            <div style={{ padding: "18px 20px", borderBottom: `1px solid ${border(boardTheme)}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
-                <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: muted(boardTheme) }}>
-                  {detailNote.type === "task" ? "Task details" : "Thought details"}
+            <div style={{ padding: "18px 20px", borderBottom: `1px solid ${border(boardTheme)}`, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                  <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: muted(boardTheme) }}>
+                    {detailNote.type === "task" ? "Task details" : "Thought"}
+                  </div>
+                  {detailNote.type !== "task" && detailNote.createdAt && (
+                    <div style={{ fontSize: 11, color: muted(boardTheme), opacity: .5 }}>
+                      · Created {new Date(detailNote.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                    </div>
+                  )}
                 </div>
-                <div style={{ marginTop: 6, fontSize: 24, fontWeight: 700 }}>{detailNote.title}</div>
+                {detailEditing && detailNote.type !== "task" ? (
+                  <input
+                    autoFocus
+                    value={detailEditTitle}
+                    onChange={e => setDetailEditTitle(e.target.value)}
+                    style={{ width: "100%", background: "none", border: "none", outline: "none", fontSize: 22, fontWeight: 700, color: pageText(boardTheme), fontFamily: "inherit", padding: 0, boxSizing: "border-box" }}
+                  />
+                ) : (
+                  <div style={{ fontSize: 22, fontWeight: 700 }}>{detailNote.title}</div>
+                )}
               </div>
-              <button onClick={() => setDetailNoteId(null)} style={circleButton(boardTheme, 42)}>✕</button>
+              <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                {detailNote.type !== "task" && !detailEditing && (
+                  <button
+                    onClick={() => { setDetailEditTitle(detailNote.title); setDetailEditBody(detailNote.body ?? ""); setDetailEditing(true); }}
+                    style={{ ...circleButton(boardTheme, 36), fontSize: 14 }}
+                    title="Edit thought"
+                  >✎</button>
+                )}
+                <button onClick={() => { setDetailNoteId(null); setDetailEditing(false); }} style={circleButton(boardTheme, 36)}>✕</button>
+              </div>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: detailNote.type === "task" ? "1fr 272px" : "1fr", gap: 14, padding: 18, maxHeight: "calc(90vh - 96px)", overflow: "hidden" }}>
@@ -2346,7 +2374,7 @@ export function HomeShell() {
                 }
                 return null;
               })()}
-              <div style={{ borderRadius: 13, backgroundColor: (detailNote.completed || (detailNote.steps.length > 0 && detailNote.steps.every(s => s.done))) ? (boardTheme === "dark" ? "#0e2e18" : "#e6f9ee") : detailNote.type === "task" ? getBg(detailNote.importance === "none" ? undefined : detailNote.importance) : panel(boardTheme), border: (detailNote.completed || (detailNote.steps.length > 0 && detailNote.steps.every(s => s.done))) ? `1px solid ${boardTheme === "dark" ? "rgba(60,180,90,.2)" : "rgba(60,180,90,.15)"}` : "1px solid rgba(0,0,0,.05)", padding: 20, display: "flex", flexDirection: "column", gap: 0, overflowY: "auto" }}>
+              <div style={{ borderRadius: 13, backgroundColor: (detailNote.completed || (detailNote.steps.length > 0 && detailNote.steps.every(s => s.done))) ? (boardTheme === "dark" ? "#0e2e18" : "#e6f9ee") : detailNote.type === "task" ? getBg(detailNote.importance === "none" ? undefined : detailNote.importance) : paletteBg(thoughtColorMode === "fixed" ? thoughtFixedColorIdx : (detailNote.colorIdx ?? 0), boardTheme), border: (detailNote.completed || (detailNote.steps.length > 0 && detailNote.steps.every(s => s.done))) ? `1px solid ${boardTheme === "dark" ? "rgba(60,180,90,.2)" : "rgba(60,180,90,.15)"}` : "1px solid rgba(0,0,0,.05)", padding: 20, display: "flex", flexDirection: "column", gap: 0, overflowY: "auto" }}>
                 {/* Focus header */}
                 <div style={{ paddingBottom: 16, borderBottom: `1px solid ${border(boardTheme)}`, marginBottom: 16 }}>
                   {detailNote.dueDate && (
@@ -2354,11 +2382,21 @@ export function HomeShell() {
                       Due {formatDate(detailNote.dueDate)}
                     </div>
                   )}
-                  {detailNote.body && (
+                  {detailNote.type !== "task" && detailEditing ? (
+                    <textarea
+                      value={detailEditBody}
+                      onChange={e => setDetailEditBody(e.target.value)}
+                      placeholder="Add a note…"
+                      rows={4}
+                      style={{ width: "100%", background: "none", border: "none", outline: "none", resize: "none", fontSize: 14, color: pageText(boardTheme), fontFamily: "inherit", lineHeight: 1.7, boxSizing: "border-box", padding: 0 }}
+                    />
+                  ) : detailNote.body ? (
                     <div style={{ fontSize: 14, color: muted(boardTheme), lineHeight: 1.7 }}>
                       {detailNote.body}
                     </div>
-                  )}
+                  ) : detailNote.type !== "task" ? (
+                    <div style={{ fontSize: 14, color: muted(boardTheme), opacity: .4, lineHeight: 1.7, fontStyle: "italic" }}>No note added.</div>
+                  ) : null}
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 12 }}>
                     {detailNote.minutes && <span style={pill(boardTheme)}>{detailNote.minutes} min</span>}
                     {detailNote.importance && detailNote.importance !== "none" && (
@@ -2430,6 +2468,22 @@ export function HomeShell() {
                   </>
                 ) : (
                   <>
+                    {detailEditing ? (
+                      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+                        <button
+                          onClick={() => setDetailEditing(false)}
+                          style={buttonStyle(boardTheme)}
+                        >Cancel</button>
+                        <button
+                          onClick={() => {
+                            if (!detailEditTitle.trim()) return;
+                            setNotes(ns => ns.map(n => n.id === detailNote.id ? { ...n, title: detailEditTitle.trim(), body: detailEditBody.trim() } : n));
+                            setDetailEditing(false);
+                          }}
+                          style={buttonStyle(boardTheme, true)}
+                        >Save</button>
+                      </div>
+                    ) : null}
                     <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), marginBottom: 10 }}>Connections</div>
                     {detailNote.linkedNoteIds.length === 0 ? (
                       <div style={{ color: muted(boardTheme), fontSize: 14, lineHeight: 1.6 }}>
