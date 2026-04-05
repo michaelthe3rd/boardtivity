@@ -1,10 +1,5 @@
-import dynamic from "next/dynamic";
-
-const HomeShell = dynamic(
-  () => import("@/components/HomeShell").then((m) => m.HomeShell),
-  { ssr: false }
-);
+import HomeShellClient from "@/components/HomeShellClient";
 
 export default function Page() {
-  return <HomeShell />;
+  return <HomeShellClient />;
 }
