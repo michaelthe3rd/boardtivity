@@ -74,7 +74,7 @@ function AdminGate({ onUnlock }: { onUnlock: () => void }) {
         {/* Logo */}
         <div style={{ marginBottom: 40, textAlign: "center" }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-horizontal.svg" alt="Boardtivity" style={{ height: 32, marginBottom: 32, opacity: 0.9 }} />
+          <img src="/logo-full.png" alt="Boardtivity" style={{ height: 120, marginBottom: 32, filter: "brightness(0) invert(1)" }} />
           <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-.03em", color: "#f5f5f2", marginBottom: 8 }}>
             Admin Access
           </div>
@@ -151,7 +151,7 @@ export default function AdminClient() {
       <aside style={S.sidebar}>
         <div style={S.sidebarTop}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-horizontal.svg" alt="Boardtivity" style={{ height: 22, display: "block", opacity: 0.9 }} />
+          <img src="/logo-horizontal.svg" alt="Boardtivity" style={{ height: 28, display: "block", filter: "brightness(0) invert(1)" }} />
           <div style={S.sidebarSub}>Admin</div>
         </div>
 
