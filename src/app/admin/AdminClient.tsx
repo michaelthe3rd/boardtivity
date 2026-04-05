@@ -3,7 +3,7 @@
 import { useQuery, useMutation } from "convex/react";
 import { useUser, useClerk } from "@clerk/nextjs";
 import { api } from "@/../convex/_generated/api";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Id } from "@/../convex/_generated/dataModel";
 
 type Tab = "overview" | "users" | "feedback" | "waitlist";
@@ -17,6 +17,9 @@ const fmtBytes = (n: number) =>
 const maskToken = (t: string) => t.slice(0, 12) + "…" + t.slice(-6);
 
 export default function AdminClient() {
+  // layout.tsx hides the page to prevent FOUC — clear it here since HomeShell never loads on /admin
+  useEffect(() => { document.documentElement.style.visibility = ""; }, []);
+
   const { user, isLoaded } = useUser();
   const { signOut, openSignIn } = useClerk();
   const [tab, setTab] = useState<Tab>("overview");
