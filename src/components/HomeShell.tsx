@@ -564,8 +564,8 @@ export function HomeShell() {
 
   const saveBoard = useMutation(api.boards.save);
   const savedBoard = useQuery(api.boards.load);
-  // true once Convex has responded (data or null) — gates writes so we don't overwrite fresh cloud data with stale local cache
-  const convexReadyRef = useRef(false);
+  const convexReadyRef = useRef(false);   // Convex has responded (data or null)
+  const convexAppliedRef = useRef(false); // first Convex state has been applied — stops re-applying on every cloud write
   const convexSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -733,8 +733,11 @@ export function HomeShell() {
   // Hydrate from Convex when data arrives — enables cross-device sync for signed-in users
   useEffect(() => {
     if (!isSignedIn || savedBoard === undefined) return; // still loading or not signed in
-    convexReadyRef.current = true; // Convex has responded; safe to write back
+    convexReadyRef.current = true;
+    if (convexAppliedRef.current) return; // already applied once — don't override user's in-session changes
+    convexAppliedRef.current = true;
     if (savedBoard) {
+      // Cloud has data — apply it (loads from another device)
       try {
         const data = JSON.parse(savedBoard.boardState) as {
           boards?: Board[];
@@ -753,6 +756,9 @@ export function HomeShell() {
         if (typeof data.thoughtFixedColorIdx === "number") setThoughtFixedColorIdx(data.thoughtFixedColorIdx);
         if (data.boardGrid) setBoardGrid(data.boardGrid);
       } catch {}
+    } else {
+      // Cloud is empty — push local state up immediately so other devices can see it
+      saveBoard({ boardState: JSON.stringify({ boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid }) }).catch(() => {});
     }
   }, [isSignedIn, savedBoard]);
 
