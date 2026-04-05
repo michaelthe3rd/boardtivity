@@ -2,20 +2,15 @@
   <!-- Background -->
   <rect width="400" height="400" fill="#0d0f12"/>
 
-  <!-- Logo icon centered, scaled up -->
-  <!-- Outer frame -->
-  <rect x="80" y="80" width="240" height="240" rx="44" ry="44" fill="none" stroke="white" stroke-width="13"/>
-
-  <!-- Corner brackets -->
-  <!-- Top-left -->
-  <path d="M112 112 H140 M112 112 V140" fill="none" stroke="white" stroke-width="10" stroke-linecap="round"/>
-  <!-- Top-right -->
-  <path d="M288 112 H260 M288 112 V140" fill="none" stroke="white" stroke-width="10" stroke-linecap="round"/>
-  <!-- Bottom-left -->
-  <path d="M112 288 H140 M112 288 V260" fill="none" stroke="white" stroke-width="10" stroke-linecap="round"/>
-  <!-- Bottom-right -->
-  <path d="M288 288 H260 M288 288 V260" fill="none" stroke="white" stroke-width="10" stroke-linecap="round"/>
-
-  <!-- B -->
-  <text x="200" y="242" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="130" text-anchor="middle" fill="white">B</text>
+  <!-- Logo centered at natural 220:180 ratio, scaled to fit with padding -->
+  <!-- Scale factor: fit 220x180 into ~300x245 area, centered in 400x400 -->
+  <!-- Offset: x=50, y=77 to center a 300x246 block -->
+  <g transform="translate(50, 77) scale(1.364)">
+    <rect x="15" y="15" width="190" height="150" rx="28" ry="28" fill="none" stroke="white" stroke-width="9"/>
+    <path d="M38 38 H58 M38 38 V58" fill="none" stroke="white" stroke-width="6" stroke-linecap="round"/>
+    <path d="M182 38 H162 M182 38 V58" fill="none" stroke="white" stroke-width="6" stroke-linecap="round"/>
+    <path d="M38 142 H58 M38 142 V122" fill="none" stroke="white" stroke-width="6" stroke-linecap="round"/>
+    <path d="M182 142 H162 M182 142 V122" fill="none" stroke="white" stroke-width="6" stroke-linecap="round"/>
+    <text x="110" y="118" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="85" text-anchor="middle" fill="white">B</text>
+  </g>
 </svg>
