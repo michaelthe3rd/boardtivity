@@ -1339,12 +1339,7 @@ export function HomeShell() {
             <ThemeToggle theme={theme} onToggle={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} />
             {isSignedIn ? (
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {!isMobile && (
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 1 }}>
-                    <span style={{ fontSize: 13, color: muted(theme) }}>{user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress}</span>
-                    <span style={{ fontSize: 10.5, color: muted(theme), opacity: .55, letterSpacing: ".01em" }}>Saves automatically · syncs across devices</span>
-                  </div>
-                )}
+                {!isMobile && <span style={{ fontSize: 13, color: muted(theme) }}>{user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress}</span>}
                 <button onClick={() => signOut()} style={buttonStyle(theme, false)}>Sign out</button>
               </div>
             ) : (
@@ -1375,9 +1370,9 @@ export function HomeShell() {
         {/* Inline email capture */}
         {isSignedIn ? (
           <div style={{ maxWidth: 400, margin: "0 auto", textAlign: "center" }}>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, color: muted(theme), opacity: .65, backgroundColor: theme === "dark" ? "rgba(111,196,107,.08)" : "rgba(60,190,90,.07)", border: `1px solid ${theme === "dark" ? "rgba(111,196,107,.2)" : "rgba(60,190,90,.2)"}`, borderRadius: 999, padding: "8px 16px" }}>
-              <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><polyline points="2,7 5.5,10.5 12,3.5" stroke="#6fc46b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              Signed in — your board saves automatically
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 15, color: muted(theme), opacity: .75, backgroundColor: theme === "dark" ? "rgba(111,196,107,.08)" : "rgba(60,190,90,.07)", border: `1px solid ${theme === "dark" ? "rgba(111,196,107,.2)" : "rgba(60,190,90,.2)"}`, borderRadius: 999, padding: "10px 20px" }}>
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="2,7 5.5,10.5 12,3.5" stroke="#6fc46b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              Signed in — your board saves automatically and syncs across devices
             </div>
           </div>
         ) : waitlistDone ? (
