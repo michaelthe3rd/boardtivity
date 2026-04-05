@@ -731,7 +731,7 @@ export function HomeShell() {
         localStorage.removeItem("boardtivity");
       }
     } catch {}
-  }, [isHydrated, isSignedIn, theme, boardTheme, boards, notes, activeBoardId, drafts]);
+  }, [isHydrated, isSignedIn, theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx]);
 
   useEffect(() => {
     function onDocPointerDown(e: PointerEvent) {
