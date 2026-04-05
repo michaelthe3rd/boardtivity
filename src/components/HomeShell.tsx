@@ -527,7 +527,6 @@ export function HomeShell() {
 
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const boardContainerRef = useRef<HTMLDivElement | null>(null);
-  const fullscreenRootRef = useRef<HTMLElement | null>(null);
   const boardMenuRef = useRef<HTMLDivElement | null>(null);
   const boardButtonRef = useRef<HTMLButtonElement | null>(null);
   const settingsButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -572,6 +571,7 @@ export function HomeShell() {
 
   const saveBoard = useMutation(api.boards.save);
   const savedBoard = useQuery(api.boards.load);
+  const ensureWaitlistLinked = useMutation(api.waitlist.ensureLinked);
   const convexReadyRef = useRef(false);   // Convex has responded (data or null)
   const convexAppliedRef = useRef(false); // first Convex state has been applied — stops re-applying on every cloud write
   const convexSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -636,6 +636,11 @@ export function HomeShell() {
     }),
     [boardTheme]
   );
+
+  // In fullscreen, overflow:hidden clips fixed-position modals — override it
+  const fullscreenOverride: CSSProperties = isFullscreen
+    ? { borderRadius: 0, border: "none", minHeight: "100vh", overflow: "visible" }
+    : {};
 
   const taskBoards = boards.filter((b) => b.type === "task");
   const thoughtBoards = boards.filter((b) => b.type === "thought");
@@ -777,6 +782,14 @@ export function HomeShell() {
     }
   }, [isSignedIn, savedBoard]);
 
+  // Auto-link signed-in users to the waitlist (once per session)
+  useEffect(() => {
+    if (!isSignedIn || !user) return;
+    const email = user.emailAddresses?.[0]?.emailAddress;
+    if (!email) return;
+    ensureWaitlistLinked({ email }).catch(() => {});
+  }, [isSignedIn, user?.id]);
+
   // Sync theme attributes to document root so CSS data-theme rules apply reactively
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -848,7 +861,7 @@ export function HomeShell() {
 
   function toggleFullscreen() {
     if (!document.fullscreenElement) {
-      (fullscreenRootRef.current ?? boardContainerRef.current)?.requestFullscreen();
+      boardContainerRef.current?.requestFullscreen();
     } else {
       document.exitFullscreen();
     }
@@ -945,7 +958,7 @@ export function HomeShell() {
 
   function addBoard(type: BoardType) {
     const existingOfType = boards.filter((b) => b.type === type);
-    if (existingOfType.length >= 1) {
+    if (existingOfType.length >= 10) {
       setUpgradeType(type);
       setUpgradeOpen(true);
       setBoardsOpen(false);
@@ -1335,7 +1348,7 @@ export function HomeShell() {
   }
 
   return (
-    <main ref={fullscreenRootRef} style={{ minHeight: "100vh", fontFamily: "'Satoshi', Arial, sans-serif" }}>
+    <main style={{ minHeight: "100vh", fontFamily: "'Satoshi', Arial, sans-serif" }}>
       <section style={{ padding: isMobile ? "16px 18px 0" : "24px 48px 0" }}>
         <header style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
@@ -1445,7 +1458,7 @@ export function HomeShell() {
             <div style={{ fontSize: 13, color: muted(theme), lineHeight: 1.7, opacity: .7 }}>The interactive board is designed for larger screens. Try it on your computer or iPad.</div>
           </div>
         )}
-        <div id="board-shell" ref={boardContainerRef} style={{ ...boardStyle, ...(isFullscreen ? { borderRadius: 0, border: "none", minHeight: "100vh" } : {}), ...(isMobile ? { display: "none" } : {}) }}>
+        <div id="board-shell" ref={boardContainerRef} style={{ ...boardStyle, ...fullscreenOverride, ...(isMobile ? { display: "none" } : {}) }}>
           <div
             style={{
               position: "absolute",
@@ -3371,7 +3384,7 @@ export function HomeShell() {
             <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1.08, letterSpacing: "-.035em", color: pageText(theme), marginBottom: 14 }}>Free forever</div>
             <div style={{ fontSize: 13, color: muted(theme), marginBottom: 18, lineHeight: 1.75, flexGrow: 1 }}>Full access to every feature — boards, tasks, subtasks, focus sessions, and idea notes. No credit card needed.</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 26 }}>
-              {["1 board per type (10 during beta)", "Unlimited tasks & ideas", "Focus mode & subtasks", "Taskweb & Taskchain"].map((f) => (
+              {["1 board per type", "Unlimited tasks & ideas", "Focus mode & subtasks", "Taskweb & Taskchain"].map((f) => (
                 <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: pageText(theme) }}>
                   <div style={{ width: 16, height: 16, borderRadius: "50%", backgroundColor: hexToRgba("#6fc46b", .15), border: "1px solid rgba(111,196,107,.35)", display: "grid", placeItems: "center", flexShrink: 0 }}>
                     <svg width="8" height="8" viewBox="0 0 10 10"><polyline points="2,5.5 4.2,7.5 8,3" stroke="#6fc46b" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
