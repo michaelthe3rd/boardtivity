@@ -482,6 +482,10 @@ export function HomeShell() {
   const [detailEditing, setDetailEditing] = useState(false);
   const [detailEditTitle, setDetailEditTitle] = useState("");
   const [detailEditBody, setDetailEditBody] = useState("");
+  const [detailEditDueDate, setDetailEditDueDate] = useState("");
+  const [detailEditImportance, setDetailEditImportance] = useState<Importance>("none");
+  const [detailEditMinutes, setDetailEditMinutes] = useState(60);
+  const [detailEditSteps, setDetailEditSteps] = useState<Step[]>([]);
   const [activeStep, setActiveStep] = useState<{ noteId: number; stepId: number } | null>(null);
 
   const [composerOpen, setComposerOpen] = useState(false);
@@ -2282,11 +2286,19 @@ export function HomeShell() {
                       <option value="High">High priority</option>
                     </select>
 
-                    <div style={{ ...fieldStyle(boardTheme), justifyContent: "space-between" }}>
-                      <button onClick={() => setMinutes((m) => Math.max(5, m - 5))} style={circleButton(boardTheme, 30)}>-</button>
-                      <div style={{ flex: 1, textAlign: "center", color: pageText(boardTheme), opacity: 0.92 }}>{minutes} min</div>
-                      <button onClick={() => setMinutes((m) => m + 5)} style={circleButton(boardTheme, 30)}>+</button>
-                    </div>
+                    {aiSteps.length > 0 ? (
+                      <div style={{ ...fieldStyle(boardTheme), justifyContent: "center" }}>
+                        <div style={{ color: muted(boardTheme), fontSize: 14 }}>
+                          {aiSteps.reduce((s, st) => s + st.minutes, 0)} min total
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ ...fieldStyle(boardTheme), justifyContent: "space-between" }}>
+                        <button onClick={() => setMinutes((m) => Math.max(5, m - 5))} style={circleButton(boardTheme, 30)}>-</button>
+                        <div style={{ flex: 1, textAlign: "center", color: pageText(boardTheme), opacity: 0.92 }}>{minutes} min</div>
+                        <button onClick={() => setMinutes((m) => m + 5)} style={circleButton(boardTheme, 30)}>+</button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -2449,22 +2461,39 @@ export function HomeShell() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
                   <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: muted(boardTheme) }}>
-                    {detailNote.type === "task" ? "Task details" : detailEditing ? "Editing idea" : "Idea"}
+                    {detailEditing ? `Editing ${detailNote.type}` : detailNote.type === "task" ? "Task details" : "Idea"}
                   </div>
-                  {detailNote.type !== "task" && detailNote.createdAt && !detailEditing && (
+                  {detailNote.createdAt && !detailEditing && (
                     <div style={{ fontSize: 11, color: muted(boardTheme), opacity: .5 }}>
                       · Created {new Date(detailNote.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
                     </div>
                   )}
                 </div>
-                <div style={{ fontSize: 22, fontWeight: 700 }}>{detailNote.title}</div>
+                {detailEditing ? (
+                  <input
+                    autoFocus
+                    value={detailEditTitle}
+                    onChange={e => setDetailEditTitle(e.target.value)}
+                    style={{ width: "100%", background: "none", border: "none", outline: "none", fontSize: 22, fontWeight: 700, color: pageText(boardTheme), fontFamily: "inherit", padding: 0, boxSizing: "border-box" }}
+                  />
+                ) : (
+                  <div style={{ fontSize: 22, fontWeight: 700 }}>{detailNote.title}</div>
+                )}
               </div>
               <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                {detailNote.type !== "task" && !detailEditing && (
+                {!detailEditing && (
                   <button
-                    onClick={() => { setDetailEditTitle(detailNote.title); setDetailEditBody(detailNote.body ?? ""); setDetailEditing(true); }}
+                    onClick={() => {
+                      setDetailEditTitle(detailNote.title);
+                      setDetailEditBody(detailNote.body ?? "");
+                      setDetailEditDueDate(detailNote.dueDate ?? "");
+                      setDetailEditImportance(detailNote.importance ?? "none");
+                      setDetailEditMinutes(detailNote.minutes ?? 60);
+                      setDetailEditSteps(detailNote.steps.map(s => ({ ...s })));
+                      setDetailEditing(true);
+                    }}
                     style={{ ...circleButton(boardTheme, 36), fontSize: 14 }}
-                    title="Edit idea"
+                    title={detailNote.type === "task" ? "Edit task" : "Edit idea"}
                   >✎</button>
                 )}
                 <button onClick={() => { setDetailNoteId(null); setDetailEditing(false); }} style={circleButton(boardTheme, 36)}>✕</button>
@@ -2485,48 +2514,83 @@ export function HomeShell() {
               <div style={{ borderRadius: 13, backgroundColor: (detailNote.completed || (detailNote.steps.length > 0 && detailNote.steps.every(s => s.done))) ? (boardTheme === "dark" ? "#0e2e18" : "#e6f9ee") : detailNote.type === "task" ? getBg(detailNote.importance === "none" ? undefined : detailNote.importance) : paletteBg(thoughtColorMode === "fixed" ? thoughtFixedColorIdx : (detailNote.colorIdx ?? 0), boardTheme), border: (detailNote.completed || (detailNote.steps.length > 0 && detailNote.steps.every(s => s.done))) ? `1px solid ${boardTheme === "dark" ? "rgba(60,180,90,.2)" : "rgba(60,180,90,.15)"}` : "1px solid rgba(0,0,0,.05)", padding: 20, display: "flex", flexDirection: "column", gap: 0, overflowY: "auto" }}>
                 {/* Focus header */}
                 <div style={{ paddingBottom: 16, borderBottom: `1px solid ${border(boardTheme)}`, marginBottom: 16 }}>
-                  {detailNote.dueDate && (
-                    <div style={{ fontSize: 15, fontWeight: 600, color: pageText(boardTheme), marginBottom: 6 }}>
-                      Due {formatDate(detailNote.dueDate)}
+                  {detailNote.type === "task" && detailEditing ? (
+                    <div style={{ display: "grid", gap: 10 }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                        <div>
+                          <div style={{ fontSize: 11, letterSpacing: ".1em", textTransform: "uppercase", color: muted(boardTheme), marginBottom: 5 }}>Due date</div>
+                          <input
+                            type="date"
+                            value={detailEditDueDate}
+                            onChange={e => setDetailEditDueDate(e.target.value)}
+                            style={{ width: "100%", background: "none", border: `1px solid ${border(boardTheme)}`, borderRadius: 8, padding: "6px 10px", fontSize: 13, color: pageText(boardTheme), fontFamily: "inherit", boxSizing: "border-box", outline: "none" }}
+                          />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 11, letterSpacing: ".1em", textTransform: "uppercase", color: muted(boardTheme), marginBottom: 5 }}>Priority</div>
+                          <select
+                            value={detailEditImportance}
+                            onChange={e => setDetailEditImportance(e.target.value as Importance)}
+                            style={{ width: "100%", background: panel(boardTheme), border: `1px solid ${border(boardTheme)}`, borderRadius: 8, padding: "6px 10px", fontSize: 13, color: pageText(boardTheme), fontFamily: "inherit", boxSizing: "border-box", outline: "none" }}
+                          >
+                            <option value="none">No priority</option>
+                            <option value="Low">Low</option>
+                            <option value="Medium">Medium</option>
+                            <option value="High">High</option>
+                          </select>
+                        </div>
+                      </div>
+                      {detailEditSteps.length === 0 && (
+                        <div>
+                          <div style={{ fontSize: 11, letterSpacing: ".1em", textTransform: "uppercase", color: muted(boardTheme), marginBottom: 5 }}>Time estimate</div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <button onClick={() => setDetailEditMinutes(m => Math.max(5, m - 5))} style={{ background: "none", border: `1px solid ${border(boardTheme)}`, borderRadius: 6, width: 28, height: 28, cursor: "pointer", color: pageText(boardTheme), fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                            <span style={{ fontSize: 14, fontWeight: 600, color: pageText(boardTheme), minWidth: 60, textAlign: "center" }}>{detailEditMinutes} min</span>
+                            <button onClick={() => setDetailEditMinutes(m => m + 5)} style={{ background: "none", border: `1px solid ${border(boardTheme)}`, borderRadius: 6, width: 28, height: 28, cursor: "pointer", color: pageText(boardTheme), fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
-                  {detailNote.type !== "task" && detailEditing ? (
+                  ) : (
                     <>
-                      <input
-                        autoFocus
-                        value={detailEditTitle}
-                        onChange={e => setDetailEditTitle(e.target.value)}
-                        style={{ width: "100%", background: "none", border: "none", outline: "none", fontSize: 18, fontWeight: 700, color: pageText(boardTheme), fontFamily: "inherit", padding: 0, boxSizing: "border-box", marginBottom: 10 }}
-                      />
-                      <textarea
-                        value={detailEditBody}
-                        onChange={e => setDetailEditBody(e.target.value)}
-                        placeholder="Add a note…"
-                        rows={4}
-                        style={{ width: "100%", background: "none", border: "none", outline: "none", resize: "none", fontSize: 14, color: pageText(boardTheme), fontFamily: "inherit", lineHeight: 1.7, boxSizing: "border-box", padding: 0 }}
-                      />
+                      {detailNote.dueDate && (
+                        <div style={{ fontSize: 15, fontWeight: 600, color: pageText(boardTheme), marginBottom: 6 }}>
+                          Due {formatDate(detailNote.dueDate)}
+                        </div>
+                      )}
+                      {detailNote.type !== "task" && detailEditing ? (
+                        <>
+                          <textarea
+                            value={detailEditBody}
+                            onChange={e => setDetailEditBody(e.target.value)}
+                            placeholder="Add a note…"
+                            rows={4}
+                            style={{ width: "100%", background: "none", border: "none", outline: "none", resize: "none", fontSize: 14, color: pageText(boardTheme), fontFamily: "inherit", lineHeight: 1.7, boxSizing: "border-box", padding: 0 }}
+                          />
+                        </>
+                      ) : detailNote.body ? (
+                        <div style={{ fontSize: 14, color: muted(boardTheme), lineHeight: 1.7 }}>
+                          {detailNote.body}
+                        </div>
+                      ) : detailNote.type !== "task" ? (
+                        <div style={{ fontSize: 14, color: muted(boardTheme), opacity: .4, lineHeight: 1.7, fontStyle: "italic" }}>No note added.</div>
+                      ) : null}
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 12 }}>
+                        {detailNote.minutes && <span style={pill(boardTheme)}>{detailNote.minutes} min</span>}
+                        {detailNote.importance && detailNote.importance !== "none" && (
+                          <span style={pill(boardTheme)}>{detailNote.importance} priority</span>
+                        )}
+                        {detailNote.type === "task" && (() => {
+                          const doneCount = detailNote.steps.filter(s => s.done).length;
+                          const total = detailNote.steps.length;
+                          const completed = detailNote.completed || (total > 0 && doneCount === total);
+                          if (completed) return <span style={pill(boardTheme)}>Completed</span>;
+                          if (total > 0 && doneCount > 0) return <span style={pill(boardTheme)}>{doneCount}/{total} done</span>;
+                          return <span style={pill(boardTheme)}>Not started</span>;
+                        })()}
+                      </div>
                     </>
-                  ) : detailNote.body ? (
-                    <div style={{ fontSize: 14, color: muted(boardTheme), lineHeight: 1.7 }}>
-                      {detailNote.body}
-                    </div>
-                  ) : detailNote.type !== "task" ? (
-                    <div style={{ fontSize: 14, color: muted(boardTheme), opacity: .4, lineHeight: 1.7, fontStyle: "italic" }}>No note added.</div>
-                  ) : null}
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 12 }}>
-                    {detailNote.minutes && <span style={pill(boardTheme)}>{detailNote.minutes} min</span>}
-                    {detailNote.importance && detailNote.importance !== "none" && (
-                      <span style={pill(boardTheme)}>{detailNote.importance} priority</span>
-                    )}
-                    {detailNote.type === "task" && (() => {
-                      const doneCount = detailNote.steps.filter(s => s.done).length;
-                      const total = detailNote.steps.length;
-                      const completed = detailNote.completed || (total > 0 && doneCount === total);
-                      if (completed) return <span style={pill(boardTheme)}>Completed</span>;
-                      if (total > 0 && doneCount > 0) return <span style={pill(boardTheme)}>{doneCount}/{total} done</span>;
-                      return <span style={pill(boardTheme)}>Not started</span>;
-                    })()}
-                  </div>
+                  )}
                 </div>
 
                 {detailNote.type === "task" ? (
@@ -2534,7 +2598,40 @@ export function HomeShell() {
                     <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), marginBottom: 12 }}>
                       Subtasks
                     </div>
-                    {detailNote.steps.length === 0 ? (
+                    {detailEditing ? (
+                      <div style={{ display: "grid", gap: 8 }}>
+                        {detailEditSteps.map((step) => (
+                          <div key={step.id} style={{ display: "flex", gap: 8, alignItems: "center", borderBottom: `1px solid ${border(boardTheme)}`, paddingBottom: 8 }}>
+                            <input
+                              value={step.title}
+                              onChange={e => setDetailEditSteps(prev => prev.map(s => s.id === step.id ? { ...s, title: e.target.value } : s))}
+                              style={{ flex: 1, border: "none", background: "transparent", fontWeight: 600, fontSize: 14, color: pageText(boardTheme), outline: "none", fontFamily: "inherit" }}
+                            />
+                            <button
+                              onClick={() => {
+                                const newMins = Math.max(5, step.minutes - 5);
+                                setDetailEditSteps(prev => prev.map(s => s.id === step.id ? { ...s, minutes: newMins } : s));
+                              }}
+                              style={{ background: "none", border: "none", cursor: "pointer", color: muted(boardTheme), fontSize: 16, padding: "0 2px", lineHeight: 1, fontWeight: 700 }}
+                            >−</button>
+                            <span style={{ fontSize: 14, fontWeight: 600, color: muted(boardTheme), minWidth: 22, textAlign: "center" }}>{step.minutes}</span>
+                            <button
+                              onClick={() => setDetailEditSteps(prev => prev.map(s => s.id === step.id ? { ...s, minutes: s.minutes + 5 } : s))}
+                              style={{ background: "none", border: "none", cursor: "pointer", color: muted(boardTheme), fontSize: 16, padding: "0 2px", lineHeight: 1, fontWeight: 700 }}
+                            >+</button>
+                            <span style={{ fontSize: 13, color: muted(boardTheme) }}>min</span>
+                            <button
+                              onClick={() => setDetailEditSteps(prev => prev.filter(s => s.id !== step.id))}
+                              style={{ background: "none", border: "none", cursor: "pointer", color: muted(boardTheme), fontSize: 14, padding: "0 4px", lineHeight: 1, opacity: .6 }}
+                            >✕</button>
+                          </div>
+                        ))}
+                        <button
+                          onClick={() => setDetailEditSteps(prev => [...prev, { id: Date.now(), title: "", minutes: 15, done: false, x: 0, y: 0 }])}
+                          style={{ height: 34, borderRadius: 8, border: `1px dashed ${border(boardTheme)}`, background: "none", color: muted(boardTheme), fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
+                        >+ Add subtask</button>
+                      </div>
+                    ) : detailNote.steps.length === 0 ? (
                       <div style={{ color: muted(boardTheme), fontSize: 14, lineHeight: 1.6 }}>
                         No subtasks for this task.
                       </div>
@@ -2579,6 +2676,30 @@ export function HomeShell() {
                             <span style={{ ...pill(boardTheme), flexShrink: 0 }}>{step.minutes} min</span>
                           </button>
                         ))}
+                      </div>
+                    )}
+                    {detailEditing && (
+                      <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+                        <button onClick={() => setDetailEditing(false)} style={buttonStyle(boardTheme)}>Cancel</button>
+                        <button
+                          onClick={() => {
+                            if (!detailEditTitle.trim()) return;
+                            const newSteps = detailEditSteps.filter(s => s.title.trim());
+                            const newMinutes = newSteps.length > 0
+                              ? newSteps.reduce((s, st) => s + st.minutes, 0)
+                              : detailEditMinutes;
+                            setNotes(ns => ns.map(n => n.id === detailNote.id ? {
+                              ...n,
+                              title: detailEditTitle.trim(),
+                              dueDate: detailEditDueDate || undefined,
+                              importance: detailEditImportance,
+                              minutes: newMinutes,
+                              steps: newSteps,
+                            } : n));
+                            setDetailEditing(false);
+                          }}
+                          style={buttonStyle(boardTheme, true)}
+                        >Save</button>
                       </div>
                     )}
                   </>
