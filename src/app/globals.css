@@ -1,7 +1,7 @@
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
-html[data-theme="dark"],html[data-theme="dark"] body{background-color:#0d0f12}
-html[data-theme="light"],html[data-theme="light"] body{background-color:#f3f1eb}
+html,body,main{background-color:#f3f1eb;color:#171613}
+html[data-theme="dark"],html[data-theme="dark"] body,html[data-theme="dark"] main{background-color:#0d0f12;color:#f5f5f2}
 html[data-board-theme="dark"] #board-shell{background-color:#17191d}
 html[data-board-theme="light"] #board-shell{background-color:#ffffff}
 @font-face{font-family:"Satoshi";src:url("/fonts/Satoshi-Variable.woff2") format("woff2");font-weight:100 900;font-style:normal;font-display:swap}

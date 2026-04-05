@@ -713,16 +713,15 @@ export function HomeShell() {
     setIsHydrated(true);
   }, [isSignedIn]);
 
-  // Sync theme to document root so the full page (html, body) responds
+  // Sync theme attributes to document root so CSS data-theme rules apply reactively
   useEffect(() => {
-    const bg = pageBg(theme);
-    document.documentElement.style.backgroundColor = bg;
-    document.body.style.backgroundColor = bg;
-    return () => {
-      document.documentElement.style.backgroundColor = "";
-      document.body.style.backgroundColor = "";
-    };
+    document.documentElement.setAttribute("data-theme", theme);
+    document.documentElement.style.backgroundColor = pageBg(theme);
   }, [theme]);
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-board-theme", boardTheme);
+  }, [boardTheme]);
 
   // Persist state to localStorage
   useEffect(() => {
@@ -1259,7 +1258,7 @@ export function HomeShell() {
   }
 
   return (
-    <main style={{ minHeight: "100vh", backgroundColor: pageBg(theme), color: pageText(theme), fontFamily: "'Satoshi', Arial, sans-serif" }}>
+    <main style={{ minHeight: "100vh", fontFamily: "'Satoshi', Arial, sans-serif" }}>
       <section style={{ padding: isMobile ? "16px 18px 0" : "24px 48px 0" }}>
         <header style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
