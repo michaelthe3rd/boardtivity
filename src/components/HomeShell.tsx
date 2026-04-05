@@ -3540,50 +3540,46 @@ export function HomeShell() {
       {/* ── Upgrade modal ── */}
       {upgradeOpen && (
         <div
-          style={{ position: "fixed", inset: 0, zIndex: 60, backgroundColor: "rgba(0,0,0,.5)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+          style={{ position: "fixed", inset: 0, zIndex: 60, backgroundColor: theme === "dark" ? "rgba(6,8,12,.7)" : "rgba(10,10,12,.32)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
           onClick={(e) => { if (e.target === e.currentTarget) setUpgradeOpen(false); }}
         >
-          <div style={{ width: "min(420px,100%)", backgroundColor: theme === "dark" ? "#14161a" : "#ffffff", borderRadius: 22, boxShadow: "0 40px 120px rgba(0,0,0,.4)", overflow: "hidden", fontFamily: "inherit" }}>
-            {/* Top accent */}
-            <div style={{ height: 4, background: "linear-gradient(90deg,#5a8df5,#b57fe8,#6fc46b)" }} />
-            <div style={{ padding: "32px 30px 28px" }}>
-              {/* Icon */}
-              <div style={{ width: 48, height: 48, borderRadius: 13, background: "linear-gradient(135deg,#5a8df530,#b57fe830)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20, fontSize: 22 }}>
-                ✦
-              </div>
-              <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-.03em", color: pageText(theme), marginBottom: 8 }}>
-                Unlock unlimited boards
-              </div>
-              <div style={{ fontSize: 15, color: theme === "dark" ? "rgba(255,255,255,.5)" : "rgba(0,0,0,.5)", lineHeight: 1.6, marginBottom: 24 }}>
-                Free accounts include 1 task board and 1 idea board. Upgrade to Pro for unlimited boards, priority sync, and everything we build next.
-              </div>
-              {/* Feature list */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 }}>
-                {[
-                  "Unlimited task & idea boards",
-                  "Priority cloud sync across all devices",
-                  "Early access to every new feature",
-                ].map((f) => (
-                  <div key={f} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, color: theme === "dark" ? "rgba(255,255,255,.7)" : "rgba(0,0,0,.65)" }}>
-                    <svg width="15" height="15" viewBox="0 0 14 14" fill="none"><polyline points="2,7 5.5,10.5 12,3.5" stroke="#6fc46b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                    {f}
-                  </div>
-                ))}
-              </div>
-              {/* CTA */}
-              <button
-                onClick={() => { setUpgradeOpen(false); setWaitlistOpen(true); }}
-                style={{ width: "100%", padding: "14px 0", borderRadius: 12, border: "none", background: "linear-gradient(135deg,#5a8df5,#b57fe8)", color: "#fff", fontSize: 15, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-.02em", marginBottom: 10 }}
-              >
-                Join the Pro waitlist →
-              </button>
-              <button
-                onClick={() => setUpgradeOpen(false)}
-                style={{ width: "100%", padding: "12px 0", borderRadius: 12, border: "none", background: "none", color: theme === "dark" ? "rgba(255,255,255,.3)" : "rgba(0,0,0,.3)", fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}
-              >
-                Maybe later
-              </button>
+          <div style={{ width: "min(400px,100%)", backgroundColor: theme === "dark" ? "#1a1d22" : "#fbf8f1", borderRadius: 20, boxShadow: "0 30px 80px rgba(0,0,0,.28)", border: `1px solid ${border(theme)}`, padding: "28px 26px 22px", fontFamily: "inherit" }}>
+            {/* Label */}
+            <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", fontWeight: 700, color: muted(theme), marginBottom: 14 }}>Boardtivity Plus</div>
+            <div style={{ fontSize: 21, fontWeight: 800, letterSpacing: "-.03em", color: pageText(theme), marginBottom: 8, lineHeight: 1.2 }}>
+              Unlock unlimited boards
             </div>
+            <div style={{ fontSize: 14, color: muted(theme), lineHeight: 1.65, marginBottom: 22 }}>
+              Free accounts include 1 task board and 1 idea board. Upgrade to Plus for unlimited boards and everything we build next.
+            </div>
+            {/* Feature list */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 9, marginBottom: 24 }}>
+              {[
+                "Unlimited task & idea boards",
+                "Priority cloud sync across all devices",
+                "Early access to every new feature",
+              ].map((f) => (
+                <div key={f} style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 13.5, color: pageText(theme) }}>
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="2,7 5.5,10.5 12,3.5" stroke="#6fc46b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  {f}
+                </div>
+              ))}
+            </div>
+            {/* Divider */}
+            <div style={{ height: 1, backgroundColor: border(theme), marginBottom: 18 }} />
+            {/* CTA */}
+            <button
+              onClick={() => { setUpgradeOpen(false); setWaitlistOpen(true); }}
+              style={{ width: "100%", padding: "13px 0", borderRadius: 11, border: "none", backgroundColor: pageText(theme), color: pageBg(theme), fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-.02em", marginBottom: 8 }}
+            >
+              Join the Plus waitlist →
+            </button>
+            <button
+              onClick={() => setUpgradeOpen(false)}
+              style={{ width: "100%", padding: "10px 0", borderRadius: 11, border: "none", background: "none", color: muted(theme), fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
+            >
+              Maybe later
+            </button>
           </div>
         </div>
       )}
