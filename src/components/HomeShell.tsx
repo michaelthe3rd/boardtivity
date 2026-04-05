@@ -665,16 +665,20 @@ export function HomeShell() {
           activeBoardId?: string;
           drafts?: Draft[];
         };
+        // Always restore theme preferences
         if (data.theme) setTheme(data.theme);
         if (data.boardTheme) setBoardTheme(data.boardTheme);
-        if (Array.isArray(data.boards) && data.boards.length > 0) setBoards(data.boards);
-        if (Array.isArray(data.notes)) setNotes(data.notes);
-        if (data.activeBoardId) setActiveBoardId(data.activeBoardId);
-        if (Array.isArray(data.drafts)) setDrafts(data.drafts);
+        // Only restore board data if signed in
+        if (isSignedIn) {
+          if (Array.isArray(data.boards) && data.boards.length > 0) setBoards(data.boards);
+          if (Array.isArray(data.notes)) setNotes(data.notes);
+          if (data.activeBoardId) setActiveBoardId(data.activeBoardId);
+          if (Array.isArray(data.drafts)) setDrafts(data.drafts);
+        }
       }
     } catch {}
     setIsHydrated(true);
-  }, []);
+  }, [isSignedIn]);
 
   // Sync theme to document root so the full page (html, body) responds
   useEffect(() => {
@@ -687,13 +691,19 @@ export function HomeShell() {
     };
   }, [theme]);
 
-  // Persist state to localStorage whenever it changes (skip until initial load is done)
+  // Persist state to localStorage — board data only when signed in
   useEffect(() => {
     if (!isHydrated) return;
     try {
-      localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme, boards, notes, activeBoardId, drafts }));
+      const base = { theme, boardTheme };
+      if (isSignedIn) {
+        localStorage.setItem("boardtivity", JSON.stringify({ ...base, boards, notes, activeBoardId, drafts }));
+      } else {
+        // Only save theme prefs; clear any previously saved board data
+        localStorage.setItem("boardtivity", JSON.stringify(base));
+      }
     } catch {}
-  }, [isHydrated, theme, boardTheme, boards, notes, activeBoardId, drafts]);
+  }, [isHydrated, isSignedIn, theme, boardTheme, boards, notes, activeBoardId, drafts]);
 
   useEffect(() => {
     function onDocPointerDown(e: PointerEvent) {
