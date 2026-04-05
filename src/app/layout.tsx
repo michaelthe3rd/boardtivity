@@ -1,6 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import { ConvexClientProvider } from "@/components/ConvexClientProvider";
+import { SessionTracker } from "@/components/SessionTracker";
 import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
@@ -16,7 +17,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: `(function(){try{document.documentElement.style.visibility="hidden";var s=localStorage.getItem("boardtivity");if(s){var d=JSON.parse(s);var t=d.theme||"light";var bt=d.boardTheme||t;document.documentElement.setAttribute("data-theme",t);document.documentElement.setAttribute("data-board-theme",bt);}}catch(e){}})();`}} />
       </head>
       <body suppressHydrationWarning>
-        <ConvexClientProvider>{children}</ConvexClientProvider>
+        <ConvexClientProvider>
+          {children}
+          <SessionTracker />
+        </ConvexClientProvider>
         <Analytics />
       </body>
     </html>

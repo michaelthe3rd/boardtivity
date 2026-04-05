@@ -52,6 +52,12 @@ const fmt = (ms: number) =>
 const fmtBytes = (n: number) =>
   n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1048576).toFixed(2)} MB`;
 
+const fmtDuration = (ms: number) => {
+  if (ms < 60000) return `${Math.round(ms / 1000)}s`;
+  if (ms < 3600000) return `${Math.round(ms / 60000)}m`;
+  return `${(ms / 3600000).toFixed(1)}h`;
+};
+
 const maskToken = (t: string) => t.slice(0, 14) + "…" + t.slice(-6);
 
 const fmtDay = (iso: string) => {
@@ -161,6 +167,7 @@ export default function AdminClient() {
   const feedback = useQuery(api.admin.getFeedback);
   const waitlist = useQuery(api.admin.getWaitlist);
   const analytics = useQuery(api.admin.getAnalytics);
+  const sessionStats = useQuery(api.admin.getSessionStats);
 
   const deletePost = useMutation(api.admin.adminDeletePost);
   const deleteWaitlist = useMutation(api.admin.adminDeleteWaitlist);
@@ -270,6 +277,14 @@ export default function AdminClient() {
             </div>
             <div style={{ padding: "0 32px 40px" }}>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14, marginBottom: 28 }}>
+                {/* Online now */}
+                <div style={card({ padding: "20px 22px" })}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                    <span style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: "#6fc46b", display: "inline-block", flexShrink: 0, boxShadow: "0 0 6px #6fc46b" }} />
+                    <div style={{ fontSize: 32, fontWeight: 800, letterSpacing: "-.04em", lineHeight: 1, color: "#6fc46b" }}>{sessionStats?.onlineNow ?? "—"}</div>
+                  </div>
+                  <div style={{ fontSize: 12, color: t.subText, marginTop: 8, fontWeight: 500 }}>On site right now</div>
+                </div>
                 {[
                   { label: "Registered users", value: stats.totalUsers, color: "#4a7ef5" },
                   { label: "Waitlist signups", value: stats.totalWaitlist, color: "#6fc46b" },
@@ -314,6 +329,30 @@ export default function AdminClient() {
                 <div style={{ color: t.subText, fontSize: 14 }}>Loading…</div>
               ) : (
                 <>
+                  {/* Live visitors */}
+                  <div style={card({ padding: "18px 24px", marginBottom: 16 })}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#6fc46b", display: "inline-block", boxShadow: "0 0 6px #6fc46b" }} />
+                      <span style={{ fontSize: 13, fontWeight: 700, color: t.titleText }}>Live right now</span>
+                      <span style={{ fontSize: 12, color: t.mutedText }}>(updates every 30s)</span>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 14 }}>
+                      {[
+                        { label: "On site now", value: sessionStats?.onlineNow ?? "—", color: "#6fc46b" },
+                        { label: "Signed in now", value: sessionStats?.signedInNow ?? "—", color: "#4a7ef5" },
+                        { label: "Active last hour", value: sessionStats?.activeHour ?? "—", color: "#9b6fe8" },
+                        { label: "Active today", value: sessionStats?.activeToday ?? "—", color: "#f5a623" },
+                        { label: "Avg session time", value: sessionStats ? fmtDuration(sessionStats.avgDuration) : "—", color: "#e07b54" },
+                        { label: "Sessions (30d)", value: sessionStats?.totalSessions ?? "—", color: "#4dc9d3" },
+                      ].map(({ label, value, color }) => (
+                        <div key={label} style={{ padding: "12px 16px", borderRadius: 10, border: `1px solid ${t.cardBorder}`, backgroundColor: isDark ? "rgba(255,255,255,.03)" : "rgba(0,0,0,.02)" }}>
+                          <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-.04em", lineHeight: 1, color }}>{value}</div>
+                          <div style={{ fontSize: 11, color: t.subText, marginTop: 5, fontWeight: 500 }}>{label}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                   {/* Stat row */}
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 14, marginBottom: 24 }}>
                     {[

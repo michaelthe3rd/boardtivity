@@ -39,4 +39,12 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_post", ["postId"])
     .index("by_token", ["tokenIdentifier"]),
+
+  sessions: defineTable({
+    sessionId: v.string(),
+    startTime: v.number(),
+    lastSeen: v.number(),
+    isSignedIn: v.boolean(),
+  }).index("by_session", ["sessionId"])
+    .index("by_lastSeen", ["lastSeen"]),
 });

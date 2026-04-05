@@ -129,6 +129,36 @@ export const adminDeleteUser = mutation({
   },
 });
 
+export const getSessionStats = query({
+  args: {},
+  handler: async (ctx) => {
+    if (!(await isAdmin(ctx))) return null;
+    const now = Date.now();
+    const MIN = 60000;
+    const DAY = 86400000;
+
+    const sessions = await ctx.db
+      .query("sessions")
+      .withIndex("by_lastSeen", (q) => q.gte("lastSeen", now - 30 * DAY))
+      .take(10000);
+
+    const onlineNow = sessions.filter((s) => s.lastSeen > now - 5 * MIN).length;
+    const activeHour = sessions.filter((s) => s.lastSeen > now - 60 * MIN).length;
+    const activeToday = sessions.filter((s) => s.lastSeen > now - DAY).length;
+    const signedInNow = sessions.filter((s) => s.lastSeen > now - 5 * MIN && s.isSignedIn).length;
+
+    const durations = sessions
+      .map((s) => s.lastSeen - s.startTime)
+      .filter((d) => d > 15000);
+    const avgDuration =
+      durations.length > 0
+        ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
+        : 0;
+
+    return { onlineNow, activeHour, activeToday, signedInNow, avgDuration, totalSessions: sessions.length };
+  },
+});
+
 export const getAnalytics = query({
   args: {},
   handler: async (ctx) => {
