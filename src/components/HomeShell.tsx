@@ -3074,13 +3074,8 @@ export function HomeShell() {
 
         {/* ── Focus Mode — full-width immersive ── */}
         <div ref={whyRef} style={{ marginBottom: 100, opacity: whyVisible ? 1 : 0, transform: whyVisible ? "none" : "translateY(24px)", transition: "opacity .7s ease, transform .7s ease" }}>
-          <div style={{ borderRadius: 24, overflow: "hidden", backgroundColor: theme === "dark" ? "#0a0b0e" : "#0d0f12", position: "relative" }}>
+          <div style={{ maxWidth: 860, margin: "0 auto", borderRadius: 24, overflow: "hidden", backgroundColor: theme === "dark" ? "#0a0b0e" : "#0d0f12", position: "relative" }}>
             <div style={{ position: "absolute", top: 0, left: "15%", right: "15%", height: 1, background: "linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent)", pointerEvents: "none" }}/>
-            {/* Focus Mode label */}
-            <div style={{ position: "absolute", top: 18, left: 22, display: "flex", alignItems: "center", gap: 6, backgroundColor: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 999, padding: "4px 12px" }}>
-              <div style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#6fc46b", boxShadow: "0 0 6px #6fc46b" }}/>
-              <span style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", fontWeight: 700, color: "rgba(255,255,255,.6)" }}>Focus Mode</span>
-            </div>
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", minHeight: isMobile ? "auto" : 380 }}>
               {/* Left: actual focus mode UI replica */}
               <div style={{ padding: isMobile ? "52px 24px 36px" : "56px 48px 48px", borderRight: isMobile ? "none" : "1px solid rgba(255,255,255,.05)", borderBottom: isMobile ? "1px solid rgba(255,255,255,.05)" : "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
