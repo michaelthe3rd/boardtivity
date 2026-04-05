@@ -172,6 +172,8 @@ export default function AdminClient() {
   const deletePost = useMutation(api.admin.adminDeletePost);
   const deleteWaitlist = useMutation(api.admin.adminDeleteWaitlist);
   const deleteUser = useMutation(api.admin.adminDeleteUser);
+  const cleanupSessions = useMutation(api.admin.cleanupSessions);
+  const [cleanupResult, setCleanupResult] = useState<number | null>(null);
   const { signOut } = useClerk();
 
   if (!unlocked || !stats) return <AdminGate onUnlock={() => setUnlocked(true)} />;
@@ -456,6 +458,20 @@ export default function AdminClient() {
                         )}
                       </tbody>
                     </table>
+                  </div>
+
+                  {/* Session cleanup */}
+                  <div style={{ ...card({ padding: "16px 20px" }), display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, marginTop: 16 }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: t.titleText }}>Session data cleanup</div>
+                      <div style={{ fontSize: 12, color: t.subText, marginTop: 2 }}>Delete sessions older than 90 days to keep the database lean.</div>
+                    </div>
+                    <button
+                      onClick={async () => { const n = await cleanupSessions({}); setCleanupResult(n); }}
+                      style={{ flexShrink: 0, padding: "7px 16px", borderRadius: 9, border: `1px solid ${t.signOutBorder}`, background: "none", color: t.subText, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
+                    >
+                      {cleanupResult !== null ? `Removed ${cleanupResult} sessions` : "Run cleanup"}
+                    </button>
                   </div>
                 </>
               )}

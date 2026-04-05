@@ -37,16 +37,17 @@ export const join = mutation({
     boardState: v.optional(v.string()),
   },
   handler: async (ctx, { email, boardState }) => {
-    // Basic email format validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email) || email.length > 254) return null;
+    // Normalize and validate email
+    const normalized = email.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    if (!emailRegex.test(normalized) || normalized.length > 254) return null;
 
     // Limit boardState size to 500KB
     if (boardState && boardState.length > 500_000) return null;
 
     const existing = await ctx.db
       .query("waitlist")
-      .withIndex("by_email", (q) => q.eq("email", email))
+      .withIndex("by_email", (q) => q.eq("email", normalized))
       .first();
 
     if (existing) {
@@ -55,7 +56,7 @@ export const join = mutation({
     }
 
     return await ctx.db.insert("waitlist", {
-      email,
+      email: normalized,
       boardState,
       joinedAt: Date.now(),
     });

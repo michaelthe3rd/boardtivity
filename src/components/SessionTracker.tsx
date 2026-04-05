@@ -20,7 +20,7 @@ export function SessionTracker() {
   useEffect(() => {
     let sid = sessionStorage.getItem("brd_sid");
     if (!sid) {
-      sid = Math.random().toString(36).slice(2) + Date.now().toString(36);
+      sid = crypto.randomUUID();
       sessionStorage.setItem("brd_sid", sid);
     }
     sessionIdRef.current = sid;

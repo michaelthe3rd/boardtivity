@@ -121,6 +121,20 @@ export const adminDeleteWaitlist = mutation({
   },
 });
 
+export const cleanupSessions = mutation({
+  args: {},
+  handler: async (ctx) => {
+    if (!(await isAdmin(ctx))) throw new Error("Unauthorized");
+    const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000; // 90 days
+    const old = await ctx.db
+      .query("sessions")
+      .withIndex("by_lastSeen", (q) => q.lte("lastSeen", cutoff))
+      .take(1000);
+    await Promise.all(old.map((s) => ctx.db.delete(s._id)));
+    return old.length;
+  },
+});
+
 export const adminDeleteUser = mutation({
   args: { id: v.id("userBoards") },
   handler: async (ctx, { id }) => {
