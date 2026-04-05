@@ -526,6 +526,7 @@ export function HomeShell() {
   const feedbackPosts = useQuery(api.feedback.list);
   const postFeedback = useMutation(api.feedback.post);
   const upvoteFeedback = useMutation(api.feedback.upvote);
+  const deleteFeedback = useMutation(api.feedback.remove);
   const { user, isSignedIn } = useUser();
   const { openSignIn, openSignUp, signOut } = useClerk();
 
@@ -3224,8 +3225,20 @@ export function HomeShell() {
               {/* Content */}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, color: pageText(theme), lineHeight: 1.65, marginBottom: 8, wordBreak: "break-word" }}>{p.content}</div>
-                <div style={{ fontSize: 12, color: muted(theme), opacity: .45 }}>
-                  {p.authorName} · {new Date(p.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                  <div style={{ fontSize: 12, color: muted(theme), opacity: .45 }}>
+                    {p.authorName} · {new Date(p.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                  </div>
+                  {p.isOwner && (
+                    <button
+                      onClick={async () => { await deleteFeedback({ postId: p._id }); }}
+                      style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: muted(theme), opacity: .4, padding: "2px 4px", fontFamily: "inherit", flexShrink: 0 }}
+                      onMouseEnter={e => (e.currentTarget.style.opacity = "0.9")}
+                      onMouseLeave={e => (e.currentTarget.style.opacity = "0.4")}
+                    >
+                      Delete
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

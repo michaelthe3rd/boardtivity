@@ -45,7 +45,7 @@ export const list = query({
             )
             .first()
         : null;
-      return { ...post, hasUpvoted: !!userUpvote };
+      return { ...post, hasUpvoted: !!userUpvote, isOwner: tokenIdentifier === post.tokenIdentifier };
     }));
   },
 });
@@ -80,6 +80,27 @@ export const post = mutation({
       createdAt: Date.now(),
       upvotes: 0,
     });
+  },
+});
+
+export const remove = mutation({
+  args: { postId: v.id("feedbackPosts") },
+  handler: async (ctx, { postId }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const post = await ctx.db.get(postId);
+    if (!post) return null;
+    if (post.tokenIdentifier !== identity.tokenIdentifier) throw new Error("Unauthorized");
+
+    // Delete all upvotes for this post
+    const upvotes = await ctx.db
+      .query("feedbackUpvotes")
+      .withIndex("by_post", (q) => q.eq("postId", postId))
+      .collect();
+    await Promise.all(upvotes.map((u) => ctx.db.delete(u._id)));
+
+    await ctx.db.delete(postId);
   },
 });
 
