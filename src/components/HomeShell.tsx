@@ -1307,7 +1307,7 @@ export function HomeShell() {
               position: "absolute",
               inset: 0,
               backgroundColor: paper(boardTheme),
-              ...(boardGrid === "grid" ? { backgroundImage: `linear-gradient(${grid(boardTheme)} 1px, transparent 1px), linear-gradient(90deg, ${grid(boardTheme)} 1px, transparent 1px)`, backgroundSize: "48px 48px" } : boardGrid === "dots" ? { backgroundImage: `radial-gradient(circle, ${grid(boardTheme)} 1.5px, transparent 1.5px)`, backgroundSize: "32px 32px" } : {}),
+              ...(boardGrid === "grid" ? { backgroundImage: `linear-gradient(${grid(boardTheme)} 1px, transparent 1px), linear-gradient(90deg, ${grid(boardTheme)} 1px, transparent 1px)`, backgroundSize: `${48 * scale}px ${48 * scale}px`, backgroundPosition: `${pan.x % (48 * scale)}px ${pan.y % (48 * scale)}px` } : boardGrid === "dots" ? { backgroundImage: `radial-gradient(circle, ${grid(boardTheme)} 1.5px, transparent 1.5px)`, backgroundSize: `${32 * scale}px ${32 * scale}px`, backgroundPosition: `${pan.x % (32 * scale)}px ${pan.y % (32 * scale)}px` } : {}),
               pointerEvents: "none",
             }}
           />
@@ -1369,8 +1369,7 @@ export function HomeShell() {
                 height: BOARD_H,
                 transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
                 transformOrigin: "0 0",
-                backgroundColor: paper(boardTheme),
-                ...(boardGrid === "grid" ? { backgroundImage: `linear-gradient(${grid(boardTheme)} 1px, transparent 1px), linear-gradient(90deg, ${grid(boardTheme)} 1px, transparent 1px)`, backgroundSize: "48px 48px" } : boardGrid === "dots" ? { backgroundImage: `radial-gradient(circle, ${grid(boardTheme)} 1.5px, transparent 1.5px)`, backgroundSize: "32px 32px" } : {}),
+                backgroundColor: "transparent",
               }}
             >
               <svg width={BOARD_W} height={BOARD_H} style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
