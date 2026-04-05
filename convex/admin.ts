@@ -7,11 +7,33 @@ const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "")
   .map((e) => e.trim().toLowerCase())
   .filter(Boolean);
 
+// Fallback: match by tokenIdentifier (e.g. "https://clerk.boardtivity.com|user_xxx")
+const ADMIN_TOKENS = (process.env.ADMIN_TOKENS ?? "")
+  .split(",")
+  .map((e) => e.trim())
+  .filter(Boolean);
+
 async function isAdmin(ctx: QueryCtx | MutationCtx): Promise<boolean> {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) return false;
-  return ADMIN_EMAILS.includes((identity.email ?? "").toLowerCase());
+  if (ADMIN_EMAILS.length > 0 && ADMIN_EMAILS.includes((identity.email ?? "").toLowerCase())) return true;
+  if (ADMIN_TOKENS.length > 0 && ADMIN_TOKENS.includes(identity.tokenIdentifier)) return true;
+  return false;
 }
+
+// Public: returns current user's identity info so admin can self-diagnose
+export const whoami = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return null;
+    return {
+      email: identity.email ?? null,
+      tokenIdentifier: identity.tokenIdentifier,
+      subject: identity.subject,
+    };
+  },
+});
 
 export const getStats = query({
   args: {},

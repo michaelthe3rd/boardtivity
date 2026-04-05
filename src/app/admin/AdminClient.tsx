@@ -22,6 +22,7 @@ export default function AdminClient() {
   const [tab, setTab] = useState<Tab>("overview");
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
+  const whoami = useQuery(api.admin.whoami);
   const stats = useQuery(api.admin.getStats);
   const users = useQuery(api.admin.getUsers);
   const feedback = useQuery(api.admin.getFeedback);
@@ -46,7 +47,28 @@ export default function AdminClient() {
     </div>
   );
   if (stats === undefined) return <Loading />;
-  if (stats === null) return <Gate message="This account doesn't have admin access." />;
+  if (stats === null) return (
+    <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", fontFamily: "'Satoshi', Arial, sans-serif", backgroundColor: "#f5f5f3" }}>
+      <div style={{ maxWidth: 520, width: "100%", padding: "0 24px" }}>
+        <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-.03em", marginBottom: 8, color: "#111315" }}>Access denied</div>
+        <div style={{ fontSize: 15, color: "rgba(0,0,0,.45)", marginBottom: 28 }}>Your account isn't recognized as admin. Run this in your terminal to fix it:</div>
+        {whoami && (
+          <div style={{ backgroundColor: "#111315", borderRadius: 12, padding: "16px 18px", marginBottom: 20 }}>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,.3)", letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 10 }}>What Convex sees for your account</div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,.5)", marginBottom: 4 }}>Email: <span style={{ color: "#f5f5f2" }}>{whoami.email ?? "(not in JWT)"}</span></div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,.5)", marginBottom: 16 }}>Token: <span style={{ color: "#f5f5f2", wordBreak: "break-all" }}>{whoami.tokenIdentifier}</span></div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,.35)", marginBottom: 6 }}>Run this command:</div>
+            <div style={{ fontSize: 12, color: "#6fc46b", fontFamily: "monospace", wordBreak: "break-all" }}>
+              npx convex env set ADMIN_TOKENS &quot;{whoami.tokenIdentifier}&quot;
+            </div>
+          </div>
+        )}
+        <button onClick={() => signOut()} style={{ fontSize: 13, color: "rgba(0,0,0,.4)", background: "none", border: "1px solid rgba(0,0,0,.15)", borderRadius: 9, padding: "8px 16px", cursor: "pointer", fontFamily: "inherit" }}>
+          Sign out
+        </button>
+      </div>
+    </div>
+  );
 
   const TABS: { id: Tab; label: string }[] = [
     { id: "overview", label: "Overview" },
