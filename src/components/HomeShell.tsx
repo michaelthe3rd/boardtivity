@@ -683,6 +683,8 @@ export function HomeShell() {
           notes?: Note[];
           activeBoardId?: string;
           drafts?: Draft[];
+          thoughtColorMode?: "random" | "fixed";
+          thoughtFixedColorIdx?: number;
         };
         // Only restore data for signed in users
         if (isSignedIn) {
@@ -692,6 +694,8 @@ export function HomeShell() {
           if (Array.isArray(data.notes)) setNotes(data.notes);
           if (data.activeBoardId) setActiveBoardId(data.activeBoardId);
           if (Array.isArray(data.drafts)) setDrafts(data.drafts);
+          if (data.thoughtColorMode) setThoughtColorMode(data.thoughtColorMode);
+          if (typeof data.thoughtFixedColorIdx === "number") setThoughtFixedColorIdx(data.thoughtFixedColorIdx);
         }
       }
     } catch {}
@@ -714,7 +718,7 @@ export function HomeShell() {
     if (!isHydrated) return;
     try {
       if (isSignedIn) {
-        localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme, boards, notes, activeBoardId, drafts }));
+        localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx }));
       } else {
         localStorage.removeItem("boardtivity");
       }
