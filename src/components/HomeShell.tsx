@@ -2412,24 +2412,15 @@ export function HomeShell() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
                   <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: muted(boardTheme) }}>
-                    {detailNote.type === "task" ? "Task details" : "Idea"}
+                    {detailNote.type === "task" ? "Task details" : detailEditing ? "Editing idea" : "Idea"}
                   </div>
-                  {detailNote.type !== "task" && detailNote.createdAt && (
+                  {detailNote.type !== "task" && detailNote.createdAt && !detailEditing && (
                     <div style={{ fontSize: 11, color: muted(boardTheme), opacity: .5 }}>
                       · Created {new Date(detailNote.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
                     </div>
                   )}
                 </div>
-                {detailEditing && detailNote.type !== "task" ? (
-                  <input
-                    autoFocus
-                    value={detailEditTitle}
-                    onChange={e => setDetailEditTitle(e.target.value)}
-                    style={{ width: "100%", background: "none", border: "none", outline: "none", fontSize: 22, fontWeight: 700, color: pageText(boardTheme), fontFamily: "inherit", padding: 0, boxSizing: "border-box" }}
-                  />
-                ) : (
-                  <div style={{ fontSize: 22, fontWeight: 700 }}>{detailNote.title}</div>
-                )}
+                <div style={{ fontSize: 22, fontWeight: 700 }}>{detailNote.title}</div>
               </div>
               <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                 {detailNote.type !== "task" && !detailEditing && (
@@ -2463,13 +2454,21 @@ export function HomeShell() {
                     </div>
                   )}
                   {detailNote.type !== "task" && detailEditing ? (
-                    <textarea
-                      value={detailEditBody}
-                      onChange={e => setDetailEditBody(e.target.value)}
-                      placeholder="Add a note…"
-                      rows={4}
-                      style={{ width: "100%", background: "none", border: "none", outline: "none", resize: "none", fontSize: 14, color: pageText(boardTheme), fontFamily: "inherit", lineHeight: 1.7, boxSizing: "border-box", padding: 0 }}
-                    />
+                    <>
+                      <input
+                        autoFocus
+                        value={detailEditTitle}
+                        onChange={e => setDetailEditTitle(e.target.value)}
+                        style={{ width: "100%", background: "none", border: "none", outline: "none", fontSize: 18, fontWeight: 700, color: pageText(boardTheme), fontFamily: "inherit", padding: 0, boxSizing: "border-box", marginBottom: 10 }}
+                      />
+                      <textarea
+                        value={detailEditBody}
+                        onChange={e => setDetailEditBody(e.target.value)}
+                        placeholder="Add a note…"
+                        rows={4}
+                        style={{ width: "100%", background: "none", border: "none", outline: "none", resize: "none", fontSize: 14, color: pageText(boardTheme), fontFamily: "inherit", lineHeight: 1.7, boxSizing: "border-box", padding: 0 }}
+                      />
+                    </>
                   ) : detailNote.body ? (
                     <div style={{ fontSize: 14, color: muted(boardTheme), lineHeight: 1.7 }}>
                       {detailNote.body}
