@@ -1276,9 +1276,15 @@ export function HomeShell() {
         <h1 style={{ margin: "0 0 24px", fontSize: "clamp(34px,4.8vw,64px)", lineHeight: 1.0, fontWeight: 900, letterSpacing: "-.055em", color: pageText(theme) }}>
           The <span className="hue-rotate">Board</span> and the Produc<span className="hue-rotate">tivity</span><br/>in one.
         </h1>
-        <p style={{ margin: "0 auto 52px", maxWidth: 500, fontSize: 17, color: muted(theme), lineHeight: 1.82, opacity: .7 }}>
+        <p style={{ margin: "0 auto 28px", maxWidth: 500, fontSize: 17, color: muted(theme), lineHeight: 1.82, opacity: .7 }}>
           Boardtivity is a freeform visual board for your tasks, thoughts, and focus. Drag tasks anywhere, let AI break them down into steps, link ideas, chain subtasks, and lock into focus mode — all in one place.
         </p>
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 28 }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12, fontWeight: 600, letterSpacing: ".06em", color: muted(theme), opacity: .75, backgroundColor: theme === "dark" ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.05)", border: `1px solid ${border(theme)}`, borderRadius: 999, padding: "6px 14px" }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><rect x="5" y="2" width="14" height="20" rx="3" stroke="currentColor" strokeWidth="2"/><circle cx="12" cy="18" r="1" fill="currentColor"/></svg>
+            App coming soon
+          </div>
+        </div>
 
         {/* Inline email capture */}
         {isSignedIn ? (
@@ -2950,26 +2956,31 @@ export function HomeShell() {
             <BoardtivityLogo size={80} dark={theme === "dark"} />
           </div>
           <div style={{ fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 16, opacity: .5 }}>Built for how you think</div>
-          <h2 style={{ margin: 0, fontSize: "clamp(30px,4vw,52px)", fontWeight: 900, letterSpacing: "-.05em", color: pageText(theme), lineHeight: 1.06 }}>Your Board, the Way You Need It.</h2>
+          <h2 style={{ margin: 0, fontSize: "clamp(22px,2.8vw,38px)", fontWeight: 900, letterSpacing: "-.05em", color: pageText(theme), lineHeight: 1.06 }}>Your Board, the Way You Need It.</h2>
         </div>
 
         {/* ── Focus Mode — full-width immersive ── */}
         <div ref={whyRef} style={{ marginBottom: 100, opacity: whyVisible ? 1 : 0, transform: whyVisible ? "none" : "translateY(24px)", transition: "opacity .7s ease, transform .7s ease" }}>
           <div style={{ borderRadius: 24, overflow: "hidden", backgroundColor: theme === "dark" ? "#0a0b0e" : "#0d0f12", position: "relative" }}>
             <div style={{ position: "absolute", top: 0, left: "15%", right: "15%", height: 1, background: "linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent)", pointerEvents: "none" }}/>
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", minHeight: isMobile ? "auto" : 460 }}>
+            {/* Focus Mode label */}
+            <div style={{ position: "absolute", top: 18, left: 22, display: "flex", alignItems: "center", gap: 6, backgroundColor: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 999, padding: "4px 12px" }}>
+              <div style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#6fc46b", boxShadow: "0 0 6px #6fc46b" }}/>
+              <span style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", fontWeight: 700, color: "rgba(255,255,255,.6)" }}>Focus Mode</span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", minHeight: isMobile ? "auto" : 380 }}>
               {/* Left: actual focus mode UI replica */}
-              <div style={{ padding: isMobile ? "40px 24px" : "64px 60px", borderRight: isMobile ? "none" : "1px solid rgba(255,255,255,.05)", borderBottom: isMobile ? "1px solid rgba(255,255,255,.05)" : "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <div style={{ width: "100%", maxWidth: 320, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
+              <div style={{ padding: isMobile ? "52px 24px 36px" : "56px 48px 48px", borderRight: isMobile ? "none" : "1px solid rgba(255,255,255,.05)", borderBottom: isMobile ? "1px solid rgba(255,255,255,.05)" : "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div style={{ width: "100%", maxWidth: 300, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
                   <div style={{ fontSize: 13, letterSpacing: ".16em", color: "rgba(247,248,251,.45)", fontWeight: 600 }}>2 / 3</div>
                   <div style={{ marginTop: 12, fontSize: 18, fontWeight: 600, color: "rgba(247,248,251,.72)", letterSpacing: "-.01em", lineHeight: 1.4 }}>
                     Study for Chemistry exam
                   </div>
-                  <div style={{ marginTop: 28, fontSize: 92, fontWeight: 700, letterSpacing: "-.04em", fontVariantNumeric: "tabular-nums", lineHeight: 1, color: "#f7f8fb" }}>
+                  <div style={{ marginTop: 20, fontSize: 72, fontWeight: 700, letterSpacing: "-.04em", fontVariantNumeric: "tabular-nums", lineHeight: 1, color: "#f7f8fb" }}>
                     18:45
                   </div>
                   {/* Progress — current step */}
-                  <div style={{ marginTop: 44, width: "100%" }}>
+                  <div style={{ marginTop: 28, width: "100%" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
                       <span style={{ fontSize: 14, fontWeight: 600, color: "rgba(247,248,251,.8)" }}>Practice problems</span>
                       <span style={{ fontSize: 14, color: "rgba(247,248,251,.4)" }}>2 / 3</span>
@@ -2993,8 +3004,8 @@ export function HomeShell() {
                 </div>
               </div>
               {/* Right: copy */}
-              <div style={{ padding: isMobile ? "32px 24px 40px" : "64px 60px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                <h3 style={{ margin: "0 0 18px", fontSize: "clamp(26px,2.8vw,40px)", fontWeight: 800, letterSpacing: "-.04em", color: "#f7f8fb", lineHeight: 1.08 }}>Lock in.<br/>Step by step.</h3>
+              <div style={{ padding: isMobile ? "32px 24px 40px" : "56px 48px 48px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                <h3 style={{ margin: "0 0 18px", fontSize: "clamp(22px,2.2vw,32px)", fontWeight: 800, letterSpacing: "-.04em", color: "#f7f8fb", lineHeight: 1.08 }}>Lock in.<br/>Step by step.</h3>
                 <p style={{ margin: "0 0 36px", fontSize: 15, color: "rgba(255,255,255,.42)", lineHeight: 1.9 }}>
                   Enter a timed focus session for any task or subtask. Boardtivity chains through your steps automatically — so you stay on track without thinking about it.
                 </p>
@@ -3182,9 +3193,10 @@ export function HomeShell() {
                     setFeedbackContent("");
                   } catch (e: any) {
                     const msg = e?.message ?? "";
-                    if (msg.startsWith("rate_limit:")) {
-                      const h = msg.split(":")[1];
-                      setFeedbackError(`You can post again in ${h}h`);
+                    const rlMatch = msg.match(/rate_limit:(\d+)/);
+                    if (rlMatch) {
+                      const h = rlMatch[1];
+                      setFeedbackError(`You already posted today. Try again in ${h}h.`);
                     } else {
                       setFeedbackError("Something went wrong, try again.");
                     }
