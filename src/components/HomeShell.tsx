@@ -562,9 +562,11 @@ export function HomeShell() {
     setWaitlistDone(true);
   }
 
-  // TODO: enable after running `npx convex dev` to push boards schema
-  // const saveBoard = useMutation(api.boards.save);
-  // const savedBoard = useQuery(api.boards.load);
+  const saveBoard = useMutation(api.boards.save);
+  const savedBoard = useQuery(api.boards.load);
+  // true once Convex has responded (data or null) — gates writes so we don't overwrite fresh cloud data with stale local cache
+  const convexReadyRef = useRef(false);
+  const convexSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | string | null>(null);
@@ -728,6 +730,32 @@ export function HomeShell() {
     }
   }, [isHydrated]);
 
+  // Hydrate from Convex when data arrives — enables cross-device sync for signed-in users
+  useEffect(() => {
+    if (!isSignedIn || savedBoard === undefined) return; // still loading or not signed in
+    convexReadyRef.current = true; // Convex has responded; safe to write back
+    if (savedBoard) {
+      try {
+        const data = JSON.parse(savedBoard.boardState) as {
+          boards?: Board[];
+          notes?: Note[];
+          activeBoardId?: string;
+          drafts?: Draft[];
+          thoughtColorMode?: "random" | "fixed";
+          thoughtFixedColorIdx?: number;
+          boardGrid?: "grid" | "dots" | "blank";
+        };
+        if (Array.isArray(data.boards) && data.boards.length > 0) setBoards(data.boards);
+        if (Array.isArray(data.notes)) setNotes(data.notes);
+        if (data.activeBoardId) setActiveBoardId(data.activeBoardId);
+        if (Array.isArray(data.drafts)) setDrafts(data.drafts);
+        if (data.thoughtColorMode) setThoughtColorMode(data.thoughtColorMode);
+        if (typeof data.thoughtFixedColorIdx === "number") setThoughtFixedColorIdx(data.thoughtFixedColorIdx);
+        if (data.boardGrid) setBoardGrid(data.boardGrid);
+      } catch {}
+    }
+  }, [isSignedIn, savedBoard]);
+
   // Sync theme attributes to document root so CSS data-theme rules apply reactively
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -738,13 +766,20 @@ export function HomeShell() {
     document.documentElement.setAttribute("data-board-theme", boardTheme);
   }, [boardTheme]);
 
-  // Persist state to localStorage
+  // Persist state to localStorage + Convex (cross-device sync)
   useEffect(() => {
     if (!isHydrated) return;
     try {
       if (isSignedIn) {
-        // Signed in: save everything
+        // Signed in: save everything locally
         localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid }));
+        // Debounced save to Convex — only after Convex has confirmed its state (avoids overwriting fresh cloud data with stale local cache)
+        if (convexReadyRef.current) {
+          if (convexSaveTimerRef.current) clearTimeout(convexSaveTimerRef.current);
+          convexSaveTimerRef.current = setTimeout(() => {
+            saveBoard({ boardState: JSON.stringify({ boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid }) }).catch(() => {});
+          }, 1500);
+        }
       } else {
         // Signed out: only save theme preferences so dark/light mode survives refresh
         localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme }));
