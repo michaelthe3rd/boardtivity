@@ -4,6 +4,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import type { ThemeMode, BoardType, Importance, FlowMode, Board, Step, Note, Draft } from "@/lib/board";
+import { useMutation } from "convex/react";
+import { useUser, useClerk } from "@clerk/nextjs";
+import { api } from "../../convex/_generated/api";
 
 const NOTE_PALETTE = [
   { light: "#e8f1fb", dark: "#1b2d3e", halo: "rgba(90,150,230,.20)" },   // sky blue
@@ -15,6 +18,25 @@ const NOTE_PALETTE = [
   { light: "#ffedf0", dark: "#36191c", halo: "rgba(220,90,105,.20)" },    // rose
   { light: "#f1f1fb", dark: "#1e1e30", halo: "rgba(120,120,220,.20)" },   // periwinkle
 ];
+
+function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// Blend a hex color into a background hex — returns a fully opaque rgb string.
+function blendHex(hex: string, bgHex: string, alpha: number): string {
+  const pr = parseInt(hex.slice(1,3),16), pg = parseInt(hex.slice(3,5),16), pb = parseInt(hex.slice(5,7),16);
+  const br = parseInt(bgHex.slice(1,3),16), bg2 = parseInt(bgHex.slice(3,5),16), bb = parseInt(bgHex.slice(5,7),16);
+  const r = Math.round(pr*alpha + br*(1-alpha));
+  const g = Math.round(pg*alpha + bg2*(1-alpha));
+  const b = Math.round(pb*alpha + bb*(1-alpha));
+  return `rgb(${r},${g},${b})`;
+}
+
+const PRIORITY_COLORS: Record<"High"|"Medium"|"Low", string> = { High: "#c03030", Medium: "#d07030", Low: "#c8960a" };
 
 function paletteBg(colorIdx: number | undefined, theme: ThemeMode): string {
   const p = NOTE_PALETTE[(colorIdx ?? 0) % NOTE_PALETTE.length];
@@ -28,21 +50,21 @@ function paletteHalo(colorIdx: number | undefined): string {
 function taskBg(importance: Importance | undefined, theme: ThemeMode): string {
   if (theme === "dark") {
     if (importance === "High") return "#3d1515";
-    if (importance === "Medium") return "#373014";
-    if (importance === "Low") return "#14301a";
-    return "#4a4036";
+    if (importance === "Medium") return "#3a2210";
+    if (importance === "Low") return "#2e2a0a";
+    return "#323232";
   }
   if (importance === "High") return "#fde8e8";
-  if (importance === "Medium") return "#fdf8e0";
-  if (importance === "Low") return "#e8f5ea";
-  return "#eee8e2";
+  if (importance === "Medium") return "#fdeede";
+  if (importance === "Low") return "#fdfae0";
+  return "#e8e8e8";
 }
 
 function taskHalo(importance: Importance | undefined): string {
-  if (importance === "High") return "rgba(215,70,70,.20)";
-  if (importance === "Medium") return "rgba(210,180,55,.22)";
-  if (importance === "Low") return "rgba(70,185,70,.20)";
-  return "rgba(145,126,88,.12)";
+  if (importance === "High") return "rgba(215,60,60,.22)";
+  if (importance === "Medium") return "rgba(220,130,40,.22)";
+  if (importance === "Low") return "rgba(210,190,40,.22)";
+  return "rgba(140,140,140,.18)";
 }
 
 const BOARD_W = 6800;
@@ -74,43 +96,137 @@ function nextBoardName(existing: Board[], type: BoardType) {
 
 function estimateTime(title: string) {
   const t = title.toLowerCase();
-  if (t.includes("essay") || t.includes("paper") || t.includes("report")) return 90;
-  if (t.includes("apply") || t.includes("resume") || t.includes("internship")) return 55;
-  if (t.includes("study") || t.includes("chapter") || t.includes("exam")) return 60;
-  if (t.includes("presentation") || t.includes("slides")) return 70;
-  if (t.includes("email") || t.includes("reply")) return 20;
-  if (t.includes("meeting") || t.includes("call")) return 30;
-  if (t.includes("cook") || t.includes("meal")) return 45;
-  if (t.includes("clean") || t.includes("organize")) return 35;
-  return 30;
+  if (t.includes("essay") || t.includes("paper") || t.includes("thesis")) return 120;
+  if (t.includes("report") || t.includes("assignment") || t.includes("write")) return 90;
+  if (t.includes("exam") || t.includes("final") || t.includes("midterm")) return 120;
+  if (t.includes("study") || t.includes("chapter") || t.includes("review")) return 75;
+  if (t.includes("quiz") || t.includes("test")) return 60;
+  if (t.includes("presentation") || t.includes("slides") || t.includes("deck")) return 90;
+  if (t.includes("project") || t.includes("build") || t.includes("develop")) return 120;
+  if (t.includes("code") || t.includes("program") || t.includes("implement")) return 90;
+  if (t.includes("debug") || t.includes("fix") || t.includes("refactor")) return 60;
+  if (t.includes("resume") || t.includes("cover letter") || t.includes("apply")) return 75;
+  if (t.includes("read") || t.includes("article") || t.includes("book")) return 60;
+  if (t.includes("research") || t.includes("investigate") || t.includes("explore")) return 90;
+  if (t.includes("design") || t.includes("mockup") || t.includes("wireframe")) return 90;
+  if (t.includes("plan") || t.includes("outline") || t.includes("brainstorm")) return 45;
+  if (t.includes("email") || t.includes("reply") || t.includes("message")) return 20;
+  if (t.includes("meeting") || t.includes("call") || t.includes("interview")) return 60;
+  if (t.includes("cook") || t.includes("meal") || t.includes("bake")) return 60;
+  if (t.includes("clean") || t.includes("organize") || t.includes("tidy")) return 60;
+  if (t.includes("workout") || t.includes("exercise") || t.includes("gym")) return 60;
+  if (t.includes("shop") || t.includes("buy") || t.includes("order")) return 30;
+  return 60;
 }
 
-function buildBreakdown(title: string, total: number): Step[] {
-  const t = title.toLowerCase().trim();
-  let labels = ["Clarify", "Do", "Finish"];
-  let weights = [0.25, 0.5, 0.25];
+function buildBreakdown(title: string, body: string, total: number, variant = 0): Step[] {
+  const t = (title + " " + body).toLowerCase().trim();
+  let labels: string[];
+  let weights: number[];
+  const v = variant % 3;
 
-  if (t.includes("essay") || t.includes("paper") || t.includes("assignment") || t.includes("report")) {
-    labels = total >= 70 ? ["Outline", "Research", "Draft", "Revise"] : ["Outline", "Draft", "Revise"];
-    weights = labels.length === 4 ? [0.18, 0.22, 0.35, 0.25] : [0.2, 0.5, 0.3];
-  } else if (t.includes("study") || t.includes("chapter") || t.includes("exam") || t.includes("quiz")) {
-    labels = total >= 50 ? ["Review", "Practice", "Test yourself"] : ["Review", "Practice"];
-    weights = labels.length === 3 ? [0.3, 0.45, 0.25] : [0.45, 0.55];
+  if (t.includes("essay") || t.includes("paper") || t.includes("thesis")) {
+    const opts = [
+      { l: total >= 90 ? ["Gather sources", "Outline", "Write intro", "Write body", "Write conclusion", "Revise & edit"] : total >= 60 ? ["Outline", "Research", "Draft", "Revise"] : ["Outline", "Draft", "Revise"], w: total >= 90 ? [0.1, 0.1, 0.15, 0.3, 0.15, 0.2] : total >= 60 ? [0.15, 0.2, 0.4, 0.25] : [0.2, 0.5, 0.3] },
+      { l: total >= 60 ? ["Research & read", "Thesis & outline", "First draft", "Edit & polish"] : ["Outline", "Write", "Polish"], w: total >= 60 ? [0.25, 0.15, 0.4, 0.2] : [0.2, 0.5, 0.3] },
+      { l: total >= 60 ? ["Brainstorm angle", "Outline structure", "Draft body", "Intro & conclusion", "Proofread"] : ["Outline", "Draft", "Proofread"], w: total >= 60 ? [0.1, 0.15, 0.4, 0.2, 0.15] : [0.2, 0.5, 0.3] },
+    ];
+    ({ l: labels, w: weights } = opts[v]); weights = (opts[v] as any).w;
+  } else if (t.includes("exam") || t.includes("final") || t.includes("midterm")) {
+    const opts = [
+      { l: total >= 90 ? ["Review notes", "Study key concepts", "Practice problems", "Test yourself", "Review weak areas"] : ["Review notes", "Study concepts", "Practice & test"], w: total >= 90 ? [0.15, 0.25, 0.3, 0.2, 0.1] : [0.3, 0.45, 0.25] },
+      { l: total >= 90 ? ["Skim all notes", "Deep dive topics", "Flashcard drill", "Mock test", "Fix gaps"] : ["Skim notes", "Deep study", "Self-test"], w: total >= 90 ? [0.1, 0.3, 0.25, 0.25, 0.1] : [0.25, 0.45, 0.3] },
+      { l: total >= 90 ? ["Prioritize topics", "Review formulas", "Work examples", "Timed practice", "Weak spots"] : ["Prioritize", "Study", "Practice"], w: total >= 90 ? [0.1, 0.2, 0.3, 0.3, 0.1] : [0.2, 0.5, 0.3] },
+    ];
+    labels = opts[v].l; weights = opts[v].w;
+  } else if (t.includes("study") || t.includes("chapter") || t.includes("review")) {
+    const opts = [
+      { l: total >= 60 ? ["Skim & preview", "Read actively", "Take notes", "Review & summarize"] : ["Read", "Take notes", "Review"], w: total >= 60 ? [0.1, 0.35, 0.3, 0.25] : [0.4, 0.35, 0.25] },
+      { l: total >= 60 ? ["Preview headings", "Careful read", "Annotate key ideas", "Summarize"] : ["Read", "Annotate", "Summarize"], w: total >= 60 ? [0.1, 0.4, 0.25, 0.25] : [0.4, 0.35, 0.25] },
+      { l: total >= 60 ? ["Set goals", "Active reading", "Note key points", "Quiz yourself"] : ["Read", "Note", "Quiz"], w: total >= 60 ? [0.05, 0.4, 0.3, 0.25] : [0.4, 0.35, 0.25] },
+    ];
+    labels = opts[v].l; weights = opts[v].w;
   } else if (t.includes("presentation") || t.includes("slides") || t.includes("deck")) {
-    labels = ["Plan", "Build", "Practice"];
-    weights = [0.25, 0.45, 0.3];
-  } else if (t.includes("resume") || t.includes("cover letter") || t.includes("apply") || t.includes("internship")) {
-    labels = total >= 45 ? ["Prepare", "Tailor", "Submit"] : ["Tailor", "Submit"];
-    weights = labels.length === 3 ? [0.25, 0.45, 0.3] : [0.6, 0.4];
+    const opts = [
+      { l: total >= 75 ? ["Research topic", "Outline structure", "Build slides", "Add visuals", "Practice delivery"] : ["Outline", "Build slides", "Practice"], w: total >= 75 ? [0.2, 0.15, 0.3, 0.15, 0.2] : [0.2, 0.5, 0.3] },
+      { l: total >= 75 ? ["Define message", "Draft outline", "Design slides", "Refine content", "Run through"] : ["Outline", "Design", "Practice"], w: total >= 75 ? [0.15, 0.15, 0.35, 0.15, 0.2] : [0.2, 0.5, 0.3] },
+      { l: total >= 75 ? ["Gather content", "Story structure", "Build deck", "Visual polish", "Practice aloud"] : ["Plan", "Build", "Polish"], w: total >= 75 ? [0.2, 0.1, 0.3, 0.2, 0.2] : [0.2, 0.5, 0.3] },
+    ];
+    labels = opts[v].l; weights = opts[v].w;
+  } else if (t.includes("code") || t.includes("program") || t.includes("implement") || t.includes("build") || t.includes("develop")) {
+    const opts = [
+      { l: total >= 90 ? ["Plan & design", "Set up", "Implement core", "Handle edge cases", "Test", "Review & clean up"] : total >= 60 ? ["Plan", "Implement", "Test", "Review"] : ["Plan", "Implement", "Test"], w: total >= 90 ? [0.12, 0.08, 0.35, 0.2, 0.15, 0.1] : total >= 60 ? [0.15, 0.45, 0.25, 0.15] : [0.2, 0.55, 0.25] },
+      { l: total >= 90 ? ["Define requirements", "Architecture", "Core logic", "UI/integration", "Tests", "Cleanup"] : total >= 60 ? ["Design", "Build", "Test", "Polish"] : ["Design", "Build", "Test"], w: total >= 90 ? [0.1, 0.12, 0.35, 0.2, 0.13, 0.1] : total >= 60 ? [0.15, 0.45, 0.25, 0.15] : [0.2, 0.55, 0.25] },
+      { l: total >= 90 ? ["Spec & pseudocode", "Scaffold", "Feature work", "Error handling", "Testing", "Review"] : total >= 60 ? ["Pseudocode", "Code", "Debug", "Refine"] : ["Spec", "Code", "Test"], w: total >= 90 ? [0.1, 0.1, 0.35, 0.18, 0.17, 0.1] : total >= 60 ? [0.1, 0.5, 0.25, 0.15] : [0.2, 0.55, 0.25] },
+    ];
+    labels = opts[v].l; weights = opts[v].w;
+  } else if (t.includes("debug") || t.includes("fix") || t.includes("refactor")) {
+    const opts = [
+      { l: ["Reproduce issue", "Identify root cause", "Fix", "Test fix"], w: [0.15, 0.3, 0.35, 0.2] },
+      { l: ["Isolate bug", "Trace cause", "Patch", "Verify & test"], w: [0.2, 0.25, 0.35, 0.2] },
+      { l: ["Read error logs", "Find source", "Apply fix", "Regression test"], w: [0.15, 0.3, 0.35, 0.2] },
+    ];
+    labels = opts[v].l; weights = opts[v].w;
+  } else if (t.includes("research") || t.includes("investigate") || t.includes("explore")) {
+    const opts = [
+      { l: total >= 75 ? ["Define scope", "Find sources", "Read & annotate", "Synthesize findings", "Summarize"] : ["Find sources", "Read & note", "Synthesize"], w: total >= 75 ? [0.1, 0.2, 0.35, 0.25, 0.1] : [0.25, 0.45, 0.3] },
+      { l: total >= 75 ? ["Frame question", "Search sources", "Deep read", "Extract insights", "Write up"] : ["Search", "Read & note", "Write up"], w: total >= 75 ? [0.1, 0.2, 0.35, 0.25, 0.1] : [0.2, 0.5, 0.3] },
+      { l: total >= 75 ? ["Set objectives", "Collect data", "Analyze", "Draw conclusions", "Document"] : ["Collect", "Analyze", "Document"], w: total >= 75 ? [0.1, 0.25, 0.35, 0.2, 0.1] : [0.3, 0.4, 0.3] },
+    ];
+    labels = opts[v].l; weights = opts[v].w;
+  } else if (t.includes("design") || t.includes("mockup") || t.includes("wireframe")) {
+    const opts = [
+      { l: ["Gather inspiration", "Wireframe", "Design", "Refine & review"], w: [0.15, 0.2, 0.45, 0.2] },
+      { l: ["Moodboard", "Low-fi sketch", "High-fi design", "Iterate"], w: [0.15, 0.2, 0.45, 0.2] },
+      { l: ["Define goals", "Rough layout", "Visual design", "Polish & export"], w: [0.1, 0.2, 0.5, 0.2] },
+    ];
+    labels = opts[v].l; weights = opts[v].w;
+  } else if (t.includes("resume") || t.includes("cover letter") || t.includes("apply")) {
+    const opts = [
+      { l: total >= 60 ? ["Research role", "Update resume", "Write cover letter", "Review & submit"] : ["Update resume", "Write cover letter", "Submit"], w: total >= 60 ? [0.2, 0.3, 0.3, 0.2] : [0.35, 0.4, 0.25] },
+      { l: total >= 60 ? ["Study job posting", "Tailor resume", "Draft cover letter", "Final review"] : ["Tailor resume", "Cover letter", "Submit"], w: total >= 60 ? [0.2, 0.3, 0.3, 0.2] : [0.35, 0.4, 0.25] },
+      { l: total >= 60 ? ["List requirements", "Edit experience", "Personalize letter", "Proofread & send"] : ["Edit resume", "Write letter", "Submit"], w: total >= 60 ? [0.15, 0.3, 0.35, 0.2] : [0.35, 0.4, 0.25] },
+    ];
+    labels = opts[v].l; weights = opts[v].w;
+  } else if (t.includes("read") || t.includes("article") || t.includes("book")) {
+    const opts = [
+      { l: total >= 60 ? ["Skim headings", "Read section 1", "Read section 2", "Summarize key points"] : ["Read", "Take notes", "Summarize"], w: total >= 60 ? [0.1, 0.35, 0.35, 0.2] : [0.5, 0.3, 0.2] },
+      { l: total >= 60 ? ["Preview structure", "Active reading", "Highlight & note", "Review takeaways"] : ["Read", "Highlight", "Review"], w: total >= 60 ? [0.1, 0.45, 0.25, 0.2] : [0.5, 0.3, 0.2] },
+      { l: total >= 60 ? ["Set intention", "First read-through", "Re-read key parts", "Synthesize"] : ["Read", "Re-read", "Synthesize"], w: total >= 60 ? [0.05, 0.4, 0.3, 0.25] : [0.5, 0.3, 0.2] },
+    ];
+    labels = opts[v].l; weights = opts[v].w;
+  } else if (t.includes("plan") || t.includes("outline") || t.includes("brainstorm")) {
+    const opts = [
+      { l: ["Brainstorm ideas", "Organize thoughts", "Draft plan", "Review & refine"], w: [0.25, 0.25, 0.3, 0.2] },
+      { l: ["Dump all ideas", "Group themes", "Prioritize", "Write action plan"], w: [0.25, 0.2, 0.25, 0.3] },
+      { l: ["Free-write", "Find patterns", "Structure plan", "Finalize"], w: [0.25, 0.2, 0.3, 0.25] },
+    ];
+    labels = opts[v].l; weights = opts[v].w;
+  } else if (t.includes("email") || t.includes("reply") || t.includes("message")) {
+    labels = ["Draft", "Review & send"]; weights = [0.65, 0.35];
+  } else if (t.includes("clean") || t.includes("organize") || t.includes("tidy")) {
+    const opts = [
+      { l: total >= 60 ? ["Clear surface", "Sort & declutter", "Clean", "Organize & put away"] : ["Declutter", "Clean", "Organize"], w: total >= 60 ? [0.2, 0.25, 0.3, 0.25] : [0.3, 0.4, 0.3] },
+      { l: total >= 60 ? ["Remove trash", "Category sort", "Wipe & clean", "Store neatly"] : ["Sort", "Clean", "Store"], w: total >= 60 ? [0.15, 0.25, 0.35, 0.25] : [0.3, 0.4, 0.3] },
+      { l: total >= 60 ? ["Purge extras", "Group by type", "Deep clean", "Final organize"] : ["Purge", "Clean", "Arrange"], w: total >= 60 ? [0.2, 0.2, 0.35, 0.25] : [0.3, 0.4, 0.3] },
+    ];
+    labels = opts[v].l; weights = opts[v].w;
   } else if (total <= 20) {
-    labels = ["Do", "Finish"];
-    weights = [0.7, 0.3];
-  } else if (total <= 35) {
-    labels = ["Start", "Do", "Finish"];
-    weights = [0.2, 0.6, 0.2];
+    labels = ["Start", "Finish"]; weights = [0.6, 0.4];
+  } else if (total <= 45) {
+    const opts = [
+      { l: ["Prepare", "Do", "Wrap up"], w: [0.2, 0.6, 0.2] },
+      { l: ["Set up", "Execute", "Finish"], w: [0.2, 0.6, 0.2] },
+      { l: ["Gather", "Work", "Review"], w: [0.2, 0.6, 0.2] },
+    ];
+    labels = opts[v].l; weights = opts[v].w;
   } else {
-    labels = ["Prepare", "Do", "Review"];
-    weights = [0.2, 0.55, 0.25];
+    const opts = [
+      { l: total >= 90 ? ["Prepare", "Start", "Do", "Review & finish"] : ["Prepare", "Do", "Review"], w: total >= 90 ? [0.15, 0.25, 0.4, 0.2] : [0.2, 0.55, 0.25] },
+      { l: total >= 90 ? ["Set up", "Build momentum", "Deep work", "Wrap up"] : ["Set up", "Execute", "Wrap up"], w: total >= 90 ? [0.1, 0.2, 0.5, 0.2] : [0.15, 0.6, 0.25] },
+      { l: total >= 90 ? ["Clarify", "Get started", "Main work", "Polish & close"] : ["Clarify", "Do", "Close"], w: total >= 90 ? [0.1, 0.2, 0.5, 0.2] : [0.15, 0.6, 0.25] },
+    ];
+    labels = opts[v].l; weights = opts[v].w;
   }
 
   const steps = labels.map((label, i) => ({
@@ -124,9 +240,7 @@ function buildBreakdown(title: string, total: number): Step[] {
 
   const assigned = steps.reduce((sum, s) => sum + s.minutes, 0);
   const diff = total - assigned;
-  if (diff !== 0) {
-    steps[steps.length - 1].minutes = Math.max(5, steps[steps.length - 1].minutes + diff);
-  }
+  if (diff !== 0) steps[steps.length - 1].minutes = Math.max(5, steps[steps.length - 1].minutes + diff);
 
   return steps;
 }
@@ -174,7 +288,7 @@ function paper(theme: ThemeMode) {
   return theme === "dark" ? "#2d3137" : "#fafaf7";
 }
 function grid(theme: ThemeMode) {
-  return theme === "dark" ? "rgba(255,255,255,.055)" : "rgba(78,78,78,.045)";
+  return theme === "dark" ? "rgba(255,255,255,.055)" : "rgba(78,78,78,.10)";
 }
 function panel(theme: ThemeMode) {
   return theme === "dark" ? "#1f2329" : "#ffffff";
@@ -185,14 +299,16 @@ function inputBg(theme: ThemeMode) {
 function noteBg(type: BoardType, importance: Importance | undefined, theme: ThemeMode) {
   if (theme === "dark") {
     if (type === "thought") return "#3f444b";
-    if (importance === "High") return "#66551e";
-    if (importance === "Medium") return "#35503c";
-    return "#4a4036";
+    if (importance === "High") return "#3d1515";
+    if (importance === "Medium") return "#3a2210";
+    if (importance === "Low") return "#2e2a0a";
+    return "#323232";
   }
   if (type === "thought") return "#e6e7ea";
-  if (importance === "High") return "#f3efcf";
-  if (importance === "Medium") return "#e5ece1";
-  return "#eee8e2";
+  if (importance === "High") return "#fde8e8";
+  if (importance === "Medium") return "#fdeede";
+  if (importance === "Low") return "#fdfae0";
+  return "#e8e8e8";
 }
 function noteText(theme: ThemeMode) {
   return theme === "dark" ? "#f5f5f2" : "#1f1d1a";
@@ -202,19 +318,22 @@ function noteSub(theme: ThemeMode) {
 }
 function noteHalo(type: BoardType, importance: Importance | undefined) {
   if (type === "thought") return "rgba(255,255,255,.10)";
-  if (importance === "High") return "rgba(205,176,52,.18)";
-  if (importance === "Medium") return "rgba(111,149,104,.16)";
+  if (importance === "High") return "rgba(215,60,60,.22)";
+  if (importance === "Medium") return "rgba(220,130,40,.22)";
+  if (importance === "Low") return "rgba(210,190,40,.22)";
   return "rgba(145,126,88,.12)";
 }
 function noteAccent(type: BoardType, importance: Importance | undefined) {
   if (type === "thought") return "rgba(130,130,200,.6)";
-  if (importance === "High") return "#c9a93a";
-  if (importance === "Medium") return "#5a9a5e";
+  if (importance === "High") return "#d94040";
+  if (importance === "Medium") return "#d07030";
+  if (importance === "Low") return "#c8b820";
   return "rgba(160,140,100,.45)";
 }
 function priorityColor(importance: Importance | undefined, theme: ThemeMode) {
-  if (importance === "High") return theme === "dark" ? "#f5d76e" : "#9a7a1a";
-  if (importance === "Medium") return theme === "dark" ? "#89c98e" : "#3a7040";
+  if (importance === "High") return theme === "dark" ? "#ff8080" : "#c03030";
+  if (importance === "Medium") return theme === "dark" ? "#ffaa60" : "#b05a20";
+  if (importance === "Low") return theme === "dark" ? "#e8d840" : "#8a7a10";
   return theme === "dark" ? "rgba(255,255,255,.45)" : "rgba(0,0,0,.38)";
 }
 function buttonStyle(theme: ThemeMode, dark = false, compact = false): CSSProperties {
@@ -232,7 +351,7 @@ function buttonStyle(theme: ThemeMode, dark = false, compact = false): CSSProper
 }
 function fieldStyle(theme: ThemeMode): CSSProperties {
   return {
-    borderRadius: 16,
+    borderRadius: 10,
     border: `1px solid ${border(theme)}`,
     backgroundColor: inputBg(theme),
     height: 52,
@@ -274,49 +393,61 @@ function pill(theme: ThemeMode): CSSProperties {
   };
 }
 
+function BoardtivityLogo({ size = 32, dark = false }: { size?: number; dark?: boolean }) {
+  return (
+    <img src="/logo-icon.svg" width={size} height={size} alt="Boardtivity" style={{ display: "block", filter: dark ? "invert(1)" : "none" }} />
+  );
+}
+
 function ThemeToggle({ theme, onToggle }: { theme: ThemeMode; onToggle: () => void }) {
+  const [flicker, setFlicker] = useState(false);
+  function handleClick() {
+    setFlicker(true);
+    onToggle();
+  }
+  const isOn = theme === "light";
+  const glowColor = isOn ? "rgba(255,210,60,.55)" : "rgba(255,255,255,.12)";
   return (
     <button
-      onClick={onToggle}
-      aria-label="Toggle board theme"
+      onClick={handleClick}
+      onAnimationEnd={() => setFlicker(false)}
+      aria-label="Toggle theme"
       style={{
-        ...buttonStyle(theme, false, true),
-        position: "relative",
-        width: 70,
-        padding: 0,
-        overflow: "hidden",
-        backgroundColor: theme === "dark" ? "#23262b" : "#ffffff",
+        ...circleButton(theme, 36),
+        boxShadow: isOn ? `0 0 0 1px ${border(theme)}, 0 0 10px rgba(255,200,40,.35)` : undefined,
       }}
     >
-      <span
-        style={{
-          position: "absolute",
-          top: 3,
-          left: theme === "dark" ? 36 : 3,
-          width: 28,
-          height: 28,
-          borderRadius: "50%",
-          backgroundColor: theme === "dark" ? "#f5f5f2" : "#111315",
-          transition: "left .18s ease",
-          display: "grid",
-          placeItems: "center",
-        }}
+      <svg
+        width="16" height="16" viewBox="0 0 24 24" fill="none"
+        className={flicker ? "bulb-flicker" : undefined}
       >
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-          <circle cx="8" cy="8" r="5.5" stroke={theme === "dark" ? "#23262b" : "#eef3fa"} strokeWidth="1.4" />
-          {theme === "dark" ? (
-            <path d="M8 2.5a5.5 5.5 0 0 1 0 11Z" fill="#23262b" />
-          ) : (
-            <path d="M8 2.5a5.5 5.5 0 0 0 0 11Z" fill="#eef3fa" />
-          )}
-        </svg>
-      </span>
+        {/* bulb globe */}
+        <path d="M12 2C8.686 2 6 4.686 6 8c0 2.21 1.13 4.16 2.85 5.28V15a1 1 0 0 0 1 1h4.3a1 1 0 0 0 1-1v-1.72C16.87 12.16 18 10.21 18 8c0-3.314-2.686-6-6-6Z"
+          fill={isOn ? "rgba(255,210,60,.95)" : "currentColor"}
+          stroke={isOn ? "rgba(200,155,20,.7)" : "currentColor"}
+          strokeWidth={isOn ? "0" : "0.5"}
+          opacity={isOn ? 1 : 0.55}
+        />
+        {/* base bands */}
+        <line x1="9.5" y1="17" x2="14.5" y2="17" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity={isOn ? 0.8 : 0.5}/>
+        <line x1="10" y1="19" x2="14" y2="19" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity={isOn ? 0.8 : 0.5}/>
+        <line x1="10.5" y1="21" x2="13.5" y2="21" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity={isOn ? 0.6 : 0.35}/>
+        {/* glow rays — only when on */}
+        {isOn && [[-5,-5],[5,-5],[0,-7],[-7,0],[7,0]].map(([dx,dy],i) => (
+          <line key={i}
+            x1={12+dx*0.55} y1={8+dy*0.55}
+            x2={12+dx} y2={8+dy}
+            stroke="rgba(255,220,60,.7)" strokeWidth="1.3" strokeLinecap="round"
+          />
+        ))}
+      </svg>
     </button>
   );
 }
 
 export function HomeShell() {
   const [theme, setTheme] = useState<ThemeMode>("light");
+  const [boardTheme, setBoardTheme] = useState<ThemeMode>("light");
   const [boards, setBoards] = useState<Board[]>(INITIAL_BOARDS);
   const [activeBoardId, setActiveBoardId] = useState("my-board");
   const [boardsOpen, setBoardsOpen] = useState(false);
@@ -333,14 +464,24 @@ export function HomeShell() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [dueDate, setDueDate] = useState("");
-  const [minutes, setMinutes] = useState(30);
+  const [minutes, setMinutes] = useState(60);
   const [importance, setImportance] = useState<Importance>("none");
   const [aiSteps, setAiSteps] = useState<Step[]>([]);
+  const [breakdownVariant, setBreakdownVariant] = useState(0);
   const [composerError, setComposerError] = useState<{ title?: boolean; dueDate?: boolean; importance?: boolean }>({});
 
   const [focusOpen, setFocusOpen] = useState(false);
   const [focusNoteId, setFocusNoteId] = useState<number | null>(null);
+  const [focusStepId, setFocusStepId] = useState<number | null>(null);
   const [focusSecondsLeft, setFocusSecondsLeft] = useState(0);
+  const [focusCompleted, setFocusCompleted] = useState(false);
+  const [focusPaused, setFocusPaused] = useState(false);
+  const [breakSecondsLeft, setBreakSecondsLeft] = useState(0);
+  const [focusChainMode, setFocusChainMode] = useState(false);
+  const [focusNextStep, setFocusNextStep] = useState<{ id: number; title: string; minutes: number } | null>(null);
+  const focusNoteIdRef = useRef<number | null>(null);
+  const focusStepIdRef = useRef<number | null>(null);
+  const notesRef = useRef<typeof notes>([]);
 
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [draftPromptOpen, setDraftPromptOpen] = useState(false);
@@ -350,9 +491,45 @@ export function HomeShell() {
   const thoughtHoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const viewportRef = useRef<HTMLDivElement | null>(null);
+  const boardContainerRef = useRef<HTMLDivElement | null>(null);
   const boardMenuRef = useRef<HTMLDivElement | null>(null);
   const boardButtonRef = useRef<HTMLButtonElement | null>(null);
+  const settingsButtonRef = useRef<HTMLButtonElement | null>(null);
   const dateInputRef = useRef<HTMLInputElement | null>(null);
+  const heroRef = useRef<HTMLDivElement | null>(null);
+  const whyRef = useRef<HTMLDivElement | null>(null);
+  const featuresRef = useRef<HTMLDivElement | null>(null);
+  const pricingRef = useRef<HTMLDivElement | null>(null);
+  const [heroVisible, setHeroVisible] = useState(false);
+  const [whyVisible, setWhyVisible] = useState(false);
+  const [featuresVisible, setFeaturesVisible] = useState(false);
+  const [pricingVisible, setPricingVisible] = useState(false);
+  const [waitlistOpen, setWaitlistOpen] = useState(false);
+  const [waitlistEmail, setWaitlistEmail] = useState("");
+  const [waitlistDone, setWaitlistDone] = useState(false);
+
+  const joinWaitlist = useMutation(api.waitlist.join);
+  const { user, isSignedIn } = useUser();
+  const { openSignIn, openSignUp, signOut } = useClerk();
+
+  async function submitWaitlist(email: string) {
+    if (!email.includes("@")) return;
+    const boardState = JSON.stringify({ boards, notes, activeBoardId });
+    await joinWaitlist({ email, boardState });
+    setWaitlistDone(true);
+  }
+
+  // TODO: enable after running `npx convex dev` to push boards schema
+  // const saveBoard = useMutation(api.boards.save);
+  // const savedBoard = useQuery(api.boards.load);
+
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false); // noteId (number) or boardId (string)
+  const [boardGrid, setBoardGrid] = useState<"grid" | "dots" | "blank">("grid");
+  const [thoughtColorMode, setThoughtColorMode] = useState<"random" | "fixed">("random");
+  const [thoughtFixedColorIdx, setThoughtFixedColorIdx] = useState(0);
+  const settingsRef = useRef<HTMLDivElement | null>(null);
 
   const boardDragRef = useRef<null | { startX: number; startY: number; panX: number; panY: number }>(null);
   const noteDragRef = useRef<null | { pointerId: number; noteId: number; noteType: BoardType; boardId: string; startX: number; startY: number; noteX: number; noteY: number }>(null);
@@ -369,6 +546,24 @@ export function HomeShell() {
 
   const activeBoard = boards.find((b) => b.id === activeBoardId) ?? boards[0];
   const activeNotes = notes.filter((n) => n.boardId === activeBoardId);
+
+  const getBg = (importance: Importance | undefined) => {
+    if (!importance || importance === "none") return boardTheme === "dark" ? "#2a2d32" : "#ebebeb";
+    const c = PRIORITY_COLORS[importance as "High"|"Medium"|"Low"];
+    return blendHex(c, boardTheme === "dark" ? "#17191d" : "#ffffff", boardTheme === "dark" ? 0.28 : 0.32);
+  };
+  const getHalo = (importance: Importance | undefined) => {
+    if (!importance || importance === "none") return boardTheme === "dark" ? "rgba(140,140,140,.18)" : "rgba(0,0,0,.10)";
+    return hexToRgba(PRIORITY_COLORS[importance as "High"|"Medium"|"Low"], boardTheme === "dark" ? 0.30 : 0.48);
+  };
+  const getNoteBorder = (importance: Importance | undefined) => {
+    if (!importance || importance === "none") return `1px solid ${boardTheme === "dark" ? "rgba(255,255,255,.08)" : "rgba(0,0,0,.10)"}`;
+    return `1.5px solid ${hexToRgba(PRIORITY_COLORS[importance as "High"|"Medium"|"Low"], boardTheme === "dark" ? 0.28 : 0.42)}`;
+  };
+  const getAccent = (importance: Importance | undefined) => {
+    if (!importance || importance === "none") return muted(boardTheme);
+    return PRIORITY_COLORS[importance as "High"|"Medium"|"Low"];
+  };
   const detailNote = notes.find((n) => n.id === detailNoteId) ?? null;
   const stepModal = activeStep
     ? notes.find((n) => n.id === activeStep.noteId)?.steps.find((s) => s.id === activeStep.stepId) ?? null
@@ -379,13 +574,13 @@ export function HomeShell() {
     () => ({
       position: "relative",
       minHeight: 700,
-      borderRadius: 28,
+      borderRadius: 16,
       overflow: "hidden",
-      border: `1px solid ${border(theme)}`,
-      backgroundColor: surface(theme),
-      boxShadow: theme === "dark" ? "0 24px 50px rgba(0,0,0,.28)" : "0 24px 50px rgba(0,0,0,.10)",
+      border: `1px solid ${border(boardTheme)}`,
+      backgroundColor: surface(boardTheme),
+      boxShadow: boardTheme === "dark" ? "0 24px 50px rgba(0,0,0,.28)" : "0 24px 50px rgba(0,0,0,.10)",
     }),
-    [theme]
+    [boardTheme]
   );
 
   const taskBoards = boards.filter((b) => b.type === "task");
@@ -398,7 +593,7 @@ export function HomeShell() {
       if (b.dueDate) return 1;
       return b.id - a.id;
     })
-    .slice(0, 4);
+    .slice(0, 3);
 
   function clampPan(nextX: number, nextY: number, nextScale: number) {
     const viewport = viewportRef.current;
@@ -453,12 +648,14 @@ export function HomeShell() {
       if (saved) {
         const data = JSON.parse(saved) as {
           theme?: ThemeMode;
+          boardTheme?: ThemeMode;
           boards?: Board[];
           notes?: Note[];
           activeBoardId?: string;
           drafts?: Draft[];
         };
         if (data.theme) setTheme(data.theme);
+        if (data.boardTheme) setBoardTheme(data.boardTheme);
         if (Array.isArray(data.boards) && data.boards.length > 0) setBoards(data.boards);
         if (Array.isArray(data.notes)) setNotes(data.notes);
         if (data.activeBoardId) setActiveBoardId(data.activeBoardId);
@@ -468,25 +665,39 @@ export function HomeShell() {
     setIsHydrated(true);
   }, []);
 
+  // Sync theme to document root so the full page (html, body) responds
+  useEffect(() => {
+    const bg = pageBg(theme);
+    document.documentElement.style.backgroundColor = bg;
+    document.body.style.backgroundColor = bg;
+    return () => {
+      document.documentElement.style.backgroundColor = "";
+      document.body.style.backgroundColor = "";
+    };
+  }, [theme]);
+
   // Persist state to localStorage whenever it changes (skip until initial load is done)
   useEffect(() => {
     if (!isHydrated) return;
     try {
-      localStorage.setItem("boardtivity", JSON.stringify({ theme, boards, notes, activeBoardId, drafts }));
+      localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme, boards, notes, activeBoardId, drafts }));
     } catch {}
-  }, [isHydrated, theme, boards, notes, activeBoardId, drafts]);
+  }, [isHydrated, theme, boardTheme, boards, notes, activeBoardId, drafts]);
 
   useEffect(() => {
     function onDocPointerDown(e: PointerEvent) {
       const target = e.target as Node | null;
-      if (!boardsOpen) return;
+      if (!boardsOpen && !settingsOpen) return;
       if (boardMenuRef.current?.contains(target)) return;
       if (boardButtonRef.current?.contains(target)) return;
+      if (settingsRef.current?.contains(target)) return;
+      if (settingsButtonRef.current?.contains(target)) return;
       setBoardsOpen(false);
+      setSettingsOpen(false);
     }
     document.addEventListener("pointerdown", onDocPointerDown);
     return () => document.removeEventListener("pointerdown", onDocPointerDown);
-  }, [boardsOpen]);
+  }, [boardsOpen, settingsOpen]);
 
   useEffect(() => {
     const el = viewportRef.current;
@@ -501,13 +712,106 @@ export function HomeShell() {
     return () => el.removeEventListener("wheel", wheelHandler);
   }, [scale, pan.x, pan.y]);
 
+  useEffect(() => { focusNoteIdRef.current = focusNoteId; }, [focusNoteId]);
+  useEffect(() => { focusStepIdRef.current = focusStepId; }, [focusStepId]);
+  useEffect(() => { notesRef.current = notes; }, [notes]);
+
   useEffect(() => {
-    if (!focusOpen) return;
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", handler);
+    return () => document.removeEventListener("fullscreenchange", handler);
+  }, []);
+
+  function toggleFullscreen() {
+    if (!boardContainerRef.current) return;
+    if (!document.fullscreenElement) {
+      boardContainerRef.current.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
+  }
+
+  useEffect(() => {
+    const observe = (el: HTMLDivElement | null, set: (v: boolean) => void) => {
+      if (!el) return;
+      const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) set(true); }, { threshold: 0.08 });
+      obs.observe(el);
+      return () => obs.disconnect();
+    };
+    const c0 = observe(heroRef.current, setHeroVisible);
+    const c1 = observe(whyRef.current, setWhyVisible);
+    const c2 = observe(featuresRef.current, setFeaturesVisible);
+    const c3 = observe(pricingRef.current, setPricingVisible);
+    return () => { c0?.(); c1?.(); c2?.(); c3?.(); };
+  }, []);
+
+  useEffect(() => {
+    if (!focusOpen || focusCompleted || focusPaused) return;
     const id = window.setInterval(() => {
-      setFocusSecondsLeft((prev) => Math.max(0, prev - 1));
+      setFocusSecondsLeft((prev) => {
+        if (prev <= 1) {
+          window.clearInterval(id);
+          const nId = focusNoteIdRef.current;
+          const sId = focusStepIdRef.current;
+          if (sId && nId) {
+            setNotes((ns) => ns.map((n) =>
+              n.id === nId
+                ? { ...n, steps: n.steps.map((s) => s.id === sId ? { ...s, done: true } : s) }
+                : n
+            ));
+          } else if (nId) {
+            setNotes((ns) => ns.map((n) => n.id === nId ? { ...n, completed: true, steps: n.steps.map((s) => ({ ...s, done: true })) } : n));
+          }
+          setFocusCompleted(true);
+          return 0;
+        }
+        return prev - 1;
+      });
     }, 1000);
     return () => window.clearInterval(id);
-  }, [focusOpen]);
+  }, [focusOpen, focusCompleted, focusPaused]);
+
+  useEffect(() => {
+    if (!focusPaused) return;
+    const id = window.setInterval(() => {
+      setBreakSecondsLeft((prev) => {
+        if (prev <= 1) {
+          window.clearInterval(id);
+          setFocusPaused(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [focusPaused]);
+
+  useEffect(() => {
+    if (!focusCompleted) return;
+    const note = notesRef.current.find(n => n.id === focusNoteIdRef.current);
+    const next = focusChainMode ? (note?.steps.find(s => !s.done) ?? null) : null;
+    setFocusNextStep(next ? { id: next.id, title: next.title, minutes: next.minutes ?? 25 } : null);
+    // All subtasks done in chain mode — mark the parent task complete
+    if (!next && focusChainMode && note) {
+      setNotes(ns => ns.map(n => n.id === note.id ? { ...n, completed: true, steps: n.steps.map(s => ({ ...s, done: true })) } : n));
+    }
+  }, [focusCompleted, focusChainMode]);
+
+  function advanceToNext() {
+    const next = focusNextStep;
+    setFocusCompleted(false);
+    setFocusNextStep(null);
+    if (next) {
+      setFocusStepId(next.id);
+      focusStepIdRef.current = next.id;
+      setFocusSecondsLeft((next.minutes ?? 25) * 60);
+    } else {
+      setFocusOpen(false);
+      setFocusNoteId(null);
+      setFocusStepId(null);
+      setFocusChainMode(false);
+    }
+  }
 
   function addBoard(type: BoardType) {
     const board = {
@@ -521,12 +825,23 @@ export function HomeShell() {
   }
 
   function deleteBoard(boardId: string) {
-    if (boards.length <= 1) return;
-    const remaining = boards.filter((b) => b.id !== boardId);
-    setBoards(remaining);
-    setNotes((prev) => prev.filter((n) => n.boardId !== boardId));
-    if (activeBoardId === boardId) {
-      setActiveBoardId(remaining[0].id);
+    const board = boards.find((b) => b.id === boardId);
+    if (!board) return;
+    const sameType = boards.filter((b) => b.type === board.type);
+
+    if (sameType.length <= 1) {
+      // Last board of this type — clear notes and reset name instead of deleting
+      const defaultName = board.type === "task" ? "My Board" : "My Thoughts";
+      setBoards((prev) => prev.map((b) => b.id === boardId ? { ...b, name: defaultName } : b));
+      setNotes((prev) => prev.filter((n) => n.boardId !== boardId));
+      setActiveBoardId(boardId);
+    } else {
+      const remaining = boards.filter((b) => b.id !== boardId);
+      setBoards(remaining);
+      setNotes((prev) => prev.filter((n) => n.boardId !== boardId));
+      if (activeBoardId === boardId) {
+        setActiveBoardId(remaining.find((b) => b.type === board.type)?.id ?? remaining[0].id);
+      }
     }
     setBoardsOpen(false);
   }
@@ -643,7 +958,7 @@ export function HomeShell() {
                   thoughtUnlinkTargetRef.current = null;
                   setThoughtUnlinkTarget(null);
                   thoughtHoverTimerRef.current = null;
-                }, 3000);
+                }, 650);
               }
             } else {
               // Over an UNLINKED thought — show blue glow, link on drop
@@ -756,6 +1071,7 @@ export function HomeShell() {
     setMinutes(30);
     setImportance("none");
     setAiSteps([]);
+    setBreakdownVariant(0);
     setComposerError({});
   }
 
@@ -804,7 +1120,7 @@ export function HomeShell() {
 
   function openBreakdownFromDetails(note: Note) {
     const total = note.minutes ?? estimateTime(note.title);
-    const steps = buildBreakdown(note.title, total);
+    const steps = buildBreakdown(note.title, note.body ?? "", total);
     const laidOut = note.flowMode === "chain" ? layoutChain(note.x, note.y, steps) : layoutWeb(note.x, note.y, steps);
     setNotes((prev) => prev.map((n) => (n.id === note.id ? { ...n, minutes: total, steps: laidOut } : n)));
   }
@@ -863,57 +1179,147 @@ export function HomeShell() {
     setDetailNoteId(null);
   }
 
-  function startFocus(noteId: number) {
+  function startFocus(noteId: number, chain = false) {
     const note = notes.find((n) => n.id === noteId);
     if (!note) return;
-    const total = note.minutes ?? estimateTime(note.title);
+    let stepId: number | undefined;
+    if (chain && note.steps.length > 0) {
+      const first = note.steps.find(s => !s.done);
+      if (!first) return; // all done
+      stepId = first.id;
+    }
+    const step = stepId ? note.steps.find(s => s.id === stepId) : null;
+    const total = step ? (step.minutes ?? 25) : (note.minutes ?? estimateTime(note.title));
     setFocusNoteId(noteId);
+    setFocusStepId(stepId ?? null);
+    setFocusChainMode(chain);
     setFocusSecondsLeft(total * 60);
     setFocusOpen(true);
   }
 
   return (
-    <main style={{ minHeight: "100vh", backgroundColor: pageBg(theme), color: pageText(theme), fontFamily: "Inter, Arial, sans-serif" }}>
-      <section style={{ maxWidth: 1220, margin: "0 auto", padding: "24px 20px 0" }}>
-        <header style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
-          <div style={{ fontSize: 12, letterSpacing: ".16em", textTransform: "uppercase", color: muted(theme) }}>
-            Boardtivity
+    <main style={{ minHeight: "100vh", backgroundColor: pageBg(theme), color: pageText(theme), fontFamily: "'Satoshi', Arial, sans-serif" }}>
+      <section style={{ padding: "24px 40px 0" }}>
+        <header style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+            <BoardtivityLogo size={52} dark={theme === "dark"} />
+            <span style={{ fontSize: 17, letterSpacing: ".02em", color: pageText(theme), fontWeight: 700 }}>Boardtivity</span>
           </div>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <button style={buttonStyle(theme)}>Sign in</button>
-            <button style={buttonStyle(theme, true)}>Join waitlist</button>
+            <ThemeToggle theme={theme} onToggle={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} />
+            {isSignedIn ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 13, color: muted(theme) }}>{user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress}</span>
+                <button onClick={() => signOut()} style={buttonStyle(theme, false)}>Sign out</button>
+              </div>
+            ) : (
+              <>
+                <button onClick={() => openSignIn()} style={buttonStyle(theme, false)}>Sign in</button>
+                <button onClick={() => setWaitlistOpen(true)} style={buttonStyle(theme, true)}>Join waitlist</button>
+              </>
+            )}
           </div>
         </header>
+      </section>
 
-        <div style={{ padding: "44px 0 32px", textAlign: "center" }}>
-          <div style={{ fontSize: 12, letterSpacing: ".16em", textTransform: "uppercase", color: muted(theme) }}>
-            Whiteboard productivity app
+      {/* ── HERO ── */}
+      <section ref={heroRef} style={{
+        maxWidth: 720, margin: "0 auto", padding: "80px 24px 72px",
+        textAlign: "center",
+        opacity: heroVisible ? 1 : 0,
+        transform: heroVisible ? "none" : "translateY(20px)",
+        transition: "opacity .75s ease, transform .75s ease",
+      }}>
+        <h1 style={{ margin: "0 0 24px", fontSize: "clamp(34px,4.8vw,64px)", lineHeight: 1.0, fontWeight: 900, letterSpacing: "-.055em", color: pageText(theme) }}>
+          The <span className="hue-rotate">Board</span> and the Produc<span className="hue-rotate">tivity</span><br/>in one.
+        </h1>
+        <p style={{ margin: "0 auto 52px", maxWidth: 500, fontSize: 17, color: muted(theme), lineHeight: 1.82, opacity: .7 }}>
+          Boardtivity is a freeform visual board for your tasks, thoughts, and focus. Drag tasks anywhere, let AI break them down into steps, link ideas, chain subtasks, and lock into focus mode — all in one place.
+        </p>
+
+        {/* Inline email capture */}
+        {waitlistDone ? (
+          <div style={{ maxWidth: 500, margin: "0 auto", textAlign: "center", padding: "8px 0" }}>
+            <div style={{ width: 60, height: 60, borderRadius: "50%", backgroundColor: theme === "dark" ? "rgba(111,196,107,.12)" : "rgba(60,190,90,.08)", border: `1.5px solid ${theme === "dark" ? "rgba(111,196,107,.32)" : "rgba(60,190,90,.28)"}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><polyline points="5,13 9.5,17.5 19,8" stroke="#6fc46b" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-.03em", color: pageText(theme), marginBottom: 10 }}>You're on the waitlist.</div>
+            <div style={{ fontSize: 15, color: muted(theme), lineHeight: 1.75, opacity: .7 }}>
+              Keep an eye on your email — we'll reach out<br/>when Boardtivity is ready to launch.
+            </div>
           </div>
-          <h1 style={{ margin: "14px auto 0", maxWidth: 820, fontSize: "clamp(32px, 4.4vw, 52px)", lineHeight: 1.02, letterSpacing: "-.05em", fontWeight: 700 }}>
-            Turn messy tasks and scattered thoughts into one clear system.
-          </h1>
-          <p style={{ margin: "16px auto 0", maxWidth: 720, fontSize: 18, lineHeight: 1.65, color: muted(theme) }}>
-            Drag tasks on a paper-like board, break them into steps, connect ideas, and lock into focus mode when you are ready to work.
-          </p>
-          <div style={{ marginTop: 22, display: "flex", justifyContent: "center", gap: 10, flexWrap: "wrap" }}>
-            <button style={buttonStyle(theme, true)}>Join beta waitlist</button>
-            <button style={buttonStyle(theme)}>See pricing</button>
+        ) : (
+          <div style={{ maxWidth: 400, margin: "0 auto" }}>
+            <div style={{ marginBottom: 12, fontSize: 13, color: muted(theme), opacity: .6, letterSpacing: "-.01em" }}>
+              Sign up to sync your board across devices &amp; get notified when the full app is ready.
+            </div>
+            <input
+              type="email"
+              placeholder="your@email.com"
+              value={waitlistEmail}
+              onChange={e => setWaitlistEmail(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") submitWaitlist(waitlistEmail); }}
+              style={{ width: "100%", height: 48, borderRadius: 10, border: `1px solid ${border(theme)}`, backgroundColor: theme === "dark" ? "#1c1f25" : "#ffffff", color: pageText(theme), fontSize: 15, padding: "0 16px", outline: "none", boxSizing: "border-box", fontFamily: "inherit", marginBottom: 10 }}
+            />
+            <button
+              onClick={() => submitWaitlist(waitlistEmail)}
+              style={{ width: "100%", height: 48, borderRadius: 10, border: "none", backgroundColor: theme === "dark" ? "#f7f8fb" : "#111315", color: theme === "dark" ? "#111315" : "#f7f8fb", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-.01em" }}
+            >
+              Save my board &amp; sign up
+            </button>
+            <div style={{ marginTop: 10, fontSize: 12, color: muted(theme), opacity: .4 }}>Free · No credit card needed</div>
           </div>
+        )}
+      </section>
+
+      <section style={{ maxWidth: 1220, margin: "0 auto", padding: "0 20px 16px", textAlign: "center" }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 700, letterSpacing: ".14em", textTransform: "uppercase", color: muted(theme), opacity: .55 }}>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="7" y1="2" x2="7" y2="12"/><polyline points="3,8 7,12 11,8"/></svg>
+          Try the board
         </div>
       </section>
 
-      <section style={{ maxWidth: 1220, margin: "0 auto", padding: "0 20px 24px" }}>
-        <div style={boardStyle}>
+      <section id="boardtivity-board" style={{ maxWidth: 1220, margin: "0 auto", padding: "0 20px 24px" }}>
+        <div ref={boardContainerRef} style={{ ...boardStyle, ...(isFullscreen ? { borderRadius: 0, border: "none", minHeight: "100vh" } : {}) }}>
           <div
             style={{
               position: "absolute",
               inset: 0,
-              backgroundColor: paper(theme),
-              backgroundImage: `linear-gradient(${grid(theme)} 1px, transparent 1px), linear-gradient(90deg, ${grid(theme)} 1px, transparent 1px)`,
-              backgroundSize: "48px 48px",
+              backgroundColor: paper(boardTheme),
+              ...(boardGrid === "grid" ? { backgroundImage: `linear-gradient(${grid(boardTheme)} 1px, transparent 1px), linear-gradient(90deg, ${grid(boardTheme)} 1px, transparent 1px)`, backgroundSize: "48px 48px" } : boardGrid === "dots" ? { backgroundImage: `radial-gradient(circle, ${grid(boardTheme)} 1.5px, transparent 1.5px)`, backgroundSize: "32px 32px" } : {}),
               pointerEvents: "none",
             }}
           />
+
+          {/* Board watermark */}
+          <div style={{ position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)", fontSize: 10, letterSpacing: ".22em", textTransform: "uppercase", fontWeight: 700, color: boardTheme === "dark" ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.09)", pointerEvents: "none", zIndex: 0, userSelect: "none", whiteSpace: "nowrap" }}>
+            Boardtivity
+          </div>
+
+          {/* Save your board prompt */}
+          {!waitlistDone && activeNotes.length > 0 && (
+            <div style={{
+              position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)", zIndex: 4,
+              display: "flex", alignItems: "center", gap: 10,
+              backgroundColor: boardTheme === "dark" ? "rgba(24,27,32,.92)" : "rgba(255,255,255,.95)",
+              backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
+              border: `1px solid ${border(boardTheme)}`,
+              borderRadius: 14,
+              padding: "10px 14px",
+              boxShadow: boardTheme === "dark" ? "0 4px 24px rgba(0,0,0,.4)" : "0 4px 24px rgba(0,0,0,.1)",
+            }}>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: pageText(boardTheme), lineHeight: 1.3 }}>Sync across devices</div>
+                <div style={{ fontSize: 11, color: muted(boardTheme), opacity: .7, lineHeight: 1.3 }}>Sign up to access from anywhere</div>
+              </div>
+              <button
+                onClick={() => openSignUp()}
+                style={{ height: 32, padding: "0 14px", borderRadius: 8, border: "none", backgroundColor: boardTheme === "dark" ? "#f7f8fb" : "#111315", color: boardTheme === "dark" ? "#111315" : "#f7f8fb", fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}
+              >
+                Sign up
+              </button>
+            </div>
+          )}
 
           <div
             ref={viewportRef}
@@ -942,9 +1348,8 @@ export function HomeShell() {
                 height: BOARD_H,
                 transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
                 transformOrigin: "0 0",
-                backgroundColor: paper(theme),
-                backgroundImage: `linear-gradient(${grid(theme)} 1px, transparent 1px), linear-gradient(90deg, ${grid(theme)} 1px, transparent 1px)`,
-                backgroundSize: "48px 48px",
+                backgroundColor: paper(boardTheme),
+                ...(boardGrid === "grid" ? { backgroundImage: `linear-gradient(${grid(boardTheme)} 1px, transparent 1px), linear-gradient(90deg, ${grid(boardTheme)} 1px, transparent 1px)`, backgroundSize: "48px 48px" } : boardGrid === "dots" ? { backgroundImage: `radial-gradient(circle, ${grid(boardTheme)} 1.5px, transparent 1.5px)`, backgroundSize: "32px 32px" } : {}),
               }}
             >
               <svg width={BOARD_W} height={BOARD_H} style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
@@ -962,7 +1367,7 @@ export function HomeShell() {
                             y1={note.y + NOTE_H / 2}
                             x2={target.x + NOTE_W / 2}
                             y2={target.y + NOTE_H / 2}
-                            stroke={theme === "dark" ? "rgba(255,255,255,.16)" : "rgba(0,0,0,.14)"}
+                            stroke={boardTheme === "dark" ? "rgba(255,255,255,.16)" : "rgba(0,0,0,.14)"}
                             strokeWidth="2"
                           />
                         );
@@ -987,7 +1392,7 @@ export function HomeShell() {
                             y1={prev.y}
                             x2={step.x + STEP_W / 2}
                             y2={step.y + STEP_H / 2}
-                            stroke={theme === "dark" ? "rgba(255,255,255,.18)" : "rgba(70,70,70,.18)"}
+                            stroke={boardTheme === "dark" ? "rgba(255,255,255,.18)" : "rgba(70,70,70,.18)"}
                             strokeWidth="2"
                           />
                         );
@@ -1001,7 +1406,7 @@ export function HomeShell() {
                         y1={note.y + NOTE_H / 2}
                         x2={step.x + STEP_W / 2}
                         y2={step.y + STEP_H / 2}
-                        stroke={theme === "dark" ? "rgba(255,255,255,.18)" : "rgba(70,70,70,.18)"}
+                        stroke={boardTheme === "dark" ? "rgba(255,255,255,.18)" : "rgba(70,70,70,.18)"}
                         strokeWidth="2"
                       />
                     ));
@@ -1043,10 +1448,12 @@ export function HomeShell() {
                         top: step.y,
                         width: STEP_W,
                         minHeight: STEP_H,
-                        borderRadius: 14,
-                        border: `1px solid ${border(theme)}`,
-                        backgroundColor: taskBg(note.importance, theme),
-                        boxShadow: "0 10px 18px rgba(0,0,0,.08)",
+                        borderRadius: 9,
+                        border: (step.done || note.completed) ? `1.5px solid ${boardTheme === "dark" ? "rgba(60,180,90,.30)" : "rgba(60,180,90,.45)"}` : getNoteBorder(note.importance),
+                        backgroundColor: (step.done || note.completed) ? (boardTheme === "dark" ? "#0e2e18" : "#e6f9ee") : getBg(note.importance),
+                        boxShadow: (step.done || note.completed)
+                          ? `0 0 0 2px rgba(60,180,90,.2), 0 10px 18px rgba(0,0,0,.08)`
+                          : `0 0 0 2px ${getHalo(note.importance)}, 0 10px 18px rgba(0,0,0,.08)`,
                         padding: "10px 12px",
                         textAlign: "left",
                         cursor: "pointer",
@@ -1056,18 +1463,18 @@ export function HomeShell() {
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                           <span
                             style={{
-                              width: 14,
-                              height: 14,
+                              width: 10,
+                              height: 10,
                               borderRadius: "50%",
                               border: step.done ? "1px solid #3d8b40" : "1px solid rgba(0,0,0,.18)",
-                              backgroundColor: step.done ? "#6fc46b" : theme === "dark" ? "rgba(255,255,255,.12)" : "#f1f1ef",
+                              backgroundColor: step.done ? "#6fc46b" : boardTheme === "dark" ? "rgba(255,255,255,.12)" : "#f1f1ef",
                               display: "inline-block",
                               flexShrink: 0,
                             }}
                           />
-                          <span style={{ fontWeight: 700, fontSize: 13, color: noteText(theme) }}>{step.title}</span>
+                          <span style={{ fontWeight: 700, fontSize: 13, color: noteText(boardTheme) }}>{step.title}</span>
                         </div>
-                        <span style={pill(theme)}>{step.minutes} min</span>
+                        <span style={pill(boardTheme)}>{step.minutes} min</span>
                       </div>
                     </button>
                   ))
@@ -1075,12 +1482,15 @@ export function HomeShell() {
 
               {activeNotes.length === 0 && (
                 <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", textAlign: "center" }}>
-                  <div style={{ width: 360, color: theme === "dark" ? "#d8d8d6" : "#70695e" }}>
-                    <div style={{ fontSize: 24, fontWeight: 700, lineHeight: 1.15 }}>
-                      Click + to create your first {thoughtMode ? "thought" : "task"}
-                    </div>
-                    <div style={{ marginTop: 10, fontSize: 15, lineHeight: 1.6 }}>
-                      Drag the board, zoom in or out, and build your workspace from there.
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 24, color: boardTheme === "dark" ? "#d8d8d6" : "#70695e" }}>
+                    <img src="/logo-vertical.svg" alt="Boardtivity" style={{ width: 180, opacity: boardTheme === "dark" ? 0.65 : 0.55, filter: boardTheme === "dark" ? "invert(1)" : "none", pointerEvents: "none", userSelect: "none" }} />
+                    <div style={{ width: 360 }}>
+                      <div style={{ fontSize: 24, fontWeight: 700, lineHeight: 1.15 }}>
+                        Click + to create your first {thoughtMode ? "thought" : "task"}
+                      </div>
+                      <div style={{ marginTop: 10, fontSize: 15, lineHeight: 1.6 }}>
+                        Drag the board, zoom in or out, and build your workspace from there.
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1132,67 +1542,73 @@ export function HomeShell() {
                     width: NOTE_W,
                     minHeight: NOTE_H,
                     padding: "6px 7px 6px",
-                    borderRadius: 14,
+                    borderRadius: 10,
                     border: thoughtDropTarget === note.id
-                      ? `1.5px solid ${theme === "dark" ? "rgba(160,170,240,.7)" : "rgba(100,110,200,.55)"}`
+                      ? `1.5px solid ${boardTheme === "dark" ? "rgba(160,170,240,.7)" : "rgba(100,110,200,.55)"}`
                       : thoughtUnlinkTarget === note.id
                         ? `1.5px solid rgba(220,60,60,.65)`
-                        : "1px solid rgba(0,0,0,.05)",
+                        : note.completed
+                          ? `1.5px solid ${boardTheme === "dark" ? "rgba(60,180,90,.30)" : "rgba(60,180,90,.45)"}`
+                          : note.type === "task"
+                            ? getNoteBorder(note.importance)
+                            : `1.5px solid ${NOTE_PALETTE[(thoughtColorMode === "fixed" ? thoughtFixedColorIdx : (note.colorIdx ?? 0)) % NOTE_PALETTE.length].halo.replace(/[\d.]+\)$/, boardTheme === "dark" ? "0.32)" : "0.48)")}`,
                     display: "flex",
                     flexDirection: "column",
-                    backgroundColor: note.type === "task"
-                      ? taskBg(note.importance, theme)
-                      : paletteBg(note.colorIdx, theme),
-                    opacity: note.completed ? 0.62 : 1,
+                    backgroundColor: note.completed
+                      ? (boardTheme === "dark" ? "#0e2e18" : "#e6f9ee")
+                      : note.type === "task"
+                        ? getBg(note.importance)
+                        : paletteBg(thoughtColorMode === "fixed" ? thoughtFixedColorIdx : (note.colorIdx ?? 0), boardTheme),
                     boxShadow: thoughtDropTarget === note.id
-                      ? `0 0 0 4px ${theme === "dark" ? "rgba(140,150,230,.28)" : "rgba(100,110,200,.18)"}, 0 0 20px ${theme === "dark" ? "rgba(140,150,230,.22)" : "rgba(100,110,200,.16)"}, 0 10px 18px rgba(59,43,16,.06)`
+                      ? `0 0 0 4px ${boardTheme === "dark" ? "rgba(140,150,230,.28)" : "rgba(100,110,200,.18)"}, 0 0 20px ${boardTheme === "dark" ? "rgba(140,150,230,.22)" : "rgba(100,110,200,.16)"}, 0 10px 18px rgba(59,43,16,.06)`
                       : thoughtUnlinkTarget === note.id
                         ? "0 0 0 4px rgba(220,60,60,.25), 0 0 20px rgba(220,60,60,.20), 0 10px 18px rgba(59,43,16,.06)"
-                        : note.type === "task"
-                          ? `0 0 0 3px ${taskHalo(note.importance)}, 0 10px 18px rgba(59,43,16,.06)`
-                          : `0 0 0 3px ${paletteHalo(note.colorIdx)}, 0 10px 18px rgba(59,43,16,.06)`,
+                        : note.completed
+                          ? `0 0 0 3px rgba(60,180,90,.25), 0 10px 18px rgba(0,0,0,.06)`
+                          : note.type === "task"
+                            ? `0 0 0 3px ${getHalo(note.importance)}, 0 10px 18px rgba(59,43,16,.06)`
+                            : `0 0 0 3px ${paletteHalo(thoughtColorMode === "fixed" ? thoughtFixedColorIdx : (note.colorIdx ?? 0))}, 0 10px 18px rgba(59,43,16,.06)`,
                     textAlign: "left",
                     cursor: "pointer",
-                    transition: "box-shadow .18s ease, border-color .18s ease",
+                    transition: "box-shadow .22s ease, border-color .22s ease",
                   }}
                   className={thoughtUnlinkTarget === note.id ? "thought-vibrate" : undefined}
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                    <div style={pill(theme)}>{note.type === "task" ? "Task" : "Thought"}</div>
-                    {note.type === "task" && note.dueDate && <div style={{ ...pill(theme), fontWeight: 800 }}>Due {formatDate(note.dueDate)}</div>}
+                    <div style={pill(boardTheme)}>{note.type === "task" ? "Task" : "Thought"}</div>
+                    {note.type === "task" && note.dueDate && <div style={{ ...pill(boardTheme), fontWeight: 800 }}>Due {formatDate(note.dueDate)}</div>}
                   </div>
 
-                  <div style={{ marginTop: 8, fontSize: 17, lineHeight: 1.12, fontWeight: 700, color: noteText(theme), maxWidth: 196 }}>
+                  <div style={{ marginTop: 18, marginBottom: 6, fontSize: 17, lineHeight: 1.12, fontWeight: 700, color: noteText(boardTheme), maxWidth: 196 }}>
                     {note.title}
                   </div>
 
                   {note.body && note.type === "thought" && (
-                    <div style={{ marginTop: 6, fontSize: 13, lineHeight: 1.45, color: noteSub(theme), maxWidth: 196 }}>
+                    <div style={{ marginTop: 6, fontSize: 13, lineHeight: 1.45, color: noteSub(boardTheme), maxWidth: 196 }}>
                       {note.body}
                     </div>
                   )}
 
                   {note.type === "task" && (
                     <div style={{ marginTop: "auto", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-                      <div style={{ display: "flex", gap: 7, alignItems: "center" }}>
-                        {Array.from({ length: Math.max(note.steps.length, 1) }).map((_, index) => {
-                          const done = note.steps[index]?.done;
-                          return (
+                      {note.steps.length > 0 ? (
+                        <div style={{ display: "flex", gap: 7, alignItems: "center" }}>
+                          {note.steps.map((step) => (
                             <span
-                              key={index}
+                              key={step.id}
                               style={{
                                 width: 10,
                                 height: 10,
                                 borderRadius: "50%",
-                                border: done ? "1px solid #3d8b40" : "1px solid rgba(0,0,0,.18)",
-                                backgroundColor: done ? "#6fc46b" : theme === "dark" ? "rgba(255,255,255,.12)" : "#f1f1ef",
+                                border: step.done ? "1px solid #3d8b40" : "1px solid rgba(0,0,0,.18)",
+                                backgroundColor: step.done ? "#6fc46b" : boardTheme === "dark" ? "rgba(255,255,255,.12)" : "#f1f1ef",
                                 display: "inline-block",
                               }}
                             />
-                          );
-                        })}
-                      </div>
-                      <span style={pill(theme)}>
+                          ))}
+                        </div>
+                      ) : <div />}
+                      <span style={pill(boardTheme)}>
                         {note.importance && note.importance !== "none" ? `${note.importance} priority` : "No priority"}
                       </span>
                     </div>
@@ -1204,238 +1620,244 @@ export function HomeShell() {
 
           <div style={{ position: "absolute", top: 12, left: 16, right: 16, zIndex: 3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{
-              fontSize: 14,
-              fontWeight: 700,
-              color: pageText(theme),
-              backgroundColor: theme === "dark" ? "rgba(31,35,41,.85)" : "rgba(255,255,255,.90)",
-              backdropFilter: "blur(12px)",
-              WebkitBackdropFilter: "blur(12px)",
-              borderRadius: 99,
-              padding: "7px 16px",
-              border: `1px solid ${border(theme)}`,
-              boxShadow: theme === "dark" ? "0 2px 12px rgba(0,0,0,.28)" : "0 2px 12px rgba(0,0,0,.08)",
-            }}>
+                display: "flex", alignItems: "center", gap: 8,
+                fontSize: 14,
+                fontWeight: 700,
+                color: pageText(boardTheme),
+                backgroundColor: boardTheme === "dark" ? "rgba(31,35,41,.85)" : "rgba(255,255,255,.90)",
+                backdropFilter: "blur(12px)",
+                WebkitBackdropFilter: "blur(12px)",
+                borderRadius: 99,
+                padding: "6px 14px 6px 8px",
+                border: `1px solid ${border(boardTheme)}`,
+                boxShadow: boardTheme === "dark" ? "0 2px 12px rgba(0,0,0,.28)" : "0 2px 12px rgba(0,0,0,.08)",
+              }}>
+              <BoardtivityLogo size={22} dark={boardTheme === "dark"} />
               {activeBoard.name}
             </div>
 
-            <div style={{ position: "relative", display: "flex", gap: 8, alignItems: "center" }}>
-              <ThemeToggle theme={theme} onToggle={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} />
-              <button onClick={centerBoard} style={circleButton(theme)} aria-label="Center board">
-                ◎
+            <div style={{ position: "relative", display: "flex", gap: 5, alignItems: "center" }}>
+              {/* Theme toggle — lightbulb */}
+              <ThemeToggle theme={boardTheme} onToggle={() => setBoardTheme((t) => (t === "dark" ? "light" : "dark"))} />
+
+              {/* Divider */}
+              <div style={{ width: 1, height: 18, backgroundColor: border(boardTheme), margin: "0 2px" }} />
+
+              {/* Center board */}
+              <button onClick={centerBoard} style={circleButton(boardTheme)} aria-label="Center board" title="Center board">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.5"/><circle cx="8" cy="8" r="1.5" fill="currentColor"/></svg>
               </button>
-              <button ref={boardButtonRef} onClick={() => setBoardsOpen((v) => !v)} style={buttonStyle(theme, boardsOpen, true)}>
+
+              {/* Settings button — gear */}
+              <button ref={settingsButtonRef} onClick={() => { setSettingsOpen(v => !v); setBoardsOpen(false); }} style={{ ...circleButton(boardTheme), ...(settingsOpen ? { backgroundColor: boardTheme === "dark" ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.07)", border: `1px solid ${boardTheme === "dark" ? "rgba(255,255,255,.2)" : "rgba(0,0,0,.15)"}` } : {}) }} aria-label="Settings" title="Settings">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                  <path d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" stroke="currentColor" strokeWidth="1.5"/>
+                  <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" stroke="currentColor" strokeWidth="1.5"/>
+                </svg>
+              </button>
+
+              {/* Divider */}
+              <div style={{ width: 1, height: 18, backgroundColor: border(boardTheme), margin: "0 2px" }} />
+
+              {/* Boards button */}
+              <button ref={boardButtonRef} onClick={() => { setBoardsOpen(v => !v); setSettingsOpen(false); }} style={{ ...buttonStyle(boardTheme, boardsOpen, true), minWidth: 80 }}>
                 Boards
               </button>
 
-              <div
-                ref={boardMenuRef}
-                style={{
-                  position: "absolute",
-                  top: 44,
-                  right: 0,
-                  width: 290,
-                  maxHeight: 380,
-                  overflow: "auto",
-                  borderRadius: 16,
-                  border: `1px solid ${border(theme)}`,
-                  backgroundColor: panel(theme),
-                  boxShadow: "0 12px 24px rgba(0,0,0,.10)",
-                  padding: 10,
-                  display: "grid",
-                  gap: 10,
-                  opacity: boardsOpen ? 1 : 0,
-                  transform: boardsOpen ? "translateY(0)" : "translateY(-8px)",
-                  pointerEvents: boardsOpen ? "auto" : "none",
-                  transition: "opacity .14s ease, transform .14s ease",
-                }}
-              >
-                <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: ".12em", color: muted(theme) }}>Boards</div>
-
+              {/* Boards menu — compact dropdown */}
+              <div ref={boardMenuRef} style={{
+                position: "absolute", top: 44, right: 0, width: 248,
+                maxHeight: 340, overflow: "auto",
+                borderRadius: 12, border: `1px solid ${border(boardTheme)}`,
+                backgroundColor: panel(boardTheme),
+                boxShadow: boardTheme === "dark" ? "0 8px 32px rgba(0,0,0,.4)" : "0 8px 32px rgba(0,0,0,.12)",
+                padding: "6px 0",
+                opacity: boardsOpen ? 1 : 0,
+                transform: boardsOpen ? "translateY(0)" : "translateY(-6px)",
+                pointerEvents: boardsOpen ? "auto" : "none",
+                transition: "opacity .13s ease, transform .13s ease",
+                zIndex: 10,
+              }}>
+                <div style={{ padding: "6px 14px 4px", fontSize: 10, letterSpacing: ".14em", textTransform: "uppercase", color: muted(boardTheme), fontWeight: 600 }}>Boards</div>
                 {[...taskBoards, ...thoughtBoards].map((board) => (
-                  <div
-                    key={board.id}
-                    style={{
-                      borderRadius: 14,
-                      border: `1px solid ${border(theme)}`,
-                      backgroundColor: board.id === activeBoardId ? (theme === "dark" ? "#23262b" : "#f5f4ef") : panel(theme),
-                      padding: 10,
-                      display: "grid",
-                      gap: 8,
-                    }}
-                  >
-                    <button
-                      onClick={() => {
-                        setActiveBoardId(board.id);
-                        setBoardsOpen(false);
-                      }}
-                      style={{
-                        border: "none",
-                        background: "transparent",
-                        padding: 0,
-                        textAlign: "left",
-                        fontWeight: 700,
-                        color: pageText(theme),
-                        cursor: "pointer",
-                      }}
-                    >
+                  <div key={board.id} style={{
+                    display: "flex", alignItems: "center", gap: 0,
+                    padding: "2px 6px",
+                    backgroundColor: board.id === activeBoardId ? (boardTheme === "dark" ? "rgba(255,255,255,.06)" : "rgba(0,0,0,.04)") : "transparent",
+                    margin: "0 4px", borderRadius: 7,
+                  }}>
+                    <button onClick={() => { setActiveBoardId(board.id); setBoardsOpen(false); }} style={{
+                      flex: 1, border: "none", background: "none", padding: "6px 8px",
+                      textAlign: "left", fontSize: 13, fontWeight: board.id === activeBoardId ? 700 : 500,
+                      color: pageText(boardTheme), cursor: "pointer",
+                    }}>
                       {board.name}
+                      <span style={{ marginLeft: 6, fontSize: 10, color: muted(boardTheme), fontWeight: 400 }}>{board.type === "task" ? "Task" : "Thought"}</span>
                     </button>
-
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                      <button
-                        onClick={() => {
-                          setRenameBoardId(board.id);
-                          setRenameValue(board.name);
-                        }}
-                        style={buttonStyle(theme, false, true)}
-                      >
-                        Rename
-                      </button>
-                      <button
-                        onClick={() => deleteBoard(board.id)}
-                        style={{
-                          ...buttonStyle(theme, false, true),
-                          backgroundColor: theme === "dark" ? "#26171b" : "#fff4f4",
-                          color: theme === "dark" ? "#ffbcbc" : "#8f2323",
-                          border: `1px solid ${theme === "dark" ? "rgba(255,120,120,.16)" : "rgba(143,35,35,.12)"}`,
-                        }}
-                      >
-                        Delete
-                      </button>
-                    </div>
+                    <button onClick={() => { setRenameBoardId(board.id); setRenameValue(board.name); }} style={{ background: "none", border: "none", padding: "4px 6px", cursor: "pointer", color: muted(boardTheme), fontSize: 11 }} title="Rename">✎</button>
+                    {confirmDeleteId === board.id ? (
+                      <>
+                        <button onClick={() => setConfirmDeleteId(null)} style={{ background: "none", border: "none", padding: "3px 5px", cursor: "pointer", color: muted(boardTheme), fontSize: 11, fontWeight: 600 }}>Cancel</button>
+                        <button onClick={() => { deleteBoard(board.id); setConfirmDeleteId(null); }} style={{ background: "none", border: "none", padding: "3px 6px", cursor: "pointer", color: boardTheme === "dark" ? "rgba(255,100,100,.85)" : "rgba(160,30,30,.8)", fontSize: 11, fontWeight: 700 }}>Delete</button>
+                      </>
+                    ) : (
+                      <button onClick={() => setConfirmDeleteId(board.id)} style={{ background: "none", border: "none", padding: "4px 6px", cursor: "pointer", color: boardTheme === "dark" ? "rgba(255,100,100,.6)" : "rgba(180,40,40,.5)", fontSize: 13 }} title="Delete">×</button>
+                    )}
                   </div>
                 ))}
-
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 4 }}>
-                  <button onClick={() => addBoard("task")} style={buttonStyle(theme, false, true)}>
-                    + Task
-                  </button>
-                  <button onClick={() => addBoard("thought")} style={buttonStyle(theme, false, true)}>
-                    + Thought
-                  </button>
+                <div style={{ height: 1, backgroundColor: border(boardTheme), margin: "6px 10px" }} />
+                <div style={{ display: "flex", gap: 6, padding: "4px 10px 6px" }}>
+                  <button onClick={() => addBoard("task")} style={{ ...buttonStyle(boardTheme, false, true), flex: 1, fontSize: 12 }}>+ Task</button>
+                  <button onClick={() => addBoard("thought")} style={{ ...buttonStyle(boardTheme, false, true), flex: 1, fontSize: 12 }}>+ Thought</button>
                 </div>
               </div>
             </div>
           </div>
 
+          {/* ── Settings full-screen overlay ── */}
+          {settingsOpen && (
+            <div style={{
+              position: "fixed", inset: 0, zIndex: 30,
+              backgroundColor: boardTheme === "dark" ? "rgba(5,7,10,.5)" : "rgba(0,0,0,.22)",
+              backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
+            }} onClick={() => setSettingsOpen(false)} />
+          )}
+          <div ref={settingsRef} style={{
+            position: "fixed", top: 0, right: 0, bottom: 0, width: 360,
+            zIndex: 31,
+            backgroundColor: panel(boardTheme),
+            borderLeft: `1px solid ${border(boardTheme)}`,
+            boxShadow: settingsOpen ? (boardTheme === "dark" ? "-12px 0 40px rgba(0,0,0,.5)" : "-12px 0 40px rgba(0,0,0,.12)") : "none",
+            transform: settingsOpen ? "translateX(0)" : "translateX(100%)",
+            transition: "transform .22s cubic-bezier(.4,0,.2,1)",
+            display: "flex", flexDirection: "column", overflowY: "auto",
+          }}>
+            {/* Header */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 24px 16px", borderBottom: `1px solid ${border(boardTheme)}`, flexShrink: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <BoardtivityLogo size={26} dark={boardTheme === "dark"} />
+                <span style={{ fontSize: 16, fontWeight: 700, color: pageText(boardTheme) }}>Settings</span>
+              </div>
+              <button onClick={() => setSettingsOpen(false)} style={{ ...circleButton(boardTheme, 32), fontSize: 14 }}>✕</button>
+            </div>
+
+            {/* Body */}
+            <div style={{ flex: 1, padding: "20px 24px", display: "grid", gap: 28, alignContent: "start" }}>
+
+              {/* Board Background */}
+              <div>
+                <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), fontWeight: 700, marginBottom: 10 }}>Board Background</div>
+                <div style={{ display: "flex", gap: 6, padding: 3, backgroundColor: boardTheme === "dark" ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", borderRadius: 10, border: `1px solid ${border(boardTheme)}` }}>
+                  {([
+                    { id: "grid" as const, label: "Grid", preview: (
+                      <svg width="18" height="14" viewBox="0 0 18 14" fill="none">
+                        {[0,6,12,18].map(x => <line key={`v${x}`} x1={x} y1={0} x2={x} y2={14} stroke="currentColor" strokeWidth="0.8" opacity="0.6"/>)}
+                        {[0,7,14].map(y => <line key={`h${y}`} x1={0} y1={y} x2={18} y2={y} stroke="currentColor" strokeWidth="0.8" opacity="0.6"/>)}
+                      </svg>
+                    )},
+                    { id: "dots" as const, label: "Dots", preview: (
+                      <svg width="18" height="14" viewBox="0 0 18 14" fill="none">
+                        {[3,9,15].flatMap(x => [3,10].map(y => <circle key={`${x}${y}`} cx={x} cy={y} r="1.2" fill="currentColor" opacity="0.6"/>))}
+                      </svg>
+                    )},
+                    { id: "blank" as const, label: "Blank", preview: (
+                      <svg width="18" height="14" viewBox="0 0 18 14" fill="none">
+                        <rect x="1" y="1" width="16" height="12" rx="2" stroke="currentColor" strokeWidth="0.8" opacity="0.3"/>
+                      </svg>
+                    )},
+                  ]).map(({ id, label, preview }) => {
+                    const active = boardGrid === id;
+                    return (
+                      <button key={id} onClick={() => setBoardGrid(id)} style={{
+                        flex: 1, height: 52, borderRadius: 8,
+                        border: "none",
+                        backgroundColor: active ? (boardTheme === "dark" ? "rgba(255,255,255,.12)" : "#ffffff") : "transparent",
+                        boxShadow: active ? (boardTheme === "dark" ? "0 1px 4px rgba(0,0,0,.3)" : "0 1px 4px rgba(0,0,0,.1)") : "none",
+                        color: active ? pageText(boardTheme) : muted(boardTheme),
+                        cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 5,
+                        transition: "background-color .12s, box-shadow .12s",
+                      }}>
+                        {preview}
+                        <span style={{ fontSize: 11, fontWeight: active ? 700 : 500 }}>{label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Thought Note Color */}
+              <div>
+                <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), fontWeight: 700, marginBottom: 10 }}>Thought Note Color</div>
+                <div style={{ display: "flex", gap: 6, marginBottom: 12, padding: 3, backgroundColor: boardTheme === "dark" ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", borderRadius: 10, border: `1px solid ${border(boardTheme)}` }}>
+                  {(["random","fixed"] as const).map(mode => (
+                    <button key={mode} onClick={() => setThoughtColorMode(mode)} style={{
+                      flex: 1, height: 32, borderRadius: 8,
+                      border: "none",
+                      backgroundColor: thoughtColorMode === mode ? (boardTheme === "dark" ? "rgba(255,255,255,.12)" : "#ffffff") : "transparent",
+                      boxShadow: thoughtColorMode === mode ? (boardTheme === "dark" ? "0 1px 4px rgba(0,0,0,.3)" : "0 1px 4px rgba(0,0,0,.1)") : "none",
+                      color: thoughtColorMode === mode ? pageText(boardTheme) : muted(boardTheme),
+                      fontSize: 13, fontWeight: thoughtColorMode === mode ? 700 : 500, cursor: "pointer", textTransform: "capitalize",
+                      transition: "background-color .12s, box-shadow .12s",
+                    }}>{mode}</button>
+                  ))}
+                </div>
+                {thoughtColorMode === "fixed" && (
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {NOTE_PALETTE.map((p, i) => (
+                      <button key={i} onClick={() => setThoughtFixedColorIdx(i)} style={{
+                        width: 26, height: 26, borderRadius: "50%",
+                        border: thoughtFixedColorIdx === i ? `2.5px solid ${pageText(boardTheme)}` : "2.5px solid transparent",
+                        outline: thoughtFixedColorIdx === i ? `1px solid ${boardTheme === "dark" ? p.dark : p.light}` : "none",
+                        outlineOffset: 1,
+                        backgroundColor: boardTheme === "dark" ? p.dark : p.light, cursor: "pointer", padding: 0,
+                      }} />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Account */}
+              <div style={{ borderTop: `1px solid ${border(boardTheme)}`, paddingTop: 20, display: "grid", gap: 8 }}>
+                <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), fontWeight: 700, marginBottom: 2 }}>Account</div>
+                <button onClick={() => { setSettingsOpen(false); setWaitlistOpen(true); }} style={{ ...buttonStyle(boardTheme, true), width: "100%", fontSize: 14, height: 42 }}>Join waitlist</button>
+              </div>
+            </div>
+          </div>
+
+          {/* Fullscreen button — bottom left */}
+          <button
+            onClick={toggleFullscreen}
+            style={{ ...circleButton(boardTheme, 34), position: "absolute", left: 18, bottom: 18, zIndex: 3, boxShadow: "0 8px 16px rgba(89,72,48,.08)" }}
+            aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+          >
+            {isFullscreen ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M8 3v3a2 2 0 0 1-2 2H3M21 8h-3a2 2 0 0 1-2-2V3M3 16h3a2 2 0 0 1 2 2v3M16 21v-3a2 2 0 0 1 2-2h3"/>
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/>
+              </svg>
+            )}
+          </button>
+
+          {/* Add note button — bottom right */}
           <button
             onClick={() => { setComposerColorIdx(Math.floor(Math.random() * NOTE_PALETTE.length)); setComposerOpen(true); }}
-            style={{
-              position: "absolute",
-              right: 18,
-              bottom: 18,
-              width: 34,
-              height: 34,
-              borderRadius: "50%",
-              border: `1px solid ${border(theme)}`,
-              backgroundColor: theme === "dark" ? "#f4f7fb" : "#ffffff",
-              color: "#111111",
-              display: "grid",
-              placeItems: "center",
-              fontSize: 20,
-              fontWeight: 800,
-              cursor: "pointer",
-              zIndex: 3,
-              boxShadow: "0 8px 16px rgba(89,72,48,.08)",
-            }}
+            style={{ ...circleButton(boardTheme, 34), position: "absolute", right: 18, bottom: 18, zIndex: 3, boxShadow: "0 8px 16px rgba(89,72,48,.08)" }}
             aria-label="Add note"
           >
-            +
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
           </button>
-        </div>
-      </section>
-
-      <section style={{ maxWidth: 1220, margin: "0 auto", padding: "0 20px 64px" }}>
-        <div style={{ display: "grid", gap: 16 }}>
-          <div
-            style={{
-              borderRadius: 28,
-              border: `1px solid ${border(theme)}`,
-              backgroundColor: panel(theme),
-              padding: 24,
-              display: "grid",
-              gridTemplateColumns: "1.3fr 1fr",
-              gap: 24,
-            }}
-          >
-            <div>
-              <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme) }}>
-                Why Boardtivity
-              </div>
-              <div style={{ marginTop: 10, fontSize: 30, lineHeight: 1.08, fontWeight: 700, maxWidth: 620 }}>
-                Plan visually, think clearly, and turn big work into smaller next steps.
-              </div>
-              <div style={{ marginTop: 14, color: muted(theme), lineHeight: 1.75, maxWidth: 640 }}>
-                Boardtivity gives you one clean place to map tasks, connect related thoughts, organize subtasks into a task flow, and start focused work sessions without losing momentum.
-              </div>
-            </div>
-
-            <div
-              style={{
-                borderRadius: 22,
-                border: `1px solid ${border(theme)}`,
-                backgroundColor: theme === "dark" ? "#23262b" : "#f7f5ef",
-                padding: 18,
-                display: "grid",
-                gap: 12,
-                alignContent: "start",
-              }}
-            >
-              <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme) }}>
-                Included
-              </div>
-              <div style={{ display: "grid", gap: 10 }}>
-                <div style={{ fontWeight: 700 }}>Task boards and thought boards</div>
-                <div style={{ fontWeight: 700 }}>Task breakdowns, Taskweb, and Taskchain</div>
-                <div style={{ fontWeight: 700 }}>Connected thoughts and focus sessions</div>
-              </div>
-            </div>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
-            <div style={{ borderRadius: 24, border: `1px solid ${border(theme)}`, backgroundColor: panel(theme), padding: 22 }}>
-              <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme) }}>
-                Free
-              </div>
-              <div style={{ marginTop: 10, fontSize: 26, fontWeight: 700 }}>Start free</div>
-              <div style={{ marginTop: 12, color: muted(theme), lineHeight: 1.7 }}>
-                Build boards, create notes, and try the planning workflow before launch.
-              </div>
-            </div>
-
-            <div style={{ borderRadius: 24, border: `1px solid ${border(theme)}`, backgroundColor: panel(theme), padding: 22 }}>
-              <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme) }}>
-                Pro
-              </div>
-              <div style={{ marginTop: 10, fontSize: 26, fontWeight: 700 }}>$5.99<span style={{ fontSize: 16, color: muted(theme) }}> / month</span></div>
-              <div style={{ marginTop: 12, color: muted(theme), lineHeight: 1.7 }}>
-                Unlock the full premium workflow, smarter planning features, and expanded board usage.
-              </div>
-            </div>
-
-            <div style={{ borderRadius: 24, border: `1px solid ${border(theme)}`, backgroundColor: panel(theme), padding: 22 }}>
-              <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme) }}>
-                Beta access
-              </div>
-              <div style={{ marginTop: 10, fontSize: 26, lineHeight: 1.12, fontWeight: 700 }}>
-                Join the waitlist before launch.
-              </div>
-              <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
-                <button style={buttonStyle(theme, true)}>Join waitlist</button>
-                <button style={buttonStyle(theme)}>Learn more</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {renameBoardId && (
         <div
           style={{
             position: "fixed",
             inset: 0,
             zIndex: 36,
-            backgroundColor: theme === "dark" ? "rgba(6,8,12,.58)" : "rgba(10,10,12,.26)",
+            backgroundColor: boardTheme === "dark" ? "rgba(6,8,12,.58)" : "rgba(10,10,12,.26)",
             backdropFilter: "blur(10px)",
             display: "flex",
             alignItems: "center",
@@ -1446,8 +1868,8 @@ export function HomeShell() {
             if (e.target === e.currentTarget) setRenameBoardId(null);
           }}
         >
-          <div style={{ width: "min(420px, 100%)", borderRadius: 22, border: `1px solid ${border(theme)}`, backgroundColor: theme === "dark" ? "#1f2329" : "#fbf8f1", padding: 18 }}>
-            <div style={{ fontSize: 12, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme) }}>
+          <div style={{ width: "min(420px, 100%)", borderRadius: 13, border: `1px solid ${border(boardTheme)}`, backgroundColor: boardTheme === "dark" ? "#1f2329" : "#fbf8f1", padding: 18 }}>
+            <div style={{ fontSize: 12, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme) }}>
               Rename board
             </div>
             <input
@@ -1457,17 +1879,17 @@ export function HomeShell() {
                 width: "100%",
                 height: 52,
                 marginTop: 12,
-                borderRadius: 16,
-                border: `1px solid ${border(theme)}`,
-                backgroundColor: inputBg(theme),
-                color: pageText(theme),
+                borderRadius: 10,
+                border: `1px solid ${border(boardTheme)}`,
+                backgroundColor: inputBg(boardTheme),
+                color: pageText(boardTheme),
                 padding: "0 14px",
                 outline: "none",
               }}
             />
             <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
-              <button onClick={() => setRenameBoardId(null)} style={buttonStyle(theme)}>Cancel</button>
-              <button onClick={saveRename} style={buttonStyle(theme, true)}>Save</button>
+              <button onClick={() => setRenameBoardId(null)} style={buttonStyle(boardTheme)}>Cancel</button>
+              <button onClick={saveRename} style={buttonStyle(boardTheme, true)}>Save</button>
             </div>
           </div>
         </div>
@@ -1479,7 +1901,7 @@ export function HomeShell() {
             position: "fixed",
             inset: 0,
             zIndex: 30,
-            backgroundColor: theme === "dark" ? "rgba(6,8,12,.58)" : "rgba(10,10,12,.26)",
+            backgroundColor: boardTheme === "dark" ? "rgba(6,8,12,.58)" : "rgba(10,10,12,.26)",
             backdropFilter: "blur(10px)",
             display: "flex",
             alignItems: "center",
@@ -1493,35 +1915,35 @@ export function HomeShell() {
           <div
             style={{
               width: thoughtMode ? "min(760px, 100%)" : "min(960px, 100%)",
-              backgroundColor: theme === "dark" ? "#1f2329" : "#fbf8f1",
-              color: pageText(theme),
-              borderRadius: 28,
-              border: `1px solid ${border(theme)}`,
+              backgroundColor: boardTheme === "dark" ? "#1f2329" : "#fbf8f1",
+              color: pageText(boardTheme),
+              borderRadius: 16,
+              border: `1px solid ${border(boardTheme)}`,
               boxShadow: "0 30px 100px rgba(0,0,0,.28)",
               overflow: "hidden",
             }}
           >
-            <div style={{ padding: "18px 20px", borderBottom: `1px solid ${border(theme)}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ padding: "18px 20px", borderBottom: `1px solid ${border(boardTheme)}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: muted(theme) }}>
+                <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: muted(boardTheme) }}>
                   Adding to {activeBoard.name}
                 </div>
-                <div style={{ marginTop: 6, fontSize: 24, fontWeight: 700 }}>
+                <div style={{ marginTop: 6, fontSize: 18, fontWeight: 700 }}>
                   {thoughtMode ? "Add a thought" : "Add a task"}
                 </div>
               </div>
-              <button onClick={closeComposer} style={circleButton(theme, 42)}>✕</button>
+              <button onClick={closeComposer} style={circleButton(boardTheme, 42)}>✕</button>
             </div>
 
             {drafts.length > 0 && (
-              <div style={{ borderBottom: `1px solid ${border(theme)}`, padding: "8px 20px", display: "flex", gap: 8, overflowX: "auto", alignItems: "center" }}>
-                <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".12em", color: muted(theme), flexShrink: 0, fontWeight: 700 }}>Drafts</div>
+              <div style={{ borderBottom: `1px solid ${border(boardTheme)}`, padding: "8px 20px", display: "flex", gap: 8, overflowX: "auto", alignItems: "center" }}>
+                <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".12em", color: muted(boardTheme), flexShrink: 0, fontWeight: 700 }}>Drafts</div>
                 {drafts.map((d) => (
-                  <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0, borderRadius: 99, border: `1px solid ${border(theme)}`, backgroundColor: panel(theme), padding: "4px 4px 4px 10px" }}>
-                    <button onClick={() => loadDraft(d)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600, color: pageText(theme), padding: 0 }}>
-                      {d.title || "Untitled"} <span style={{ color: muted(theme), fontWeight: 400 }}>· {new Date(d.savedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
+                  <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0, borderRadius: 99, border: `1px solid ${border(boardTheme)}`, backgroundColor: panel(boardTheme), padding: "4px 4px 4px 10px" }}>
+                    <button onClick={() => loadDraft(d)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600, color: pageText(boardTheme), padding: 0 }}>
+                      {d.title || "Untitled"} <span style={{ color: muted(boardTheme), fontWeight: 400 }}>· {new Date(d.savedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
                     </button>
-                    <button onClick={() => deleteDraft(d.id)} style={{ ...circleButton(theme, 20), fontSize: 12, flexShrink: 0 }}>×</button>
+                    <button onClick={() => deleteDraft(d.id)} style={{ ...circleButton(boardTheme, 20), fontSize: 12, flexShrink: 0 }}>×</button>
                   </div>
                 ))}
               </div>
@@ -1531,14 +1953,15 @@ export function HomeShell() {
               <div style={{ display: "grid", gap: 12 }}>
                 <div
                   style={{
-                    borderRadius: 24,
-                    backgroundColor: paletteBg(composerColorIdx, theme),
+                    borderRadius: 14,
+                    backgroundColor: thoughtMode ? paletteBg(composerColorIdx, boardTheme) : getBg(importance === "none" ? undefined : importance),
                     border: composerError.title ? "1px solid rgba(200,40,40,.5)" : "1px solid rgba(0,0,0,.05)",
                     padding: 18,
                     minHeight: thoughtMode ? 160 : 250,
+                    transition: "background-color .25s ease",
                   }}
                 >
-                  <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: muted(theme) }}>
+                  <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: muted(boardTheme) }}>
                     {thoughtMode ? "Thought" : "Task"}
                   </div>
                   <textarea
@@ -1559,7 +1982,7 @@ export function HomeShell() {
                       background: "transparent",
                       resize: "none",
                       outline: "none",
-                      color: pageText(theme),
+                      color: pageText(boardTheme),
                       fontSize: 26,
                       lineHeight: 1.08,
                       fontWeight: 700,
@@ -1576,7 +1999,7 @@ export function HomeShell() {
                       background: "transparent",
                       resize: "none",
                       outline: "none",
-                      color: muted(theme),
+                      color: muted(boardTheme),
                       fontSize: 15,
                       lineHeight: 1.6,
                     }}
@@ -1585,22 +2008,23 @@ export function HomeShell() {
 
                 {!thoughtMode && (
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-                    <label
+                    <div
                       style={{
-                        ...fieldStyle(theme),
+                        ...fieldStyle(boardTheme),
                         position: "relative",
                         cursor: "pointer",
-                        border: composerError.dueDate ? "1px solid rgba(200,40,40,.55)" : fieldStyle(theme).border,
+                        border: composerError.dueDate ? "1px solid rgba(200,40,40,.55)" : fieldStyle(boardTheme).border,
                         boxShadow: composerError.dueDate ? "0 0 0 3px rgba(200,40,40,.12)" : "none",
                       }}
                     >
-                      <span style={{ color: dueDate ? pageText(theme) : muted(theme), pointerEvents: "none" }}>
+                      <span style={{ color: dueDate ? pageText(boardTheme) : muted(boardTheme), pointerEvents: "none", position: "relative", zIndex: 0 }}>
                         {dueDate ? formatDate(dueDate) : "Due date"}
                       </span>
                       <input
                         ref={dateInputRef}
                         type="date"
                         value={dueDate}
+                        onClick={() => { try { (dateInputRef.current as any).showPicker(); } catch {} }}
                         onChange={(e) => {
                           setDueDate(e.target.value);
                           setComposerError((prev) => ({ ...prev, dueDate: false }));
@@ -1608,13 +2032,14 @@ export function HomeShell() {
                         style={{
                           position: "absolute",
                           inset: 0,
-                          opacity: 0,
                           width: "100%",
                           height: "100%",
+                          opacity: 0,
                           cursor: "pointer",
+                          zIndex: 1,
                         }}
                       />
-                    </label>
+                    </div>
 
                     <select
                       value={importance}
@@ -1623,15 +2048,17 @@ export function HomeShell() {
                         setComposerError((prev) => ({ ...prev, importance: false }));
                       }}
                       style={{
-                        ...fieldStyle(theme),
+                        ...fieldStyle(boardTheme),
                         appearance: "none",
                         WebkitAppearance: "none",
                         MozAppearance: "none",
                         cursor: "pointer",
-                        color: pageText(theme),
+                        color: pageText(boardTheme),
                         opacity: 0.92,
-                        border: composerError.importance ? "1px solid rgba(200,40,40,.55)" : fieldStyle(theme).border,
+                        backgroundColor: getBg(importance === "none" ? undefined : importance),
+                        border: composerError.importance ? "1px solid rgba(200,40,40,.55)" : fieldStyle(boardTheme).border,
                         boxShadow: composerError.importance ? "0 0 0 3px rgba(200,40,40,.12)" : "none",
+                        transition: "background-color .2s ease",
                       }}
                     >
                       <option value="none">Set priority</option>
@@ -1640,10 +2067,10 @@ export function HomeShell() {
                       <option value="High">High priority</option>
                     </select>
 
-                    <div style={{ ...fieldStyle(theme), justifyContent: "space-between" }}>
-                      <button onClick={() => setMinutes((m) => Math.max(5, m - 5))} style={circleButton(theme, 30)}>-</button>
-                      <div style={{ flex: 1, textAlign: "center", color: pageText(theme), opacity: 0.92 }}>{minutes} min</div>
-                      <button onClick={() => setMinutes((m) => m + 5)} style={circleButton(theme, 30)}>+</button>
+                    <div style={{ ...fieldStyle(boardTheme), justifyContent: "space-between" }}>
+                      <button onClick={() => setMinutes((m) => Math.max(5, m - 5))} style={circleButton(boardTheme, 30)}>-</button>
+                      <div style={{ flex: 1, textAlign: "center", color: pageText(boardTheme), opacity: 0.92 }}>{minutes} min</div>
+                      <button onClick={() => setMinutes((m) => m + 5)} style={circleButton(boardTheme, 30)}>+</button>
                     </div>
                   </div>
                 )}
@@ -1652,42 +2079,94 @@ export function HomeShell() {
               <div style={{ display: thoughtMode ? "none" : "grid", gap: 12, alignContent: "start" }}>
                 {!thoughtMode && (
                   <>
-                    <div style={{ borderRadius: 20, border: `1px solid ${border(theme)}`, backgroundColor: panel(theme), padding: 16 }}>
-                      <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme) }}>
+                    <div style={{ borderRadius: 12, border: `1px solid ${border(boardTheme)}`, backgroundColor: panel(boardTheme), padding: 16 }}>
+                      <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme) }}>
                         Current tasks
                       </div>
                       <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
                         {recentTasks.length === 0 ? (
-                          <div style={{ color: muted(theme), fontSize: 14 }}>No current tasks yet.</div>
+                          <div style={{ color: muted(boardTheme), fontSize: 14 }}>No current tasks yet.</div>
                         ) : (
                           recentTasks.map((task) => (
                             <div key={task.id} style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
-                              <span style={{ fontSize: 14, color: pageText(theme) }}>{task.title}</span>
-                              {task.dueDate ? <span style={pill(theme)}>{formatDate(task.dueDate)}</span> : <span style={pill(theme)}>No due date</span>}
+                              <span style={{ fontSize: 14, color: pageText(boardTheme) }}>{task.title}</span>
+                              {task.dueDate ? <span style={pill(boardTheme)}>{formatDate(task.dueDate)}</span> : <span style={pill(boardTheme)}>No due date</span>}
                             </div>
                           ))
                         )}
                       </div>
                     </div>
 
-                    <div style={{ borderRadius: 20, border: `1px solid ${border(theme)}`, backgroundColor: panel(theme), padding: 16 }}>
-                      <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme) }}>
-                        AI planning
+                    <div style={{ borderRadius: 12, border: `1px solid ${border(boardTheme)}`, backgroundColor: panel(boardTheme), padding: 18 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme) }}>
+                          AI planning
+                        </div>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          {aiSteps.length > 0 && (
+                            <button
+                              onClick={() => {
+                                const nextVariant = breakdownVariant + 1;
+                                setBreakdownVariant(nextVariant);
+                                const next = buildBreakdown(title, body, minutes, nextVariant);
+                                setAiSteps(next);
+                                setMinutes(next.reduce((s, st) => s + st.minutes, 0));
+                              }}
+                              style={{ ...buttonStyle(boardTheme, false, true), fontSize: 12, height: 28, padding: "0 10px" }}
+                            >
+                              Regenerate
+                            </button>
+                          )}
+                          <button
+                            onClick={() => {
+                              const next = buildBreakdown(title, body, minutes, breakdownVariant);
+                              setAiSteps(next);
+                              setMinutes(next.reduce((s, st) => s + st.minutes, 0));
+                            }}
+                            disabled={!title.trim()}
+                            style={{ ...buttonStyle(boardTheme, true, true), fontSize: 12, height: 28, padding: "0 10px", opacity: !title.trim() ? 0.4 : 1, cursor: !title.trim() ? "not-allowed" : "pointer" }}
+                          >
+                            {aiSteps.length > 0 ? "Re-breakdown" : "Breakdown Task"}
+                          </button>
+                        </div>
                       </div>
-                      <div style={{ marginTop: 8, fontSize: 15, lineHeight: 1.55, color: muted(theme) }}>
-                        Break the task into more manageable steps with a rough time split.
-                      </div>
-                      <button onClick={() => setAiSteps(buildBreakdown(title || "New task", minutes))} style={{ ...buttonStyle(theme, true), marginTop: 14 }}>
-                        Breakdown Task
-                      </button>
                       <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
                         {aiSteps.length === 0 ? (
-                          <div style={{ color: muted(theme), fontSize: 14 }}>No breakdown yet.</div>
+                          <div style={{ color: muted(boardTheme), fontSize: 14 }}>
+                            {title.trim() ? "Click Breakdown Task to generate subtasks." : "Type a task first."}
+                          </div>
                         ) : (
                           aiSteps.map((step) => (
-                            <div key={step.id} style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", paddingBottom: 8, borderBottom: `1px solid ${border(theme)}` }}>
-                              <div style={{ fontWeight: 700, fontSize: 14 }}>{step.title}</div>
-                              <div style={pill(theme)}>{step.minutes} min</div>
+                            <div key={step.id} style={{ display: "flex", gap: 8, alignItems: "center", borderBottom: `1px solid ${border(boardTheme)}`, paddingBottom: 8 }}>
+                              <input
+                                value={step.title}
+                                onChange={(e) => setAiSteps((prev) => prev.map((s) => s.id === step.id ? { ...s, title: e.target.value } : s))}
+                                style={{ flex: 1, border: "none", background: "transparent", fontWeight: 600, fontSize: 14, color: pageText(boardTheme), outline: "none" }}
+                              />
+                              <button
+                                onClick={() => {
+                                  const newMins = Math.max(5, step.minutes - 5);
+                                  setAiSteps((prev) => prev.map((s) => s.id === step.id ? { ...s, minutes: newMins } : s));
+                                  setMinutes((m) => Math.max(5, m - 5));
+                                }}
+                                style={{ background: "none", border: "none", cursor: "pointer", color: muted(boardTheme), fontSize: 16, padding: "0 2px", lineHeight: 1, fontWeight: 700 }}
+                              >−</button>
+                              <span style={{ fontSize: 14, fontWeight: 600, color: muted(boardTheme), minWidth: 22, textAlign: "center" }}>{step.minutes}</span>
+                              <button
+                                onClick={() => {
+                                  setAiSteps((prev) => prev.map((s) => s.id === step.id ? { ...s, minutes: s.minutes + 5 } : s));
+                                  setMinutes((m) => m + 5);
+                                }}
+                                style={{ background: "none", border: "none", cursor: "pointer", color: muted(boardTheme), fontSize: 16, padding: "0 2px", lineHeight: 1, fontWeight: 700 }}
+                              >+</button>
+                              <span style={{ fontSize: 13, color: muted(boardTheme) }}>min</span>
+                              <button
+                                onClick={() => {
+                                  setMinutes((m) => Math.max(5, m - step.minutes));
+                                  setAiSteps((prev) => prev.filter((s) => s.id !== step.id));
+                                }}
+                                style={{ background: "none", border: "none", cursor: "pointer", color: muted(boardTheme), fontSize: 16, padding: "0 2px", lineHeight: 1 }}
+                              >×</button>
                             </div>
                           ))
                         )}
@@ -1698,13 +2177,13 @@ export function HomeShell() {
 
                 <div style={{ display: "grid", gap: 10 }}>
                   {Object.values(composerError).some(Boolean) && (
-                    <div style={{ color: theme === "dark" ? "#ffb4b4" : "#a32727", fontSize: 13, fontWeight: 600 }}>
+                    <div style={{ color: boardTheme === "dark" ? "#ffb4b4" : "#a32727", fontSize: 13, fontWeight: 600 }}>
                       Please fill out all required fields.
                     </div>
                   )}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                    <button onClick={closeComposer} style={buttonStyle(theme)}>Cancel</button>
-                    <button onClick={createNote} style={buttonStyle(theme, true)}>{thoughtMode ? "Create thought" : "Create task"}</button>
+                    <button onClick={closeComposer} style={buttonStyle(boardTheme)}>Cancel</button>
+                    <button onClick={createNote} style={buttonStyle(boardTheme, true)}>{thoughtMode ? "Create thought" : "Create task"}</button>
                   </div>
                 </div>
               </div>
@@ -1712,8 +2191,8 @@ export function HomeShell() {
               {thoughtMode && (
                 <div style={{ display: "grid", gap: 10 }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                    <button onClick={closeComposer} style={buttonStyle(theme)}>Cancel</button>
-                    <button onClick={createNote} style={buttonStyle(theme, true)}>Create thought</button>
+                    <button onClick={closeComposer} style={buttonStyle(boardTheme)}>Cancel</button>
+                    <button onClick={createNote} style={buttonStyle(boardTheme, true)}>Create thought</button>
                   </div>
                 </div>
               )}
@@ -1728,7 +2207,7 @@ export function HomeShell() {
             position: "fixed",
             inset: 0,
             zIndex: 32,
-            backgroundColor: theme === "dark" ? "rgba(6,8,12,.58)" : "rgba(10,10,12,.26)",
+            backgroundColor: boardTheme === "dark" ? "rgba(6,8,12,.58)" : "rgba(10,10,12,.26)",
             backdropFilter: "blur(10px)",
             display: "flex",
             alignItems: "center",
@@ -1742,94 +2221,122 @@ export function HomeShell() {
           <div
             style={{
               width: "min(980px, 100%)",
-              backgroundColor: theme === "dark" ? "#1f2329" : "#fbf8f1",
-              color: pageText(theme),
-              borderRadius: 28,
-              border: `1px solid ${border(theme)}`,
+              backgroundColor: boardTheme === "dark" ? "#1f2329" : "#fbf8f1",
+              color: pageText(boardTheme),
+              borderRadius: 16,
+              border: `1px solid ${border(boardTheme)}`,
               boxShadow: "0 30px 100px rgba(0,0,0,.28)",
               overflow: "hidden",
             }}
           >
-            <div style={{ padding: "18px 20px", borderBottom: `1px solid ${border(theme)}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ padding: "18px 20px", borderBottom: `1px solid ${border(boardTheme)}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: muted(theme) }}>
+                <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: muted(boardTheme) }}>
                   {detailNote.type === "task" ? "Task details" : "Thought details"}
                 </div>
                 <div style={{ marginTop: 6, fontSize: 24, fontWeight: 700 }}>{detailNote.title}</div>
               </div>
-              <button onClick={() => setDetailNoteId(null)} style={circleButton(theme, 42)}>✕</button>
+              <button onClick={() => setDetailNoteId(null)} style={circleButton(boardTheme, 42)}>✕</button>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: detailNote.type === "task" ? "1fr 300px" : "1fr", gap: 16, padding: 18 }}>
-              <div style={{ borderRadius: 20, border: `1px solid ${border(theme)}`, backgroundColor: panel(theme), padding: 16 }}>
-                <div style={{ display: "grid", gap: 10 }}>
-                  <div style={{ fontSize: 14, color: muted(theme) }}>Main focus</div>
-                  <div style={{ fontSize: 18, fontWeight: 700 }}>{detailNote.title}</div>
-                  {detailNote.dueDate && <div>Due {formatDate(detailNote.dueDate)}</div>}
-                  {detailNote.body && <div style={{ color: muted(theme), lineHeight: 1.7 }}>{detailNote.body}</div>}
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <span style={pill(theme)}>Created {formatDate(detailNote.createdAt)}</span>
-                    {detailNote.minutes && <span style={pill(theme)}>{detailNote.minutes} min</span>}
-                    {detailNote.importance && detailNote.importance !== "none" ? <span style={pill(theme)}>{detailNote.importance} priority</span> : <span style={pill(theme)}>Set priority</span>}
-                    {detailNote.completed && <span style={pill(theme)}>Completed</span>}
+            <div style={{ display: "grid", gridTemplateColumns: detailNote.type === "task" ? "1fr 272px" : "1fr", gap: 14, padding: 18, maxHeight: "calc(90vh - 96px)", overflow: "hidden" }}>
+              {/* Left: focus card + subtasks */}
+              {/* Left panel — green when completed OR all steps done */}
+              {(() => {
+                const effectiveDone = detailNote.completed || (detailNote.steps.length > 0 && detailNote.steps.every(s => s.done));
+                // Auto-mark complete if all steps done
+                if (!detailNote.completed && effectiveDone) {
+                  setNotes(ns => ns.map(n => n.id === detailNote.id ? { ...n, completed: true } : n));
+                }
+                return null;
+              })()}
+              <div style={{ borderRadius: 13, backgroundColor: (detailNote.completed || (detailNote.steps.length > 0 && detailNote.steps.every(s => s.done))) ? (boardTheme === "dark" ? "#0e2e18" : "#e6f9ee") : detailNote.type === "task" ? getBg(detailNote.importance === "none" ? undefined : detailNote.importance) : panel(boardTheme), border: (detailNote.completed || (detailNote.steps.length > 0 && detailNote.steps.every(s => s.done))) ? `1px solid ${boardTheme === "dark" ? "rgba(60,180,90,.2)" : "rgba(60,180,90,.15)"}` : "1px solid rgba(0,0,0,.05)", padding: 20, display: "flex", flexDirection: "column", gap: 0, overflowY: "auto" }}>
+                {/* Focus header */}
+                <div style={{ paddingBottom: 16, borderBottom: `1px solid ${border(boardTheme)}`, marginBottom: 16 }}>
+                  {detailNote.dueDate && (
+                    <div style={{ fontSize: 15, fontWeight: 600, color: pageText(boardTheme), marginBottom: 6 }}>
+                      Due {formatDate(detailNote.dueDate)}
+                    </div>
+                  )}
+                  {detailNote.body && (
+                    <div style={{ fontSize: 14, color: muted(boardTheme), lineHeight: 1.7 }}>
+                      {detailNote.body}
+                    </div>
+                  )}
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 12 }}>
+                    {detailNote.minutes && <span style={pill(boardTheme)}>{detailNote.minutes} min</span>}
+                    {detailNote.importance && detailNote.importance !== "none" && (
+                      <span style={pill(boardTheme)}>{detailNote.importance} priority</span>
+                    )}
+                    {detailNote.type === "task" && (() => {
+                      const doneCount = detailNote.steps.filter(s => s.done).length;
+                      const total = detailNote.steps.length;
+                      const completed = detailNote.completed || (total > 0 && doneCount === total);
+                      if (completed) return <span style={pill(boardTheme)}>Completed</span>;
+                      if (total > 0 && doneCount > 0) return <span style={pill(boardTheme)}>{doneCount}/{total} done</span>;
+                      return <span style={pill(boardTheme)}>Not started</span>;
+                    })()}
                   </div>
                 </div>
 
                 {detailNote.type === "task" ? (
-                  <div style={{ marginTop: 18 }}>
-                    <div style={{ fontSize: 14, color: muted(theme), marginBottom: 10 }}>Subtasks</div>
+                  <>
+                    <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), marginBottom: 12 }}>
+                      Subtasks
+                    </div>
                     {detailNote.steps.length === 0 ? (
-                      <div style={{ display: "grid", gap: 10 }}>
-                        <div style={{ color: muted(theme), lineHeight: 1.6 }}>
-                          No subtasks yet. Break down your task into more manageable steps.
-                        </div>
-                        <button onClick={() => openBreakdownFromDetails(detailNote)} style={buttonStyle(theme, true)}>
-                          Breakdown Task
-                        </button>
+                      <div style={{ color: muted(boardTheme), fontSize: 14, lineHeight: 1.6 }}>
+                        No subtasks for this task.
                       </div>
                     ) : (
-                      <div style={{ display: "grid", gap: 10 }}>
+                      <div style={{ display: "grid", gap: 8 }}>
                         {detailNote.steps.map((step) => (
                           <button
                             key={step.id}
-                            onClick={() => setActiveStep({ noteId: detailNote.id, stepId: step.id })}
+                            onClick={() => {}}
                             style={{
-                              borderRadius: 14,
-                              border: `1px solid ${border(theme)}`,
-                              backgroundColor: inputBg(theme),
-                              padding: "12px 14px",
+                              borderRadius: 9,
+                              border: step.done
+                                ? `1px solid ${boardTheme === "dark" ? "rgba(60,180,90,.3)" : "rgba(60,180,90,.25)"}`
+                                : `1px solid ${border(boardTheme)}`,
+                              backgroundColor: step.done
+                                ? (boardTheme === "dark" ? "rgba(40,140,70,.18)" : "rgba(60,190,90,.10)")
+                                : (boardTheme === "dark" ? "rgba(255,255,255,.05)" : "rgba(255,255,255,.72)"),
+                              padding: "13px 16px",
                               display: "flex",
                               justifyContent: "space-between",
                               alignItems: "center",
                               gap: 12,
                               cursor: "pointer",
                               textAlign: "left",
+                              transition: "background-color .15s ease, border-color .15s ease",
                             }}
                           >
-                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                               <span
                                 style={{
-                                  width: 14,
-                                  height: 14,
+                                  width: 18,
+                                  height: 18,
                                   borderRadius: "50%",
-                                  border: step.done ? "1px solid #3d8b40" : "1px solid rgba(0,0,0,.18)",
-                                  backgroundColor: step.done ? "#6fc46b" : theme === "dark" ? "rgba(255,255,255,.12)" : "#f1f1ef",
+                                  flexShrink: 0,
+                                  border: step.done ? "1.5px solid #3d8b40" : `1.5px solid ${border(boardTheme)}`,
+                                  backgroundColor: step.done ? "#6fc46b" : "transparent",
                                   display: "inline-block",
                                 }}
                               />
-                              <span style={{ fontWeight: 700 }}>{step.title}</span>
+                              <span style={{ fontWeight: 600, fontSize: 14, color: pageText(boardTheme) }}>{step.title}</span>
                             </div>
-                            <span style={pill(theme)}>{step.minutes} min</span>
+                            <span style={{ ...pill(boardTheme), flexShrink: 0 }}>{step.minutes} min</span>
                           </button>
                         ))}
                       </div>
                     )}
-                  </div>
+                  </>
                 ) : (
-                  <div style={{ marginTop: 18 }}>
-                    <div style={{ fontSize: 14, color: muted(theme), marginBottom: 6 }}>Connections</div>
+                  <>
+                    <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), marginBottom: 10 }}>Connections</div>
                     {detailNote.linkedNoteIds.length === 0 ? (
-                      <div style={{ color: muted(theme), fontSize: 14, lineHeight: 1.6 }}>
+                      <div style={{ color: muted(boardTheme), fontSize: 14, lineHeight: 1.6 }}>
                         Drag this thought over another to connect them. Hold over a connected thought to unlink.
                       </div>
                     ) : (
@@ -1837,72 +2344,143 @@ export function HomeShell() {
                         {detailNote.linkedNoteIds.map((linkedId) => {
                           const linked = activeNotes.find(n => n.id === linkedId);
                           return linked ? (
-                            <span key={linkedId} style={{ ...pill(theme), fontSize: 13 }}>{linked.title}</span>
+                            <span key={linkedId} style={{ ...pill(boardTheme), fontSize: 13 }}>{linked.title}</span>
                           ) : null;
                         })}
                       </div>
                     )}
-                  </div>
+                  </>
                 )}
               </div>
 
-              {detailNote.type === "task" && (
-                <div style={{ display: "grid", gap: 12, alignContent: "start" }}>
-                  <div style={{ borderRadius: 20, border: `1px solid ${border(theme)}`, backgroundColor: panel(theme), padding: 16 }}>
-                    <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme) }}>
-                      Task flow
-                    </div>
-                    <div style={{ marginTop: 8, fontSize: 15, lineHeight: 1.55, color: muted(theme) }}>
-                      Choose how your subtasks show on the board.
-                    </div>
-
-                    {detailNote.steps.length > 0 ? (
-                      <>
-                        <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                          <button onClick={() => setFlowMode(detailNote, "web")} style={buttonStyle(theme, detailNote.flowMode === "web", true)}>
-                            Taskweb
-                          </button>
-                          <button onClick={() => setFlowMode(detailNote, "chain")} style={buttonStyle(theme, detailNote.flowMode === "chain", true)}>
-                            Taskchain
-                          </button>
+              {/* Right: focus + flow + actions */}
+              {detailNote.type === "task" && (() => {
+                return (
+                  <div style={{ display: "grid", gap: 10, alignContent: "start" }}>
+                    {/* Focus card */}
+                    {(() => {
+                      const incompleteSteps = detailNote.steps.filter(s => !s.done);
+                      const nextStep = incompleteSteps[0] ?? null;
+                      const allSubtasksDone = detailNote.steps.length > 0 && incompleteSteps.length === 0;
+                      const taskDone = detailNote.completed;
+                      return (
+                        <div style={{ borderRadius: 13, border: `1px solid ${border(boardTheme)}`, backgroundColor: panel(boardTheme), padding: 18 }}>
+                          <div style={{ fontSize: 11, letterSpacing: ".13em", textTransform: "uppercase", color: muted(boardTheme), marginBottom: 14 }}>
+                            Focus
+                          </div>
+                          {taskDone || allSubtasksDone ? (
+                            <div style={{
+                              height: 50, borderRadius: 999,
+                              backgroundColor: boardTheme === "dark" ? "rgba(60,180,90,.14)" : "rgba(60,180,90,.1)",
+                              border: `1px solid ${boardTheme === "dark" ? "rgba(60,180,90,.3)" : "rgba(60,180,90,.22)"}`,
+                              display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                              color: boardTheme === "dark" ? "rgba(100,220,120,.95)" : "rgba(30,120,60,.9)",
+                              fontWeight: 700, fontSize: 14,
+                            }}>
+                              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+                                <circle cx="8" cy="8" r="7.5" stroke="currentColor" strokeOpacity="0.5"/>
+                                <polyline points="4.5,8.5 7,11 11.5,5.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                              Task complete
+                            </div>
+                          ) : (
+                            <>
+                              {nextStep ? (
+                                <div style={{ marginBottom: 14 }}>
+                                  <div style={{ fontSize: 11, letterSpacing: ".11em", textTransform: "uppercase", color: muted(boardTheme), marginBottom: 6 }}>
+                                    Next up · {incompleteSteps.length} remaining
+                                  </div>
+                                  <div style={{ fontWeight: 700, fontSize: 15, color: pageText(boardTheme) }}>{nextStep.title}</div>
+                                  <div style={{ marginTop: 3, fontSize: 13, color: muted(boardTheme) }}>{nextStep.minutes} min</div>
+                                </div>
+                              ) : (
+                                <div style={{ marginBottom: 14 }}>
+                                  <div style={{ fontWeight: 700, fontSize: 15, color: pageText(boardTheme) }}>{detailNote.title}</div>
+                                  <div style={{ marginTop: 3, fontSize: 13, color: muted(boardTheme) }}>{detailNote.minutes} min</div>
+                                </div>
+                              )}
+                              <button
+                                onClick={() => startFocus(detailNote.id, detailNote.steps.length > 0)}
+                                style={{
+                                  width: "100%", height: 50, borderRadius: 999, border: "none",
+                                  backgroundColor: boardTheme === "dark" ? "#f5f5f2" : "#111315",
+                                  color: boardTheme === "dark" ? "#111315" : "#f7f8fb",
+                                  fontWeight: 700, fontSize: 15, cursor: "pointer",
+                                  boxShadow: "0 3px 14px rgba(0,0,0,.16)",
+                                }}
+                              >
+                                Start focus
+                              </button>
+                            </>
+                          )}
                         </div>
-                        <button onClick={() => toggleFlow(detailNote.id)} style={{ ...buttonStyle(theme, true), marginTop: 10, width: "100%" }}>
-                          {detailNote.showFlow ? "Hide flow" : "Show flow"}
+                      );
+                    })()}
+
+                    {/* Task flow */}
+                    {detailNote.steps.length > 0 && (
+                      <div style={{ borderRadius: 12, border: `1px solid ${border(boardTheme)}`, backgroundColor: panel(boardTheme), padding: 16 }}>
+                        <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), marginBottom: 12 }}>
+                          Task flow
+                        </div>
+                        {/* Segmented Taskweb / Taskchain toggle */}
+                        <div style={{ display: "flex", gap: 0, borderRadius: 8, border: `1px solid ${border(boardTheme)}`, overflow: "hidden" }}>
+                          {(["web", "chain"] as const).map((mode) => (
+                            <button
+                              key={mode}
+                              onClick={() => setFlowMode(detailNote, mode)}
+                              style={{
+                                flex: 1,
+                                height: 38,
+                                border: "none",
+                                backgroundColor: detailNote.flowMode === mode
+                                  ? (boardTheme === "dark" ? "#f5f5f2" : "#111315")
+                                  : "transparent",
+                                color: detailNote.flowMode === mode
+                                  ? (boardTheme === "dark" ? "#111315" : "#f7f8fb")
+                                  : muted(boardTheme),
+                                fontWeight: 700,
+                                fontSize: 13,
+                                cursor: "pointer",
+                                transition: "background-color .15s ease, color .15s ease",
+                              }}
+                            >
+                              {mode === "web" ? "Taskweb" : "Taskchain"}
+                            </button>
+                          ))}
+                        </div>
+                        {/* Show / hide toggle */}
+                        <button
+                          onClick={() => { toggleFlow(detailNote.id); setDetailNoteId(null); }}
+                          style={{
+                            marginTop: 8, width: "100%", height: 34,
+                            borderRadius: 8, border: `1px solid ${border(boardTheme)}`,
+                            backgroundColor: "transparent",
+                            color: muted(boardTheme), fontSize: 12, fontWeight: 600,
+                            cursor: "pointer",
+                          }}
+                        >
+                          {detailNote.showFlow ? "Hide from board" : "Show on board"}
                         </button>
-                      </>
-                    ) : (
-                      <div style={{ marginTop: 14, color: muted(theme), fontSize: 14 }}>
-                        Add subtasks to unlock Taskweb and Taskchain.
                       </div>
                     )}
-                  </div>
 
-                  <div style={{ borderRadius: 20, border: `1px solid ${border(theme)}`, backgroundColor: panel(theme), padding: 16 }}>
-                    <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme) }}>
-                      Actions
-                    </div>
-                    <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
-                      <button onClick={() => startFocus(detailNote.id)} style={buttonStyle(theme, true)}>
-                        Start focus
-                      </button>
-                      <button onClick={() => completeTask(detailNote.id)} style={buttonStyle(theme, false)}>
-                        Complete task
-                      </button>
-                      <button
-                        onClick={() => deleteTask(detailNote.id)}
-                        style={{
-                          ...buttonStyle(theme, false),
-                          backgroundColor: theme === "dark" ? "#26171b" : "#fff4f4",
-                          color: theme === "dark" ? "#ffbcbc" : "#8f2323",
-                          border: `1px solid ${theme === "dark" ? "rgba(255,120,120,.16)" : "rgba(143,35,35,.12)"}`,
-                        }}
-                      >
-                        Delete task
-                      </button>
+                    {/* Delete action */}
+                    <div style={{ borderRadius: 12, border: `1px solid ${border(boardTheme)}`, backgroundColor: panel(boardTheme), padding: "8px 12px" }}>
+                      {confirmDeleteId === detailNote.id ? (
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <button onClick={() => setConfirmDeleteId(null)} style={{ ...buttonStyle(boardTheme, false, true), flex: 1, fontSize: 12 }}>Cancel</button>
+                          <button onClick={() => { deleteTask(detailNote.id); setConfirmDeleteId(null); }} style={{ flex: 1, height: 36, borderRadius: 999, border: "1px solid rgba(200,50,50,.4)", backgroundColor: boardTheme === "dark" ? "rgba(200,50,50,.18)" : "rgba(200,50,50,.10)", color: boardTheme === "dark" ? "rgba(255,130,130,.9)" : "rgba(160,30,30,.85)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Confirm delete</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setConfirmDeleteId(detailNote.id)} style={{ width: "100%", height: 36, background: "none", border: "none", color: boardTheme === "dark" ? "rgba(255,100,100,.65)" : "rgba(160,40,40,.55)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                          Delete {detailNote.type === "task" ? "task" : "thought"}
+                        </button>
+                      )}
                     </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -1914,7 +2492,7 @@ export function HomeShell() {
             position: "fixed",
             inset: 0,
             zIndex: 34,
-            backgroundColor: theme === "dark" ? "rgba(6,8,12,.58)" : "rgba(10,10,12,.26)",
+            backgroundColor: boardTheme === "dark" ? "rgba(6,8,12,.58)" : "rgba(10,10,12,.26)",
             backdropFilter: "blur(10px)",
             display: "flex",
             alignItems: "center",
@@ -1928,77 +2506,300 @@ export function HomeShell() {
           <div
             style={{
               width: "min(520px, 100%)",
-              backgroundColor: theme === "dark" ? "#1f2329" : "#fbf8f1",
-              color: pageText(theme),
-              borderRadius: 24,
-              border: `1px solid ${border(theme)}`,
+              backgroundColor: boardTheme === "dark" ? "#1f2329" : "#fbf8f1",
+              color: pageText(boardTheme),
+              borderRadius: 9,
+              border: `1px solid ${border(boardTheme)}`,
               boxShadow: "0 30px 100px rgba(0,0,0,.28)",
               overflow: "hidden",
             }}
           >
-            <div style={{ padding: "18px 20px", borderBottom: `1px solid ${border(theme)}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ padding: "18px 20px", borderBottom: `1px solid ${border(boardTheme)}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: muted(theme) }}>Subtask</div>
+                <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: muted(boardTheme) }}>Subtask</div>
                 <div style={{ marginTop: 6, fontSize: 22, fontWeight: 700 }}>{stepModal.title}</div>
               </div>
-              <button onClick={() => setActiveStep(null)} style={circleButton(theme, 40)}>✕</button>
+              <button onClick={() => setActiveStep(null)} style={circleButton(boardTheme, 40)}>✕</button>
             </div>
             <div style={{ padding: 18, display: "grid", gap: 12 }}>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <span style={pill(theme)}>{stepModal.minutes} min</span>
-                <span style={pill(theme)}>{stepModal.done ? "Completed" : "Incomplete"}</span>
+                <span style={pill(boardTheme)}>{stepModal.minutes} min</span>
+                <span style={pill(boardTheme)}>{stepModal.done ? "Completed" : "Not started"}</span>
               </div>
-              <button
-                onClick={() => {
-                  toggleStepDone(activeStep.noteId, activeStep.stepId);
-                  setActiveStep(null);
-                }}
-                style={buttonStyle(theme, true)}
-              >
-                {stepModal.done ? "Mark incomplete" : "Mark complete"}
-              </button>
+              {stepModal.done ? (
+                <div style={{ fontSize: 13, color: muted(boardTheme), lineHeight: 1.5 }}>
+                  This subtask is already completed. Complete steps in order using Focus Mode.
+                </div>
+              ) : (
+                <>
+                  <div style={{ fontSize: 13, color: muted(boardTheme), lineHeight: 1.5 }}>
+                    Complete subtasks in order through Focus Mode to stay on track.
+                  </div>
+                  <button
+                    onClick={() => {
+                      setActiveStep(null);
+                      startFocus(activeStep.noteId, true);
+                    }}
+                    style={buttonStyle(boardTheme, true)}
+                  >
+                    Start Focus Mode
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
       )}
 
-      {focusOpen && focusNoteId && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 40,
-            backgroundColor: "rgba(8,10,14,.92)",
-            color: "#f7f8fb",
-            display: "grid",
-            placeItems: "center",
-            padding: 24,
-            textAlign: "center",
-          }}
-        >
-          <div>
-            <div style={{ fontSize: 14, letterSpacing: ".12em", textTransform: "uppercase", color: "rgba(247,248,251,.64)" }}>
-              Focus mode
+      {focusOpen && focusNoteId && (() => {
+        const focusNote = notes.find(n => n.id === focusNoteId);
+        const focusStep = focusStepId ? focusNote?.steps.find(s => s.id === focusStepId) : null;
+        const completedLabel = focusStep ? focusStep.title : focusNote?.title;
+        const isSubtask = !!focusStep;
+        const isLastSubtask = isSubtask && !focusNextStep && focusChainMode;
+        const allSteps = focusNote?.steps ?? [];
+
+        // Progress bar math
+        const totalMinutes = focusChainMode && allSteps.length > 0
+          ? allSteps.reduce((sum, s) => sum + (s.minutes ?? 25), 0)
+          : (focusStep?.minutes ?? focusNote?.minutes ?? 60);
+        const totalSecs = totalMinutes * 60;
+        const currentStepSecs = (focusStep?.minutes ?? focusNote?.minutes ?? 60) * 60;
+        const currentIdx = focusStep ? allSteps.findIndex(s => s.id === focusStepId) : -1;
+        const doneStepsSecs = focusChainMode && currentIdx > 0
+          ? allSteps.slice(0, currentIdx).reduce((sum, s) => sum + (s.minutes ?? 25) * 60, 0)
+          : 0;
+        const elapsedSecs = doneStepsSecs + (currentStepSecs - focusSecondsLeft);
+        const progressPct = Math.min(100, Math.max(0, (elapsedSecs / totalSecs) * 100));
+
+        const focusBtn: CSSProperties = {
+          height: 40, borderRadius: 999,
+          border: "1px solid rgba(255,255,255,.14)",
+          backgroundColor: "rgba(255,255,255,.08)",
+          color: "rgba(247,248,251,.75)",
+          padding: "0 20px", fontSize: 14, fontWeight: 600, cursor: "pointer",
+        };
+        const focusBtnPrimary = focusBtn;
+        const focusBtnSecondary = focusBtn;
+        const focusBtnGhost: CSSProperties = {
+          ...focusBtn,
+          border: "1px solid rgba(220,60,60,.25)",
+          backgroundColor: "rgba(220,60,60,.10)",
+          color: "rgba(255,160,160,.7)",
+        };
+
+        // Per-step fill percentages
+        const stepFills = allSteps.map((s) => {
+          if (s.done) return 100;
+          if (s.id === focusStepId) {
+            const stepTotal = (s.minutes ?? 25) * 60;
+            return Math.min(100, Math.max(0, ((stepTotal - focusSecondsLeft) / stepTotal) * 100));
+          }
+          return 0;
+        });
+
+        // Segment geometry: each step's start% and width% of total bar
+        const segWidthPcts = allSteps.map(s =>
+          totalMinutes > 0 ? ((s.minutes ?? 25) / totalMinutes) * 100 : 0
+        );
+        const segStartPcts = allSteps.map((_, i) =>
+          segWidthPcts.slice(0, i).reduce((a, b) => a + b, 0)
+        );
+
+        // Current subtask fill (0–100% of just this step)
+        const currentStepFill = focusStep
+          ? Math.min(100, Math.max(0, ((currentStepSecs - focusSecondsLeft) / currentStepSecs) * 100))
+          : Math.min(100, Math.max(0, progressPct));
+
+        // Shared progress bar sub-component (inline)
+        const progressBar = (dimmed = false) => {
+          const hasChain = focusChainMode && allSteps.length > 1;
+          const trackAlpha = dimmed ? ".07" : ".10";
+          const fillAlpha = dimmed ? ".22" : ".88";
+          const barColor = `rgba(247,248,251,${fillAlpha})`;
+          const trackColor = `rgba(255,255,255,${trackAlpha})`;
+          return (
+            <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: hasChain ? 16 : 0 }}>
+              {/* Current subtask bar */}
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10, gap: 12 }}>
+                  <span style={{ fontSize: 15, fontWeight: 600, color: dimmed ? "rgba(247,248,251,.42)" : "rgba(247,248,251,.82)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {focusStep ? focusStep.title : (focusNote?.title ?? "")}
+                  </span>
+                  {hasChain && focusNote && focusStep && (
+                    <span style={{ fontSize: 15, color: dimmed ? "rgba(247,248,251,.25)" : "rgba(247,248,251,.42)", flexShrink: 0 }}>
+                      {focusNote.steps.findIndex(s => s.id === focusStepId) + 1} / {focusNote.steps.length}
+                    </span>
+                  )}
+                </div>
+                <div style={{ height: 6, borderRadius: 999, backgroundColor: trackColor, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${currentStepFill}%`, borderRadius: 999, backgroundColor: barColor, transition: "width 1s linear" }} />
+                </div>
+              </div>
+              {/* Overall task bar — only shown in chain mode */}
+              {hasChain && (
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10, gap: 12 }}>
+                    <span style={{ fontSize: 15, fontWeight: 500, color: dimmed ? "rgba(247,248,251,.2)" : "rgba(247,248,251,.38)" }}>Overall progress</span>
+                    <span style={{ fontSize: 15, color: dimmed ? "rgba(247,248,251,.2)" : "rgba(247,248,251,.38)", flexShrink: 0 }}>{Math.round(progressPct)}%</span>
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    {allSteps.map((s, i) => (
+                      <div key={s.id} style={{
+                        flex: s.minutes ?? 25, height: 6, borderRadius: 999,
+                        backgroundColor: trackColor, overflow: "hidden",
+                      }}>
+                        <div style={{
+                          height: "100%", width: `${stepFills[i]}%`, borderRadius: 999,
+                          backgroundColor: s.done
+                            ? dimmed ? "rgba(111,196,107,.4)" : "#6fc46b"
+                            : barColor,
+                          transition: "width 1s linear",
+                        }} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-            <div style={{ marginTop: 14, fontSize: 40, fontWeight: 700 }}>
-              {String(Math.floor(focusSecondsLeft / 60)).padStart(2, "0")}:{String(focusSecondsLeft % 60).padStart(2, "0")}
-            </div>
-            <div style={{ marginTop: 12, color: "rgba(247,248,251,.72)" }}>
-              Leaving this session resets the timer.
-            </div>
-            <button
-              onClick={() => {
-                setFocusOpen(false);
-                setFocusSecondsLeft(0);
-                setFocusNoteId(null);
-              }}
-              style={{ ...buttonStyle("dark", true), marginTop: 20 }}
-            >
-              Exit and reset
-            </button>
+          );
+        };
+
+        return (
+          <div
+            style={{
+              position: "fixed", inset: 0, zIndex: 40,
+              backgroundColor: focusCompleted
+                ? "rgba(6,20,9,.98)"
+                : focusPaused
+                  ? "rgba(7,8,18,.98)"
+                  : "rgba(6,7,10,.98)",
+              color: "#f7f8fb",
+              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+              padding: "40px 28px", textAlign: "center",
+              transition: "background-color .7s ease",
+            }}
+          >
+            {focusCompleted ? (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
+                <div style={{
+                  width: 52, height: 52, borderRadius: "50%",
+                  backgroundColor: "rgba(80,180,100,.15)",
+                  border: "1.5px solid rgba(100,210,120,.35)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+                    <polyline points="5,12 9,16 17,7" stroke="#6fc46b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+                <div style={{ marginTop: 20, fontSize: 12, letterSpacing: ".18em", textTransform: "uppercase", color: "rgba(247,248,251,.35)", fontWeight: 500 }}>
+                  {isLastSubtask ? "task complete" : isSubtask ? "subtask complete" : "task complete"}
+                </div>
+                <div style={{ marginTop: 10, fontSize: 26, fontWeight: 700, color: "#f7f8fb", letterSpacing: "-.02em", lineHeight: 1.2 }}>
+                  {isLastSubtask ? (focusNote?.title ?? completedLabel) : completedLabel}
+                </div>
+                {focusNextStep ? (
+                  <div style={{ marginTop: 8, fontSize: 13, color: "rgba(247,248,251,.4)" }}>
+                    Up next — <span style={{ color: "rgba(247,248,251,.7)", fontWeight: 500 }}>{focusNextStep.title}</span>
+                  </div>
+                ) : (
+                  <div style={{ marginTop: 8, fontSize: 13, color: "rgba(120,210,130,.65)" }}>
+                    All done — great work!
+                  </div>
+                )}
+                <div style={{ marginTop: 28, display: "flex", gap: 10 }}>
+                  {focusNextStep ? (
+                    <>
+                      <button onClick={advanceToNext} style={focusBtnPrimary}>
+                        Start {focusNextStep.title}
+                      </button>
+                      <button
+                        onClick={() => { setFocusOpen(false); setFocusCompleted(false); setFocusNextStep(null); setFocusNoteId(null); setFocusStepId(null); setFocusChainMode(false); }}
+                        style={focusBtnGhost}
+                      >
+                        Finish
+                      </button>
+                    </>
+                  ) : (
+                    <button onClick={advanceToNext} style={focusBtnPrimary}>
+                      Done
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : focusPaused ? (
+              <div style={{ width: "100%", maxWidth: 440, display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
+                <div style={{ fontSize: 13, letterSpacing: ".18em", textTransform: "uppercase", color: "rgba(247,248,251,.5)", fontWeight: 600 }}>
+                  Break
+                </div>
+                <div style={{ marginTop: 36, fontSize: 88, fontWeight: 700, letterSpacing: "-.04em", fontVariantNumeric: "tabular-nums", color: "#f7f8fb", lineHeight: 1 }}>
+                  {String(Math.floor(breakSecondsLeft / 60)).padStart(2, "0")}:{String(breakSecondsLeft % 60).padStart(2, "0")}
+                </div>
+                <div style={{ marginTop: 10, fontSize: 15, color: "rgba(247,248,251,.4)", letterSpacing: ".01em" }}>
+                  Resumes automatically
+                </div>
+                <div style={{ marginTop: 48, width: "100%" }}>
+                  {progressBar(true)}
+                </div>
+                <div style={{ marginTop: 44, display: "flex", gap: 10, alignItems: "center" }}>
+                  <button onClick={() => { setFocusPaused(false); setBreakSecondsLeft(0); }} style={focusBtnPrimary}>
+                    Resume now
+                  </button>
+                  <button
+                    onClick={() => {
+                      setFocusOpen(false); setFocusPaused(false); setBreakSecondsLeft(0);
+                      setFocusSecondsLeft(0); setFocusNoteId(null); setFocusStepId(null); setFocusChainMode(false);
+                    }}
+                    style={focusBtnGhost}
+                  >
+                    Exit
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ width: "100%", maxWidth: 440, display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
+                {(focusChainMode && focusNote && focusStep) && (
+                  <div style={{ fontSize: 13, letterSpacing: ".16em", color: "rgba(247,248,251,.5)", fontWeight: 600 }}>
+                    {`${focusNote.steps.findIndex(s => s.id === focusStepId) + 1} / ${focusNote.steps.length}`}
+                  </div>
+                )}
+                <div style={{
+                  marginTop: (focusChainMode && focusNote && focusStep) ? 12 : 0,
+                  fontSize: 19, fontWeight: 600,
+                  color: "rgba(247,248,251,.75)",
+                  letterSpacing: "-.01em", lineHeight: 1.35,
+                  maxWidth: 360,
+                }}>
+                  {focusStep ? focusStep.title : focusNote?.title}
+                </div>
+                <div style={{ marginTop: 28, fontSize: 96, fontWeight: 700, letterSpacing: "-.04em", fontVariantNumeric: "tabular-nums", lineHeight: 1, color: "#f7f8fb" }}>
+                  {String(Math.floor(focusSecondsLeft / 60)).padStart(2, "0")}:{String(focusSecondsLeft % 60).padStart(2, "0")}
+                </div>
+                <div style={{ marginTop: 48, width: "100%" }}>
+                  {progressBar(false)}
+                </div>
+                <div style={{ marginTop: 44, display: "flex", gap: 10, alignItems: "center" }}>
+                  <button onClick={() => { setFocusPaused(true); setBreakSecondsLeft(300); }} style={focusBtnPrimary}>
+                    5 min break
+                  </button>
+                  <button onClick={() => setFocusSecondsLeft(1)} style={focusBtnSecondary}>
+                    Skip
+                  </button>
+                  <button
+                    onClick={() => {
+                      setFocusOpen(false); setFocusSecondsLeft(0);
+                      setFocusNoteId(null); setFocusStepId(null); setFocusChainMode(false);
+                    }}
+                    style={focusBtnGhost}
+                  >
+                    Exit
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {draftPromptOpen && (
         <div
@@ -2006,7 +2807,7 @@ export function HomeShell() {
             position: "fixed",
             inset: 0,
             zIndex: 50,
-            backgroundColor: theme === "dark" ? "rgba(6,8,12,.7)" : "rgba(10,10,12,.36)",
+            backgroundColor: boardTheme === "dark" ? "rgba(6,8,12,.7)" : "rgba(10,10,12,.36)",
             backdropFilter: "blur(10px)",
             display: "flex",
             alignItems: "center",
@@ -2017,29 +2818,29 @@ export function HomeShell() {
           <div
             style={{
               width: "min(360px, 100%)",
-              backgroundColor: theme === "dark" ? "#1f2329" : "#fbf8f1",
-              color: pageText(theme),
-              borderRadius: 24,
-              border: `1px solid ${border(theme)}`,
+              backgroundColor: boardTheme === "dark" ? "#1f2329" : "#fbf8f1",
+              color: pageText(boardTheme),
+              borderRadius: 9,
+              border: `1px solid ${border(boardTheme)}`,
               boxShadow: "0 30px 80px rgba(0,0,0,.28)",
               padding: 24,
             }}
           >
             <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-.02em" }}>Save as draft?</div>
-            <div style={{ marginTop: 8, fontSize: 14, lineHeight: 1.65, color: muted(theme) }}>
+            <div style={{ marginTop: 8, fontSize: 14, lineHeight: 1.65, color: muted(boardTheme) }}>
               You have unsaved content. Save it as a draft to pick up where you left off.
             </div>
             <div style={{ marginTop: 20, display: "grid", gap: 8 }}>
-              <button onClick={saveDraft} style={buttonStyle(theme, true)}>Save draft</button>
+              <button onClick={saveDraft} style={buttonStyle(boardTheme, true)}>Save draft</button>
               <button
                 onClick={() => { setDraftPromptOpen(false); resetComposer(); setComposerOpen(false); }}
-                style={buttonStyle(theme)}
+                style={buttonStyle(boardTheme)}
               >
                 Discard
               </button>
               <button
                 onClick={() => setDraftPromptOpen(false)}
-                style={{ ...buttonStyle(theme), color: muted(theme) }}
+                style={{ ...buttonStyle(boardTheme), color: muted(boardTheme) }}
               >
                 Keep editing
               </button>
@@ -2047,6 +2848,216 @@ export function HomeShell() {
           </div>
         </div>
       )}
+      </div>
+      </section>
+
+      <section style={{ maxWidth: 1100, margin: "0 auto", padding: "100px 24px 140px" }}>
+
+        {/* Section label */}
+        <div style={{ textAlign: "center", marginBottom: 96 }}>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 28 }}>
+            <BoardtivityLogo size={80} dark={theme === "dark"} />
+          </div>
+          <div style={{ fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 16, opacity: .5 }}>Built for how you think</div>
+          <h2 style={{ margin: 0, fontSize: "clamp(30px,4vw,52px)", fontWeight: 900, letterSpacing: "-.05em", color: pageText(theme), lineHeight: 1.06 }}>Your Board, the Way You Need It.</h2>
+        </div>
+
+        {/* ── Focus Mode — full-width immersive ── */}
+        <div ref={whyRef} style={{ marginBottom: 100, opacity: whyVisible ? 1 : 0, transform: whyVisible ? "none" : "translateY(24px)", transition: "opacity .7s ease, transform .7s ease" }}>
+          <div style={{ borderRadius: 24, overflow: "hidden", backgroundColor: theme === "dark" ? "#0a0b0e" : "#0d0f12", position: "relative" }}>
+            <div style={{ position: "absolute", top: 0, left: "15%", right: "15%", height: 1, background: "linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent)", pointerEvents: "none" }}/>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", minHeight: 460 }}>
+              {/* Left: actual focus mode UI replica */}
+              <div style={{ padding: "64px 60px", borderRight: "1px solid rgba(255,255,255,.05)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div style={{ width: "100%", maxWidth: 320, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
+                  <div style={{ fontSize: 13, letterSpacing: ".16em", color: "rgba(247,248,251,.45)", fontWeight: 600 }}>1 / 3</div>
+                  <div style={{ marginTop: 12, fontSize: 18, fontWeight: 600, color: "rgba(247,248,251,.72)", letterSpacing: "-.01em", lineHeight: 1.4 }}>
+                    Design the landing page
+                  </div>
+                  <div style={{ marginTop: 28, fontSize: 92, fontWeight: 700, letterSpacing: "-.04em", fontVariantNumeric: "tabular-nums", lineHeight: 1, color: "#f7f8fb" }}>
+                    24:38
+                  </div>
+                  {/* Progress — current step */}
+                  <div style={{ marginTop: 44, width: "100%" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: "rgba(247,248,251,.8)" }}>Research</span>
+                      <span style={{ fontSize: 14, color: "rgba(247,248,251,.4)" }}>1 / 3</span>
+                    </div>
+                    <div style={{ height: 6, borderRadius: 999, backgroundColor: "rgba(255,255,255,.1)", overflow: "hidden", marginBottom: 18 }}>
+                      <div style={{ height: "100%", width: "68%", borderRadius: 999, backgroundColor: "rgba(247,248,251,.88)" }}/>
+                    </div>
+                    {/* Overall segments */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
+                      <span style={{ fontSize: 14, fontWeight: 500, color: "rgba(247,248,251,.35)" }}>Overall progress</span>
+                      <span style={{ fontSize: 14, color: "rgba(247,248,251,.35)" }}>23%</span>
+                    </div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      {[{ fill: 100, green: true }, { fill: 0, green: false }, { fill: 0, green: false }].map((s, i) => (
+                        <div key={i} style={{ flex: 1, height: 6, borderRadius: 999, backgroundColor: "rgba(255,255,255,.1)", overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${s.fill}%`, borderRadius: 999, backgroundColor: s.green ? "#6fc46b" : "rgba(247,248,251,.88)" }}/>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {/* Right: copy */}
+              <div style={{ padding: "64px 60px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                <h3 style={{ margin: "0 0 18px", fontSize: "clamp(26px,2.8vw,40px)", fontWeight: 800, letterSpacing: "-.04em", color: "#f7f8fb", lineHeight: 1.08 }}>Lock in.<br/>Step by step.</h3>
+                <p style={{ margin: "0 0 36px", fontSize: 15, color: "rgba(255,255,255,.42)", lineHeight: 1.9 }}>
+                  Enter a timed focus session for any task or subtask. Boardtivity chains through your steps automatically — so you stay on track without thinking about it.
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  {["Timed sessions per subtask", "Auto-chain through task steps", "Visual progress across all steps"].map((f) => (
+                    <div key={f} style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 14, color: "rgba(255,255,255,.55)" }}>
+                      <div style={{ width: 4, height: 4, borderRadius: "50%", backgroundColor: "rgba(255,255,255,.22)", flexShrink: 0 }}/>
+                      {f}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Features — 3-col editorial ── */}
+        <div ref={featuresRef}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, marginBottom: 88, opacity: featuresVisible ? 1 : 0, transform: featuresVisible ? "none" : "translateY(20px)", transition: "opacity .6s ease, transform .6s ease" }}>
+            {([
+              {
+                label: "Visual Boards",
+                heading: "Everything on\nyour board.",
+                body: "Drag tasks anywhere on your board. Arrange by project, urgency, or however your mind works — no rigid columns.",
+              },
+              {
+                label: "Taskweb & Taskchain",
+                heading: "Break any task\ninto steps.",
+                body: "Expand tasks into a subtask web you can see at once, or a sequential chain you step through one at a time.",
+              },
+              {
+                label: "Thought Notes",
+                heading: "Capture ideas\nnext to the work.",
+                body: "Drop color-coded thought notes anywhere on your board. Link them to tasks so ideas and action stay together.",
+              },
+            ] as const).map((f, i) => (
+              <div key={i} style={{ borderTop: `1px solid ${border(theme)}`, paddingTop: 28, paddingRight: i < 2 ? 48 : 0, paddingBottom: 0 }}>
+                <div style={{ fontSize: 10, letterSpacing: ".18em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 20, opacity: .5 }}>{f.label}</div>
+                <h3 style={{ margin: "0 0 16px", fontSize: 20, fontWeight: 800, letterSpacing: "-.03em", color: pageText(theme), lineHeight: 1.22 }}>{f.heading.split("\n").map((line, j) => <span key={j}>{line}{j === 0 ? <br/> : null}</span>)}</h3>
+                <p style={{ margin: 0, fontSize: 14, color: muted(theme), lineHeight: 1.85, opacity: .68 }}>{f.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Pricing ── */}
+        <div ref={pricingRef} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+          {/* Free */}
+          <div style={{ position: "relative", overflow: "hidden", borderRadius: 18, border: `1px solid ${border(theme)}`, backgroundColor: panel(theme), padding: "36px 28px", display: "flex", flexDirection: "column", opacity: pricingVisible ? 1 : 0, transform: pricingVisible ? "none" : "translateY(28px)", transition: "opacity .65s ease 0s, transform .65s ease 0s" }}>
+            <div style={{ fontSize: 10, letterSpacing: ".16em", textTransform: "uppercase", fontWeight: 700, color: muted(theme), marginBottom: 16 }}>Free</div>
+            <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1.08, letterSpacing: "-.035em", color: pageText(theme), marginBottom: 14 }}>Free forever</div>
+            <div style={{ fontSize: 13, color: muted(theme), marginBottom: 18, lineHeight: 1.75, flexGrow: 1 }}>Full access to every feature — boards, tasks, subtasks, focus sessions, and thought notes. No credit card needed.</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 26 }}>
+              {["Up to 3 boards", "Unlimited tasks & thoughts", "Focus mode & subtasks", "Taskweb & Taskchain"].map((f) => (
+                <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: pageText(theme) }}>
+                  <div style={{ width: 16, height: 16, borderRadius: "50%", backgroundColor: hexToRgba("#6fc46b", .15), border: "1px solid rgba(111,196,107,.35)", display: "grid", placeItems: "center", flexShrink: 0 }}>
+                    <svg width="8" height="8" viewBox="0 0 10 10"><polyline points="2,5.5 4.2,7.5 8,3" stroke="#6fc46b" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </div>
+                  {f}
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setWaitlistOpen(true)} style={{ ...buttonStyle(theme, false), width: "100%", fontSize: 14, height: 42 }}>Get started free</button>
+          </div>
+          {/* Plus */}
+          <div style={{ position: "relative", overflow: "hidden", borderRadius: 18, border: `1px solid ${theme === "dark" ? "rgba(255,255,255,.18)" : "rgba(0,0,0,.18)"}`, backgroundColor: theme === "dark" ? "#0d0f12" : "#111315", padding: "36px 28px", display: "flex", flexDirection: "column", opacity: pricingVisible ? 1 : 0, transform: pricingVisible ? "none" : "translateY(28px)", transition: "opacity .65s ease .1s, transform .65s ease .1s" }}>
+            <div style={{ position: "absolute", top: 0, left: "10%", right: "10%", height: 1, background: "linear-gradient(90deg,transparent,rgba(255,255,255,.12),transparent)", pointerEvents: "none" }}/>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <div style={{ fontSize: 10, letterSpacing: ".16em", textTransform: "uppercase", fontWeight: 700, color: "rgba(255,255,255,.45)" }}>Plus</div>
+              <div style={{ fontSize: 10, letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 700, color: "rgba(255,255,255,.38)", border: "1px solid rgba(255,255,255,.14)", borderRadius: 999, padding: "3px 8px" }}>Most popular</div>
+            </div>
+            <div style={{ fontSize: 34, fontWeight: 800, lineHeight: 1.08, letterSpacing: "-.035em", color: "#f7f8fb", marginBottom: 14 }}>$5.99 / mo</div>
+            <div style={{ fontSize: 13, lineHeight: 1.75, color: "rgba(255,255,255,.42)", marginBottom: 18, flexGrow: 1 }}>Everything in Free, plus more boards and personalization to match your workflow.</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 26 }}>
+              {["Up to 10 boards", "Custom thought note colors", "Google & Apple Calendar sync", "Priority support"].map((f) => (
+                <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "rgba(255,255,255,.72)" }}>
+                  <div style={{ width: 16, height: 16, borderRadius: "50%", backgroundColor: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.18)", display: "grid", placeItems: "center", flexShrink: 0 }}>
+                    <svg width="8" height="8" viewBox="0 0 10 10"><polyline points="2,5.5 4.2,7.5 8,3" stroke="rgba(255,255,255,.7)" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </div>
+                  {f}
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setWaitlistOpen(true)} style={{ width: "100%", height: 42, borderRadius: 999, border: "none", backgroundColor: "#f7f8fb", color: "#111315", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>Get Plus</button>
+          </div>
+          {/* Beta */}
+          <div style={{ position: "relative", overflow: "hidden", borderRadius: 18, border: `1px solid ${border(theme)}`, backgroundColor: panel(theme), padding: "36px 28px", display: "flex", flexDirection: "column", opacity: pricingVisible ? 1 : 0, transform: pricingVisible ? "none" : "translateY(28px)", transition: "opacity .65s ease .2s, transform .65s ease .2s" }}>
+            <div style={{ fontSize: 10, letterSpacing: ".16em", textTransform: "uppercase", fontWeight: 700, color: muted(theme), marginBottom: 16 }}>Beta</div>
+            <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1.08, letterSpacing: "-.035em", color: pageText(theme), marginBottom: 14 }}>Join early.</div>
+            <div style={{ fontSize: 13, color: muted(theme), marginBottom: 18, lineHeight: 1.75, flexGrow: 1 }}>Get early access, shape the product with direct feedback, and lock in launch pricing before we go live.</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 26 }}>
+              {["Everything in Plus, free during beta", "Direct line to the founders", "Lock in launch pricing"].map((f) => (
+                <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: pageText(theme) }}>
+                  <div style={{ width: 16, height: 16, borderRadius: "50%", backgroundColor: hexToRgba("#6fc46b", .15), border: "1px solid rgba(111,196,107,.35)", display: "grid", placeItems: "center", flexShrink: 0 }}>
+                    <svg width="8" height="8" viewBox="0 0 10 10"><polyline points="2,5.5 4.2,7.5 8,3" stroke="#6fc46b" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </div>
+                  {f}
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setWaitlistOpen(true)} style={{ ...buttonStyle(theme, true), width: "100%", fontSize: 14, height: 42 }}>Join waitlist</button>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Waitlist modal ── */}
+      {waitlistOpen && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 50, backgroundColor: theme === "dark" ? "rgba(6,8,12,.6)" : "rgba(0,0,0,.28)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+          onClick={(e) => { if (e.target === e.currentTarget) { setWaitlistOpen(false); setWaitlistDone(false); setWaitlistEmail(""); } }}>
+          <div style={{ width: "min(420px,100%)", borderRadius: 18, border: `1px solid ${border(theme)}`, backgroundColor: panel(theme), padding: "32px 28px", boxShadow: "0 32px 80px rgba(0,0,0,.24)" }}>
+            {waitlistDone ? (
+              <div style={{ textAlign: "center", padding: "12px 0" }}>
+                <div style={{ width: 52, height: 52, borderRadius: "50%", backgroundColor: theme === "dark" ? "rgba(80,180,100,.15)" : "rgba(60,190,90,.12)", border: "1.5px solid rgba(60,180,90,.35)", display: "grid", placeItems: "center", margin: "0 auto 16px" }}>
+                  <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><polyline points="5,12 9,16 17,7" stroke="#6fc46b" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: pageText(theme), marginBottom: 8 }}>
+                  {activeNotes.length > 0 ? "Board saved!" : "You're on the list."}
+                </div>
+                <div style={{ fontSize: 14, color: muted(theme), lineHeight: 1.7 }}>
+                  {activeNotes.length > 0
+                    ? "Your board is saved. We'll reach out when Boardtivity launches."
+                    : "We'll reach out when Boardtivity is ready. Thanks for joining early."}
+                </div>
+                <button onClick={() => { setWaitlistOpen(false); setWaitlistDone(false); setWaitlistEmail(""); }} style={{ ...buttonStyle(theme, true), marginTop: 24, width: "100%" }}>Done</button>
+              </div>
+            ) : (
+              <>
+                <div style={{ fontSize: 18, fontWeight: 800, color: pageText(theme), marginBottom: 6 }}>
+                  {activeNotes.length > 0 ? "Save your board & join the waitlist" : "Join the waitlist"}
+                </div>
+                <div style={{ fontSize: 14, color: muted(theme), lineHeight: 1.7, marginBottom: 22 }}>
+                  {activeNotes.length > 0
+                    ? "Enter your email to save your board and get early access when Boardtivity launches."
+                    : "Be the first to know when Boardtivity launches. We'll notify you with early access and launch pricing."}
+                </div>
+                <input
+                  type="email"
+                  placeholder="your@email.com"
+                  value={waitlistEmail}
+                  onChange={(e) => setWaitlistEmail(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && waitlistEmail.includes("@")) setWaitlistDone(true); }}
+                  style={{ width: "100%", height: 48, borderRadius: 10, border: `1px solid ${border(theme)}`, backgroundColor: inputBg(theme), color: pageText(theme), padding: "0 14px", fontSize: 14, outline: "none", boxSizing: "border-box" }}
+                />
+                <button
+                  onClick={() => submitWaitlist(waitlistEmail)}
+                  style={{ ...buttonStyle(theme, true), marginTop: 10, width: "100%", fontSize: 14, height: 44 }}
+                >Join waitlist</button>
+                <button onClick={() => setWaitlistOpen(false)} style={{ background: "none", border: "none", width: "100%", marginTop: 8, fontSize: 13, color: muted(theme), cursor: "pointer", padding: "6px 0" }}>Cancel</button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
     </main>
   );
 }
