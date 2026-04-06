@@ -3719,6 +3719,16 @@ export function HomeShell() {
         </div>
       )}
 
+      {/* Footer */}
+      <footer style={{ textAlign: "center", padding: "24px 16px", borderTop: `1px solid ${border(theme)}`, marginTop: 40 }}>
+        <div style={{ fontSize: 12, color: muted(theme), display: "flex", justifyContent: "center", gap: 20, flexWrap: "wrap" as const }}>
+          <span>© {new Date().getFullYear()} Boardtivity</span>
+          <a href="/privacy" style={{ color: muted(theme), textDecoration: "none", fontWeight: 600 }}>Privacy Policy</a>
+          <a href="/terms" style={{ color: muted(theme), textDecoration: "none", fontWeight: 600 }}>Terms of Service</a>
+          <a href="mailto:contact@boardtivity.com" style={{ color: muted(theme), textDecoration: "none", fontWeight: 600 }}>Contact</a>
+        </div>
+      </footer>
+
     </main>
   );
 }
