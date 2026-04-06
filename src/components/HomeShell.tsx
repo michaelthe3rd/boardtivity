@@ -588,6 +588,10 @@ export function HomeShell() {
   const [featuresVisible, setFeaturesVisible] = useState(false);
   const [pricingVisible, setPricingVisible] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [mobileExpandedIds, setMobileExpandedIds] = useState<Set<number>>(new Set());
+  const [mobileAddMode, setMobileAddMode] = useState<"task" | "thought" | null>(null);
+  const [mobileAddTitle, setMobileAddTitle] = useState("");
+  const [mobileAddImportance, setMobileAddImportance] = useState<Importance>("none");
   const [waitlistOpen, setWaitlistOpen] = useState(false);
   const [waitlistEmail, setWaitlistEmail] = useState("");
   const [waitlistDone, setWaitlistDone] = useState(false);
@@ -1549,8 +1553,10 @@ export function HomeShell() {
     let stepId: number | undefined;
     if (chain && note.steps.length > 0) {
       const first = note.steps.find(s => !s.done);
-      if (!first) return; // all done
-      stepId = first.id;
+      if (first) {
+        stepId = first.id;
+      }
+      // else: all subtasks done, fall through and focus the parent task
     }
     const step = stepId ? note.steps.find(s => s.id === stepId) : null;
     const total = step ? (step.minutes ?? 25) : (note.minutes ?? estimateTime(note.title));
@@ -1667,134 +1673,270 @@ export function HomeShell() {
 
       <section id="boardtivity-board" style={{ maxWidth: 1440, margin: "0 auto", padding: isMobile ? "0 0 24px" : "0 48px 24px" }}>
         {isMobile && (() => {
-          // Mobile board: task+idea list per board
           const mobileBoardNotes = notes.filter(n => n.boardId === activeBoardId);
           const tasks = mobileBoardNotes.filter(n => n.type === "task");
           const thoughts = mobileBoardNotes.filter(n => n.type === "thought");
-          const taskBoards = boards.filter(b => b.type === "task");
-          const thoughtBoards = boards.filter(b => b.type === "thought");
+          const mobileActiveBoard = boards.find(b => b.id === activeBoardId);
+          const isThoughtBoard = mobileActiveBoard?.type === "thought";
 
-          const completedCount = tasks.filter(t => t.completed || (t.steps.length > 0 && t.steps.every(s => s.done))).length;
-          const pendingCount = tasks.filter(t => !(t.completed || (t.steps.length > 0 && t.steps.every(s => s.done)))).length;
+          const pendingTasks = tasks.filter(t => !(t.completed || (t.steps.length > 0 && t.steps.every(s => s.done))));
+          const doneTasks = tasks.filter(t => t.completed || (t.steps.length > 0 && t.steps.every(s => s.done)));
 
-          function mobileTaskRow(note: Note) {
+          // Color helpers using page theme (not boardTheme)
+          function mobileGetBg(importance: Importance | undefined) {
+            if (!importance || importance === "none") return theme === "dark" ? "#1e2126" : "#f4f4f1";
+            return blendHex(PRIORITY_COLORS[importance as "High"|"Medium"|"Low"], theme === "dark" ? "#12141a" : "#ffffff", theme === "dark" ? 0.26 : 0.30);
+          }
+          function mobileGetBorder(importance: Importance | undefined, done: boolean) {
+            if (done) return `1.5px solid ${theme === "dark" ? "rgba(60,180,90,.30)" : "rgba(60,180,90,.45)"}`;
+            if (!importance || importance === "none") return `1px solid ${border(theme)}`;
+            return `1.5px solid ${hexToRgba(PRIORITY_COLORS[importance as "High"|"Medium"|"Low"], theme === "dark" ? 0.28 : 0.42)}`;
+          }
+          function mobileGetAccent(importance: Importance | undefined, done: boolean) {
+            if (done) return "#3db83d";
+            if (!importance || importance === "none") return theme === "dark" ? "rgba(255,255,255,.15)" : "rgba(0,0,0,.12)";
+            return PRIORITY_COLORS[importance as "High"|"Medium"|"Low"];
+          }
+
+          function dueLabelAndColor(dueDate: string | undefined): [string, string] {
+            if (!dueDate) return ["", muted(theme)];
+            const today = new Date(); today.setHours(0,0,0,0);
+            const due = new Date(dueDate); due.setHours(0,0,0,0);
+            const diff = Math.round((due.getTime() - today.getTime()) / 86400000);
+            if (diff < 0) return ["Overdue", theme === "dark" ? "#ff8080" : "#c03030"];
+            if (diff === 0) return ["Today", theme === "dark" ? "#ffb060" : "#a05010"];
+            if (diff === 1) return ["Tomorrow", muted(theme)];
+            return [due.toLocaleDateString(undefined, { month: "short", day: "numeric" }), muted(theme)];
+          }
+
+          function mobileCreateNote() {
+            if (!mobileAddTitle.trim()) return;
+            const id = Date.now();
+            const now = new Date().toISOString();
+            setNotes(prev => [...prev, {
+              id, boardId: activeBoardId,
+              type: mobileAddMode === "thought" ? "thought" : "task",
+              title: mobileAddTitle.trim(), body: "",
+              importance: mobileAddMode === "task" ? mobileAddImportance : "none",
+              createdAt: now, completed: false,
+              x: 80 + Math.random() * 200, y: 80 + Math.random() * 200,
+              steps: [], showFlow: false, flowMode: "web", linkedNoteIds: [],
+              colorIdx: Math.floor(Math.random() * NOTE_PALETTE.length),
+            }]);
+            setMobileAddTitle(""); setMobileAddImportance("none"); setMobileAddMode(null);
+          }
+
+          function MobileTaskCard({ note }: { note: Note }) {
             const isDone = note.completed || (note.steps.length > 0 && note.steps.every(s => s.done));
-            const bg = isDone
-              ? (theme === "dark" ? "rgba(60,180,90,.06)" : "rgba(60,180,90,.05)")
-              : (theme === "dark" ? "#1f2329" : "#ffffff");
-            const impColor = priorityColor(note.importance === "none" ? undefined : note.importance, theme);
-            const hasDue = !!note.dueDate;
-            let dueLabel = "";
-            let dueColor = muted(theme);
-            if (hasDue) {
-              const today = new Date(); today.setHours(0,0,0,0);
-              const due = new Date(note.dueDate!); due.setHours(0,0,0,0);
-              const diff = Math.round((due.getTime() - today.getTime()) / 86400000);
-              if (diff < 0) { dueLabel = "Overdue"; dueColor = theme === "dark" ? "#ff8080" : "#c03030"; }
-              else if (diff === 0) { dueLabel = "Today"; dueColor = theme === "dark" ? "#ffaa60" : "#b05a20"; }
-              else if (diff === 1) { dueLabel = "Tomorrow"; }
-              else { dueLabel = due.toLocaleDateString(undefined, { month: "short", day: "numeric" }); }
-            }
+            const imp = note.importance === "none" ? undefined : note.importance;
+            const bg = isDone ? (theme === "dark" ? "#0d2218" : "#eef9f2") : mobileGetBg(imp);
+            const bord = mobileGetBorder(imp, isDone);
+            const accent = mobileGetAccent(imp, isDone);
+            const [dueLabel, dueColor] = dueLabelAndColor(note.dueDate);
+            const isExpanded = mobileExpandedIds.has(note.id);
+            const impColor = priorityColor(imp, theme);
+            const doneDots = note.steps.filter(s => s.done).length;
+
             return (
-              <div key={note.id} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "14px 16px", borderRadius: 14, backgroundColor: bg, border: `1px solid ${isDone ? (theme === "dark" ? "rgba(60,180,90,.15)" : "rgba(60,180,90,.12)") : border(theme)}`, marginBottom: 8 }}>
-                {/* Checkbox */}
-                <button
-                  onClick={() => setNotes(ns => ns.map(n => n.id === note.id ? { ...n, completed: !n.completed } : n))}
-                  style={{ flexShrink: 0, width: 22, height: 22, borderRadius: 6, border: isDone ? "none" : `2px solid ${impColor}`, backgroundColor: isDone ? (theme === "dark" ? "#3db83d" : "#3db83d") : "transparent", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", marginTop: 1 }}
+              <div style={{ borderRadius: 14, backgroundColor: bg, border: bord, marginBottom: 9, overflow: "hidden", position: "relative" }}>
+                {/* Left accent bar */}
+                <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 4, backgroundColor: accent, borderRadius: "4px 0 0 4px" }} />
+                {/* Top pill row */}
+                <div style={{ paddingLeft: 18, paddingRight: 14, paddingTop: 11, display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: isDone ? (theme === "dark" ? "rgba(100,220,120,.8)" : "rgba(30,120,60,.7)") : (imp ? impColor : muted(theme)), opacity: isDone ? 1 : 0.75 }}>
+                    {isDone ? "Completed" : (imp ?? "Task")}
+                  </span>
+                  {dueLabel && !isDone && (
+                    <>
+                      <span style={{ color: border(theme), fontSize: 10 }}>·</span>
+                      <span style={{ fontSize: 10, fontWeight: 600, color: dueColor }}>{dueLabel}</span>
+                    </>
+                  )}
+                </div>
+                {/* Title + Focus row */}
+                <div
+                  style={{ paddingLeft: 18, paddingRight: 14, paddingBottom: 12, paddingTop: 4, display: "flex", alignItems: "flex-start", gap: 10, cursor: note.steps.length > 0 ? "pointer" : "default" }}
+                  onClick={() => {
+                    if (note.steps.length === 0) return;
+                    setMobileExpandedIds(prev => {
+                      const next = new Set(prev);
+                      if (next.has(note.id)) next.delete(note.id); else next.add(note.id);
+                      return next;
+                    });
+                  }}
                 >
-                  {isDone && <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                </button>
-                {/* Content */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: isDone ? muted(theme) : pageText(theme), textDecoration: isDone ? "line-through" : "none", lineHeight: 1.35, wordBreak: "break-word", opacity: isDone ? .6 : 1 }}>{note.title}</div>
-                  <div style={{ display: "flex", gap: 8, marginTop: 5, flexWrap: "wrap", alignItems: "center" }}>
-                    {note.importance && note.importance !== "none" && (
-                      <span style={{ fontSize: 11, fontWeight: 700, color: impColor, opacity: .85 }}>{note.importance}</span>
-                    )}
-                    {hasDue && !isDone && (
-                      <span style={{ fontSize: 11, color: dueColor, opacity: .8 }}>{dueLabel}</span>
-                    )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: isDone ? muted(theme) : pageText(theme), textDecoration: isDone ? "line-through" : "none", lineHeight: 1.3, wordBreak: "break-word", opacity: isDone ? .5 : 1 }}>{note.title}</div>
                     {note.steps.length > 0 && (
-                      <span style={{ fontSize: 11, color: muted(theme), opacity: .6 }}>{note.steps.filter(s => s.done).length}/{note.steps.length} steps</span>
+                      <div style={{ display: "flex", gap: 5, alignItems: "center", marginTop: 7 }}>
+                        {note.steps.map(s => (
+                          <span key={s.id} style={{ width: 8, height: 8, borderRadius: "50%", border: s.done ? "1px solid #3d8b40" : `1px solid ${theme === "dark" ? "rgba(255,255,255,.22)" : "rgba(0,0,0,.18)"}`, backgroundColor: s.done ? "#6fc46b" : "transparent", display: "inline-block", flexShrink: 0 }} />
+                        ))}
+                        <span style={{ fontSize: 11, color: muted(theme), opacity: .6, marginLeft: 2 }}>{doneDots}/{note.steps.length}</span>
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ marginLeft: 4, transform: isExpanded ? "rotate(180deg)" : "none", transition: "transform .2s", opacity: .45 }}>
+                          <polyline points="2,3.5 5,6.5 8,3.5" stroke={pageText(theme)} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </div>
                     )}
                   </div>
+                  {!isDone && (
+                    <button
+                      onClick={e => { e.stopPropagation(); startFocus(note.id, false); }}
+                      style={{ flexShrink: 0, height: 32, borderRadius: 999, backgroundColor: theme === "dark" ? "#111315" : "#171613", color: "#f7f8fb", border: "none", padding: "0 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", marginTop: 2 }}
+                    >
+                      Focus
+                    </button>
+                  )}
                 </div>
-                {/* Focus button */}
-                {!isDone && (
-                  <button
-                    onClick={() => startFocus(note.id, note.steps.length > 0)}
-                    style={{ flexShrink: 0, height: 34, borderRadius: 999, backgroundColor: theme === "dark" ? "#111315" : "#171613", color: "#f7f8fb", border: "none", padding: "0 14px", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}
-                  >
-                    Focus
-                  </button>
+                {/* Expanded subtasks */}
+                {isExpanded && note.steps.length > 0 && (
+                  <div style={{ borderTop: `1px solid ${border(theme)}`, paddingTop: 10, paddingBottom: 12, paddingLeft: 18, paddingRight: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+                    {note.steps.map(step => (
+                      <div key={step.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{ width: 9, height: 9, borderRadius: "50%", border: step.done ? "1px solid #3d8b40" : `1px solid ${theme === "dark" ? "rgba(255,255,255,.22)" : "rgba(0,0,0,.22)"}`, backgroundColor: step.done ? "#6fc46b" : "transparent", display: "inline-block", flexShrink: 0 }} />
+                        <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: step.done ? muted(theme) : pageText(theme), opacity: step.done ? .5 : 1, textDecoration: step.done ? "line-through" : "none" }}>{step.title}</span>
+                        {step.minutes && <span style={{ fontSize: 11, color: muted(theme), opacity: .5 }}>{step.minutes}m</span>}
+                        {!step.done && !isDone && (
+                          <button
+                            onClick={() => startFocus(note.id, true)}
+                            style={{ flexShrink: 0, height: 26, borderRadius: 999, backgroundColor: "transparent", color: theme === "dark" ? "rgba(255,255,255,.5)" : "rgba(0,0,0,.4)", border: `1px solid ${border(theme)}`, padding: "0 10px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}
+                          >
+                            Focus
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             );
           }
 
-          function mobileIdeaRow(note: Note) {
+          function MobileIdeaCard({ note }: { note: Note }) {
             const idx = note.colorIdx ?? 0;
             const palette = NOTE_PALETTE[idx % NOTE_PALETTE.length];
             const bg = theme === "dark" ? palette.dark : palette.light;
+            const bord = palette.halo.replace(/[\d.]+\)$/, theme === "dark" ? "0.35)" : "0.45)");
             return (
-              <div key={note.id} style={{ padding: "12px 14px", borderRadius: 12, backgroundColor: bg, border: `1px solid ${palette.halo.replace(/[\d.]+\)$/, theme === "dark" ? "0.3)" : "0.4)")}`, marginBottom: 8 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: pageText(theme), lineHeight: 1.4 }}>{note.title}</div>
-                {note.body && <div style={{ fontSize: 13, color: muted(theme), marginTop: 4, lineHeight: 1.5, opacity: .75 }}>{note.body}</div>}
+              <div style={{ borderRadius: 14, backgroundColor: bg, border: `1.5px solid ${bord}`, marginBottom: 9, padding: "12px 14px 14px", position: "relative", overflow: "hidden" }}>
+                <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 4, backgroundColor: palette.swatch, opacity: .55, borderRadius: "4px 0 0 4px" }} />
+                <div style={{ paddingLeft: 6 }}>
+                  <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: palette.swatch, opacity: .7, marginBottom: 5 }}>Idea</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: pageText(theme), lineHeight: 1.35, wordBreak: "break-word" }}>{note.title}</div>
+                  {note.body && <div style={{ fontSize: 13, color: muted(theme), marginTop: 5, lineHeight: 1.5, opacity: .7 }}>{note.body}</div>}
+                </div>
               </div>
             );
           }
 
-          const activeBoard = boards.find(b => b.id === activeBoardId);
-          const isThoughtBoard = activeBoard?.type === "thought";
-
           return (
-            <div style={{ padding: "0 16px" }}>
-              {/* Board tabs */}
-              <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 12, scrollbarWidth: "none" }}>
+            <div style={{ padding: "0 0 100px" }}>
+              {/* Board switcher */}
+              <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 14, paddingLeft: 16, paddingRight: 16, scrollbarWidth: "none" }}>
                 {boards.map(b => (
                   <button
                     key={b.id}
                     onClick={() => setActiveBoardId(b.id)}
-                    style={{ flexShrink: 0, height: 34, borderRadius: 999, border: b.id === activeBoardId ? "none" : `1px solid ${border(theme)}`, backgroundColor: b.id === activeBoardId ? (theme === "dark" ? "#f5f5f2" : "#171613") : (theme === "dark" ? "#1f2329" : "#ffffff"), color: b.id === activeBoardId ? (theme === "dark" ? "#171613" : "#f7f8fb") : pageText(theme), padding: "0 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}
+                    style={{ flexShrink: 0, height: 34, borderRadius: 999, border: b.id === activeBoardId ? "none" : `1px solid ${border(theme)}`, backgroundColor: b.id === activeBoardId ? (theme === "dark" ? "#f5f5f2" : "#171613") : (theme === "dark" ? "#1e2126" : "#ffffff"), color: b.id === activeBoardId ? (theme === "dark" ? "#171613" : "#f7f8fb") : pageText(theme), padding: "0 18px", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}
                   >
                     {b.name}
                   </button>
                 ))}
               </div>
 
-              {/* Task board */}
-              {!isThoughtBoard && (
-                <>
-                  {tasks.length === 0 ? (
-                    <div style={{ textAlign: "center", padding: "48px 0", color: muted(theme), fontSize: 14, opacity: .55 }}>No tasks yet</div>
-                  ) : (
-                    <>
-                      {pendingCount > 0 && (
-                        <div style={{ marginBottom: 4 }}>
-                          {tasks.filter(t => !(t.completed || (t.steps.length > 0 && t.steps.every(s => s.done)))).map(mobileTaskRow)}
-                        </div>
-                      )}
-                      {completedCount > 0 && (
-                        <div>
-                          <div style={{ fontSize: 11, fontWeight: 700, color: muted(theme), opacity: .5, letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 8, marginTop: pendingCount > 0 ? 16 : 0 }}>Completed</div>
-                          {tasks.filter(t => t.completed || (t.steps.length > 0 && t.steps.every(s => s.done))).map(mobileTaskRow)}
-                        </div>
-                      )}
-                    </>
-                  )}
-                </>
+              {/* Not signed in hint */}
+              {!isSignedIn && (
+                <div style={{ marginBottom: 20, marginLeft: 16, marginRight: 16, borderRadius: 12, border: `1px solid ${border(theme)}`, backgroundColor: paper(theme), padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ flexShrink: 0, width: 36, height: 36, borderRadius: 10, backgroundColor: theme === "dark" ? "#23262b" : "#f0f0ee", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke={muted(theme)} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity=".7">
+                      <rect x="1.5" y="3" width="15" height="10" rx="1.5"/>
+                      <line x1="5.5" y1="16" x2="12.5" y2="16"/>
+                      <line x1="9" y1="13" x2="9" y2="16"/>
+                    </svg>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: pageText(theme), marginBottom: 2 }}>Full board on iPad or Mac</div>
+                    <div style={{ fontSize: 12, color: muted(theme), opacity: .7, lineHeight: 1.4 }}>Sign in on a larger screen for the interactive board experience.</div>
+                  </div>
+                </div>
               )}
 
-              {/* Thought/idea board */}
-              {isThoughtBoard && (
-                <>
-                  {thoughts.length === 0 ? (
-                    <div style={{ textAlign: "center", padding: "48px 0", color: muted(theme), fontSize: 14, opacity: .55 }}>No ideas yet</div>
-                  ) : (
-                    thoughts.map(mobileIdeaRow)
-                  )}
-                </>
+              {/* List */}
+              <div style={{ padding: "0 16px" }}>
+                {!isThoughtBoard && (
+                  <>
+                    {pendingTasks.length === 0 && doneTasks.length === 0 && (
+                      <div style={{ textAlign: "center", padding: "52px 0 20px", color: muted(theme), fontSize: 14, opacity: .45 }}>No tasks yet — tap + to add one</div>
+                    )}
+                    {pendingTasks.map(note => <MobileTaskCard key={note.id} note={note} />)}
+                    {doneTasks.length > 0 && (
+                      <>
+                        <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".09em", textTransform: "uppercase", color: muted(theme), opacity: .4, marginTop: pendingTasks.length > 0 ? 20 : 0, marginBottom: 10 }}>Completed</div>
+                        {doneTasks.map(note => <MobileTaskCard key={note.id} note={note} />)}
+                      </>
+                    )}
+                  </>
+                )}
+                {isThoughtBoard && (
+                  <>
+                    {thoughts.length === 0 && (
+                      <div style={{ textAlign: "center", padding: "52px 0 20px", color: muted(theme), fontSize: 14, opacity: .45 }}>No ideas yet — tap + to add one</div>
+                    )}
+                    {thoughts.map(note => <MobileIdeaCard key={note.id} note={note} />)}
+                  </>
+                )}
+              </div>
+
+              {/* Quick-add bottom sheet */}
+              {mobileAddMode && (
+                <div style={{ position: "fixed", inset: 0, zIndex: 800, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+                  <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,.4)" }} onClick={() => { setMobileAddMode(null); setMobileAddTitle(""); }} />
+                  <div style={{ position: "relative", backgroundColor: surface(theme), borderRadius: "20px 20px 0 0", padding: "20px 20px 36px", display: "flex", flexDirection: "column", gap: 12 }}>
+                    <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: muted(theme), opacity: .6, marginBottom: 2 }}>
+                      {mobileAddMode === "task" ? "New Task" : "New Idea"}
+                    </div>
+                    <input
+                      autoFocus
+                      value={mobileAddTitle}
+                      onChange={e => setMobileAddTitle(e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter") mobileCreateNote(); if (e.key === "Escape") { setMobileAddMode(null); setMobileAddTitle(""); } }}
+                      placeholder={mobileAddMode === "task" ? "What needs to be done?" : "What's your idea?"}
+                      style={{ fontSize: 16, fontWeight: 600, color: pageText(theme), backgroundColor: paper(theme), border: `1.5px solid ${border(theme)}`, borderRadius: 12, padding: "13px 14px", outline: "none", width: "100%", boxSizing: "border-box" }}
+                    />
+                    {mobileAddMode === "task" && (
+                      <div style={{ display: "flex", gap: 6 }}>
+                        {(["none", "Low", "Medium", "High"] as Importance[]).map(imp => {
+                          const active = mobileAddImportance === imp;
+                          const col = imp === "none" ? muted(theme) : PRIORITY_COLORS[imp as "High"|"Medium"|"Low"];
+                          return (
+                            <button
+                              key={imp}
+                              onClick={() => setMobileAddImportance(imp)}
+                              style={{ flex: 1, height: 36, borderRadius: 999, border: active ? `1.5px solid ${col}` : `1px solid ${border(theme)}`, backgroundColor: active ? hexToRgba(imp === "none" ? "#888" : PRIORITY_COLORS[imp as "High"|"Medium"|"Low"], 0.12) : "transparent", color: active ? col : muted(theme), fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                            >
+                              {imp === "none" ? "None" : imp}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <button
+                      onClick={mobileCreateNote}
+                      style={{ height: 48, borderRadius: 14, backgroundColor: theme === "dark" ? "#f5f5f2" : "#171613", color: theme === "dark" ? "#171613" : "#f7f8fb", border: "none", fontSize: 15, fontWeight: 800, cursor: "pointer" }}
+                    >
+                      Add {mobileAddMode === "task" ? "Task" : "Idea"}
+                    </button>
+                  </div>
+                </div>
               )}
+
+              {/* FAB */}
+              <button
+                onClick={() => { setMobileAddMode(isThoughtBoard ? "thought" : "task"); setMobileAddTitle(""); setMobileAddImportance("none"); }}
+                style={{ position: "fixed", bottom: 24, right: 20, width: 56, height: 56, borderRadius: "50%", backgroundColor: theme === "dark" ? "#f5f5f2" : "#171613", color: theme === "dark" ? "#171613" : "#f7f8fb", border: "none", fontSize: 26, fontWeight: 300, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 20px rgba(0,0,0,.28)", zIndex: 100 }}
+              >
+                +
+              </button>
             </div>
           );
         })()}
