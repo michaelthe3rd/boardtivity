@@ -41,7 +41,8 @@ const T = {
 // ── Sweep ────────────────────────────────────────────────────────────────────
 function computeSweep(notes: Note[], mode: SweepMode): BobSweepResult {
   const CARD_W = 252, ROW_H = 168, COL_GAP = 22, ROW_GAP = 18, COLS = 5, START_X = 60, START_Y = 72;
-  const sorted = [...notes];
+  // Only reposition non-completed notes; completed notes stay hidden wherever they are
+  const sorted = notes.filter(n => !n.completed);
   if (mode === "priority") {
     const r: Record<string, number> = { High: 0, Medium: 1, Low: 2, none: 3 };
     sorted.sort((a, b) => (r[a.importance ?? "none"] ?? 3) - (r[b.importance ?? "none"] ?? 3));
@@ -129,33 +130,23 @@ const I = {
   ),
 };
 
-// ── Robot icon ────────────────────────────────────────────────────────────────
-function BobIcon({ size = 22, color }: { size?: number; color: string }) {
-  const s = size / 22; // scale factor
+// ── Robot icon (no sparkle; viewBox cropped to head so it centers with text) ──
+function BobIcon({ size = 18, color }: { size?: number; color: string }) {
   return (
     <svg
       width={size}
-      height={Math.round(size * 0.91)}
-      viewBox="0 0 110 100"
+      height={Math.round(size * (78 / 110))}
+      viewBox="0 0 110 78"
       fill="none"
       style={{ flexShrink: 0, display: "block" }}
     >
-      {/* Ears */}
-      <rect x="0"   y="23" width="12" height="27" rx="6"  fill={color} />
-      <rect x="98"  y="23" width="12" height="27" rx="6"  fill={color} />
-      {/* Outer head */}
-      <rect x="13" y="4"  width="84" height="70" rx="22" stroke={color} strokeWidth="8"  fill="none" />
-      {/* Inner face */}
-      <rect x="24" y="15" width="62" height="48" rx="13" stroke={color} strokeWidth="5"  fill="none" />
-      {/* Eyes */}
-      <rect x="33" y="28" width="16" height="16" rx="3.5" fill={color} />
-      <rect x="61" y="28" width="16" height="16" rx="3.5" fill={color} />
-      {/* Mouth */}
-      <line x1="40" y1="52" x2="70" y2="52" stroke={color} strokeWidth="5.5" strokeLinecap="round" />
-      {/* Sparkle */}
-      <path d="M84 78 L87 70 L90 78 L98 81 L90 84 L87 92 L84 84 L76 81 Z" fill={color} />
-      {/* Scale hint */}
-      <rect width={110 * s} height={100 * s} fill="none" />
+      <rect x="0"   y="23" width="12" height="27" rx="6"   fill={color} />
+      <rect x="98"  y="23" width="12" height="27" rx="6"   fill={color} />
+      <rect x="13"  y="4"  width="84" height="70" rx="22"  stroke={color} strokeWidth="8" fill="none" />
+      <rect x="24"  y="15" width="62" height="48" rx="13"  stroke={color} strokeWidth="5" fill="none" />
+      <rect x="33"  y="28" width="16" height="16" rx="3.5" fill={color} />
+      <rect x="61"  y="28" width="16" height="16" rx="3.5" fill={color} />
+      <line x1="40" y1="52" x2="70"  y2="52" stroke={color} strokeWidth="5.5" strokeLinecap="round" />
     </svg>
   );
 }
@@ -300,27 +291,29 @@ export default function BobAgent({ theme: t, notes, onSweep, onAddNote }: Props)
   const ic          = T.text(t); // icon color
   const mu          = T.muted(t);
 
-  // Dynamic Island: open → width leads, height follows
-  //                 close → height leads, width follows
+  // Apple DI easing: fast ease-out, zero overshoot → no sharp-box flash
+  // Open:  width leads, height follows slightly after
+  // Close: height leads, width follows slightly after
+  const DI = "cubic-bezier(0.32, 0.72, 0, 1)";
   const transition = isExpanded
     ? [
-        "width 0.52s cubic-bezier(0.34,1.56,0.64,1)",
-        "max-height 0.48s cubic-bezier(0.34,1.56,0.64,1) 0.06s",
-        "border-radius 0.46s cubic-bezier(0.34,1.56,0.64,1)",
-        "box-shadow 0.3s ease 0.1s",
+        `width 0.38s ${DI}`,
+        `max-height 0.36s ${DI} 0.04s`,
+        `border-radius 0.35s ${DI}`,
+        "box-shadow 0.28s ease 0.06s",
       ].join(", ")
     : [
-        "max-height 0.32s cubic-bezier(0.4,0,0.2,1)",
-        "width 0.36s cubic-bezier(0.4,0,0.2,1) 0.05s",
-        "border-radius 0.32s cubic-bezier(0.4,0,0.2,1)",
+        `max-height 0.26s ease-in`,
+        `width 0.28s ease-in-out 0.04s`,
+        `border-radius 0.26s ease-in`,
         "box-shadow 0.2s ease",
       ].join(", ");
 
-  // Content fade: delayed appear, instant disappear
-  const contentOpacity   = isExpanded ? 1 : 0;
+  // Content fade: wait for shape, then appear; disappear immediately on close
+  const contentOpacity    = isExpanded ? 1 : 0;
   const contentTransition = isExpanded
-    ? "opacity 0.18s ease 0.26s"
-    : "opacity 0.1s ease";
+    ? "opacity 0.16s ease 0.22s"
+    : "opacity 0.08s ease";
 
   return (
     <div
@@ -365,7 +358,7 @@ export default function BobAgent({ theme: t, notes, onSweep, onAddNote }: Props)
         transition: "padding 0.3s ease",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-          <BobIcon size={open ? 18 : 20} color={ic} />
+          <BobIcon size={18} color={ic} />
           <span style={{
             fontSize:      open ? 13 : 13,
             fontWeight:    800,
