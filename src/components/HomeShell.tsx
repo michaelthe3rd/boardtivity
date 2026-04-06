@@ -1830,14 +1830,15 @@ export function HomeShell() {
             return (
               <div key={note.id} style={{ borderRadius: 14, backgroundColor: bg, border: bord, marginBottom: 9 }}>
                 {/* Top meta row */}
-                <div style={{ padding: "11px 14px 0", display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: isDone ? (theme === "dark" ? "rgba(100,220,120,.8)" : "rgba(30,120,60,.7)") : (imp ? impColor : muted(theme)), opacity: isDone ? 1 : 0.75 }}>
+                <div style={{ padding: "10px 12px 0", display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ flex: 1, fontSize: 10, fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: isDone ? (theme === "dark" ? "rgba(100,220,120,.8)" : "rgba(30,120,60,.7)") : (imp ? impColor : muted(theme)), opacity: isDone ? 1 : 0.75 }}>
                     {isDone ? "Completed" : (imp ? `${imp} priority` : "Task")}
                   </span>
-                  {!isDone && <span style={pill(theme)}>{timeLabel}</span>}
-                  <div style={{ flex: 1 }} />
-                  {dueLabel && !isDone && (
-                    <span style={{ ...pill(theme), color: dueColor, borderColor: dueColor === muted(theme) ? undefined : `${dueColor}55` }}>{dueLabel}</span>
+                  {!isDone && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: muted(theme), opacity: .5, backgroundColor: theme === "dark" ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.06)", border: `1px solid ${border(theme)}`, borderRadius: 999, padding: "2px 7px", whiteSpace: "nowrap" }}>{timeLabel}</span>
+                      {dueLabel && <span style={{ fontSize: 10, fontWeight: 700, color: dueColor, backgroundColor: theme === "dark" ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.06)", border: `1px solid ${dueColor}44`, borderRadius: 999, padding: "2px 7px", whiteSpace: "nowrap" }}>{dueLabel}</span>}
+                    </div>
                   )}
                   <button type="button" onClick={() => openEdit(note)} style={{ ...dotBtn, marginLeft: 2 }}>···</button>
                 </div>
