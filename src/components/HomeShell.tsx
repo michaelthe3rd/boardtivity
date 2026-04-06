@@ -1836,8 +1836,8 @@ export function HomeShell() {
                   </span>
                   {!isDone && (
                     <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: muted(theme), opacity: .5, backgroundColor: theme === "dark" ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.06)", border: `1px solid ${border(theme)}`, borderRadius: 999, padding: "2px 7px", whiteSpace: "nowrap" }}>{timeLabel}</span>
-                      {dueLabel && <span style={{ fontSize: 10, fontWeight: 700, color: dueColor, backgroundColor: theme === "dark" ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.06)", border: `1px solid ${dueColor}44`, borderRadius: 999, padding: "2px 7px", whiteSpace: "nowrap" }}>{dueLabel}</span>}
+                      <span style={{ fontSize: 10, fontWeight: 600, color: muted(theme), backgroundColor: theme === "dark" ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.06)", border: `1px solid ${border(theme)}`, borderRadius: 999, padding: "2px 7px", whiteSpace: "nowrap" }}>{timeLabel}</span>
+                      {dueLabel && <span style={{ fontSize: 10, fontWeight: 600, color: dueColor, backgroundColor: theme === "dark" ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.06)", border: `1px solid ${dueColor}44`, borderRadius: 999, padding: "2px 7px", whiteSpace: "nowrap" }}>{dueLabel}</span>}
                     </div>
                   )}
                   <button type="button" onClick={() => openEdit(note)} style={{ ...dotBtn, marginLeft: 2 }}>···</button>
