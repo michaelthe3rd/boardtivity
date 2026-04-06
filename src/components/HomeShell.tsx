@@ -111,6 +111,16 @@ function isDueToday(date?: string) {
   return d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth() && d.getDate() === today.getDate();
 }
 
+function formatDateShort(date?: string) {
+  if (!date) return "";
+  const today = new Date();
+  const d = new Date(date + "T12:00:00");
+  const diffDays = Math.round((d.getTime() - new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()) / 86400000);
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Tomorrow";
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
 function nextBoardName(existing: Board[], type: BoardType) {
   const base = type === "task" ? "My Board" : "My Ideas";
   const count = existing.filter((b) => b.type === type).length;
@@ -1845,7 +1855,7 @@ export function HomeShell() {
                           backgroundColor: "rgba(255,60,60,.12)",
                           boxShadow: "0 0 8px rgba(255,60,60,.35)",
                         } : {}),
-                      }}>Due {formatDate(note.dueDate)}</div>
+                      }}>Due {formatDateShort(note.dueDate)}</div>
                     )}
                   </div>
 
