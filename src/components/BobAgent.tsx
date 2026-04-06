@@ -213,8 +213,16 @@ export default function BobAgent({
     return () => document.removeEventListener("mousedown", onDown);
   }, [open, closing]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function doOpen()  { setOpen(true);  setClosing(false); }
-  function doClose() { setClosing(true); setTimeout(() => { setOpen(false); setClosing(false); }, 380); }
+  function doOpen()  { setOpen(true); setClosing(false); }
+  function doClose() {
+    setClosing(true);
+    setTimeout(() => {
+      setOpen(false);
+      setClosing(false);
+      setMessages([]);
+      setHistory([]);
+    }, 380);
+  }
 
   function changeMode(m: Mode) { setMode(m); saveMode(m); }
 
