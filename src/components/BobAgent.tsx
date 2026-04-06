@@ -272,39 +272,42 @@ export default function BobAgent({ theme: t, notes, onSweep, onAddNote }: Props)
   const ic = T.text(t);
   const mu = T.muted(t);
 
+  // Icon=20px wide, gap=8, "BOB"≈26px, padding=16×2 → ~86px natural content width
+  const PILL_W  = 90;
+  const OPEN_W  = 480;
+  const PILL_H  = 44;
+
   const DI = "cubic-bezier(0.32, 0.72, 0, 1)";
   const transition = isExpanded
-    ? [`width 0.38s ${DI}`, `max-height 0.36s ${DI} 0.04s`, `border-radius 0.35s ${DI}`, "box-shadow 0.28s ease 0.06s"].join(", ")
-    : ["max-height 0.26s ease-in", "width 0.28s ease-in-out 0.04s", "border-radius 0.26s ease-in", "box-shadow 0.2s ease"].join(", ");
+    ? [`width 0.38s ${DI}`, `max-height 0.36s ${DI} 0.03s`, `border-radius 0.34s ${DI}`].join(", ")
+    : [`max-height 0.24s ease-in`, `width 0.26s ease-in 0.02s`, `border-radius 0.24s ease-in`].join(", ");
 
   const contentOpacity    = isExpanded ? 1 : 0;
-  const contentTransition = isExpanded ? "opacity 0.16s ease 0.22s" : "opacity 0.08s ease";
+  const contentTransition = isExpanded ? "opacity 0.15s ease 0.2s" : "opacity 0.07s ease";
 
-  // Pill height = 44px. Header must fill this exactly so content is centered.
-  const PILL_H = 44;
+  // Same base color for both collapsed and expanded — just vary opacity
+  const pillBg  = t === "dark" ? "rgba(22,24,28,.72)"  : "rgba(255,255,255,.72)";
+  const openBg  = t === "dark" ? "rgba(22,24,28,.94)"  : "rgba(255,255,255,.94)";
+  const pillBdr = t === "dark" ? "rgba(255,255,255,.16)" : "rgba(17,19,21,.16)";
 
   return (
     <div
       ref={containerRef}
       style={{
-        width:        open ? 480 : undefined,
-        maxHeight:    open ? 480 : PILL_H,
-        borderRadius: open ? 18  : 999,
+        width:        open ? OPEN_W : PILL_W,
+        maxHeight:    open ? 480    : PILL_H,
+        borderRadius: open ? 18     : 999,
         overflow: "hidden",
         willChange: "width, max-height, border-radius",
         transition,
-        backgroundColor: open
-          ? T.bg(t)
-          : t === "dark" ? "rgba(22,24,28,.68)" : "rgba(255,255,255,.68)",
+        backgroundColor: open ? openBg : pillBg,
         backdropFilter:       "blur(24px)",
         WebkitBackdropFilter: "blur(24px)",
-        border: `1px solid ${open
-          ? T.border(t)
-          : t === "dark" ? "rgba(255,255,255,.16)" : "rgba(17,19,21,.16)"}`,
+        border: `1px solid ${pillBdr}`,
         boxShadow: open
           ? (t === "dark"
-              ? "0 12px 48px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.07)"
-              : "0 12px 40px rgba(0,0,0,.13), 0 0 0 1px rgba(0,0,0,.04)")
+              ? "0 12px 48px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.07)"
+              : "0 12px 40px rgba(0,0,0,.12), 0 0 0 1px rgba(0,0,0,.04)")
           : "none",
         cursor:     open ? "default" : "pointer",
         userSelect: "none",
@@ -313,17 +316,16 @@ export default function BobAgent({ theme: t, notes, onSweep, onAddNote }: Props)
       }}
       onClick={!open ? doOpen : undefined}
     >
-      {/* ── Header — height fixed to PILL_H when closed so content is centered ── */}
+      {/* ── Header — fixed PILL_H height when closed keeps content vertically centered ── */}
       <div style={{
         height:         open ? "auto" : PILL_H,
         display:        "flex",
         alignItems:     "center",
         justifyContent: "center",
         position:       "relative",
-        padding:        open ? "10px 14px 10px" : "0 18px",
+        padding:        open ? "10px 14px" : "0",
         flexShrink:     0,
         whiteSpace:     "nowrap",
-        transition:     "padding 0.3s ease, height 0s",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <BobIcon size={20} color={ic} />
