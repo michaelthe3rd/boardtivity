@@ -852,8 +852,12 @@ export function HomeShell() {
     if (!isHydrated) return;
     try {
       if (isSignedIn) {
-        // Signed in: save everything locally
-        localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, savedAt: Date.now() }));
+        // Signed in: save everything locally.
+        // Only stamp savedAt after Convex has confirmed its state — this prevents
+        // a fresh Device B install from looking "newer" than real cloud data.
+        const localPayload = { theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid,
+          ...(convexReadyRef.current ? { savedAt: Date.now() } : {}) };
+        localStorage.setItem("boardtivity", JSON.stringify(localPayload));
         // Debounced save to Convex — only after Convex has confirmed its state (avoids overwriting fresh cloud data with stale local cache)
         if (convexReadyRef.current) {
           if (convexSaveTimerRef.current) clearTimeout(convexSaveTimerRef.current);
