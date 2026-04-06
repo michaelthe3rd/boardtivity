@@ -29,12 +29,7 @@ interface Props {
 }
 
 // ── Defaults ─────────────────────────────────────────────────────────────────
-const DEFAULT_ACTIONS: QuickAction[] = [
-  { id: "d1", label: "What first?",      type: "brain", query: "whatFirst" },
-  { id: "d2", label: "Summarize board",  type: "brain", query: "summary"   },
-  { id: "d3", label: "What's overdue?",  type: "brain", query: "overdue"   },
-  { id: "d4", label: "Sort by priority", type: "sweep", mode: "priority"   },
-];
+const DEFAULT_ACTIONS: QuickAction[] = [];
 const ACTIONS_KEY = "bob_quick_actions";
 
 function loadActions(): QuickAction[] {
@@ -84,18 +79,33 @@ function computeSweep(notes: Note[], mode: SweepMode): BobSweepResult {
 }
 
 // ── Icons ────────────────────────────────────────────────────────────────────
-function Mic({ c = "white", s = 16 }: { c?: string; s?: number }) {
+// Animated speech-wave bars — 4 vertical bars that pump when listening
+function SpeechWave({ c, listening, s = 16 }: { c: string; listening: boolean; s?: number }) {
+  const bars = [
+    { x: 1,    h: 5,  aH: 13, delay: "0s"    },
+    { x: 5.5,  h: 9,  aH: 14, delay: "0.13s" },
+    { x: 10,   h: 9,  aH: 14, delay: "0.26s" },
+    { x: 14.5, h: 5,  aH: 13, delay: "0.07s" },
+  ];
+  const VH = 14;
   return (
-    <svg width={s} height={s} viewBox="0 0 24 24" fill="none">
-      <rect x="9" y="2" width="6" height="12" rx="3" fill={c}/>
-      <path d="M5 11a7 7 0 0 0 14 0" stroke={c} strokeWidth="2" strokeLinecap="round"/>
-      <line x1="12" y1="18" x2="12" y2="22" stroke={c} strokeWidth="2" strokeLinecap="round"/>
-      <line x1="8"  y1="22" x2="16" y2="22" stroke={c} strokeWidth="2" strokeLinecap="round"/>
+    <svg width={s} height={Math.round(s * VH / 18)} viewBox="0 0 18 14" fill="none">
+      {bars.map((b, i) => {
+        const sy = (VH - b.h) / 2;
+        const ay = (VH - b.aH) / 2;
+        return (
+          <rect key={i} x={b.x} width={2.5} rx={1.25} fill={c} y={sy} height={b.h}>
+            {listening && (
+              <>
+                <animate attributeName="height" values={`${b.h};${b.aH};${b.h}`} dur="0.65s" begin={b.delay} repeatCount="indefinite"/>
+                <animate attributeName="y"      values={`${sy};${ay};${sy}`}     dur="0.65s" begin={b.delay} repeatCount="indefinite"/>
+              </>
+            )}
+          </rect>
+        );
+      })}
     </svg>
   );
-}
-function Stop({ c = "white", s = 16 }: { c?: string; s?: number }) {
-  return <svg width={s} height={s} viewBox="0 0 24 24" fill="none"><rect x="6" y="6" width="12" height="12" rx="2.5" fill={c}/></svg>;
 }
 function Send({ c, s = 14 }: { c: string; s?: number }) {
   return (
@@ -259,7 +269,13 @@ export default function BobAgent({ theme: t, notes, onSweep, onAddNote }: Props)
       setInputText(txt);
     };
     r.onend = () => setListening(false);
-    r.onerror = () => setListening(false);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    r.onerror = (e: any) => {
+      setListening(false);
+      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+        setResponse("Microphone access was blocked. Please allow microphone access in your browser settings and try again.");
+      }
+    };
     recognitionRef.current = r;
     r.start();
     setListening(true);
@@ -383,19 +399,24 @@ export default function BobAgent({ theme: t, notes, onSweep, onAddNote }: Props)
             {hasSpeech && (
               <button
                 onClick={listening ? stopListening : startListening}
+                title={listening ? "Stop listening" : "Speak to BOB"}
                 style={{
-                  width: 32, height: 32, borderRadius: "50%", border: "none", flexShrink: 0,
+                  width: 30, height: 30, borderRadius: "50%", border: "none", flexShrink: 0,
                   background: listening
-                    ? "linear-gradient(135deg,#e05555,#c03030)"
-                    : t === "dark" ? "rgba(255,255,255,.1)" : "rgba(17,19,21,.08)",
+                    ? "rgba(192,48,48,.18)"
+                    : "transparent",
                   cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
                   animation: listening ? "micPulse 1.2s ease-in-out infinite" : "none",
                   transition: "background .2s",
                 }}
               >
-                {listening
-                  ? <Stop s={13} />
-                  : <Mic c={t === "dark" ? "rgba(237,237,235,.7)" : "rgba(17,19,21,.5)"} s={13} />}
+                <SpeechWave
+                  listening={listening}
+                  s={15}
+                  c={listening
+                    ? "#e05555"
+                    : t === "dark" ? "rgba(237,237,235,.55)" : "rgba(17,19,21,.4)"}
+                />
               </button>
             )}
 
@@ -418,14 +439,14 @@ export default function BobAgent({ theme: t, notes, onSweep, onAddNote }: Props)
               style={{
                 width: 28, height: 28, borderRadius: 8, border: "none", flexShrink: 0,
                 background: inputText.trim() && !loading
-                  ? "linear-gradient(135deg,#6fc46b,#4a7ef5)"
-                  : t === "dark" ? "rgba(255,255,255,.08)" : "rgba(17,19,21,.07)",
+                  ? t === "dark" ? "rgba(255,255,255,.18)" : "rgba(17,19,21,.14)"
+                  : "transparent",
                 cursor: inputText.trim() && !loading ? "pointer" : "default",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 transition: "background .15s",
               }}
             >
-              <Send c={inputText.trim() && !loading ? "#fff" : mu} />
+              <Send c={inputText.trim() && !loading ? T.text(t) : mu} />
             </button>
           </div>
 
@@ -483,27 +504,28 @@ export default function BobAgent({ theme: t, notes, onSweep, onAddNote }: Props)
                   if (e.key === "Escape") { setAddingAction(false); setNewActionLabel(""); }
                 }}
                 onBlur={() => { if (!newActionLabel.trim()) { setAddingAction(false); } }}
-                placeholder="Action name…"
+                placeholder="Name this action… (Enter to save)"
                 style={{
-                  padding: "4px 10px", borderRadius: 99,
+                  padding: "4px 12px", borderRadius: 99,
                   border: `1px solid ${T.chipBdr(t)}`,
                   background: T.chip(t),
                   color: T.text(t), fontSize: 11.5,
                   fontFamily: "'Satoshi', Arial, sans-serif",
-                  outline: "none", width: 110,
+                  outline: "none", width: 180,
                 }}
               />
             ) : (
               <button
                 onClick={() => setAddingAction(true)}
                 style={{
-                  padding: "4px 10px", borderRadius: 99,
+                  padding: "4px 12px", borderRadius: 99,
                   border:  `1px dashed ${T.chipBdr(t)}`,
                   background: "transparent",
                   color: mu, fontSize: 11.5, cursor: "pointer",
                   fontFamily: "'Satoshi', Arial, sans-serif",
+                  whiteSpace: "nowrap",
                 }}
-              >+ Add</button>
+              >+ Add Quick Action</button>
             )}
           </div>
 
