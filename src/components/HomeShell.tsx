@@ -1854,7 +1854,7 @@ export function HomeShell() {
                       <div style={{
                         ...pill(boardTheme),
                         fontWeight: 800,
-                        ...(isDueToday(note.dueDate) ? {
+                        ...(isDueToday(note.dueDate) && !note.completed && !note.steps.every(s => s.done) ? {
                           color: "#ff4444",
                           border: "1px solid rgba(255,60,60,.45)",
                           backgroundColor: "rgba(255,60,60,.12)",
@@ -2706,8 +2706,8 @@ export function HomeShell() {
                           fontSize: 15,
                           fontWeight: 600,
                           marginBottom: 6,
-                          color: isDueToday(detailNote.dueDate) ? "#ff4444" : pageText(boardTheme),
-                          ...(isDueToday(detailNote.dueDate) ? { textShadow: "0 0 10px rgba(255,60,60,.5)" } : {}),
+                          color: (isDueToday(detailNote.dueDate) && !detailNote.completed && !detailNote.steps.every(s => s.done)) ? "#ff4444" : pageText(boardTheme),
+                          ...((isDueToday(detailNote.dueDate) && !detailNote.completed && !detailNote.steps.every(s => s.done)) ? { textShadow: "0 0 10px rgba(255,60,60,.5)" } : {}),
                         }}>
                           Due {formatDate(detailNote.dueDate)}
                         </div>
