@@ -597,6 +597,9 @@ export function HomeShell() {
   const [mobileEditTitle, setMobileEditTitle] = useState("");
   const [mobileEditDueDate, setMobileEditDueDate] = useState("");
   const [mobileEditImportance, setMobileEditImportance] = useState<Importance>("none");
+  const [mobileDeleteConfirm, setMobileDeleteConfirm] = useState(false);
+  const [mobileFilterPriority, setMobileFilterPriority] = useState<"all" | "High" | "Medium" | "Low">("all");
+  const [mobileSortDate, setMobileSortDate] = useState(false);
   const [waitlistOpen, setWaitlistOpen] = useState(false);
   const [waitlistEmail, setWaitlistEmail] = useState("");
   const [waitlistDone, setWaitlistDone] = useState(false);
@@ -1583,6 +1586,8 @@ export function HomeShell() {
     setFocusSecondsLeft(totalSecs);
     setFocusCompleted(false);
     setFocusPaused(false);
+    setFocusExitConfirm(false);
+    setFocusNextStep(null);
     setFocusOpen(true);
   }
 
@@ -1760,10 +1765,11 @@ export function HomeShell() {
             const isExpanded = mobileExpandedIds.has(note.id);
             const impColor = priorityColor(imp, theme);
             const doneDots = note.steps.filter(s => s.done).length;
+            const hasSteps = note.steps.length > 0;
 
             return (
-              <div key={note.id} style={{ borderRadius: 14, backgroundColor: bg, border: bord, marginBottom: 9, overflow: "hidden" }}>
-                {/* Top pill row */}
+              <div key={note.id} style={{ borderRadius: 14, backgroundColor: bg, border: bord, marginBottom: 9 }}>
+                {/* Top meta row */}
                 <div style={{ padding: "11px 14px 0", display: "flex", alignItems: "center", gap: 6 }}>
                   <span style={{ flex: 1, fontSize: 10, fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: isDone ? (theme === "dark" ? "rgba(100,220,120,.8)" : "rgba(30,120,60,.7)") : (imp ? impColor : muted(theme)), opacity: isDone ? 1 : 0.75 }}>
                     {isDone ? "Completed" : (imp ? `${imp} priority` : "Task")}
@@ -1774,30 +1780,50 @@ export function HomeShell() {
                       <span style={{ fontSize: 10, fontWeight: 600, color: dueColor }}>{dueLabel}</span>
                     </>
                   )}
-                  <button onClick={() => openEdit(note)} style={{ ...dotBtn, marginLeft: 6 }}>···</button>
+                  <button type="button" onClick={() => openEdit(note)} style={{ ...dotBtn, marginLeft: 6 }}>···</button>
                 </div>
-                {/* Title + Focus row */}
+                {/* Title + Focus */}
                 <div style={{ padding: "4px 14px 13px", display: "flex", alignItems: "flex-start", gap: 10 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 16, fontWeight: 700, color: isDone ? muted(theme) : pageText(theme), textDecoration: isDone ? "line-through" : "none", lineHeight: 1.3, wordBreak: "break-word", opacity: isDone ? .5 : 1 }}>{note.title}</div>
-                    {note.steps.length > 0 && (
-                      <div style={{ display: "flex", gap: 5, alignItems: "center", marginTop: 7 }}>
+                    {hasSteps && (
+                      <button
+                        type="button"
+                        onClick={() => setMobileExpandedIds(prev => { const n = new Set(prev); n.has(note.id) ? n.delete(note.id) : n.add(note.id); return n; })}
+                        style={{ background: "none", border: "none", padding: "6px 0 0", cursor: "pointer", display: "flex", gap: 5, alignItems: "center" }}
+                      >
                         {note.steps.map(s => (
                           <span key={s.id} style={{ width: 8, height: 8, borderRadius: "50%", border: s.done ? "1px solid #3d8b40" : `1px solid ${theme === "dark" ? "rgba(255,255,255,.22)" : "rgba(0,0,0,.18)"}`, backgroundColor: s.done ? "#6fc46b" : "transparent", display: "inline-block", flexShrink: 0 }} />
                         ))}
                         <span style={{ fontSize: 11, color: muted(theme), opacity: .6, marginLeft: 2 }}>{doneDots}/{note.steps.length}</span>
-                      </div>
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ marginLeft: 2, transform: isExpanded ? "rotate(180deg)" : "none", transition: "transform .18s", opacity: .45 }}>
+                          <polyline points="2,3.5 5,6.5 8,3.5" stroke={pageText(theme)} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </button>
                     )}
                   </div>
                   {!isDone && (
                     <button
+                      type="button"
                       onClick={() => startFocus(note.id, false)}
-                      style={{ flexShrink: 0, height: 32, borderRadius: 999, backgroundColor: theme === "dark" ? "#111315" : "#171613", color: "#f7f8fb", border: "none", padding: "0 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", marginTop: 2 }}
+                      style={{ flexShrink: 0, height: 34, borderRadius: 999, backgroundColor: theme === "dark" ? "#111315" : "#171613", color: "#f7f8fb", border: "none", padding: "0 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", marginTop: 2 }}
                     >
                       Focus
                     </button>
                   )}
                 </div>
+                {/* Expanded subtasks */}
+                {isExpanded && hasSteps && (
+                  <div style={{ borderTop: `1px solid ${border(theme)}`, padding: "10px 14px 13px", display: "flex", flexDirection: "column", gap: 8 }}>
+                    {note.steps.map(step => (
+                      <div key={step.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{ width: 9, height: 9, borderRadius: "50%", border: step.done ? "1px solid #3d8b40" : `1px solid ${theme === "dark" ? "rgba(255,255,255,.22)" : "rgba(0,0,0,.22)"}`, backgroundColor: step.done ? "#6fc46b" : "transparent", display: "inline-block", flexShrink: 0 }} />
+                        <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: step.done ? muted(theme) : pageText(theme), opacity: step.done ? .5 : 1, textDecoration: step.done ? "line-through" : "none" }}>{step.title}</span>
+                        {step.minutes && <span style={{ fontSize: 11, color: muted(theme), opacity: .45 }}>{step.minutes}m</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             );
           }
@@ -1856,25 +1882,63 @@ export function HomeShell() {
                 </div>
               )}
 
-              {/* List — show spinner while cloud is loading after sign-in */}
+              {/* Loading state */}
               {isSignedIn && cloudSyncState === "loading" && (
                 <div style={{ textAlign: "center", padding: "52px 0", color: muted(theme), fontSize: 13, opacity: .5 }}>Loading your boards…</div>
               )}
+
+              {/* Filter + sort bar (task boards only) */}
+              {!isThoughtBoard && !(isSignedIn && cloudSyncState === "loading") && (
+                <div style={{ display: "flex", gap: 6, padding: "0 16px 12px", alignItems: "center", overflowX: "auto", scrollbarWidth: "none" }}>
+                  {(["all", "High", "Medium", "Low"] as const).map(f => {
+                    const active = mobileFilterPriority === f;
+                    const col = f === "all" ? muted(theme) : PRIORITY_COLORS[f as "High"|"Medium"|"Low"];
+                    return (
+                      <button type="button" key={f} onClick={() => setMobileFilterPriority(f)}
+                        style={{ flexShrink: 0, height: 28, borderRadius: 999, border: active ? `1.5px solid ${col}` : `1px solid ${border(theme)}`, backgroundColor: active && f !== "all" ? hexToRgba(PRIORITY_COLORS[f as "High"|"Medium"|"Low"], 0.12) : "transparent", color: active ? col : muted(theme), fontSize: 11, fontWeight: 700, padding: "0 11px", cursor: "pointer" }}
+                      >{f === "all" ? "All" : f}</button>
+                    );
+                  })}
+                  <div style={{ flex: 1 }} />
+                  <button type="button" onClick={() => setMobileSortDate(s => !s)}
+                    style={{ flexShrink: 0, height: 28, borderRadius: 999, border: mobileSortDate ? `1.5px solid ${muted(theme)}` : `1px solid ${border(theme)}`, backgroundColor: "transparent", color: muted(theme), fontSize: 11, fontWeight: 700, padding: "0 11px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                  >
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><line x1="1" y1="3" x2="9" y2="3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="2.5" y1="5.5" x2="7.5" y2="5.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="4" y1="8" x2="6" y2="8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
+                    {mobileSortDate ? "By date" : "Default"}
+                  </button>
+                </div>
+              )}
+
               <div style={{ padding: "0 16px", display: isSignedIn && cloudSyncState === "loading" ? "none" : undefined }}>
-                {!isThoughtBoard && (
-                  <>
-                    {pendingTasks.length === 0 && doneTasks.length === 0 && (
-                      <div style={{ textAlign: "center", padding: "52px 0 20px", color: muted(theme), fontSize: 14, opacity: .45 }}>No tasks yet — tap + to add one</div>
-                    )}
-                    {pendingTasks.map(note => renderTaskCard(note))}
-                    {doneTasks.length > 0 && (
-                      <>
-                        <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".09em", textTransform: "uppercase", color: muted(theme), opacity: .4, marginTop: pendingTasks.length > 0 ? 20 : 0, marginBottom: 10 }}>Completed</div>
-                        {doneTasks.map(note => renderTaskCard(note))}
-                      </>
-                    )}
-                  </>
-                )}
+                {!isThoughtBoard && (() => {
+                  let filtered = pendingTasks.filter(t =>
+                    mobileFilterPriority === "all" || (t.importance === mobileFilterPriority)
+                  );
+                  if (mobileSortDate) {
+                    filtered = [...filtered].sort((a, b) => {
+                      if (!a.dueDate && !b.dueDate) return 0;
+                      if (!a.dueDate) return 1;
+                      if (!b.dueDate) return -1;
+                      return a.dueDate < b.dueDate ? -1 : 1;
+                    });
+                  }
+                  return (
+                    <>
+                      {filtered.length === 0 && doneTasks.length === 0 && (
+                        <div style={{ textAlign: "center", padding: "52px 0 20px", color: muted(theme), fontSize: 14, opacity: .45 }}>
+                          {pendingTasks.length === 0 ? "No tasks yet — tap + to add one" : "No tasks match this filter"}
+                        </div>
+                      )}
+                      {filtered.map(note => renderTaskCard(note))}
+                      {doneTasks.length > 0 && mobileFilterPriority === "all" && (
+                        <>
+                          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".09em", textTransform: "uppercase", color: muted(theme), opacity: .4, marginTop: filtered.length > 0 ? 20 : 0, marginBottom: 10 }}>Completed</div>
+                          {doneTasks.map(note => renderTaskCard(note))}
+                        </>
+                      )}
+                    </>
+                  );
+                })()}
                 {isThoughtBoard && (
                   <>
                     {thoughts.length === 0 && (
@@ -1918,12 +1982,6 @@ export function HomeShell() {
                             );
                           })}
                         </div>
-                        <input
-                          type="date"
-                          value={mobileAddDueDate}
-                          onChange={e => setMobileAddDueDate(e.target.value)}
-                          style={{ fontSize: 15, fontWeight: 600, color: mobileAddDueDate ? pageText(theme) : muted(theme), backgroundColor: paper(theme), border: `1.5px solid ${border(theme)}`, borderRadius: 12, padding: "11px 14px", outline: "none", width: "100%", boxSizing: "border-box", appearance: "none", WebkitAppearance: "none" }}
-                        />
                       </>
                     )}
                     <button
@@ -1939,7 +1997,7 @@ export function HomeShell() {
               {/* Edit / delete action sheet */}
               {actionNote && (
                 <div style={{ position: "fixed", inset: 0, zIndex: 810, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
-                  <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,.4)" }} onClick={() => setMobileActionNoteId(null)} />
+                  <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,.4)" }} onClick={() => { setMobileActionNoteId(null); setMobileDeleteConfirm(false); }} />
                   <div style={{ position: "relative", backgroundColor: surface(theme), borderRadius: "20px 20px 0 0", padding: "20px 20px 36px", display: "flex", flexDirection: "column", gap: 12 }}>
                     <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: muted(theme), opacity: .5, marginBottom: 2 }}>Edit</div>
                     <input
@@ -1978,14 +2036,25 @@ export function HomeShell() {
                           if (!mobileEditTitle.trim()) return;
                           setNotes(ns => ns.map(n => n.id === actionNote.id ? { ...n, title: mobileEditTitle.trim(), importance: mobileEditImportance, dueDate: mobileEditDueDate || undefined } : n));
                           setMobileActionNoteId(null);
+                          setMobileDeleteConfirm(false);
                         }}
                         style={{ flex: 1, height: 44, borderRadius: 12, backgroundColor: theme === "dark" ? "#f5f5f2" : "#171613", color: theme === "dark" ? "#171613" : "#f7f8fb", border: "none", fontSize: 15, fontWeight: 700, cursor: "pointer" }}
                       >Save</button>
-                      <button
-                        onClick={() => { setNotes(ns => ns.filter(n => n.id !== actionNote.id)); setMobileActionNoteId(null); }}
-                        style={{ height: 44, borderRadius: 12, backgroundColor: "transparent", color: theme === "dark" ? "#ff8080" : "#c03030", border: `1.5px solid ${theme === "dark" ? "rgba(220,60,60,.35)" : "rgba(180,40,40,.25)"}`, padding: "0 20px", fontSize: 15, fontWeight: 700, cursor: "pointer" }}
-                      >Delete</button>
+                      {mobileDeleteConfirm ? (
+                        <button
+                          onClick={() => { setNotes(ns => ns.filter(n => n.id !== actionNote.id)); setMobileActionNoteId(null); setMobileDeleteConfirm(false); }}
+                          style={{ height: 44, borderRadius: 12, backgroundColor: theme === "dark" ? "rgba(220,60,60,.18)" : "rgba(180,40,40,.1)", color: theme === "dark" ? "#ff8080" : "#c03030", border: `1.5px solid ${theme === "dark" ? "rgba(220,60,60,.5)" : "rgba(180,40,40,.4)"}`, padding: "0 16px", fontSize: 14, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" }}
+                        >Confirm</button>
+                      ) : (
+                        <button
+                          onClick={() => setMobileDeleteConfirm(true)}
+                          style={{ height: 44, borderRadius: 12, backgroundColor: "transparent", color: theme === "dark" ? "#ff8080" : "#c03030", border: `1.5px solid ${theme === "dark" ? "rgba(220,60,60,.35)" : "rgba(180,40,40,.25)"}`, padding: "0 20px", fontSize: 15, fontWeight: 700, cursor: "pointer" }}
+                        >Delete</button>
+                      )}
                     </div>
+                    {mobileDeleteConfirm && (
+                      <div style={{ fontSize: 12, color: theme === "dark" ? "#ff8080" : "#c03030", textAlign: "center", opacity: .75, marginTop: -4 }}>Tap Confirm to permanently delete</div>
+                    )}
                   </div>
                 </div>
               )}
