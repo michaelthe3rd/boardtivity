@@ -104,21 +104,26 @@ function formatDate(date?: string) {
   });
 }
 
+function todayStr() {
+  const t = new Date();
+  return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
+}
+
+function tomorrowStr() {
+  const t = new Date();
+  t.setDate(t.getDate() + 1);
+  return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
+}
+
 function isDueToday(date?: string) {
-  if (!date) return false;
-  const today = new Date();
-  const d = new Date(date + "T12:00:00");
-  return d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth() && d.getDate() === today.getDate();
+  return !!date && date === todayStr();
 }
 
 function formatDateShort(date?: string) {
   if (!date) return "";
-  const today = new Date();
-  const d = new Date(date + "T12:00:00");
-  const diffDays = Math.round((d.getTime() - new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()) / 86400000);
-  if (diffDays === 0) return "Today";
-  if (diffDays === 1) return "Tomorrow";
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  if (date === todayStr()) return "Today";
+  if (date === tomorrowStr()) return "Tomorrow";
+  return new Date(date + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 function nextBoardName(existing: Board[], type: BoardType) {
