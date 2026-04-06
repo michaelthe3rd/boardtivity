@@ -829,15 +829,6 @@ export function HomeShell() {
 
     const cloudHasRealData = savedBoard && !isCloudDefaultOnly(savedBoard.boardState);
 
-    // Debug — remove once sync is confirmed working
-    console.log("[Boardtivity sync]", {
-      userId: user?.id,
-      cloudUpdatedAt: savedBoard?.updatedAt,
-      localSavedAt,
-      cloudHasRealData,
-      lastAppliedCloudAt: lastAppliedCloudAtRef.current,
-    });
-
     if (cloudHasRealData && savedBoard.updatedAt > localSavedAt && savedBoard.updatedAt > lastAppliedCloudAtRef.current) {
       // Cloud is newer and not something we already applied — apply it
       justAppliedCloudRef.current = true;
