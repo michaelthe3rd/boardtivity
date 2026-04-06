@@ -27,11 +27,11 @@ const MOCK_VOICE = {
 };
 
 export async function POST(req: NextRequest) {
-  let body: { action: string; notes?: NoteSnap[]; query?: string; transcript?: string };
+  let body: { action: string; notes?: NoteSnap[]; query?: string; transcript?: string; message?: string };
   try { body = await req.json(); }
   catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
 
-  const { action, notes = [], query, transcript } = body;
+  const { action, notes = [], query, transcript, message } = body;
 
   // ── Mock mode: no API key set ─────────────────────────────────────────────
   if (!process.env.ANTHROPIC_API_KEY) {
@@ -46,6 +46,11 @@ export async function POST(req: NextRequest) {
       if (!transcript?.trim()) return NextResponse.json({ error: "No transcript" }, { status: 400 });
       await new Promise(r => setTimeout(r, 500));
       return NextResponse.json({ task: { ...MOCK_VOICE, title: transcript.slice(0, 60) } });
+    }
+    if (action === "chat") {
+      if (!message?.trim()) return NextResponse.json({ error: "No message" }, { status: 400 });
+      await new Promise(r => setTimeout(r, 600));
+      return NextResponse.json({ response: `[MOCK] Got it — "${message.slice(0, 60)}". This is a placeholder response. Connect an Anthropic API key for real answers.` });
     }
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   }
@@ -103,6 +108,34 @@ export async function POST(req: NextRequest) {
     } catch {
       return NextResponse.json({ error: "Parse failed", raw }, { status: 422 });
     }
+  }
+
+  if (action === "chat") {
+    if (!message?.trim()) return NextResponse.json({ error: "No message" }, { status: 400 });
+
+    const active = notes.filter(n => !n.completed);
+    const boardContext = active.length
+      ? active.map(n => {
+          const parts = [`[${n.type.toUpperCase()}] "${n.title}"`];
+          if (n.importance && n.importance !== "none") parts.push(`priority:${n.importance}`);
+          if (n.dueDate)  parts.push(`due:${n.dueDate}`);
+          if (n.minutes)  parts.push(`~${n.minutes}min`);
+          if (n.body)     parts.push(`note:"${n.body.slice(0, 80)}"`);
+          return parts.join(" | ");
+        }).join("\n")
+      : "The board is empty.";
+
+    const msg = await client.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 400,
+      messages: [{
+        role: "user",
+        content: `You are BOB (Boardtivity Operating Brain), a smart, concise AI assistant for a task board app. The user's board:\n\n${boardContext}\n\nUser message: ${message}\n\nReply helpfully and concisely. 1-4 sentences max.`,
+      }],
+    });
+
+    const text = msg.content[0].type === "text" ? msg.content[0].text : "";
+    return NextResponse.json({ response: text });
   }
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 });

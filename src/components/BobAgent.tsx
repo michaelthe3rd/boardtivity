@@ -3,8 +3,9 @@
 import { useState, useEffect, useRef, useCallback, type ReactElement } from "react";
 import type { ThemeMode, Note, Importance } from "@/lib/board";
 
-type SweepMode  = "priority" | "dueDate" | "type" | "smart";
+// ── Types ────────────────────────────────────────────────────────────────────
 type BrainQuery = "whatFirst" | "summary" | "overdue";
+type SweepMode  = "priority" | "dueDate" | "type" | "smart";
 
 export type BobSweepResult = { id: number; x: number; y: number }[];
 export type BobNewNote = {
@@ -15,6 +16,11 @@ export type BobNewNote = {
   steps: { title: string; minutes: number }[];
 };
 
+type QuickAction =
+  | { id: string; label: string; type: "brain"; query: BrainQuery }
+  | { id: string; label: string; type: "sweep"; mode: SweepMode }
+  | { id: string; label: string; type: "chat" };
+
 interface Props {
   theme: ThemeMode;
   notes: Note[];
@@ -22,26 +28,38 @@ interface Props {
   onAddNote: (note: BobNewNote) => void;
 }
 
+// ── Defaults ─────────────────────────────────────────────────────────────────
+const DEFAULT_ACTIONS: QuickAction[] = [
+  { id: "d1", label: "What first?",      type: "brain", query: "whatFirst" },
+  { id: "d2", label: "Summarize board",  type: "brain", query: "summary"   },
+  { id: "d3", label: "What's overdue?",  type: "brain", query: "overdue"   },
+  { id: "d4", label: "Sort by priority", type: "sweep", mode: "priority"   },
+];
+const ACTIONS_KEY = "bob_quick_actions";
+
+function loadActions(): QuickAction[] {
+  try { const r = localStorage.getItem(ACTIONS_KEY); if (r) return JSON.parse(r); } catch {}
+  return DEFAULT_ACTIONS;
+}
+function saveActions(a: QuickAction[]) {
+  try { localStorage.setItem(ACTIONS_KEY, JSON.stringify(a)); } catch {}
+}
+
 // ── Theme ────────────────────────────────────────────────────────────────────
 const T = {
   bg:        (t: ThemeMode) => t === "dark" ? "rgba(16,18,22,.98)" : "rgba(252,252,250,.99)",
-  border:    (t: ThemeMode) => t === "dark" ? "rgba(255,255,255,.11)" : "rgba(17,19,21,.11)",
-  divider:   (t: ThemeMode) => t === "dark" ? "rgba(255,255,255,.07)" : "rgba(17,19,21,.07)",
-  text:      (t: ThemeMode) => t === "dark" ? "#ededeb"              : "#111315",
-  muted:     (t: ThemeMode) => t === "dark" ? "rgba(237,237,235,.36)" : "rgba(17,19,21,.36)",
-  btn:       (t: ThemeMode) => t === "dark" ? "rgba(255,255,255,.055)" : "rgba(17,19,21,.04)",
-  btnHover:  (t: ThemeMode) => t === "dark" ? "rgba(255,255,255,.1)"  : "rgba(17,19,21,.08)",
-  btnBorder: (t: ThemeMode) => t === "dark" ? "rgba(255,255,255,.09)" : "rgba(17,19,21,.09)",
-  accent:    "#5a96e6",
-  green:     (t: ThemeMode) => t === "dark" ? "#7ddd79" : "#2b9e28",
-  greenBg:   (t: ThemeMode) => t === "dark" ? "rgba(125,221,121,.12)" : "rgba(43,158,40,.08)",
-  greenBdr:  (t: ThemeMode) => t === "dark" ? "rgba(125,221,121,.3)"  : "rgba(43,158,40,.3)",
+  border:    (t: ThemeMode) => t === "dark" ? "rgba(255,255,255,.1)"  : "rgba(17,19,21,.1)",
+  text:      (t: ThemeMode) => t === "dark" ? "#ededeb"               : "#111315",
+  muted:     (t: ThemeMode) => t === "dark" ? "rgba(237,237,235,.38)" : "rgba(17,19,21,.38)",
+  chip:      (t: ThemeMode) => t === "dark" ? "rgba(255,255,255,.07)" : "rgba(17,19,21,.05)",
+  chipBdr:   (t: ThemeMode) => t === "dark" ? "rgba(255,255,255,.1)"  : "rgba(17,19,21,.1)",
+  input:     (t: ThemeMode) => t === "dark" ? "rgba(255,255,255,.05)" : "rgba(17,19,21,.04)",
+  inputBdr:  (t: ThemeMode) => t === "dark" ? "rgba(255,255,255,.09)" : "rgba(17,19,21,.09)",
 };
 
 // ── Sweep ────────────────────────────────────────────────────────────────────
 function computeSweep(notes: Note[], mode: SweepMode): BobSweepResult {
   const CARD_W = 252, ROW_H = 168, COL_GAP = 22, ROW_GAP = 18, COLS = 5, START_X = 60, START_Y = 72;
-  // Only reposition non-completed notes; completed notes stay hidden wherever they are
   const sorted = notes.filter(n => !n.completed);
   if (mode === "priority") {
     const r: Record<string, number> = { High: 0, Medium: 1, Low: 2, none: 3 };
@@ -49,8 +67,7 @@ function computeSweep(notes: Note[], mode: SweepMode): BobSweepResult {
   } else if (mode === "dueDate") {
     sorted.sort((a, b) => {
       if (!a.dueDate && !b.dueDate) return 0;
-      if (!a.dueDate) return 1;
-      if (!b.dueDate) return -1;
+      if (!a.dueDate) return 1; if (!b.dueDate) return -1;
       return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
     });
   } else if (mode === "type") {
@@ -66,87 +83,47 @@ function computeSweep(notes: Note[], mode: SweepMode): BobSweepResult {
   }));
 }
 
-// ── SVG Icons ────────────────────────────────────────────────────────────────
-const I = {
-  Arrow: ({ c, s = 11 }: { c: string; s?: number }) => (
-    <svg width={s} height={s} viewBox="0 0 12 12" fill="none">
-      <path d="M1.5 6h9M7 2.5L10.5 6 7 9.5" stroke={c} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  ),
-  Lines: ({ c, s = 11 }: { c: string; s?: number }) => (
-    <svg width={s} height={s} viewBox="0 0 12 12" fill="none">
-      <line x1="1" y1="2.5" x2="11" y2="2.5" stroke={c} strokeWidth="1.6" strokeLinecap="round"/>
-      <line x1="1" y1="6"   x2="8.5" y2="6"  stroke={c} strokeWidth="1.6" strokeLinecap="round"/>
-      <line x1="1" y1="9.5" x2="6"  y2="9.5" stroke={c} strokeWidth="1.6" strokeLinecap="round"/>
-    </svg>
-  ),
-  Clock: ({ c, s = 11 }: { c: string; s?: number }) => (
-    <svg width={s} height={s} viewBox="0 0 12 12" fill="none">
-      <circle cx="6" cy="6" r="4.5" stroke={c} strokeWidth="1.5"/>
-      <path d="M6 3.5V6l1.8 1.8" stroke={c} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  ),
-  Sort: ({ c, s = 11 }: { c: string; s?: number }) => (
-    <svg width={s} height={s} viewBox="0 0 12 12" fill="none">
-      <path d="M1 2.5h10M1 6h7M1 9.5h4" stroke={c} strokeWidth="1.6" strokeLinecap="round"/>
-    </svg>
-  ),
-  Cal: ({ c, s = 11 }: { c: string; s?: number }) => (
-    <svg width={s} height={s} viewBox="0 0 12 12" fill="none">
-      <rect x="1" y="2" width="10" height="9" rx="1.5" stroke={c} strokeWidth="1.4"/>
-      <line x1="1" y1="5.2" x2="11" y2="5.2" stroke={c} strokeWidth="1.2"/>
-      <line x1="4" y1="0.5" x2="4" y2="3.5" stroke={c} strokeWidth="1.5" strokeLinecap="round"/>
-      <line x1="8" y1="0.5" x2="8" y2="3.5" stroke={c} strokeWidth="1.5" strokeLinecap="round"/>
-    </svg>
-  ),
-  Tag: ({ c, s = 11 }: { c: string; s?: number }) => (
-    <svg width={s} height={s} viewBox="0 0 12 12" fill="none">
-      <path d="M1 1.5h4.2L11 7.3 7.3 11 1.5 5.2V1.5H1z" stroke={c} strokeWidth="1.4" strokeLinejoin="round"/>
-      <circle cx="3.8" cy="3.8" r="0.9" fill={c}/>
-    </svg>
-  ),
-  Star: ({ c, s = 11 }: { c: string; s?: number }) => (
-    <svg width={s} height={s} viewBox="0 0 12 12" fill="none">
-      <path d="M6 1L7.2 4.8H11.1L8 7.1 9.1 11 6 8.7 2.9 11 4 7.1 0.9 4.8H4.8L6 1Z" fill={c}/>
-    </svg>
-  ),
-  Mic: ({ s = 17, c = "white" }: { s?: number; c?: string }) => (
+// ── Icons ────────────────────────────────────────────────────────────────────
+function Mic({ c = "white", s = 16 }: { c?: string; s?: number }) {
+  return (
     <svg width={s} height={s} viewBox="0 0 24 24" fill="none">
       <rect x="9" y="2" width="6" height="12" rx="3" fill={c}/>
       <path d="M5 11a7 7 0 0 0 14 0" stroke={c} strokeWidth="2" strokeLinecap="round"/>
       <line x1="12" y1="18" x2="12" y2="22" stroke={c} strokeWidth="2" strokeLinecap="round"/>
       <line x1="8"  y1="22" x2="16" y2="22" stroke={c} strokeWidth="2" strokeLinecap="round"/>
     </svg>
-  ),
-  Stop: ({ s = 17, c = "white" }: { s?: number; c?: string }) => (
-    <svg width={s} height={s} viewBox="0 0 24 24" fill="none">
-      <rect x="6" y="6" width="12" height="12" rx="2.5" fill={c}/>
+  );
+}
+function Stop({ c = "white", s = 16 }: { c?: string; s?: number }) {
+  return <svg width={s} height={s} viewBox="0 0 24 24" fill="none"><rect x="6" y="6" width="12" height="12" rx="2.5" fill={c}/></svg>;
+}
+function Send({ c, s = 14 }: { c: string; s?: number }) {
+  return (
+    <svg width={s} height={s} viewBox="0 0 14 14" fill="none">
+      <path d="M1 7h12M8 2l5 5-5 5" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
-  ),
-  Spinner: ({ c, s = 13 }: { c: string; s?: number }) => (
+  );
+}
+function Spinner({ c, s = 13 }: { c: string; s?: number }) {
+  return (
     <svg width={s} height={s} viewBox="0 0 24 24" fill="none" style={{ animation: "spin 0.9s linear infinite", flexShrink: 0 }}>
       <circle cx="12" cy="12" r="9" stroke={c} strokeWidth="2.5" strokeDasharray="40 20" strokeLinecap="round"/>
     </svg>
-  ),
-};
+  );
+}
 
-// ── Robot icon (no sparkle; viewBox cropped to head so it centers with text) ──
-function BobIcon({ size = 18, color }: { size?: number; color: string }) {
+// ── Robot icon ────────────────────────────────────────────────────────────────
+// viewBox 0 0 110 78 (no sparkle) — robot is vertically centered in bounds
+function BobIcon({ size = 20, color }: { size?: number; color: string }) {
   return (
-    <svg
-      width={size}
-      height={Math.round(size * (78 / 110))}
-      viewBox="0 0 110 78"
-      fill="none"
-      style={{ flexShrink: 0, display: "block" }}
-    >
-      <rect x="0"   y="23" width="12" height="27" rx="6"   fill={color} />
-      <rect x="98"  y="23" width="12" height="27" rx="6"   fill={color} />
-      <rect x="13"  y="4"  width="84" height="70" rx="22"  stroke={color} strokeWidth="8" fill="none" />
-      <rect x="24"  y="15" width="62" height="48" rx="13"  stroke={color} strokeWidth="5" fill="none" />
-      <rect x="33"  y="28" width="16" height="16" rx="3.5" fill={color} />
-      <rect x="61"  y="28" width="16" height="16" rx="3.5" fill={color} />
-      <line x1="40" y1="52" x2="70"  y2="52" stroke={color} strokeWidth="5.5" strokeLinecap="round" />
+    <svg width={size} height={Math.round(size * (78 / 110))} viewBox="0 0 110 78" fill="none" style={{ flexShrink: 0, display: "block" }}>
+      <rect x="0"  y="23" width="12" height="27" rx="6"   fill={color}/>
+      <rect x="98" y="23" width="12" height="27" rx="6"   fill={color}/>
+      <rect x="13" y="4"  width="84" height="70" rx="22"  stroke={color} strokeWidth="8"  fill="none"/>
+      <rect x="24" y="15" width="62" height="48" rx="13"  stroke={color} strokeWidth="5"  fill="none"/>
+      <rect x="33" y="28" width="16" height="16" rx="3.5" fill={color}/>
+      <rect x="61" y="28" width="16" height="16" rx="3.5" fill={color}/>
+      <line x1="40" y1="52" x2="70" y2="52" stroke={color} strokeWidth="5.5" strokeLinecap="round"/>
     </svg>
   );
 }
@@ -157,28 +134,29 @@ export default function BobAgent({ theme: t, notes, onSweep, onAddNote }: Props)
   const [closing, setClosing] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  // Brain
-  const [brainQuery,    setBrainQuery]    = useState<BrainQuery | null>(null);
-  const [brainLoading,  setBrainLoading]  = useState(false);
-  const [brainResponse, setBrainResponse] = useState<string | null>(null);
+  // Conversation
+  const [inputText, setInputText] = useState("");
+  const [loading,   setLoading]   = useState(false);
+  const [response,  setResponse]  = useState<string | null>(null);
 
-  // Sweep
-  const [sweepMode, setSweepMode] = useState<SweepMode>("priority");
-  const [sweepDone, setSweepDone] = useState(false);
+  // Quick actions
+  const [quickActions,    setQuickActions]    = useState<QuickAction[]>(DEFAULT_ACTIONS);
+  const [addingAction,    setAddingAction]    = useState(false);
+  const [newActionLabel,  setNewActionLabel]  = useState("");
+  const [hoveredChip,     setHoveredChip]     = useState<string | null>(null);
 
   // Voice
-  const [listening,    setListening]    = useState(false);
-  const [transcript,   setTranscript]   = useState("");
-  const [voiceLoading, setVoiceLoading] = useState(false);
-  const [voiceResult,  setVoiceResult]  = useState<BobNewNote | null>(null);
-  const [voiceAdded,   setVoiceAdded]   = useState(false);
+  const [listening,  setListening]  = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
+  const inputRef       = useRef<HTMLInputElement>(null);
   const containerRef   = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+    setQuickActions(loadActions());
+  }, []);
 
-  // Outside click → close
   useEffect(() => {
     if (!open || closing) return;
     const onDown = (e: MouseEvent) => {
@@ -188,46 +166,84 @@ export default function BobAgent({ theme: t, notes, onSweep, onAddNote }: Props)
     return () => document.removeEventListener("mousedown", onDown);
   }, [open, closing]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Actions ───────────────────────────────────────────────────────────────
-  function doOpen() {
-    setOpen(true);
-    setClosing(false);
-    setBrainResponse(null);
-    setSweepDone(false);
-  }
-
+  function doOpen()  { setOpen(true);  setClosing(false); setResponse(null); }
   function doClose() {
     setClosing(true);
-    // After close animation settles, fully unmount panel content
-    setTimeout(() => { setOpen(false); setClosing(false); }, 400);
+    setTimeout(() => { setOpen(false); setClosing(false); }, 380);
   }
 
-  async function askBrain(query: BrainQuery) {
-    setBrainQuery(query);
-    setBrainLoading(true);
-    setBrainResponse(null);
+  // ── API calls ────────────────────────────────────────────────────────────
+  const noteSnaps = notes.map(n => ({
+    id: n.id, type: n.type, title: n.title, body: n.body,
+    importance: n.importance, dueDate: n.dueDate, minutes: n.minutes,
+    completed: n.completed,
+    steps: n.steps.map(s => ({ title: s.title, minutes: s.minutes, done: s.done })),
+  }));
+
+  async function callApi(body: object): Promise<string> {
+    const res  = await fetch("/api/bob", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    return data.response ?? data.error ?? "Something went wrong.";
+  }
+
+  async function send(message?: string) {
+    const msg = (message ?? inputText).trim();
+    if (!msg || loading) return;
+    setInputText("");
+    setLoading(true);
+    setResponse(null);
     try {
-      const res  = await fetch("/api/bob", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          action: "brain", query,
-          notes: notes.map(n => ({
-            id: n.id, type: n.type, title: n.title, body: n.body,
-            importance: n.importance, dueDate: n.dueDate, minutes: n.minutes,
-            completed: n.completed,
-            steps: n.steps.map(s => ({ title: s.title, minutes: s.minutes, done: s.done })),
-          })),
-        }),
-      });
-      const data = await res.json();
-      setBrainResponse(data.response ?? data.error ?? "Something went wrong.");
-    } catch {
-      setBrainResponse("Couldn't reach BOB right now.");
-    } finally {
-      setBrainLoading(false);
+      const text = await callApi({ action: "chat", message: msg, notes: noteSnaps });
+      setResponse(text);
+    } catch { setResponse("Couldn't reach BOB right now."); }
+    finally  { setLoading(false); }
+  }
+
+  async function brainQuery(query: BrainQuery) {
+    setLoading(true);
+    setResponse(null);
+    try {
+      const text = await callApi({ action: "brain", query, notes: noteSnaps });
+      setResponse(text);
+    } catch { setResponse("Couldn't reach BOB right now."); }
+    finally  { setLoading(false); }
+  }
+
+  function handleQuickAction(action: QuickAction) {
+    if (action.type === "brain") {
+      brainQuery(action.query);
+    } else if (action.type === "sweep") {
+      const label = action.mode === "priority" ? "priority" : action.mode === "dueDate" ? "due date" : action.mode === "type" ? "type" : "alphabetically";
+      onSweep(computeSweep(notes, action.mode));
+      setResponse(`Sorted your board by ${label}.`);
+    } else {
+      send(action.label);
     }
   }
+
+  function addAction() {
+    const label = newActionLabel.trim();
+    if (!label) return;
+    const updated = [...quickActions, { id: Date.now().toString(), label, type: "chat" as const }];
+    setQuickActions(updated);
+    saveActions(updated);
+    setAddingAction(false);
+    setNewActionLabel("");
+  }
+
+  function deleteAction(id: string) {
+    const updated = quickActions.filter(a => a.id !== id);
+    setQuickActions(updated);
+    saveActions(updated);
+  }
+
+  // ── Voice ────────────────────────────────────────────────────────────────
+  const hasSpeech = typeof window !== "undefined" &&
+    ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
 
   const startListening = useCallback(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -235,115 +251,60 @@ export default function BobAgent({ theme: t, notes, onSweep, onAddNote }: Props)
     if (!SR) return;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const r: any = new SR();
-    r.continuous     = false;
-    r.interimResults = true;
-    r.lang           = "en-US";
+    r.continuous = false; r.interimResults = true; r.lang = "en-US";
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     r.onresult = (e: any) => {
       const txt = Array.from(e.results as ArrayLike<{ 0: { transcript: string } }>)
         .map(x => x[0].transcript).join(" ");
-      setTranscript(txt);
+      setInputText(txt);
     };
-    r.onend  = () => setListening(false);
+    r.onend = () => setListening(false);
     r.onerror = () => setListening(false);
     recognitionRef.current = r;
     r.start();
     setListening(true);
-    setTranscript("");
-    setVoiceResult(null);
-    setVoiceAdded(false);
   }, []);
 
   function stopListening() { recognitionRef.current?.stop(); setListening(false); }
 
-  async function parseVoice() {
-    if (!transcript.trim()) return;
-    setVoiceLoading(true);
-    setVoiceResult(null);
-    try {
-      const res  = await fetch("/api/bob", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action: "voice", transcript }),
-      });
-      const data = await res.json();
-      if (data.task) setVoiceResult(data.task as BobNewNote);
-    } catch { /* leave null */ }
-    finally { setVoiceLoading(false); }
-  }
-
-  function addVoiceNote(r: BobNewNote) {
-    onAddNote(r);
-    setVoiceAdded(true);
-    setTimeout(() => { setVoiceAdded(false); setVoiceResult(null); setTranscript(""); }, 1800);
-  }
-
-  function handleSweep() {
-    onSweep(computeSweep(notes, sweepMode));
-    setSweepDone(true);
-    setTimeout(() => setSweepDone(false), 2500);
-  }
-
   // ── Derived ───────────────────────────────────────────────────────────────
-  const isExpanded  = open && !closing;
-  const hasSpeech   = typeof window !== "undefined" &&
-    ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
-  const ic          = T.text(t); // icon color
-  const mu          = T.muted(t);
+  const isExpanded = open && !closing;
+  const ic = T.text(t);
+  const mu = T.muted(t);
 
-  // Apple DI easing: fast ease-out, zero overshoot → no sharp-box flash
-  // Open:  width leads, height follows slightly after
-  // Close: height leads, width follows slightly after
   const DI = "cubic-bezier(0.32, 0.72, 0, 1)";
   const transition = isExpanded
-    ? [
-        `width 0.38s ${DI}`,
-        `max-height 0.36s ${DI} 0.04s`,
-        `border-radius 0.35s ${DI}`,
-        "box-shadow 0.28s ease 0.06s",
-      ].join(", ")
-    : [
-        `max-height 0.26s ease-in`,
-        `width 0.28s ease-in-out 0.04s`,
-        `border-radius 0.26s ease-in`,
-        "box-shadow 0.2s ease",
-      ].join(", ");
+    ? [`width 0.38s ${DI}`, `max-height 0.36s ${DI} 0.04s`, `border-radius 0.35s ${DI}`, "box-shadow 0.28s ease 0.06s"].join(", ")
+    : ["max-height 0.26s ease-in", "width 0.28s ease-in-out 0.04s", "border-radius 0.26s ease-in", "box-shadow 0.2s ease"].join(", ");
 
-  // Content fade: wait for shape, then appear; disappear immediately on close
   const contentOpacity    = isExpanded ? 1 : 0;
-  const contentTransition = isExpanded
-    ? "opacity 0.16s ease 0.22s"
-    : "opacity 0.08s ease";
+  const contentTransition = isExpanded ? "opacity 0.16s ease 0.22s" : "opacity 0.08s ease";
+
+  // Pill height = 44px. Header must fill this exactly so content is centered.
+  const PILL_H = 44;
 
   return (
     <div
       ref={containerRef}
       style={{
-        // ── Dynamic Island morph ──────────────────────────────────────────
-        // No hard-coded closed width — let content determine it naturally so
-        // the icon+text are always truly centered inside the pill.
-        // Width only animates on the open path (undefined→560 snaps, but
-        // content fades in after shape settles so the snap isn't visible).
-        width:        open ? 560 : undefined,
-        maxHeight:    open ? 520 : 42,
+        width:        open ? 480 : undefined,
+        maxHeight:    open ? 480 : PILL_H,
         borderRadius: open ? 18  : 999,
         overflow: "hidden",
         willChange: "width, max-height, border-radius",
         transition,
-        // ── Appearance ───────────────────────────────────────────────────
-        // Pill is more transparent; panel is more solid
         backgroundColor: open
           ? T.bg(t)
-          : (t === "dark" ? "rgba(22,24,28,.72)" : "rgba(255,255,255,.72)"),
-        backdropFilter:  "blur(22px)",
-        WebkitBackdropFilter: "blur(22px)",
+          : t === "dark" ? "rgba(22,24,28,.68)" : "rgba(255,255,255,.68)",
+        backdropFilter:       "blur(24px)",
+        WebkitBackdropFilter: "blur(24px)",
         border: `1px solid ${open
           ? T.border(t)
-          : (t === "dark" ? "rgba(255,255,255,.14)" : "rgba(17,19,21,.14)")}`,
+          : t === "dark" ? "rgba(255,255,255,.16)" : "rgba(17,19,21,.16)"}`,
         boxShadow: open
           ? (t === "dark"
-              ? "0 10px 48px rgba(0,0,0,.65), 0 0 0 1px rgba(255,255,255,.07)"
-              : "0 10px 40px rgba(0,0,0,.14), 0 0 0 1px rgba(0,0,0,.04)")
+              ? "0 12px 48px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.07)"
+              : "0 12px 40px rgba(0,0,0,.13), 0 0 0 1px rgba(0,0,0,.04)")
           : "none",
         cursor:     open ? "default" : "pointer",
         userSelect: "none",
@@ -352,310 +313,200 @@ export default function BobAgent({ theme: t, notes, onSweep, onAddNote }: Props)
       }}
       onClick={!open ? doOpen : undefined}
     >
-      {/* ── Pill / Header bar ─────────────────────────────────────────────── */}
-      {/* BOB logo is always centered; close button is absolutely positioned so it never shifts the center */}
+      {/* ── Header — height fixed to PILL_H when closed so content is centered ── */}
       <div style={{
-        display: "flex",
-        alignItems: "center",
+        height:         open ? "auto" : PILL_H,
+        display:        "flex",
+        alignItems:     "center",
         justifyContent: "center",
-        position: "relative",
-        padding: open ? "10px 14px 9px" : "8px 18px",
-        flexShrink: 0,
-        whiteSpace: "nowrap",
-        transition: "padding 0.3s ease",
+        position:       "relative",
+        padding:        open ? "10px 14px 10px" : "0 18px",
+        flexShrink:     0,
+        whiteSpace:     "nowrap",
+        transition:     "padding 0.3s ease, height 0s",
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <BobIcon size={20} color={ic} />
           <span style={{
-            fontSize:      13,
-            fontWeight:    800,
-            letterSpacing: "-.015em",
-            color:         T.text(t),
-            lineHeight:    1,
-            fontFamily:    "'Satoshi', Arial, sans-serif",
-          }}>
-            BOB
-          </span>
+            fontSize: 13, fontWeight: 800, letterSpacing: "-.015em",
+            color: T.text(t), lineHeight: 1,
+            fontFamily: "'Satoshi', Arial, sans-serif",
+          }}>BOB</span>
         </div>
-
         {open && (
           <button
             onClick={(e) => { e.stopPropagation(); doClose(); }}
             style={{
-              position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)",
+              position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
               background: "none", border: "none", cursor: "pointer",
-              color: mu, fontSize: 18, lineHeight: 1,
-              padding: "2px 4px", fontFamily: "inherit",
-              opacity: 0.7,
+              color: mu, fontSize: 18, lineHeight: 1, padding: "2px 4px",
+              fontFamily: "inherit", opacity: .65,
             }}
           >×</button>
         )}
       </div>
 
-      {/* ── Three-column panel ─────────────────────────────────────────────── */}
+      {/* ── Panel ────────────────────────────────────────────────────────────── */}
       {mounted && (
         <div style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1px 1fr 1px 1fr",
+          display: "flex", flexDirection: "column",
           borderTop: `1px solid ${T.border(t)}`,
           opacity:    contentOpacity,
           transition: contentTransition,
           pointerEvents: isExpanded ? "auto" : "none",
         }}>
 
-          {/* ───── Brain ───── */}
-          <div style={{ padding: "11px 12px 13px", display: "flex", flexDirection: "column" }}>
-            <ColLabel text="Brain" color={mu} />
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              {([
-                { key: "whatFirst" as BrainQuery, label: "What first?",  Icon: () => <I.Arrow c={ic} /> },
-                { key: "summary"   as BrainQuery, label: "Summarize",    Icon: () => <I.Lines c={ic} /> },
-                { key: "overdue"   as BrainQuery, label: "Overdue?",     Icon: () => <I.Clock c={ic} /> },
-              ] as { key: BrainQuery; label: string; Icon: () => ReactElement }[]).map(({ key, label, Icon }) => (
-                <BtnRow
-                  key={key}
-                  label={label}
-                  icon={<Icon />}
-                  active={brainQuery === key}
-                  disabled={brainLoading}
-                  dimmed={brainLoading && brainQuery !== key}
-                  theme={t}
-                  onClick={() => askBrain(key)}
-                />
-              ))}
+          {/* Response area */}
+          {(loading || response) && (
+            <div style={{
+              padding: "13px 14px 12px",
+              fontSize: 13, color: T.text(t), lineHeight: 1.7,
+              borderBottom: `1px solid ${T.border(t)}`,
+              maxHeight: 180, overflowY: "auto",
+            }}>
+              {loading
+                ? <span style={{ display: "flex", alignItems: "center", gap: 7, color: mu }}>
+                    <Spinner c={mu} /> Thinking…
+                  </span>
+                : response}
             </div>
+          )}
 
-            {(brainLoading || brainResponse) && (
-              <div style={{
-                marginTop: 8, padding: "9px 10px", borderRadius: 9,
-                background: T.btn(t), border: `1px solid ${T.btnBorder(t)}`,
-                fontSize: 12, color: T.text(t), lineHeight: 1.65, minHeight: 36,
-              }}>
-                {brainLoading
-                  ? <span style={{ display: "flex", alignItems: "center", gap: 6, color: mu }}>
-                      <I.Spinner c={mu} /> Thinking…
-                    </span>
-                  : brainResponse}
-              </div>
+          {/* Input row */}
+          <div style={{
+            display: "flex", alignItems: "center", gap: 8,
+            padding: "9px 10px",
+            borderBottom: `1px solid ${T.border(t)}`,
+          }}>
+            {hasSpeech && (
+              <button
+                onClick={listening ? stopListening : startListening}
+                style={{
+                  width: 32, height: 32, borderRadius: "50%", border: "none", flexShrink: 0,
+                  background: listening
+                    ? "linear-gradient(135deg,#e05555,#c03030)"
+                    : t === "dark" ? "rgba(255,255,255,.1)" : "rgba(17,19,21,.08)",
+                  cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                  animation: listening ? "micPulse 1.2s ease-in-out infinite" : "none",
+                  transition: "background .2s",
+                }}
+              >
+                {listening
+                  ? <Stop s={13} />
+                  : <Mic c={t === "dark" ? "rgba(237,237,235,.7)" : "rgba(17,19,21,.5)"} s={13} />}
+              </button>
             )}
-          </div>
 
-          <Divider t={t} />
-
-          {/* ───── Sweep ───── */}
-          <div style={{ padding: "11px 12px 13px" }}>
-            <ColLabel text="Sweep" color={mu} />
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, marginBottom: 8 }}>
-              {([
-                { key: "priority" as SweepMode, label: "Priority", Icon: () => <I.Sort c={sweepMode === "priority" ? T.green(t) : ic} /> },
-                { key: "dueDate"  as SweepMode, label: "Due Date", Icon: () => <I.Cal  c={sweepMode === "dueDate"  ? T.green(t) : ic} /> },
-                { key: "type"     as SweepMode, label: "Type",     Icon: () => <I.Tag  c={sweepMode === "type"     ? T.green(t) : ic} /> },
-                { key: "smart"    as SweepMode, label: "Smart",    Icon: () => <I.Star c={sweepMode === "smart"    ? T.green(t) : ic} /> },
-              ] as { key: SweepMode; label: string; Icon: () => ReactElement }[]).map(({ key, label, Icon }) => (
-                <button
-                  key={key}
-                  onClick={() => setSweepMode(key)}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 5,
-                    padding: "6px 8px", borderRadius: 8,
-                    border: `1px solid ${sweepMode === key ? T.greenBdr(t) : T.btnBorder(t)}`,
-                    background: sweepMode === key ? T.greenBg(t) : T.btn(t),
-                    color: sweepMode === key ? T.green(t) : T.text(t),
-                    fontSize: 11, fontWeight: sweepMode === key ? 700 : 500,
-                    cursor: "pointer", fontFamily: "inherit",
-                    transition: "all .12s",
-                  }}
-                >
-                  <Icon />{label}
-                </button>
-              ))}
-            </div>
+            <input
+              ref={inputRef}
+              value={inputText}
+              onChange={e => setInputText(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }}}
+              placeholder="Ask anything about your board…"
+              style={{
+                flex: 1, border: "none", outline: "none", background: "transparent",
+                fontSize: 13, color: T.text(t), fontFamily: "'Satoshi', Arial, sans-serif",
+                caretColor: T.text(t),
+              }}
+            />
 
             <button
-              onClick={handleSweep}
-              disabled={notes.length === 0}
+              onClick={() => send()}
+              disabled={!inputText.trim() || loading}
               style={{
-                width: "100%", padding: "8px 0", borderRadius: 9,
-                border: sweepDone ? `1px solid ${T.greenBdr(t)}` : "none",
-                background: sweepDone ? T.greenBg(t) : "linear-gradient(135deg,#6fc46b,#4a7ef5)",
-                color:      sweepDone ? T.green(t)   : "#fff",
-                fontSize: 12, fontWeight: 700,
-                cursor: notes.length === 0 ? "not-allowed" : "pointer",
-                fontFamily: "inherit",
-                opacity: notes.length === 0 ? .4 : 1,
-                transition: "all .2s",
-              } as React.CSSProperties}
+                width: 28, height: 28, borderRadius: 8, border: "none", flexShrink: 0,
+                background: inputText.trim() && !loading
+                  ? "linear-gradient(135deg,#6fc46b,#4a7ef5)"
+                  : t === "dark" ? "rgba(255,255,255,.08)" : "rgba(17,19,21,.07)",
+                cursor: inputText.trim() && !loading ? "pointer" : "default",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                transition: "background .15s",
+              }}
             >
-              {sweepDone
-                ? "Sorted"
-                : notes.length === 0
-                  ? "No cards"
-                  : `Sort ${notes.length} card${notes.length !== 1 ? "s" : ""}`}
+              <Send c={inputText.trim() && !loading ? "#fff" : mu} />
             </button>
           </div>
 
-          <Divider t={t} />
-
-          {/* ───── Voice ───── */}
-          <div style={{ padding: "11px 12px 13px", display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <ColLabel text="Voice" color={mu} fullWidth />
-
-            {!hasSpeech ? (
-              <p style={{ fontSize: 11, color: mu, margin: 0, textAlign: "center", lineHeight: 1.5 }}>
-                Use Chrome or Edge for voice input.
-              </p>
-            ) : (
-              <div style={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: 7 }}>
+          {/* Quick actions */}
+          <div style={{
+            display: "flex", flexWrap: "wrap", alignItems: "center",
+            gap: 6, padding: "8px 10px 10px",
+          }}>
+            {quickActions.map(action => (
+              <div
+                key={action.id}
+                style={{ position: "relative", display: "inline-flex" }}
+                onMouseEnter={() => setHoveredChip(action.id)}
+                onMouseLeave={() => setHoveredChip(null)}
+              >
                 <button
-                  onClick={listening ? stopListening : startListening}
+                  onClick={() => handleQuickAction(action)}
+                  disabled={loading}
                   style={{
-                    width: 44, height: 44, borderRadius: "50%", border: "none",
-                    background: listening
-                      ? "linear-gradient(135deg,#e05555,#c03030)"
-                      : "linear-gradient(135deg,#6fc46b,#4a7ef5)",
-                    cursor: "pointer",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    boxShadow: listening
-                      ? "0 0 0 6px rgba(192,48,48,.16), 0 3px 14px rgba(192,48,48,.28)"
-                      : "0 3px 14px rgba(74,126,245,.28)",
-                    transition: "background .2s, box-shadow .2s",
-                    animation: listening ? "micPulse 1.2s ease-in-out infinite" : "none",
-                    flexShrink: 0,
+                    padding: "4px 10px", borderRadius: 99,
+                    border:  `1px solid ${T.chipBdr(t)}`,
+                    background: T.chip(t),
+                    color:  T.text(t), fontSize: 11.5, fontWeight: 500,
+                    cursor: loading ? "default" : "pointer",
+                    fontFamily: "'Satoshi', Arial, sans-serif",
+                    opacity: loading ? .5 : 1,
+                    transition: "all .12s",
+                    paddingRight: hoveredChip === action.id ? 22 : 10,
                   }}
                 >
-                  {listening ? <I.Stop /> : <I.Mic />}
+                  {action.label}
                 </button>
-
-                {!transcript && !listening && !voiceResult && !voiceAdded && (
-                  <span style={{ fontSize: 11, color: mu }}>Tap mic and speak</span>
-                )}
-
-                {transcript && (
-                  <div style={{
-                    width: "100%", fontSize: 11, color: T.text(t), lineHeight: 1.55,
-                    padding: "7px 9px", borderRadius: 8,
-                    background: T.btn(t), border: `1px solid ${T.btnBorder(t)}`,
-                  }}>
-                    {transcript}
-                    {listening && <span style={{ opacity: .4 }}>█</span>}
-                  </div>
-                )}
-
-                {transcript && !listening && !voiceLoading && !voiceResult && (
-                  <button onClick={parseVoice} style={{
-                    width: "100%", padding: "7px 0", borderRadius: 9, border: "none",
-                    background: "linear-gradient(135deg,#6fc46b,#4a7ef5)",
-                    color: "#fff", fontSize: 11, fontWeight: 700,
-                    cursor: "pointer", fontFamily: "inherit",
-                  }}>
-                    Structure with BOB
-                  </button>
-                )}
-
-                {voiceLoading && (
-                  <span style={{ fontSize: 11, color: mu, display: "flex", alignItems: "center", gap: 5 }}>
-                    <I.Spinner c={mu} s={11} /> Structuring…
-                  </span>
-                )}
-
-                {voiceResult && !voiceAdded && (
-                  <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 5 }}>
-                    <div style={{
-                      display: "flex", alignItems: "center", gap: 5, marginBottom: 2,
-                    }}>
-                      <span style={{
-                        fontSize: 9, fontWeight: 700, letterSpacing: ".08em",
-                        textTransform: "uppercase",
-                        color: voiceResult.type === "task" ? "#4a7ef5" : "#9b6fe8",
-                        background: voiceResult.type === "task" ? "rgba(74,126,245,.12)" : "rgba(155,111,232,.12)",
-                        padding: "2px 6px", borderRadius: 5,
-                      }}>{voiceResult.type}</span>
-                      {voiceResult.importance !== "none" && (
-                        <span style={{ fontSize: 10, color: mu }}>{voiceResult.importance}</span>
-                      )}
-                    </div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: T.text(t), lineHeight: 1.4 }}>
-                      {voiceResult.title}
-                    </div>
-                    {voiceResult.body && (
-                      <div style={{ fontSize: 11, color: mu }}>{voiceResult.body}</div>
-                    )}
-                    <button onClick={() => addVoiceNote(voiceResult!)} style={{
-                      width: "100%", padding: "7px 0", borderRadius: 9, border: "none",
-                      background: "linear-gradient(135deg,#6fc46b,#4a7ef5)",
-                      color: "#fff", fontSize: 11, fontWeight: 700,
-                      cursor: "pointer", fontFamily: "inherit",
-                    }}>
-                      Add to board
-                    </button>
-                  </div>
-                )}
-
-                {voiceAdded && (
-                  <span style={{ fontSize: 12, color: T.green(t), fontWeight: 700 }}>Added</span>
+                {hoveredChip === action.id && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); deleteAction(action.id); }}
+                    style={{
+                      position: "absolute", right: 4, top: "50%", transform: "translateY(-50%)",
+                      background: "none", border: "none", cursor: "pointer",
+                      color: mu, fontSize: 12, lineHeight: 1, padding: 0,
+                      display: "flex", alignItems: "center",
+                    }}
+                  >×</button>
                 )}
               </div>
+            ))}
+
+            {/* Add new action */}
+            {addingAction ? (
+              <input
+                autoFocus
+                value={newActionLabel}
+                onChange={e => setNewActionLabel(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Enter")  addAction();
+                  if (e.key === "Escape") { setAddingAction(false); setNewActionLabel(""); }
+                }}
+                onBlur={() => { if (!newActionLabel.trim()) { setAddingAction(false); } }}
+                placeholder="Action name…"
+                style={{
+                  padding: "4px 10px", borderRadius: 99,
+                  border: `1px solid ${T.chipBdr(t)}`,
+                  background: T.chip(t),
+                  color: T.text(t), fontSize: 11.5,
+                  fontFamily: "'Satoshi', Arial, sans-serif",
+                  outline: "none", width: 110,
+                }}
+              />
+            ) : (
+              <button
+                onClick={() => setAddingAction(true)}
+                style={{
+                  padding: "4px 10px", borderRadius: 99,
+                  border:  `1px dashed ${T.chipBdr(t)}`,
+                  background: "transparent",
+                  color: mu, fontSize: 11.5, cursor: "pointer",
+                  fontFamily: "'Satoshi', Arial, sans-serif",
+                }}
+              >+ Add</button>
             )}
           </div>
 
         </div>
       )}
     </div>
-  );
-}
-
-// ── Sub-components ────────────────────────────────────────────────────────────
-
-function ColLabel({ text, color, fullWidth }: { text: string; color: string; fullWidth?: boolean }) {
-  return (
-    <div style={{
-      fontSize: 10, fontWeight: 700, color,
-      textTransform: "uppercase", letterSpacing: ".08em",
-      marginBottom: 8,
-      width: fullWidth ? "100%" : undefined,
-    }}>
-      {text}
-    </div>
-  );
-}
-
-function Divider({ t }: { t: ThemeMode }) {
-  return <div style={{ width: 1, background: T.divider(t) }} />;
-}
-
-function BtnRow({
-  label, icon, active, disabled, dimmed, theme, onClick,
-}: {
-  label: string;
-  icon: React.ReactNode;
-  active: boolean;
-  disabled: boolean;
-  dimmed: boolean;
-  theme: ThemeMode;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      style={{
-        display: "flex", alignItems: "center", gap: 7,
-        padding: "7px 10px", borderRadius: 9,
-        border: `1px solid ${active ? T.greenBdr(theme) : T.btnBorder(theme)}`,
-        background: active ? T.greenBg(theme) : T.btn(theme),
-        color: T.text(theme),
-        fontSize: 12, fontWeight: 600,
-        cursor: disabled ? "default" : "pointer",
-        fontFamily: "inherit", textAlign: "left",
-        opacity: dimmed ? 0.38 : 1,
-        transition: "all .12s",
-        width: "100%",
-      }}
-    >
-      <span style={{ flexShrink: 0, opacity: active ? 1 : .55 }}>{icon}</span>
-      {label}
-    </button>
   );
 }
