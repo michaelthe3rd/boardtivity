@@ -1834,20 +1834,12 @@ export function HomeShell() {
                   <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: isDone ? (theme === "dark" ? "rgba(100,220,120,.8)" : "rgba(30,120,60,.7)") : (imp ? impColor : muted(theme)), opacity: isDone ? 1 : 0.75 }}>
                     {isDone ? "Completed" : (imp ? `${imp} priority` : "Task")}
                   </span>
-                  {!isDone && (
-                    <>
-                      <span style={{ color: border(theme), fontSize: 10 }}>·</span>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: muted(theme), opacity: .55 }}>{timeLabel}</span>
-                    </>
-                  )}
+                  {!isDone && <span style={pill(theme)}>{timeLabel}</span>}
                   <div style={{ flex: 1 }} />
                   {dueLabel && !isDone && (
-                    <>
-                      <span style={{ color: border(theme), fontSize: 10 }}>·</span>
-                      <span style={{ fontSize: 10, fontWeight: 600, color: dueColor }}>{dueLabel}</span>
-                    </>
+                    <span style={{ ...pill(theme), color: dueColor, borderColor: dueColor === muted(theme) ? undefined : `${dueColor}55` }}>{dueLabel}</span>
                   )}
-                  <button type="button" onClick={() => openEdit(note)} style={{ ...dotBtn, marginLeft: 6 }}>···</button>
+                  <button type="button" onClick={() => openEdit(note)} style={{ ...dotBtn, marginLeft: 2 }}>···</button>
                 </div>
                 {/* Title + Focus */}
                 <div style={{ padding: "4px 14px 13px", display: "flex", alignItems: "flex-start", gap: 10 }}>
