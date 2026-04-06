@@ -2614,16 +2614,7 @@ export function HomeShell() {
                     </div>
                   )}
                 </div>
-                {detailEditing ? (
-                  <input
-                    autoFocus
-                    value={detailEditTitle}
-                    onChange={e => setDetailEditTitle(e.target.value)}
-                    style={{ width: "100%", background: "none", border: "none", outline: "none", fontSize: 22, fontWeight: 700, color: pageText(boardTheme), fontFamily: "inherit", padding: 0, boxSizing: "border-box" }}
-                  />
-                ) : (
-                  <div style={{ fontSize: 22, fontWeight: 700 }}>{detailNote.title}</div>
-                )}
+                <div style={{ fontSize: 22, fontWeight: 700 }}>{detailNote.title}</div>
               </div>
               <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                 {!detailEditing && (
@@ -2661,6 +2652,13 @@ export function HomeShell() {
                 <div style={{ paddingBottom: 16, borderBottom: `1px solid ${border(boardTheme)}`, marginBottom: 16 }}>
                   {detailNote.type === "task" && detailEditing ? (
                     <div style={{ display: "grid", gap: 10 }}>
+                      <input
+                        autoFocus
+                        value={detailEditTitle}
+                        onChange={e => setDetailEditTitle(e.target.value)}
+                        placeholder="Task title…"
+                        style={{ width: "100%", background: "none", border: "none", outline: "none", fontSize: 18, fontWeight: 700, color: pageText(boardTheme), fontFamily: "inherit", padding: 0, boxSizing: "border-box" }}
+                      />
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                         <div>
                           <div style={{ fontSize: 11, letterSpacing: ".1em", textTransform: "uppercase", color: muted(boardTheme), marginBottom: 5 }}>Due date</div>
@@ -2712,6 +2710,7 @@ export function HomeShell() {
                       {detailNote.type !== "task" && detailEditing ? (
                         <>
                           <input
+                            autoFocus
                             value={detailEditTitle}
                             onChange={e => setDetailEditTitle(e.target.value)}
                             placeholder="Idea title…"
