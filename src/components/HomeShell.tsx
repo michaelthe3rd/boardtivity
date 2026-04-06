@@ -820,10 +820,18 @@ export function HomeShell() {
     if (convexAppliedRef.current) return;
     convexAppliedRef.current = true;
 
+    // Read the preserved localSavedAt — tells us when local data last changed
+    // after Convex had already loaded (so fresh-device installs have 0 here)
+    let localSavedAt = 0;
+    try {
+      const r = localStorage.getItem("boardtivity");
+      if (r) localSavedAt = (JSON.parse(r) as { savedAt?: number }).savedAt ?? 0;
+    } catch {}
+
     const cloudHasRealData = savedBoard && !isCloudDefaultOnly(savedBoard.boardState);
 
-    if (cloudHasRealData) {
-      // Cloud has real data — apply it (this device might be new or behind)
+    if (cloudHasRealData && savedBoard.updatedAt > localSavedAt) {
+      // Cloud is strictly newer — apply it (fresh device or another device made changes)
       try {
         const data = JSON.parse(savedBoard.boardState) as {
           boards?: Board[]; notes?: Note[]; activeBoardId?: string;
@@ -840,7 +848,7 @@ export function HomeShell() {
         setCloudSyncState("synced");
       } catch { setCloudSyncState("error"); }
     } else {
-      // Cloud empty or only defaults — push whatever is in localStorage up immediately
+      // Local is newer or cloud is empty/default-only — push local up to cloud
       pushToCloud();
     }
   }, [isSignedIn, savedBoard]);
@@ -850,7 +858,13 @@ export function HomeShell() {
     if (!isHydrated) return;
     try {
       if (isSignedIn) {
-        localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid }));
+        // Preserve savedAt when Convex hasn't loaded yet (avoids resetting it to 0
+        // on page reload, which would make stale cloud data look "newer" than local).
+        // Once Convex is ready, stamp the current time so future comparisons work.
+        let savedAt = 0;
+        try { const r = localStorage.getItem("boardtivity"); if (r) savedAt = (JSON.parse(r) as { savedAt?: number }).savedAt ?? 0; } catch {}
+        if (convexReadyRef.current) savedAt = Date.now();
+        localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, savedAt }));
         if (convexReadyRef.current) {
           setCloudSyncState("saving");
           if (convexSaveTimerRef.current) clearTimeout(convexSaveTimerRef.current);
