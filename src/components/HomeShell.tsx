@@ -479,6 +479,9 @@ export function HomeShell() {
   const [isHydrated, setIsHydrated] = useState(false);
 
   const [notes, setNotes] = useState<Note[]>([]);
+  const [highlightedNoteIds, setHighlightedNoteIds] = useState<Set<number>>(new Set());
+  const [undoSnapshot,       setUndoSnapshot]       = useState<Note[] | null>(null);
+  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [detailNoteId, setDetailNoteId] = useState<number | null>(null);
   const [detailEditing, setDetailEditing] = useState(false);
   const [detailEditTitle, setDetailEditTitle] = useState("");
@@ -1344,6 +1347,41 @@ export function HomeShell() {
     setPan(clampPan(0, 0, s));
   }
 
+  function handleBobEditNote(id: number, fields: Partial<Note>) {
+    setNotes(prev => prev.map(n => n.id === id ? { ...n, ...fields } : n));
+  }
+
+  function handleBobDeleteNotes(ids: number[]) {
+    const idSet = new Set(ids);
+    setNotes(prev => prev.filter(n => !idSet.has(n.id)));
+  }
+
+  function handleBobHighlightNotes(ids: number[]) {
+    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+    setHighlightedNoteIds(new Set(ids));
+    // Pan to center of highlighted notes
+    const targets = notes.filter(n => ids.includes(n.id));
+    if (targets.length) {
+      const cx = targets.reduce((s, n) => s + n.x, 0) / targets.length;
+      const cy = targets.reduce((s, n) => s + n.y, 0) / targets.length;
+      const s = scale;
+      setPan(clampPan(-cx * s + window.innerWidth / 2, -cy * s + window.innerHeight / 2, s));
+    }
+    highlightTimerRef.current = setTimeout(() => setHighlightedNoteIds(new Set()), 4000);
+  }
+
+  function handleBobLaunchFocus(noteId: number, chain = false) {
+    startFocus(noteId, chain);
+  }
+
+  function handleBobSaveUndo() {
+    setUndoSnapshot([...notes]);
+  }
+
+  function handleBobUndo() {
+    if (undoSnapshot) { setNotes(undoSnapshot); setUndoSnapshot(null); }
+  }
+
   function handleBobAddNote(note: BobNewNote) {
     const id = Date.now();
     const now = new Date().toISOString();
@@ -1352,13 +1390,13 @@ export function HomeShell() {
       boardId: activeBoardId,
       type: note.type === "task" ? "task" : "thought",
       title: note.title,
-      body: note.body,
-      importance: note.importance,
+      body: note.body ?? "",
+      importance: note.importance ?? "none",
       createdAt: now,
       completed: false,
       x: 80 + Math.random() * 200,
       y: 80 + Math.random() * 200,
-      steps: note.steps.map((s, i) => ({ id: id + i + 1, title: s.title, minutes: s.minutes, done: false, x: 0, y: 0 })),
+      steps: (note.steps ?? []).map((s, i) => ({ id: id + i + 1, title: s.title, minutes: s.minutes, done: false, x: 0, y: 0 })),
       showFlow: false,
       flowMode: "web",
       linkedNoteIds: [],
@@ -1763,15 +1801,17 @@ export function HomeShell() {
                       : note.type === "task"
                         ? getBg(note.importance)
                         : paletteBg(thoughtColorMode === "fixed" ? thoughtFixedColorIdx : (note.colorIdx ?? 0), boardTheme),
-                    boxShadow: thoughtDropTarget === note.id
-                      ? `0 0 0 4px ${boardTheme === "dark" ? "rgba(140,150,230,.28)" : "rgba(100,110,200,.18)"}, 0 0 20px ${boardTheme === "dark" ? "rgba(140,150,230,.22)" : "rgba(100,110,200,.16)"}, 0 10px 18px rgba(59,43,16,.06)`
-                      : thoughtUnlinkTarget === note.id
-                        ? "0 0 0 4px rgba(220,60,60,.25), 0 0 20px rgba(220,60,60,.20), 0 10px 18px rgba(59,43,16,.06)"
-                        : note.completed
-                          ? `0 0 0 3px rgba(60,180,90,.25), 0 10px 18px rgba(0,0,0,.06)`
-                          : note.type === "task"
-                            ? `0 0 0 3px ${getHalo(note.importance)}, 0 10px 18px rgba(59,43,16,.06)`
-                            : `0 0 0 3px ${paletteHalo(thoughtColorMode === "fixed" ? thoughtFixedColorIdx : (note.colorIdx ?? 0))}, 0 10px 18px rgba(59,43,16,.06)`,
+                    boxShadow: highlightedNoteIds.has(note.id)
+                      ? `0 0 0 3px rgba(99,160,255,.7), 0 0 28px rgba(99,160,255,.45), 0 10px 18px rgba(0,0,0,.1)`
+                      : thoughtDropTarget === note.id
+                        ? `0 0 0 4px ${boardTheme === "dark" ? "rgba(140,150,230,.28)" : "rgba(100,110,200,.18)"}, 0 0 20px ${boardTheme === "dark" ? "rgba(140,150,230,.22)" : "rgba(100,110,200,.16)"}, 0 10px 18px rgba(59,43,16,.06)`
+                        : thoughtUnlinkTarget === note.id
+                          ? "0 0 0 4px rgba(220,60,60,.25), 0 0 20px rgba(220,60,60,.20), 0 10px 18px rgba(59,43,16,.06)"
+                          : note.completed
+                            ? `0 0 0 3px rgba(60,180,90,.25), 0 10px 18px rgba(0,0,0,.06)`
+                            : note.type === "task"
+                              ? `0 0 0 3px ${getHalo(note.importance)}, 0 10px 18px rgba(59,43,16,.06)`
+                              : `0 0 0 3px ${paletteHalo(thoughtColorMode === "fixed" ? thoughtFixedColorIdx : (note.colorIdx ?? 0))}, 0 10px 18px rgba(59,43,16,.06)`,
                     textAlign: "left",
                     cursor: "pointer",
                     transition: "box-shadow .22s ease, border-color .22s ease",
@@ -1871,6 +1911,12 @@ export function HomeShell() {
                 notes={activeNotes}
                 onSweep={handleBobSweep}
                 onAddNote={handleBobAddNote}
+                onEditNote={handleBobEditNote}
+                onDeleteNotes={handleBobDeleteNotes}
+                onHighlightNotes={handleBobHighlightNotes}
+                onLaunchFocus={handleBobLaunchFocus}
+                onSaveUndo={handleBobSaveUndo}
+                onUndo={handleBobUndo}
                 isAdmin={!!isAdmin}
               />
             </div>
