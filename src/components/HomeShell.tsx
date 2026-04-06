@@ -597,6 +597,8 @@ export function HomeShell() {
   const [mobileEditTitle, setMobileEditTitle] = useState("");
   const [mobileEditDueDate, setMobileEditDueDate] = useState("");
   const [mobileEditImportance, setMobileEditImportance] = useState<Importance>("none");
+  const [mobileEditMinutes, setMobileEditMinutes] = useState("");
+  const [mobileEditSteps, setMobileEditSteps] = useState<{ id: number; title: string; minutes: number }[]>([]);
   const [mobileDeleteConfirm, setMobileDeleteConfirm] = useState(false);
   const [mobileFilterPriority, setMobileFilterPriority] = useState<"all" | "High" | "Medium" | "Low">("all");
   const [mobileSortDate, setMobileSortDate] = useState(false);
@@ -1762,6 +1764,8 @@ export function HomeShell() {
             setMobileEditTitle(note.title);
             setMobileEditDueDate(note.dueDate ?? "");
             setMobileEditImportance(note.importance ?? "none");
+            setMobileEditMinutes(note.minutes != null ? String(note.minutes) : "");
+            setMobileEditSteps(note.steps.map(s => ({ id: s.id, title: s.title, minutes: s.minutes ?? 25 })));
           }
 
           function renderTaskCard(note: Note) {
@@ -2043,13 +2047,58 @@ export function HomeShell() {
                             style={{ border: "none", backgroundColor: "transparent", color: pageText(theme), fontSize: 14, fontWeight: 600, outline: "none", textAlign: "right", padding: 0, cursor: "pointer" }}
                           />
                         </div>
+                        <div style={{ display: "flex", alignItems: "center", height: 44, backgroundColor: paper(theme), border: `1.5px solid ${border(theme)}`, borderRadius: 12, padding: "0 14px", gap: 8 }}>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: muted(theme), flex: 1 }}>Duration</span>
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            min="1"
+                            max="480"
+                            value={mobileEditMinutes}
+                            onChange={e => setMobileEditMinutes(e.target.value)}
+                            placeholder="—"
+                            style={{ border: "none", backgroundColor: "transparent", color: pageText(theme), fontSize: 14, fontWeight: 600, outline: "none", textAlign: "right", padding: 0, width: 52 }}
+                          />
+                          <span style={{ fontSize: 13, color: muted(theme), opacity: .55 }}>min</span>
+                        </div>
+                        {mobileEditSteps.length > 0 && (
+                          <div style={{ backgroundColor: paper(theme), border: `1.5px solid ${border(theme)}`, borderRadius: 12, padding: "10px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
+                            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".05em", textTransform: "uppercase", color: muted(theme), opacity: .5 }}>Subtask durations</div>
+                            {mobileEditSteps.map((s, i) => (
+                              <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: pageText(theme), overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</span>
+                                <input
+                                  type="number"
+                                  inputMode="numeric"
+                                  min="1"
+                                  max="480"
+                                  value={s.minutes}
+                                  onChange={e => setMobileEditSteps(prev => prev.map((x, j) => j === i ? { ...x, minutes: Math.max(1, parseInt(e.target.value) || 1) } : x))}
+                                  style={{ border: `1px solid ${border(theme)}`, backgroundColor: "transparent", color: pageText(theme), fontSize: 13, fontWeight: 600, outline: "none", textAlign: "right", padding: "4px 8px", borderRadius: 8, width: 52 }}
+                                />
+                                <span style={{ fontSize: 12, color: muted(theme), opacity: .55, flexShrink: 0 }}>min</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </>
                     )}
                     <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
                       <button
                         onClick={() => {
                           if (!mobileEditTitle.trim()) return;
-                          setNotes(ns => ns.map(n => n.id === actionNote.id ? { ...n, title: mobileEditTitle.trim(), importance: mobileEditImportance, dueDate: mobileEditDueDate || undefined } : n));
+                          const parsedMins = mobileEditMinutes ? parseInt(mobileEditMinutes) : undefined;
+                          setNotes(ns => ns.map(n => n.id === actionNote.id ? {
+                            ...n,
+                            title: mobileEditTitle.trim(),
+                            importance: mobileEditImportance,
+                            dueDate: mobileEditDueDate || undefined,
+                            minutes: parsedMins && parsedMins > 0 ? parsedMins : undefined,
+                            steps: n.steps.map(s => {
+                              const edited = mobileEditSteps.find(e => e.id === s.id);
+                              return edited ? { ...s, minutes: edited.minutes } : s;
+                            }),
+                          } : n));
                           setMobileActionNoteId(null);
                           setMobileDeleteConfirm(false);
                         }}
