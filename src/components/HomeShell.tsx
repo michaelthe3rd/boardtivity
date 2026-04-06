@@ -592,6 +592,10 @@ export function HomeShell() {
   const [mobileAddMode, setMobileAddMode] = useState<"task" | "thought" | null>(null);
   const [mobileAddTitle, setMobileAddTitle] = useState("");
   const [mobileAddImportance, setMobileAddImportance] = useState<Importance>("none");
+  const [mobileActionNoteId, setMobileActionNoteId] = useState<number | null>(null);
+  const [mobileEditTitle, setMobileEditTitle] = useState("");
+  const [mobileEditDueDate, setMobileEditDueDate] = useState("");
+  const [mobileEditImportance, setMobileEditImportance] = useState<Importance>("none");
   const [waitlistOpen, setWaitlistOpen] = useState(false);
   const [waitlistEmail, setWaitlistEmail] = useState("");
   const [waitlistDone, setWaitlistDone] = useState(false);
@@ -1727,6 +1731,15 @@ export function HomeShell() {
           }
 
           // Plain render functions (not React components) so focus state updates work correctly
+          const dotBtn: CSSProperties = { flexShrink: 0, width: 28, height: 28, borderRadius: 8, backgroundColor: "transparent", border: `1px solid ${border(theme)}`, color: muted(theme), fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", letterSpacing: ".05em" };
+
+          function openEdit(note: Note) {
+            setMobileActionNoteId(note.id);
+            setMobileEditTitle(note.title);
+            setMobileEditDueDate(note.dueDate ?? "");
+            setMobileEditImportance(note.importance ?? "none");
+          }
+
           function renderTaskCard(note: Note) {
             const isDone = note.completed || (note.steps.length > 0 && note.steps.every(s => s.done));
             const imp = note.importance === "none" ? undefined : note.importance;
@@ -1741,7 +1754,7 @@ export function HomeShell() {
               <div key={note.id} style={{ borderRadius: 14, backgroundColor: bg, border: bord, marginBottom: 9, overflow: "hidden" }}>
                 {/* Top pill row */}
                 <div style={{ padding: "11px 14px 0", display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: isDone ? (theme === "dark" ? "rgba(100,220,120,.8)" : "rgba(30,120,60,.7)") : (imp ? impColor : muted(theme)), opacity: isDone ? 1 : 0.75 }}>
+                  <span style={{ flex: 1, fontSize: 10, fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: isDone ? (theme === "dark" ? "rgba(100,220,120,.8)" : "rgba(30,120,60,.7)") : (imp ? impColor : muted(theme)), opacity: isDone ? 1 : 0.75 }}>
                     {isDone ? "Completed" : (imp ? `${imp} priority` : "Task")}
                   </span>
                   {dueLabel && !isDone && (
@@ -1750,6 +1763,7 @@ export function HomeShell() {
                       <span style={{ fontSize: 10, fontWeight: 600, color: dueColor }}>{dueLabel}</span>
                     </>
                   )}
+                  <button onClick={() => openEdit(note)} style={{ ...dotBtn, marginLeft: 6 }}>···</button>
                 </div>
                 {/* Title + Focus row */}
                 <div
@@ -1817,12 +1831,20 @@ export function HomeShell() {
             const bord = palette.halo.replace(/[\d.]+\)$/, theme === "dark" ? "0.45)" : "0.55)");
             return (
               <div key={note.id} style={{ borderRadius: 14, backgroundColor: bg, border: `1.5px solid ${bord}`, marginBottom: 9, padding: "11px 14px 14px" }}>
-                <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: palette.swatch, opacity: .75, marginBottom: 5 }}>Idea</div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: pageText(theme), lineHeight: 1.35, wordBreak: "break-word" }}>{note.title}</div>
-                {note.body && <div style={{ fontSize: 13, color: muted(theme), marginTop: 5, lineHeight: 1.5, opacity: .7 }}>{note.body}</div>}
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: palette.swatch, opacity: .75, marginBottom: 5 }}>Idea</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: pageText(theme), lineHeight: 1.35, wordBreak: "break-word" }}>{note.title}</div>
+                    {note.body && <div style={{ fontSize: 13, color: muted(theme), marginTop: 5, lineHeight: 1.5, opacity: .7 }}>{note.body}</div>}
+                  </div>
+                  <button onClick={() => openEdit(note)} style={{ ...dotBtn, marginTop: 2 }}>···</button>
+                </div>
               </div>
             );
           }
+
+          // Edit action sheet for currently open note
+          const actionNote = mobileActionNoteId !== null ? notes.find(n => n.id === mobileActionNoteId) : null;
 
           return (
             <div style={{ padding: "0 0 100px" }}>
@@ -1907,7 +1929,7 @@ export function HomeShell() {
                             <button
                               key={imp}
                               onClick={() => setMobileAddImportance(imp)}
-                              style={{ flex: 1, height: 36, borderRadius: 999, border: active ? `1.5px solid ${col}` : `1px solid ${border(theme)}`, backgroundColor: active ? hexToRgba(imp === "none" ? "#888" : PRIORITY_COLORS[imp as "High"|"Medium"|"Low"], 0.12) : "transparent", color: active ? col : muted(theme), fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                              style={{ flex: 1, height: 34, borderRadius: 999, border: active ? `1.5px solid ${col}` : `1px solid ${border(theme)}`, backgroundColor: (active && imp !== "none") ? hexToRgba(PRIORITY_COLORS[imp as "High"|"Medium"|"Low"], 0.12) : "transparent", color: active ? col : muted(theme), fontSize: 12, fontWeight: 700, cursor: "pointer" }}
                             >
                               {imp === "none" ? "None" : imp}
                             </button>
@@ -1917,7 +1939,7 @@ export function HomeShell() {
                     )}
                     <button
                       onClick={mobileCreateNote}
-                      style={{ height: 48, borderRadius: 14, backgroundColor: theme === "dark" ? "#f5f5f2" : "#171613", color: theme === "dark" ? "#171613" : "#f7f8fb", border: "none", fontSize: 15, fontWeight: 800, cursor: "pointer" }}
+                      style={{ height: 44, borderRadius: 12, backgroundColor: theme === "dark" ? "#f5f5f2" : "#171613", color: theme === "dark" ? "#171613" : "#f7f8fb", border: "none", fontSize: 15, fontWeight: 700, cursor: "pointer" }}
                     >
                       Add {mobileAddMode === "task" ? "Task" : "Idea"}
                     </button>
@@ -1925,12 +1947,66 @@ export function HomeShell() {
                 </div>
               )}
 
+              {/* Edit / delete action sheet */}
+              {actionNote && (
+                <div style={{ position: "fixed", inset: 0, zIndex: 810, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+                  <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,.4)" }} onClick={() => setMobileActionNoteId(null)} />
+                  <div style={{ position: "relative", backgroundColor: surface(theme), borderRadius: "20px 20px 0 0", padding: "20px 20px 36px", display: "flex", flexDirection: "column", gap: 12 }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: muted(theme), opacity: .5, marginBottom: 2 }}>Edit</div>
+                    <input
+                      value={mobileEditTitle}
+                      onChange={e => setMobileEditTitle(e.target.value)}
+                      placeholder="Title"
+                      style={{ fontSize: 16, fontWeight: 600, color: pageText(theme), backgroundColor: paper(theme), border: `1.5px solid ${border(theme)}`, borderRadius: 12, padding: "13px 14px", outline: "none", width: "100%", boxSizing: "border-box" }}
+                    />
+                    {actionNote.type === "task" && (
+                      <>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          {(["none", "Low", "Medium", "High"] as Importance[]).map(imp => {
+                            const active = mobileEditImportance === imp;
+                            const col = imp === "none" ? muted(theme) : PRIORITY_COLORS[imp as "High"|"Medium"|"Low"];
+                            return (
+                              <button key={imp} onClick={() => setMobileEditImportance(imp)}
+                                style={{ flex: 1, height: 34, borderRadius: 999, border: active ? `1.5px solid ${col}` : `1px solid ${border(theme)}`, backgroundColor: (active && imp !== "none") ? hexToRgba(PRIORITY_COLORS[imp as "High"|"Medium"|"Low"], 0.12) : "transparent", color: active ? col : muted(theme), fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                              >{imp === "none" ? "None" : imp}</button>
+                            );
+                          })}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: muted(theme), opacity: .55, marginBottom: 6, letterSpacing: ".04em" }}>Due date</div>
+                          <input
+                            type="date"
+                            value={mobileEditDueDate}
+                            onChange={e => setMobileEditDueDate(e.target.value)}
+                            style={{ fontSize: 15, fontWeight: 600, color: pageText(theme), backgroundColor: paper(theme), border: `1.5px solid ${border(theme)}`, borderRadius: 12, padding: "11px 14px", outline: "none", width: "100%", boxSizing: "border-box" }}
+                          />
+                        </div>
+                      </>
+                    )}
+                    <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                      <button
+                        onClick={() => {
+                          if (!mobileEditTitle.trim()) return;
+                          setNotes(ns => ns.map(n => n.id === actionNote.id ? { ...n, title: mobileEditTitle.trim(), importance: mobileEditImportance, dueDate: mobileEditDueDate || undefined } : n));
+                          setMobileActionNoteId(null);
+                        }}
+                        style={{ flex: 1, height: 44, borderRadius: 12, backgroundColor: theme === "dark" ? "#f5f5f2" : "#171613", color: theme === "dark" ? "#171613" : "#f7f8fb", border: "none", fontSize: 15, fontWeight: 700, cursor: "pointer" }}
+                      >Save</button>
+                      <button
+                        onClick={() => { setNotes(ns => ns.filter(n => n.id !== actionNote.id)); setMobileActionNoteId(null); }}
+                        style={{ height: 44, borderRadius: 12, backgroundColor: "transparent", color: theme === "dark" ? "#ff8080" : "#c03030", border: `1.5px solid ${theme === "dark" ? "rgba(220,60,60,.35)" : "rgba(180,40,40,.25)"}`, padding: "0 20px", fontSize: 15, fontWeight: 700, cursor: "pointer" }}
+                      >Delete</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* FAB */}
               <button
                 onClick={() => { setMobileAddMode(isThoughtBoard ? "thought" : "task"); setMobileAddTitle(""); setMobileAddImportance("none"); }}
-                style={{ position: "fixed", bottom: 24, right: 20, width: 56, height: 56, borderRadius: "50%", backgroundColor: theme === "dark" ? "#f5f5f2" : "#171613", color: theme === "dark" ? "#171613" : "#f7f8fb", border: "none", fontSize: 26, fontWeight: 300, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 20px rgba(0,0,0,.28)", zIndex: 100 }}
+                style={{ position: "fixed", bottom: 24, right: 20, width: 56, height: 56, borderRadius: "50%", backgroundColor: theme === "dark" ? "#f5f5f2" : "#171613", color: theme === "dark" ? "#171613" : "#f7f8fb", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 20px rgba(0,0,0,.28)", zIndex: 100 }}
               >
-                +
+                <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><line x1="11" y1="3" x2="11" y2="19" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/><line x1="3" y1="11" x2="19" y2="11" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
               </button>
             </div>
           );
