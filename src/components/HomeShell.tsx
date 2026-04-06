@@ -735,6 +735,46 @@ export function HomeShell() {
     setPan(clampPan(nextX, nextY, nextScale));
   }
 
+  // Find a board position that doesn't overlap existing notes for the active board.
+  function findFreeSpot(existing: Note[], preferredX: number, preferredY: number): { x: number; y: number } {
+    const W = NOTE_W + 24;
+    const H = NOTE_H + 24;
+    function overlaps(x: number, y: number) {
+      return existing.some(n => Math.abs(n.x - x) < W && Math.abs(n.y - y) < H);
+    }
+    const px = Math.max(40, Math.min(BOARD_W - NOTE_W - 40, preferredX));
+    const py = Math.max(60, Math.min(BOARD_H - NOTE_H - 40, preferredY));
+    if (!overlaps(px, py)) return { x: px, y: py };
+    for (let ring = 1; ring <= 30; ring++) {
+      const step = Math.max(W, H);
+      for (let dx = -ring; dx <= ring; dx++) {
+        for (let dy = -ring; dy <= ring; dy++) {
+          if (Math.abs(dx) !== ring && Math.abs(dy) !== ring) continue;
+          const cx = Math.max(40, Math.min(BOARD_W - NOTE_W - 40, px + dx * step));
+          const cy = Math.max(60, Math.min(BOARD_H - NOTE_H - 40, py + dy * step));
+          if (!overlaps(cx, cy)) return { x: cx, y: cy };
+        }
+      }
+    }
+    return { x: px, y: py };
+  }
+
+  function reorganizeBoard() {
+    const boardNotes = notes.filter(n => n.boardId === activeBoardId);
+    if (boardNotes.length === 0) return;
+    const margin = 28;
+    const colW = NOTE_W + margin;
+    const colH = NOTE_H + margin;
+    const cols = Math.max(1, Math.floor((BOARD_W - 80) / colW));
+    setNotes(prev => prev.map(n => {
+      if (n.boardId !== activeBoardId) return n;
+      const idx = boardNotes.findIndex(bn => bn.id === n.id);
+      const col = idx % cols;
+      const row = Math.floor(idx / cols);
+      return { ...n, x: 80 + col * colW, y: 80 + row * colH };
+    }));
+  }
+
   function zoomAt(clientX: number, clientY: number, nextScale: number) {
     const viewport = viewportRef.current;
     if (!viewport) return;
@@ -1355,8 +1395,8 @@ export function HomeShell() {
 
     const taskMinutes = thoughtMode ? undefined : minutes;
     const rawSteps = thoughtMode ? [] : aiSteps;
-    const noteX = Math.max(40, Math.min(BOARD_W - NOTE_W - 40, centerX - NOTE_W / 2));
-    const noteY = Math.max(60, Math.min(BOARD_H - NOTE_H - 40, centerY - NOTE_H / 2));
+    const boardNotes = notes.filter(n => n.boardId === activeBoardId);
+    const { x: noteX, y: noteY } = findFreeSpot(boardNotes, centerX - NOTE_W / 2, centerY - NOTE_H / 2);
     const laidOutSteps = rawSteps.length > 0 ? layoutWeb(noteX, noteY, rawSteps) : [];
 
     const note: Note = {
@@ -1554,6 +1594,11 @@ export function HomeShell() {
   function handleBobAddNote(note: BobNewNote) {
     const id = Date.now();
     const now = new Date().toISOString();
+    const viewport = viewportRef.current;
+    const prefX = viewport ? (viewport.clientWidth / 2 - pan.x) / scale - NOTE_W / 2 : 200;
+    const prefY = viewport ? (viewport.clientHeight / 2 - pan.y) / scale - NOTE_H / 2 : 200;
+    const boardNotes = notes.filter(n => n.boardId === activeBoardId);
+    const { x, y } = findFreeSpot(boardNotes, prefX, prefY);
     const newNote: Note = {
       id,
       boardId: activeBoardId,
@@ -1563,8 +1608,7 @@ export function HomeShell() {
       importance: note.importance ?? "none",
       createdAt: now,
       completed: false,
-      x: 80 + Math.random() * 200,
-      y: 80 + Math.random() * 200,
+      x, y,
       steps: (note.steps ?? []).map((s, i) => ({ id: id + i + 1, title: s.title, minutes: s.minutes, done: false, x: 0, y: 0 })),
       showFlow: false,
       flowMode: "web",
@@ -2694,6 +2738,11 @@ export function HomeShell() {
               {/* Center board */}
               <button onClick={centerBoard} style={circleButton(boardTheme)} aria-label="Center board" title="Center board">
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.5"/><circle cx="8" cy="8" r="1.5" fill="currentColor"/></svg>
+              </button>
+
+              {/* Reorganize — auto-arrange cards in a grid */}
+              <button onClick={reorganizeBoard} style={circleButton(boardTheme)} aria-label="Reorganize board" title="Reorganize — arrange cards in a grid">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="1" y="1" width="5.5" height="5.5" rx="1.5"/><rect x="9.5" y="1" width="5.5" height="5.5" rx="1.5"/><rect x="1" y="9.5" width="5.5" height="5.5" rx="1.5"/><rect x="9.5" y="9.5" width="5.5" height="5.5" rx="1.5"/></svg>
               </button>
 
               {/* Cloud sync indicator — only when signed in */}
