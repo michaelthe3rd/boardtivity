@@ -618,7 +618,7 @@ export function HomeShell() {
   const [thoughtColorMode, setThoughtColorMode] = useState<"random" | "fixed">(() => readLocal("thoughtColorMode", "random"));
   const [thoughtFixedColorIdx, setThoughtFixedColorIdx] = useState<number>(() => readLocal("thoughtFixedColorIdx", 0));
   const settingsRef = useRef<HTMLDivElement | null>(null);
-  const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "done">("idle");
+  const [cloudSyncState, setCloudSyncState] = useState<"loading" | "synced" | "saving" | "error">("loading");
 
   const boardDragRef = useRef<null | { startX: number; startY: number; panX: number; panY: number }>(null);
   const noteDragRef = useRef<null | { pointerId: number; noteId: number; noteType: BoardType; boardId: string; startX: number; startY: number; noteX: number; noteY: number }>(null);
@@ -786,71 +786,102 @@ export function HomeShell() {
   }, []);
 
 
-  // Returns true if the saved cloud state is just the factory defaults (no real user data).
-  // This happens when a fresh device pushed INITIAL_BOARDS before syncing properly.
+  // ── Cloud sync helpers ──────────────────────────────────────────────────────
+
+  // True if boardState only has the two factory-default boards and no notes.
+  // Guards against a previous bug that pushed INITIAL_BOARDS to Convex from a fresh device.
   function isCloudDefaultOnly(boardState: string): boolean {
     try {
-      const data = JSON.parse(boardState) as { boards?: Board[]; notes?: Note[] };
-      const b = data.boards ?? [];
-      const n = data.notes ?? [];
-      return (
-        n.length === 0 &&
-        b.length === 2 &&
-        b[0]?.id === "my-board" &&
-        b[1]?.id === "my-thoughts"
-      );
+      const d = JSON.parse(boardState) as { boards?: Board[]; notes?: Note[] };
+      const b = d.boards ?? [], n = d.notes ?? [];
+      return n.length === 0 && b.length === 2 && b[0]?.id === "my-board" && b[1]?.id === "my-thoughts";
     } catch { return false; }
   }
 
-  // Hydrate from Convex when data arrives — enables cross-device sync for signed-in users
+  function currentBoardState() {
+    return JSON.stringify({ boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid });
+  }
+
+  async function pushToCloud() {
+    setCloudSyncState("saving");
+    try {
+      await saveBoard({ boardState: currentBoardState() });
+      setCloudSyncState("synced");
+    } catch (e) {
+      console.error("[Boardtivity] Convex save failed:", e);
+      setCloudSyncState("error");
+    }
+  }
+
+  // ── Hydrate from Convex on first load (cross-device sync) ───────────────────
   useEffect(() => {
-    if (!isSignedIn || savedBoard === undefined) return; // still loading or not signed in
+    if (!isSignedIn || savedBoard === undefined) return;
     convexReadyRef.current = true;
-    if (convexAppliedRef.current) return; // already applied once — don't override user's in-session changes
+    if (convexAppliedRef.current) return;
     convexAppliedRef.current = true;
 
-    // Treat cloud as empty if it only has factory defaults (could be from a sync bug on another device)
     const cloudHasRealData = savedBoard && !isCloudDefaultOnly(savedBoard.boardState);
 
     if (cloudHasRealData) {
-      // Compare timestamps: only apply cloud data if it's newer than local data
-      let localSavedAt = 0;
+      // Cloud has real data — apply it (this device might be new or behind)
       try {
-        const raw = localStorage.getItem("boardtivity");
-        if (raw) localSavedAt = (JSON.parse(raw) as { savedAt?: number }).savedAt ?? 0;
-      } catch {}
-
-      if (savedBoard!.updatedAt >= localSavedAt) {
-        // Cloud is newer (or same) — apply it (loads from another device)
-        try {
-          const data = JSON.parse(savedBoard!.boardState) as {
-            boards?: Board[];
-            notes?: Note[];
-            activeBoardId?: string;
-            drafts?: Draft[];
-            thoughtColorMode?: "random" | "fixed";
-            thoughtFixedColorIdx?: number;
-            boardGrid?: "grid" | "dots" | "blank";
-          };
-          if (Array.isArray(data.boards) && data.boards.length > 0) setBoards(data.boards);
-          if (Array.isArray(data.notes)) setNotes(data.notes);
-          if (data.activeBoardId) setActiveBoardId(data.activeBoardId);
-          if (Array.isArray(data.drafts)) setDrafts(data.drafts);
-          if (data.thoughtColorMode) setThoughtColorMode(data.thoughtColorMode);
-          if (typeof data.thoughtFixedColorIdx === "number") setThoughtFixedColorIdx(data.thoughtFixedColorIdx);
-          if (data.boardGrid) setBoardGrid(data.boardGrid);
-        } catch {}
-      } else {
-        // Local is newer — push it to Convex so other devices get the latest
-        saveBoard({ boardState: JSON.stringify({ boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid }) }).catch(() => {});
-      }
+        const data = JSON.parse(savedBoard.boardState) as {
+          boards?: Board[]; notes?: Note[]; activeBoardId?: string;
+          drafts?: Draft[]; thoughtColorMode?: "random" | "fixed";
+          thoughtFixedColorIdx?: number; boardGrid?: "grid" | "dots" | "blank";
+        };
+        if (Array.isArray(data.boards) && data.boards.length > 0) setBoards(data.boards);
+        if (Array.isArray(data.notes)) setNotes(data.notes);
+        if (data.activeBoardId) setActiveBoardId(data.activeBoardId);
+        if (Array.isArray(data.drafts)) setDrafts(data.drafts);
+        if (data.thoughtColorMode) setThoughtColorMode(data.thoughtColorMode);
+        if (typeof data.thoughtFixedColorIdx === "number") setThoughtFixedColorIdx(data.thoughtFixedColorIdx);
+        if (data.boardGrid) setBoardGrid(data.boardGrid);
+        setCloudSyncState("synced");
+      } catch { setCloudSyncState("error"); }
     } else {
-      // Cloud is empty or only has defaults — push local state up so other devices can see it
-      saveBoard({ boardState: JSON.stringify({ boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid }) }).catch(() => {});
+      // Cloud empty or only defaults — push whatever is in localStorage up immediately
+      pushToCloud();
     }
   }, [isSignedIn, savedBoard]);
 
-  // Auto-link signed-in users to the waitlist (once per session)
+  // ── Persist to localStorage + debounced Convex save on every change ─────────
+  useEffect(() => {
+    if (!isHydrated) return;
+    try {
+      if (isSignedIn) {
+        localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid }));
+        if (convexReadyRef.current) {
+          setCloudSyncState("saving");
+          if (convexSaveTimerRef.current) clearTimeout(convexSaveTimerRef.current);
+          convexSaveTimerRef.current = setTimeout(() => {
+            saveBoard({ boardState: currentBoardState() })
+              .then(() => setCloudSyncState("synced"))
+              .catch((e) => { console.error("[Boardtivity] Convex save failed:", e); setCloudSyncState("error"); });
+          }, 300);
+        }
+      } else {
+        localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme }));
+      }
+    } catch {}
+  }, [isHydrated, isSignedIn, theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid]);
+
+  // ── Flush pending save when tab hides or closes ──────────────────────────────
+  useEffect(() => {
+    function flush() {
+      if (!convexReadyRef.current || !isSignedIn) return;
+      if (convexSaveTimerRef.current) { clearTimeout(convexSaveTimerRef.current); convexSaveTimerRef.current = null; }
+      saveBoard({ boardState: currentBoardState() })
+        .then(() => setCloudSyncState("synced"))
+        .catch(() => setCloudSyncState("error"));
+    }
+    function onVisibility() { if (document.visibilityState === "hidden") flush(); }
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => { window.removeEventListener("pagehide", flush); document.removeEventListener("visibilitychange", onVisibility); };
+  }, [isSignedIn, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid]);
+
+  // ── Auto-link signed-in users to waitlist ────────────────────────────────────
   useEffect(() => {
     if (!isSignedIn || !user) return;
     const email = user.emailAddresses?.[0]?.emailAddress;
@@ -867,50 +898,6 @@ export function HomeShell() {
   useEffect(() => {
     document.documentElement.setAttribute("data-board-theme", boardTheme);
   }, [boardTheme]);
-
-  // Persist state to localStorage + Convex (cross-device sync)
-  useEffect(() => {
-    if (!isHydrated) return;
-    try {
-      if (isSignedIn) {
-        // Signed in: save everything locally.
-        // Only stamp savedAt after Convex has confirmed its state — this prevents
-        // a fresh Device B install from looking "newer" than real cloud data.
-        const localPayload = { theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid,
-          ...(convexReadyRef.current ? { savedAt: Date.now() } : {}) };
-        localStorage.setItem("boardtivity", JSON.stringify(localPayload));
-        // Debounced save to Convex — only after Convex has confirmed its state (avoids overwriting fresh cloud data with stale local cache)
-        if (convexReadyRef.current) {
-          if (convexSaveTimerRef.current) clearTimeout(convexSaveTimerRef.current);
-          convexSaveTimerRef.current = setTimeout(() => {
-            saveBoard({ boardState: JSON.stringify({ boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid }) }).catch(() => {});
-          }, 1500);
-        }
-      } else {
-        // Signed out: only save theme preferences so dark/light mode survives refresh
-        localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme }));
-      }
-    } catch {}
-  }, [isHydrated, isSignedIn, theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid]);
-
-  // Flush any pending debounced Convex save immediately when the tab is hidden or closed
-  useEffect(() => {
-    function flush() {
-      if (!convexReadyRef.current || !isSignedIn) return;
-      if (convexSaveTimerRef.current) {
-        clearTimeout(convexSaveTimerRef.current);
-        convexSaveTimerRef.current = null;
-      }
-      saveBoard({ boardState: JSON.stringify({ boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid }) }).catch(() => {});
-    }
-    function handleVisibilityChange() { if (document.visibilityState === "hidden") flush(); }
-    window.addEventListener("pagehide", flush);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => {
-      window.removeEventListener("pagehide", flush);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [isSignedIn, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid]);
 
   useEffect(() => {
     function onDocPointerDown(e: PointerEvent) {
@@ -2053,6 +2040,11 @@ export function HomeShell() {
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.5"/><circle cx="8" cy="8" r="1.5" fill="currentColor"/></svg>
               </button>
 
+              {/* Cloud sync indicator — only when signed in */}
+              {isSignedIn && (
+                <div title={cloudSyncState === "synced" ? "Synced" : cloudSyncState === "saving" ? "Saving…" : cloudSyncState === "error" ? "Sync error" : "Connecting…"} style={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, backgroundColor: cloudSyncState === "synced" ? "#3db83d" : cloudSyncState === "error" ? "#c03030" : "#c8960a", boxShadow: cloudSyncState === "saving" ? "0 0 0 3px rgba(200,150,10,.25)" : "none", transition: "background-color .3s" }} />
+              )}
+
               {/* Settings button — gear */}
               <button ref={settingsButtonRef} onClick={() => { setSettingsOpen(v => !v); setBoardsOpen(false); }} style={{ ...circleButton(boardTheme), ...(settingsOpen ? { backgroundColor: boardTheme === "dark" ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.07)", border: `1px solid ${boardTheme === "dark" ? "rgba(255,255,255,.2)" : "rgba(0,0,0,.15)"}` } : {}) }} aria-label="Settings" title="Settings">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
@@ -2229,20 +2221,10 @@ export function HomeShell() {
                     <div style={{ fontSize: 13, color: muted(boardTheme), opacity: .7, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {user?.firstName ? `${user.firstName}${user.lastName ? ` ${user.lastName}` : ""}` : user?.emailAddresses?.[0]?.emailAddress}
                     </div>
-                    <button
-                      onClick={async () => {
-                        setSyncStatus("syncing");
-                        try {
-                          await saveBoard({ boardState: JSON.stringify({ boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid }) });
-                          setSyncStatus("done");
-                          setTimeout(() => setSyncStatus("idle"), 2000);
-                        } catch { setSyncStatus("idle"); }
-                      }}
-                      disabled={syncStatus === "syncing"}
-                      style={{ ...buttonStyle(boardTheme, true), width: "100%", fontSize: 14, height: 42 }}
-                    >
-                      {syncStatus === "syncing" ? "Syncing…" : syncStatus === "done" ? "Synced ✓" : "Sync to Cloud"}
-                    </button>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: muted(boardTheme) }}>
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, backgroundColor: cloudSyncState === "synced" ? "#3db83d" : cloudSyncState === "error" ? "#c03030" : "#c8960a" }} />
+                      {cloudSyncState === "synced" ? "Synced" : cloudSyncState === "saving" ? "Saving…" : cloudSyncState === "error" ? "Sync error — check connection" : "Connecting…"}
+                    </div>
                     <button onClick={() => { setSettingsOpen(false); signOut(); }} style={{ ...buttonStyle(boardTheme, false), width: "100%", fontSize: 14, height: 42 }}>Sign out</button>
                   </>
                 ) : (
