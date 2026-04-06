@@ -1822,14 +1822,25 @@ export function HomeShell() {
             const impColor = priorityColor(imp, theme);
             const doneDots = note.steps.filter(s => s.done).length;
             const hasSteps = note.steps.length > 0;
+            const taskMins = note.steps.length > 0
+              ? note.steps.filter(s => !s.done).reduce((sum, s) => sum + (s.minutes ?? 25), 0)
+              : (note.minutes ?? estimateTime(note.title));
+            const timeLabel = taskMins >= 60 ? `${Math.floor(taskMins/60)}h${taskMins%60 ? ` ${taskMins%60}m` : ""}` : `${taskMins}m`;
 
             return (
               <div key={note.id} style={{ borderRadius: 14, backgroundColor: bg, border: bord, marginBottom: 9 }}>
                 {/* Top meta row */}
                 <div style={{ padding: "11px 14px 0", display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ flex: 1, fontSize: 10, fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: isDone ? (theme === "dark" ? "rgba(100,220,120,.8)" : "rgba(30,120,60,.7)") : (imp ? impColor : muted(theme)), opacity: isDone ? 1 : 0.75 }}>
+                  <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: isDone ? (theme === "dark" ? "rgba(100,220,120,.8)" : "rgba(30,120,60,.7)") : (imp ? impColor : muted(theme)), opacity: isDone ? 1 : 0.75 }}>
                     {isDone ? "Completed" : (imp ? `${imp} priority` : "Task")}
                   </span>
+                  {!isDone && (
+                    <>
+                      <span style={{ color: border(theme), fontSize: 10 }}>·</span>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: muted(theme), opacity: .55 }}>{timeLabel}</span>
+                    </>
+                  )}
+                  <div style={{ flex: 1 }} />
                   {dueLabel && !isDone && (
                     <>
                       <span style={{ color: border(theme), fontSize: 10 }}>·</span>
