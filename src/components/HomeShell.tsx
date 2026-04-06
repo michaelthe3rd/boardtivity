@@ -1347,8 +1347,51 @@ export function HomeShell() {
     setFocusOpen(true);
   }
 
+  const [bannerDismissed, setBannerDismissed] = useState(() => {
+    try { return localStorage.getItem("brd_banner_ai") === "1"; } catch { return false; }
+  });
+
+  function dismissBanner() {
+    setBannerDismissed(true);
+    try { localStorage.setItem("brd_banner_ai", "1"); } catch {}
+  }
+
   return (
     <main style={{ minHeight: "100vh", fontFamily: "'Satoshi', Arial, sans-serif" }}>
+
+      {/* ── AI Agent Banner ── */}
+      {!bannerDismissed && (
+        <div style={{
+          background: theme === "dark"
+            ? "linear-gradient(90deg, rgba(111,196,107,.12) 0%, rgba(74,126,245,.12) 50%, rgba(155,111,232,.12) 100%)"
+            : "linear-gradient(90deg, rgba(111,196,107,.1) 0%, rgba(74,126,245,.1) 50%, rgba(155,111,232,.1) 100%)",
+          borderBottom: `1px solid ${theme === "dark" ? "rgba(255,255,255,.07)" : "rgba(17,19,21,.07)"}`,
+          padding: "9px 16px",
+          display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+          position: "relative",
+        }}>
+          {/* Animated glow dot */}
+          <span style={{ position: "relative", display: "inline-flex", alignItems: "center", justifyContent: "center", width: 8, height: 8, flexShrink: 0 }}>
+            <span style={{ position: "absolute", width: 8, height: 8, borderRadius: "50%", backgroundColor: "#6fc46b", animation: "ping 1.8s ease-in-out infinite", opacity: .5 }} />
+            <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#6fc46b", flexShrink: 0 }} />
+          </span>
+
+          <span style={{ fontSize: isMobile ? 12 : 13, color: pageText(theme), fontWeight: 600, letterSpacing: "-.01em" }}>
+            <span style={{ opacity: .5, fontWeight: 500 }}>Coming soon —</span>
+            {" "}AI agent for your board. Plan, build, and execute tasks with AI built right into your workspace.
+          </span>
+
+          {/* Dismiss */}
+          <button
+            onClick={dismissBanner}
+            aria-label="Dismiss"
+            style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: muted(theme), fontSize: 16, lineHeight: 1, padding: 4, opacity: .5 }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       <section style={{ padding: isMobile ? "16px 18px 0" : "24px 48px 0" }}>
         <header style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
