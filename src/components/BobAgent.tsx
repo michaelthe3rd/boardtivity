@@ -272,9 +272,12 @@ export default function BobAgent({ theme: t, notes, onSweep, onAddNote }: Props)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     r.onerror = (e: any) => {
       setListening(false);
-      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
-        setResponse("Microphone access was blocked. Please allow microphone access in your browser settings and try again.");
+      // Only surface an error for hard permission denials; everything else silently resets
+      if (e.error === "service-not-allowed") {
+        setResponse("Voice input isn't available in this browser. Try typing instead.");
       }
+      // "not-allowed" can fire even when OS mic is on if the browser site permission
+      // is 'Ask' — the browser will show its own prompt, so we don't need to say anything.
     };
     recognitionRef.current = r;
     r.start();
@@ -504,14 +507,14 @@ export default function BobAgent({ theme: t, notes, onSweep, onAddNote }: Props)
                   if (e.key === "Escape") { setAddingAction(false); setNewActionLabel(""); }
                 }}
                 onBlur={() => { if (!newActionLabel.trim()) { setAddingAction(false); } }}
-                placeholder="Name this action… (Enter to save)"
+                placeholder="Name this action…"
                 style={{
                   padding: "4px 12px", borderRadius: 99,
                   border: `1px solid ${T.chipBdr(t)}`,
                   background: T.chip(t),
                   color: T.text(t), fontSize: 11.5,
                   fontFamily: "'Satoshi', Arial, sans-serif",
-                  outline: "none", width: 180,
+                  outline: "none", flex: 1, minWidth: 0,
                 }}
               />
             ) : (
