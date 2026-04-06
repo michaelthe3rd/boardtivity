@@ -704,7 +704,7 @@ export function HomeShell() {
   const taskBoards = boards.filter((b) => b.type === "task");
   const thoughtBoards = boards.filter((b) => b.type === "thought");
   const recentTasks = [...notes]
-    .filter((n) => n.type === "task")
+    .filter((n) => n.type === "task" && !n.completed && !(n.steps.length > 0 && n.steps.every(s => s.done)))
     .sort((a, b) => {
       if (a.dueDate && b.dueDate) return a.dueDate.localeCompare(b.dueDate);
       if (a.dueDate) return -1;
