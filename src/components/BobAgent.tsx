@@ -320,24 +320,31 @@ export default function BobAgent({ theme: t, notes, onSweep, onAddNote }: Props)
       ref={containerRef}
       style={{
         // ── Dynamic Island morph ──────────────────────────────────────────
-        width:        open ? 560 : 88,
-        maxHeight:    open ? 520 : 34,
+        // No hard-coded closed width — let content determine it naturally so
+        // the icon+text are always truly centered inside the pill.
+        // Width only animates on the open path (undefined→560 snaps, but
+        // content fades in after shape settles so the snap isn't visible).
+        width:        open ? 560 : undefined,
+        maxHeight:    open ? 520 : 42,
         borderRadius: open ? 18  : 999,
         overflow: "hidden",
         willChange: "width, max-height, border-radius",
         transition,
         // ── Appearance ───────────────────────────────────────────────────
-        backgroundColor: T.bg(t),
+        // Pill is more transparent; panel is more solid
+        backgroundColor: open
+          ? T.bg(t)
+          : (t === "dark" ? "rgba(22,24,28,.72)" : "rgba(255,255,255,.72)"),
         backdropFilter:  "blur(22px)",
         WebkitBackdropFilter: "blur(22px)",
-        border: `1px solid ${T.border(t)}`,
+        border: `1px solid ${open
+          ? T.border(t)
+          : (t === "dark" ? "rgba(255,255,255,.14)" : "rgba(17,19,21,.14)")}`,
         boxShadow: open
           ? (t === "dark"
               ? "0 10px 48px rgba(0,0,0,.65), 0 0 0 1px rgba(255,255,255,.07)"
               : "0 10px 40px rgba(0,0,0,.14), 0 0 0 1px rgba(0,0,0,.04)")
-          : (t === "dark"
-              ? "0 2px 12px rgba(0,0,0,.45)"
-              : "0 2px 8px rgba(0,0,0,.09)"),
+          : "none",
         cursor:     open ? "default" : "pointer",
         userSelect: "none",
         zIndex: 30,
@@ -352,13 +359,13 @@ export default function BobAgent({ theme: t, notes, onSweep, onAddNote }: Props)
         alignItems: "center",
         justifyContent: "center",
         position: "relative",
-        padding: open ? "10px 14px 9px" : "5px 14px",
+        padding: open ? "10px 14px 9px" : "8px 18px",
         flexShrink: 0,
         whiteSpace: "nowrap",
         transition: "padding 0.3s ease",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-          <BobIcon size={18} color={ic} />
+          <BobIcon size={20} color={ic} />
           <span style={{
             fontSize:      13,
             fontWeight:    800,
