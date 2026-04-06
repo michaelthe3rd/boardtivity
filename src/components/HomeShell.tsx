@@ -1101,6 +1101,14 @@ export function HomeShell() {
     }
   }, [focusCompleted, focusChainMode]);
 
+  // Lock body scroll when focus overlay is open on mobile
+  useEffect(() => {
+    if (!focusOpen || !isMobile) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [focusOpen, isMobile]);
+
   function advanceToNext() {
     const next = focusNextStep;
     setFocusCompleted(false);
@@ -1805,7 +1813,7 @@ export function HomeShell() {
                   {!isDone && (
                     <button
                       type="button"
-                      onClick={() => startFocus(note.id, false)}
+                      onClick={() => startFocus(note.id, note.steps.length > 0)}
                       style={{ flexShrink: 0, height: 34, borderRadius: 999, backgroundColor: theme === "dark" ? "#111315" : "#171613", color: "#f7f8fb", border: "none", padding: "0 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", marginTop: 2 }}
                     >
                       Focus
@@ -1833,11 +1841,15 @@ export function HomeShell() {
             const palette = NOTE_PALETTE[idx % NOTE_PALETTE.length];
             const bg = theme === "dark" ? palette.dark : palette.light;
             const bord = palette.halo.replace(/[\d.]+\)$/, theme === "dark" ? "0.45)" : "0.55)");
+            const createdStr = note.createdAt ? new Date(note.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "";
             return (
               <div key={note.id} style={{ borderRadius: 14, backgroundColor: bg, border: `1.5px solid ${bord}`, marginBottom: 9, padding: "11px 14px 14px" }}>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: palette.swatch, opacity: .75, marginBottom: 5 }}>Idea</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
+                      <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: palette.swatch, opacity: .75 }}>Idea</div>
+                      {createdStr && <div style={{ fontSize: 10, color: muted(theme), opacity: .45 }}>· {createdStr}</div>}
+                    </div>
                     <div style={{ fontSize: 15, fontWeight: 700, color: pageText(theme), lineHeight: 1.35, wordBreak: "break-word" }}>{note.title}</div>
                     {note.body && <div style={{ fontSize: 13, color: muted(theme), marginTop: 5, lineHeight: 1.5, opacity: .7 }}>{note.body}</div>}
                   </div>
@@ -2019,13 +2031,16 @@ export function HomeShell() {
                             );
                           })}
                         </div>
-                        <div>
-                          <div style={{ fontSize: 11, fontWeight: 700, color: muted(theme), opacity: .55, marginBottom: 6, letterSpacing: ".04em" }}>Due date</div>
+                        <div style={{ display: "flex", alignItems: "center", height: 44, backgroundColor: paper(theme), border: `1.5px solid ${border(theme)}`, borderRadius: 12, padding: "0 14px", gap: 8 }}>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: muted(theme), flex: 1 }}>Due date</span>
+                          {mobileEditDueDate && (
+                            <button type="button" onClick={() => setMobileEditDueDate("")} style={{ background: "none", border: "none", color: muted(theme), fontSize: 13, opacity: .5, cursor: "pointer", padding: "0 2px" }}>✕</button>
+                          )}
                           <input
                             type="date"
                             value={mobileEditDueDate}
                             onChange={e => setMobileEditDueDate(e.target.value)}
-                            style={{ fontSize: 15, fontWeight: 600, color: pageText(theme), backgroundColor: paper(theme), border: `1.5px solid ${border(theme)}`, borderRadius: 12, padding: "11px 14px", outline: "none", width: "100%", boxSizing: "border-box" }}
+                            style={{ border: "none", backgroundColor: "transparent", color: pageText(theme), fontSize: 14, fontWeight: 600, outline: "none", textAlign: "right", padding: 0, cursor: "pointer" }}
                           />
                         </div>
                       </>
@@ -2059,18 +2074,71 @@ export function HomeShell() {
                 </div>
               )}
 
-              {/* Mobile focus overlay — rendered here (inside mobile section) so it reliably shows on iOS */}
+              {/* Mobile focus overlay — rendered inside mobile section so it reliably shows on iOS */}
               {focusOpen && (() => {
                 const fn = notes.find(n => n.id === focusNoteId);
                 if (!fn) return null;
                 const step = focusStepId ? fn.steps.find(s => s.id === focusStepId) : null;
                 const mins = Math.floor(focusSecondsLeft / 60);
                 const secs = focusSecondsLeft % 60;
+                const allSteps = fn.steps;
+                const hasChain = focusChainMode && allSteps.length > 1;
+                const currentStepSecs = (step?.minutes ?? fn.minutes ?? estimateTime(fn.title)) * 60;
+                const currentStepFill = Math.min(100, Math.max(0, ((currentStepSecs - focusSecondsLeft) / currentStepSecs) * 100));
+                const totalMinutes = hasChain ? allSteps.reduce((s, x) => s + (x.minutes ?? 25), 0) : (step?.minutes ?? fn.minutes ?? estimateTime(fn.title));
+                const totalSecs2 = totalMinutes * 60;
+                const currentIdx = step ? allSteps.findIndex(s => s.id === focusStepId) : -1;
+                const doneStepsSecs = hasChain && currentIdx > 0 ? allSteps.slice(0, currentIdx).reduce((s, x) => s + (x.minutes ?? 25) * 60, 0) : 0;
+                const overallFill = Math.min(100, Math.max(0, ((doneStepsSecs + (currentStepSecs - focusSecondsLeft)) / totalSecs2) * 100));
+
                 const btn: CSSProperties = { height: 48, padding: "0 24px", borderRadius: 999, border: "1px solid rgba(255,255,255,.14)", backgroundColor: "rgba(255,255,255,.09)", color: "rgba(247,248,251,.85)", fontSize: 15, fontWeight: 700, cursor: "pointer" };
                 const btnRed: CSSProperties = { ...btn, border: "1px solid rgba(220,60,60,.3)", backgroundColor: "rgba(220,60,60,.12)", color: "rgba(255,160,160,.8)" };
                 const btnGreen: CSSProperties = { ...btn, border: "1px solid rgba(100,210,120,.3)", backgroundColor: "rgba(80,180,100,.12)", color: "rgba(120,220,130,.9)", padding: "0 36px", height: 52, fontSize: 16 };
+
+                const progressBars = (dimmed = false) => {
+                  const barColor = dimmed ? "rgba(247,248,251,.22)" : "rgba(247,248,251,.9)";
+                  const trackColor = dimmed ? "rgba(255,255,255,.07)" : "rgba(255,255,255,.12)";
+                  return (
+                    <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: hasChain ? 14 : 0 }}>
+                      <div>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8, gap: 12 }}>
+                          <span style={{ fontSize: 14, fontWeight: 600, color: dimmed ? "rgba(247,248,251,.35)" : "rgba(247,248,251,.8)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {step ? step.title : fn.title}
+                          </span>
+                          {hasChain && step && (
+                            <span style={{ fontSize: 13, color: dimmed ? "rgba(247,248,251,.22)" : "rgba(247,248,251,.4)", flexShrink: 0 }}>
+                              {currentIdx + 1} / {allSteps.length}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ height: 6, borderRadius: 999, backgroundColor: trackColor, overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${currentStepFill}%`, borderRadius: 999, backgroundColor: barColor, transition: "width 1s linear" }} />
+                        </div>
+                      </div>
+                      {hasChain && (
+                        <div>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                            <span style={{ fontSize: 13, color: dimmed ? "rgba(247,248,251,.2)" : "rgba(247,248,251,.38)" }}>Overall</span>
+                            <span style={{ fontSize: 13, color: dimmed ? "rgba(247,248,251,.2)" : "rgba(247,248,251,.38)" }}>{Math.round(overallFill)}%</span>
+                          </div>
+                          <div style={{ display: "flex", gap: 4 }}>
+                            {allSteps.map((s, i) => {
+                              const fill = s.done ? 100 : s.id === focusStepId ? currentStepFill : 0;
+                              return (
+                                <div key={s.id} style={{ flex: s.minutes ?? 25, height: 6, borderRadius: 999, backgroundColor: trackColor, overflow: "hidden" }}>
+                                  <div style={{ height: "100%", width: `${fill}%`, borderRadius: 999, backgroundColor: barColor, transition: "width 1s linear" }} />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                };
+
                 return (
-                  <div style={{ position: "fixed", inset: 0, zIndex: 950, backgroundColor: focusCompleted ? "rgba(6,20,9,.98)" : focusPaused ? "rgba(7,8,18,.98)" : "rgba(6,7,10,.98)", color: "#f7f8fb", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 24px", textAlign: "center" }}>
+                  <div style={{ position: "fixed", inset: 0, zIndex: 950, backgroundColor: focusCompleted ? "rgb(6,20,9)" : focusPaused ? "rgb(7,8,18)" : "rgb(6,7,10)", color: "#f7f8fb", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 24px", textAlign: "center", overflowY: "hidden", overscrollBehavior: "none" }}>
                     {focusExitConfirm ? (
                       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
                         <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>Exit focus mode?</div>
@@ -2091,7 +2159,8 @@ export function HomeShell() {
                         {focusNextStep && (
                           <div style={{ marginTop: 8, fontSize: 13, color: "rgba(247,248,251,.4)" }}>Up next — <span style={{ color: "rgba(247,248,251,.7)", fontWeight: 600 }}>{focusNextStep.title}</span></div>
                         )}
-                        <div style={{ marginTop: 32, display: "flex", gap: 12 }}>
+                        <div style={{ marginTop: 28, width: "100%" }}>{progressBars(true)}</div>
+                        <div style={{ marginTop: 28, display: "flex", gap: 12 }}>
                           {focusNextStep ? (
                             <>
                               <button type="button" onClick={advanceToNext} style={btnGreen}>Start next</button>
@@ -2103,24 +2172,31 @@ export function HomeShell() {
                         </div>
                       </div>
                     ) : focusPaused ? (
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
+                      <div style={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
                         <div style={{ fontSize: 13, letterSpacing: ".18em", textTransform: "uppercase", color: "rgba(247,248,251,.5)", fontWeight: 600 }}>Break</div>
                         <div style={{ marginTop: 32, fontSize: 88, fontWeight: 700, letterSpacing: "-.04em", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
                           {String(Math.floor(breakSecondsLeft / 60)).padStart(2,"0")}:{String(breakSecondsLeft % 60).padStart(2,"0")}
                         </div>
                         <div style={{ marginTop: 10, fontSize: 14, color: "rgba(247,248,251,.4)" }}>Resumes automatically</div>
-                        <div style={{ marginTop: 44, display: "flex", gap: 12 }}>
+                        <div style={{ marginTop: 36, width: "100%" }}>{progressBars(true)}</div>
+                        <div style={{ marginTop: 36, display: "flex", gap: 12 }}>
                           <button type="button" onClick={() => { focusTotalSecsRef.current = focusPausedSecsRef.current; focusStartedAtRef.current = Date.now(); setFocusPaused(false); setBreakSecondsLeft(0); }} style={btn}>Resume now</button>
                           <button type="button" onClick={() => setFocusExitConfirm(true)} style={btnRed}>Exit</button>
                         </div>
                       </div>
                     ) : (
                       <div style={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
+                        {hasChain && step && (
+                          <div style={{ fontSize: 13, letterSpacing: ".16em", color: "rgba(247,248,251,.45)", fontWeight: 600, marginBottom: 10 }}>
+                            {currentIdx + 1} / {allSteps.length}
+                          </div>
+                        )}
                         <div style={{ fontSize: 17, fontWeight: 600, color: "rgba(247,248,251,.75)", lineHeight: 1.4, maxWidth: 300, marginBottom: 28 }}>{step ? step.title : fn.title}</div>
                         <div style={{ fontSize: 96, fontWeight: 700, letterSpacing: "-.04em", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
                           {String(mins).padStart(2,"0")}:{String(secs).padStart(2,"0")}
                         </div>
-                        <div style={{ marginTop: 48, display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
+                        <div style={{ marginTop: 40, width: "100%" }}>{progressBars(false)}</div>
+                        <div style={{ marginTop: 36, display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
                           <button type="button" onClick={() => { focusPausedSecsRef.current = focusSecondsLeft; setFocusPaused(true); setBreakSecondsLeft(300); }} style={btn}>5 min break</button>
                           <button type="button" onClick={() => setFocusExitConfirm(true)} style={btnRed}>Exit</button>
                         </div>
