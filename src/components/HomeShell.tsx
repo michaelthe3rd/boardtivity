@@ -73,12 +73,19 @@ const BOARD_H = 4200;
 const NOTE_W = 228;
 const NOTE_H = 138;
 
-function ideaNoteWidth(title: string): number {
+function noteCardWidth(title: string): number {
   const len = title.length;
-  if (len <= 32) return 228;
-  if (len <= 60) return 280;
-  if (len <= 100) return 330;
-  return 370;
+  if (len <= 28) return 228;
+  if (len <= 52) return 268;
+  if (len <= 85) return 308;
+  return 344;
+}
+
+function titleFontSize(title: string): number {
+  const len = title.length;
+  if (len <= 40) return 17;
+  if (len <= 70) return 15;
+  return 13;
 }
 const STEP_W = 210;
 const STEP_H = 62;
@@ -1782,7 +1789,7 @@ export function HomeShell() {
                     position: "absolute",
                     left: note.x,
                     top: note.y,
-                    width: note.type === "thought" ? ideaNoteWidth(note.title) : NOTE_W,
+                    width: noteCardWidth(note.title),
                     minHeight: NOTE_H,
                     padding: "6px 7px 6px",
                     borderRadius: 10,
@@ -1824,12 +1831,12 @@ export function HomeShell() {
                     {note.type === "task" && note.dueDate && <div style={{ ...pill(boardTheme), fontWeight: 800 }}>Due {formatDate(note.dueDate)}</div>}
                   </div>
 
-                  <div style={{ marginTop: 18, marginBottom: 6, fontSize: 17, lineHeight: 1.12, fontWeight: 700, color: noteText(boardTheme) }}>
+                  <div style={{ marginTop: 18, marginBottom: 6, fontSize: titleFontSize(note.title), lineHeight: 1.22, fontWeight: 700, color: noteText(boardTheme), display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
                     {note.title}
                   </div>
 
                   {note.body && note.type === "thought" && (
-                    <div style={{ marginTop: 6, fontSize: 13, lineHeight: 1.45, color: noteSub(boardTheme) }}>
+                    <div style={{ marginTop: 6, fontSize: 13, lineHeight: 1.45, color: noteSub(boardTheme), display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
                       {note.body}
                     </div>
                   )}
