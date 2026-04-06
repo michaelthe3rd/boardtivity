@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import type { ThemeMode, BoardType, Importance, FlowMode, Board, Step, Note, Draft } from "@/lib/board";
-import LumaAgent, { type LumaNewNote } from "@/components/LumaAgent";
+import BobAgent, { type BobNewNote } from "@/components/BobAgent";
 import { useMutation, useQuery } from "convex/react";
 import { useUser, useClerk } from "@clerk/nextjs";
 import { api } from "../../convex/_generated/api";
@@ -554,6 +554,7 @@ export function HomeShell() {
   const [waitlistDone, setWaitlistDone] = useState(false);
 
   const joinWaitlist = useMutation(api.waitlist.join);
+  const isAdmin = useQuery(api.admin.checkAdmin);
   const feedbackPosts = useQuery(api.feedback.list);
   const postFeedback = useMutation(api.feedback.post);
   const voteFeedback = useMutation(api.feedback.vote);
@@ -1337,7 +1338,7 @@ export function HomeShell() {
     }));
   }
 
-  function handleLumaAddNote(note: LumaNewNote) {
+  function handleLumaAddNote(note: BobNewNote) {
     const id = Date.now();
     const now = new Date().toISOString();
     const newNote: Note = {
@@ -1898,15 +1899,17 @@ export function HomeShell() {
           )}
 
           <div style={{ position: "absolute", top: 12, left: 16, right: 16, zIndex: 3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            {/* Luma — centered */}
-            <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", top: 0 }}>
-              <LumaAgent
-                theme={boardTheme}
-                notes={activeNotes}
-                onSweep={handleLumaSweep}
-                onAddNote={handleLumaAddNote}
-              />
-            </div>
+            {/* BOB — admin only, centered */}
+            {isAdmin && (
+              <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", top: 0 }}>
+                <BobAgent
+                  theme={boardTheme}
+                  notes={activeNotes}
+                  onSweep={handleLumaSweep}
+                  onAddNote={handleLumaAddNote}
+                />
+              </div>
+            )}
             <div style={{
                 display: "flex", alignItems: "center", gap: 8,
                 fontSize: 14,

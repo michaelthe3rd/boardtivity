@@ -21,6 +21,14 @@ async function isAdmin(ctx: QueryCtx | MutationCtx): Promise<boolean> {
   return false;
 }
 
+// Public: returns true if the current user is an admin (used to gate BOB in HomeShell)
+export const checkAdmin = query({
+  args: {},
+  handler: async (ctx) => {
+    return await isAdmin(ctx);
+  },
+});
+
 // Public: returns current user's identity info so admin can self-diagnose
 export const whoami = query({
   args: {},

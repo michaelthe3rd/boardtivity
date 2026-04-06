@@ -4,12 +4,12 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import type { ThemeMode, Note, Importance } from "@/lib/board";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type LumaTab = "sweep" | "brain" | "voice";
+type BobTab = "sweep" | "brain" | "voice";
 type SweepMode = "priority" | "dueDate" | "type" | "smart";
 type BrainQuery = "whatFirst" | "summary" | "overdue";
 
-export type LumaSweepResult = { id: number; x: number; y: number }[];
-export type LumaNewNote = {
+export type BobSweepResult = { id: number; x: number; y: number }[];
+export type BobNewNote = {
   type: "task" | "idea";
   title: string;
   body: string;
@@ -20,8 +20,8 @@ export type LumaNewNote = {
 interface Props {
   theme: ThemeMode;
   notes: Note[];
-  onSweep: (positions: LumaSweepResult) => void;
-  onAddNote: (note: LumaNewNote) => void;
+  onSweep: (positions: BobSweepResult) => void;
+  onAddNote: (note: BobNewNote) => void;
 }
 
 // ─── Theme helpers ─────────────────────────────────────────────────────────
@@ -36,7 +36,7 @@ const T = {
 };
 
 // ─── Sweep algorithm ──────────────────────────────────────────────────────────
-function computeSweep(notes: Note[], mode: SweepMode): LumaSweepResult {
+function computeSweep(notes: Note[], mode: SweepMode): BobSweepResult {
   const CARD_W = 252;
   const ROW_H = 168;
   const COL_GAP = 22;
@@ -73,9 +73,9 @@ function computeSweep(notes: Note[], mode: SweepMode): LumaSweepResult {
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
-export default function LumaAgent({ theme: t, notes, onSweep, onAddNote }: Props) {
+export default function BobAgent({ theme: t, notes, onSweep, onAddNote }: Props) {
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<LumaTab>("brain");
+  const [tab, setTab] = useState<BobTab>("brain");
   const [mounted, setMounted] = useState(false);
 
   // Sweep state
@@ -91,7 +91,7 @@ export default function LumaAgent({ theme: t, notes, onSweep, onAddNote }: Props
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [voiceLoading, setVoiceLoading] = useState(false);
-  const [voiceResult, setVoiceResult] = useState<LumaNewNote | null>(null);
+  const [voiceResult, setVoiceResult] = useState<BobNewNote | null>(null);
   const [voiceAdded, setVoiceAdded] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
@@ -134,7 +134,7 @@ export default function LumaAgent({ theme: t, notes, onSweep, onAddNote }: Props
       const data = await res.json();
       setBrainResponse(data.response ?? data.error ?? "Something went wrong.");
     } catch {
-      setBrainResponse("Couldn't reach Luma right now. Try again.");
+      setBrainResponse("Couldn't reach BOB right now. Try again.");
     } finally {
       setBrainLoading(false);
     }
@@ -184,7 +184,7 @@ export default function LumaAgent({ theme: t, notes, onSweep, onAddNote }: Props
         body: JSON.stringify({ action: "voice", transcript }),
       });
       const data = await res.json();
-      if (data.task) setVoiceResult(data.task as LumaNewNote);
+      if (data.task) setVoiceResult(data.task as BobNewNote);
     } catch {
       // leave voiceResult null
     } finally {
@@ -192,7 +192,7 @@ export default function LumaAgent({ theme: t, notes, onSweep, onAddNote }: Props
     }
   }
 
-  function addVoiceNote(result: LumaNewNote) {
+  function addVoiceNote(result: BobNewNote) {
     onAddNote(result);
     setVoiceAdded(true);
     setTimeout(() => {
@@ -256,9 +256,9 @@ export default function LumaAgent({ theme: t, notes, onSweep, onAddNote }: Props
             WebkitTextFillColor: "transparent",
             backgroundClip: "text",
           }}>
-            Luma
+            BOB
           </span>
-          <span style={{ fontSize: 11, color: T.muted(t), fontWeight: 500 }}>Your board agent</span>
+          <span style={{ fontSize: 11, color: T.muted(t), fontWeight: 500 }}>Board Operating Brain</span>
         </button>
       )}
 
@@ -292,15 +292,15 @@ export default function LumaAgent({ theme: t, notes, onSweep, onAddNote }: Props
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
                 backgroundClip: "text",
-              }}>Luma</span>
-              <span style={{ fontSize: 11, color: T.muted(t), fontWeight: 500 }}>Board Agent</span>
+              }}>BOB</span>
+              <span style={{ fontSize: 11, color: T.muted(t), fontWeight: 500 }}>Board Operating Brain</span>
             </div>
             <button onClick={() => setOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: T.muted(t), fontSize: 18, lineHeight: 1, padding: "2px 4px", fontFamily: "inherit" }}>×</button>
           </div>
 
           {/* Tabs */}
           <div style={{ display: "flex", padding: "10px 12px 0", gap: 6 }}>
-            {(["brain", "sweep", "voice"] as LumaTab[]).map(tb => (
+            {(["brain", "sweep", "voice"] as BobTab[]).map(tb => (
               <button key={tb} onClick={() => setTab(tb)} style={{
                 flex: 1, padding: "6px 0", borderRadius: 10, border: "none",
                 background: tab === tb ? T.pillActive(t) : "none",
@@ -321,7 +321,7 @@ export default function LumaAgent({ theme: t, notes, onSweep, onAddNote }: Props
             {tab === "brain" && (
               <div>
                 <p style={{ fontSize: 12, color: T.muted(t), margin: "0 0 12px", lineHeight: 1.6 }}>
-                  Ask Luma to analyze your board and tell you what matters.
+                  Ask BOB to analyze your board and tell you what matters.
                 </p>
                 <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
                   {([
@@ -370,7 +370,7 @@ export default function LumaAgent({ theme: t, notes, onSweep, onAddNote }: Props
             {tab === "sweep" && (
               <div>
                 <p style={{ fontSize: 12, color: T.muted(t), margin: "0 0 12px", lineHeight: 1.6 }}>
-                  Luma will reorganize your {notes.length} card{notes.length !== 1 ? "s" : ""} into a clean grid.
+                  BOB will reorganize your {notes.length} card{notes.length !== 1 ? "s" : ""} into a clean grid.
                 </p>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 7, marginBottom: 14 }}>
                   {([
@@ -413,7 +413,7 @@ export default function LumaAgent({ theme: t, notes, onSweep, onAddNote }: Props
             {tab === "voice" && (
               <div>
                 <p style={{ fontSize: 12, color: T.muted(t), margin: "0 0 12px", lineHeight: 1.6 }}>
-                  {hasSpeech ? "Speak a task, idea, or thought — Luma will structure it." : "Voice input isn't supported in this browser. Use Chrome or Edge."}
+                  {hasSpeech ? "Speak a task, idea, or thought — BOB will structure it." : "Voice input isn't supported in this browser. Use Chrome or Edge."}
                 </p>
 
                 {hasSpeech && (
@@ -469,7 +469,7 @@ export default function LumaAgent({ theme: t, notes, onSweep, onAddNote }: Props
                           background: "linear-gradient(135deg, #6fc46b, #4a7ef5)",
                           color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
                         }}>
-                          ✦ Structure with Luma
+                          ✦ Structure with BOB
                         </button>
                         <button onClick={() => onAddNote({ type: "task", title: transcript.slice(0, 60), body: "", importance: "none", steps: [] })} style={{
                           flex: 1, padding: "8px 0", borderRadius: 10,

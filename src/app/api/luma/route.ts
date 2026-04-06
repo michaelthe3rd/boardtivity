@@ -1,15 +1,9 @@
-import { anthropic } from "@ai-sdk/anthropic";
-import { generateText } from "ai";
+import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
 
 type NoteSnap = {
-  id: number;
-  type: string;
-  title: string;
-  body?: string;
-  importance?: string;
-  dueDate?: string;
-  minutes?: number;
+  id: number; type: string; title: string; body?: string;
+  importance?: string; dueDate?: string; minutes?: number;
   completed: boolean;
   steps?: { title: string; minutes: number; done: boolean }[];
 };
@@ -20,18 +14,17 @@ export async function POST(req: NextRequest) {
   }
 
   let body: { action: string; notes?: NoteSnap[]; query?: string; transcript?: string };
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
+  try { body = await req.json(); }
+  catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
 
   const { action, notes = [], query, transcript } = body;
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-  // ── Brain queries ──────────────────────────────────────────────────────────
   if (action === "brain") {
-    const active = notes.filter((n) => !n.completed);
-    const boardSummary = active.map((n) => {
+    const active = notes.filter(n => !n.completed);
+    if (!active.length) return NextResponse.json({ response: "Your board is empty — add some tasks and I'll help you prioritize." });
+
+    const boardSummary = active.map(n => {
       const parts = [`[${n.type.toUpperCase()}] "${n.title}"`];
       if (n.importance && n.importance !== "none") parts.push(`priority:${n.importance}`);
       if (n.dueDate) parts.push(`due:${n.dueDate}`);
@@ -41,42 +34,39 @@ export async function POST(req: NextRequest) {
       return parts.join(" | ");
     }).join("\n");
 
-    if (!active.length) {
-      return NextResponse.json({ response: "Your board is empty — add some tasks and I'll help you prioritize." });
-    }
-
     const prompts: Record<string, string> = {
-      whatFirst: `You are Luma, a smart board agent. The user has these active items:\n\n${boardSummary}\n\nTell them what to tackle first and why. Be direct and human. 2-4 sentences. Reference actual task names. Pick the 2-3 most urgent and explain briefly.`,
-      summary: `You are Luma. Summarize this board:\n\n${boardSummary}\n\nGive a crisp 3-5 sentence overview: item count, types, priority landscape, any patterns. Sound like a smart colleague.`,
-      overdue: `You are Luma. Today is ${new Date().toISOString().split("T")[0]}. Review:\n\n${boardSummary}\n\nIdentify overdue or imminent items. Be specific about dates. If nothing is overdue, note what's coming up next.`,
+      whatFirst: `You are BOB (Boardtivity Operating Brain). The user has these active items:\n\n${boardSummary}\n\nTell them what to tackle first and why. Be direct and human. 2-4 sentences. Reference actual task names.`,
+      summary: `You are BOB. Summarize this board:\n\n${boardSummary}\n\nGive a crisp 3-5 sentence overview: item count, types, priority landscape, patterns. Sound like a smart colleague.`,
+      overdue: `You are BOB. Today is ${new Date().toISOString().split("T")[0]}.\n\n${boardSummary}\n\nIdentify overdue or imminent items. Be specific. If nothing is overdue, note what's coming up next.`,
     };
 
-    const { text } = await generateText({
-      model: anthropic("claude-haiku-4.5"),
-      prompt: prompts[query ?? "whatFirst"] ?? prompts.whatFirst,
-      maxOutputTokens: 300,
+    const msg = await client.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 300,
+      messages: [{ role: "user", content: prompts[query ?? "whatFirst"] ?? prompts.whatFirst }],
     });
 
+    const text = msg.content[0].type === "text" ? msg.content[0].text : "";
     return NextResponse.json({ response: text });
   }
 
-  // ── Voice → task parsing ───────────────────────────────────────────────────
   if (action === "voice") {
-    if (!transcript?.trim()) {
-      return NextResponse.json({ error: "No transcript provided" }, { status: 400 });
-    }
+    if (!transcript?.trim()) return NextResponse.json({ error: "No transcript" }, { status: 400 });
 
-    const { text } = await generateText({
-      model: anthropic("claude-haiku-4.5"),
-      prompt: `You are Luma. The user said:\n\n"${transcript}"\n\nParse into a structured task. Return ONLY valid JSON:\n{\n  "type": "task" or "idea",\n  "title": "concise title (max 60 chars)",\n  "body": "context if any (max 120 chars, empty string if none)",\n  "importance": "High" or "Medium" or "Low" or "none",\n  "steps": [{ "title": "step", "minutes": 15 }]\n}\n\nOnly include steps if the user mentioned multiple parts or asked to break it down. Max 6 steps. Return ONLY the JSON object.`,
-      maxOutputTokens: 400,
+    const msg = await client.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 400,
+      messages: [{
+        role: "user",
+        content: `You are BOB. The user said:\n\n"${transcript}"\n\nParse into a structured task. Return ONLY valid JSON:\n{\n  "type": "task" or "idea",\n  "title": "concise title (max 60 chars)",\n  "body": "context if any (max 120 chars, empty string if none)",\n  "importance": "High" or "Medium" or "Low" or "none",\n  "steps": [{ "title": "step", "minutes": 15 }]\n}\n\nOnly include steps if user mentioned multiple parts. Max 6 steps. Return ONLY the JSON.`,
+      }],
     });
 
+    const raw = msg.content[0].type === "text" ? msg.content[0].text.trim() : "{}";
     try {
-      const parsed = JSON.parse(text.trim());
-      return NextResponse.json({ task: parsed });
+      return NextResponse.json({ task: JSON.parse(raw) });
     } catch {
-      return NextResponse.json({ error: "Parse failed", raw: text }, { status: 422 });
+      return NextResponse.json({ error: "Parse failed", raw }, { status: 422 });
     }
   }
 
