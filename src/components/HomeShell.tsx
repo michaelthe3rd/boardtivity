@@ -2059,6 +2059,77 @@ export function HomeShell() {
                 </div>
               )}
 
+              {/* Mobile focus overlay — rendered here (inside mobile section) so it reliably shows on iOS */}
+              {focusOpen && (() => {
+                const fn = notes.find(n => n.id === focusNoteId);
+                if (!fn) return null;
+                const step = focusStepId ? fn.steps.find(s => s.id === focusStepId) : null;
+                const mins = Math.floor(focusSecondsLeft / 60);
+                const secs = focusSecondsLeft % 60;
+                const btn: CSSProperties = { height: 48, padding: "0 24px", borderRadius: 999, border: "1px solid rgba(255,255,255,.14)", backgroundColor: "rgba(255,255,255,.09)", color: "rgba(247,248,251,.85)", fontSize: 15, fontWeight: 700, cursor: "pointer" };
+                const btnRed: CSSProperties = { ...btn, border: "1px solid rgba(220,60,60,.3)", backgroundColor: "rgba(220,60,60,.12)", color: "rgba(255,160,160,.8)" };
+                const btnGreen: CSSProperties = { ...btn, border: "1px solid rgba(100,210,120,.3)", backgroundColor: "rgba(80,180,100,.12)", color: "rgba(120,220,130,.9)", padding: "0 36px", height: 52, fontSize: 16 };
+                return (
+                  <div style={{ position: "fixed", inset: 0, zIndex: 950, backgroundColor: focusCompleted ? "rgba(6,20,9,.98)" : focusPaused ? "rgba(7,8,18,.98)" : "rgba(6,7,10,.98)", color: "#f7f8fb", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 24px", textAlign: "center" }}>
+                    {focusExitConfirm ? (
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
+                        <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>Exit focus mode?</div>
+                        <div style={{ fontSize: 14, color: "rgba(247,248,251,.45)", marginBottom: 32, lineHeight: 1.6 }}>Your timer will reset and progress won't be saved.</div>
+                        <div style={{ display: "flex", gap: 12 }}>
+                          <button type="button" onClick={() => { setFocusOpen(false); setFocusExitConfirm(false); setFocusPaused(false); setFocusCompleted(false); setFocusNoteId(null); setFocusStepId(null); setFocusSecondsLeft(0); setBreakSecondsLeft(0); }} style={btnRed}>Exit</button>
+                          <button type="button" onClick={() => setFocusExitConfirm(false)} style={btn}>Keep going</button>
+                        </div>
+                      </div>
+                    ) : focusCompleted ? (
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
+                        <div style={{ width: 60, height: 60, borderRadius: "50%", backgroundColor: "rgba(80,180,100,.15)", border: "1.5px solid rgba(100,210,120,.35)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><polyline points="5,14 10,19 21,8" stroke="#6fc46b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        </div>
+                        <div style={{ marginTop: 20, fontSize: 13, letterSpacing: ".16em", textTransform: "uppercase", color: "rgba(247,248,251,.35)", fontWeight: 500 }}>Complete</div>
+                        <div style={{ marginTop: 10, fontSize: 24, fontWeight: 700, letterSpacing: "-.02em", lineHeight: 1.25, maxWidth: 280 }}>{step ? step.title : fn.title}</div>
+                        <div style={{ marginTop: 10, fontSize: 14, color: "rgba(120,210,130,.7)" }}>Great work!</div>
+                        {focusNextStep && (
+                          <div style={{ marginTop: 8, fontSize: 13, color: "rgba(247,248,251,.4)" }}>Up next — <span style={{ color: "rgba(247,248,251,.7)", fontWeight: 600 }}>{focusNextStep.title}</span></div>
+                        )}
+                        <div style={{ marginTop: 32, display: "flex", gap: 12 }}>
+                          {focusNextStep ? (
+                            <>
+                              <button type="button" onClick={advanceToNext} style={btnGreen}>Start next</button>
+                              <button type="button" onClick={() => { setFocusOpen(false); setFocusCompleted(false); setFocusNoteId(null); setFocusNextStep(null); setFocusStepId(null); setFocusChainMode(false); }} style={btn}>Done</button>
+                            </>
+                          ) : (
+                            <button type="button" onClick={() => { setFocusOpen(false); setFocusCompleted(false); setFocusNoteId(null); setFocusNextStep(null); setFocusStepId(null); setFocusChainMode(false); }} style={btnGreen}>Done</button>
+                          )}
+                        </div>
+                      </div>
+                    ) : focusPaused ? (
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
+                        <div style={{ fontSize: 13, letterSpacing: ".18em", textTransform: "uppercase", color: "rgba(247,248,251,.5)", fontWeight: 600 }}>Break</div>
+                        <div style={{ marginTop: 32, fontSize: 88, fontWeight: 700, letterSpacing: "-.04em", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
+                          {String(Math.floor(breakSecondsLeft / 60)).padStart(2,"0")}:{String(breakSecondsLeft % 60).padStart(2,"0")}
+                        </div>
+                        <div style={{ marginTop: 10, fontSize: 14, color: "rgba(247,248,251,.4)" }}>Resumes automatically</div>
+                        <div style={{ marginTop: 44, display: "flex", gap: 12 }}>
+                          <button type="button" onClick={() => { focusTotalSecsRef.current = focusPausedSecsRef.current; focusStartedAtRef.current = Date.now(); setFocusPaused(false); setBreakSecondsLeft(0); }} style={btn}>Resume now</button>
+                          <button type="button" onClick={() => setFocusExitConfirm(true)} style={btnRed}>Exit</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
+                        <div style={{ fontSize: 17, fontWeight: 600, color: "rgba(247,248,251,.75)", lineHeight: 1.4, maxWidth: 300, marginBottom: 28 }}>{step ? step.title : fn.title}</div>
+                        <div style={{ fontSize: 96, fontWeight: 700, letterSpacing: "-.04em", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
+                          {String(mins).padStart(2,"0")}:{String(secs).padStart(2,"0")}
+                        </div>
+                        <div style={{ marginTop: 48, display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
+                          <button type="button" onClick={() => { focusPausedSecsRef.current = focusSecondsLeft; setFocusPaused(true); setBreakSecondsLeft(300); }} style={btn}>5 min break</button>
+                          <button type="button" onClick={() => setFocusExitConfirm(true)} style={btnRed}>Exit</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               {/* FAB */}
               <button
                 onClick={() => { setMobileAddMode(isThoughtBoard ? "thought" : "task"); setMobileAddTitle(""); setMobileAddImportance("none"); setMobileAddDueDate(""); }}
