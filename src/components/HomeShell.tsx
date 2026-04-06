@@ -592,6 +592,7 @@ export function HomeShell() {
   const [mobileAddMode, setMobileAddMode] = useState<"task" | "thought" | null>(null);
   const [mobileAddTitle, setMobileAddTitle] = useState("");
   const [mobileAddImportance, setMobileAddImportance] = useState<Importance>("none");
+  const [mobileAddDueDate, setMobileAddDueDate] = useState("");
   const [mobileActionNoteId, setMobileActionNoteId] = useState<number | null>(null);
   const [mobileEditTitle, setMobileEditTitle] = useState("");
   const [mobileEditDueDate, setMobileEditDueDate] = useState("");
@@ -1722,12 +1723,13 @@ export function HomeShell() {
               type: mobileAddMode === "thought" ? "thought" : "task",
               title: mobileAddTitle.trim(), body: "",
               importance: mobileAddMode === "task" ? mobileAddImportance : "none",
+              dueDate: (mobileAddMode === "task" && mobileAddDueDate) ? mobileAddDueDate : undefined,
               createdAt: now, completed: false,
               x: 80 + Math.random() * 200, y: 80 + Math.random() * 200,
               steps: [], showFlow: false, flowMode: "web", linkedNoteIds: [],
               colorIdx: Math.floor(Math.random() * NOTE_PALETTE.length),
             }]);
-            setMobileAddTitle(""); setMobileAddImportance("none"); setMobileAddMode(null);
+            setMobileAddTitle(""); setMobileAddImportance("none"); setMobileAddDueDate(""); setMobileAddMode(null);
           }
 
           // Plain render functions (not React components) so focus state updates work correctly
@@ -1766,17 +1768,7 @@ export function HomeShell() {
                   <button onClick={() => openEdit(note)} style={{ ...dotBtn, marginLeft: 6 }}>···</button>
                 </div>
                 {/* Title + Focus row */}
-                <div
-                  style={{ padding: "4px 14px 13px", display: "flex", alignItems: "flex-start", gap: 10, cursor: note.steps.length > 0 ? "pointer" : "default" }}
-                  onClick={() => {
-                    if (note.steps.length === 0) return;
-                    setMobileExpandedIds(prev => {
-                      const next = new Set(prev);
-                      if (next.has(note.id)) next.delete(note.id); else next.add(note.id);
-                      return next;
-                    });
-                  }}
-                >
+                <div style={{ padding: "4px 14px 13px", display: "flex", alignItems: "flex-start", gap: 10 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 16, fontWeight: 700, color: isDone ? muted(theme) : pageText(theme), textDecoration: isDone ? "line-through" : "none", lineHeight: 1.3, wordBreak: "break-word", opacity: isDone ? .5 : 1 }}>{note.title}</div>
                     {note.steps.length > 0 && (
@@ -1785,41 +1777,18 @@ export function HomeShell() {
                           <span key={s.id} style={{ width: 8, height: 8, borderRadius: "50%", border: s.done ? "1px solid #3d8b40" : `1px solid ${theme === "dark" ? "rgba(255,255,255,.22)" : "rgba(0,0,0,.18)"}`, backgroundColor: s.done ? "#6fc46b" : "transparent", display: "inline-block", flexShrink: 0 }} />
                         ))}
                         <span style={{ fontSize: 11, color: muted(theme), opacity: .6, marginLeft: 2 }}>{doneDots}/{note.steps.length}</span>
-                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ marginLeft: 4, transform: isExpanded ? "rotate(180deg)" : "none", transition: "transform .2s", opacity: .45 }}>
-                          <polyline points="2,3.5 5,6.5 8,3.5" stroke={pageText(theme)} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
                       </div>
                     )}
                   </div>
                   {!isDone && (
                     <button
-                      onClick={e => { e.stopPropagation(); startFocus(note.id, false); }}
+                      onClick={() => startFocus(note.id, false)}
                       style={{ flexShrink: 0, height: 32, borderRadius: 999, backgroundColor: theme === "dark" ? "#111315" : "#171613", color: "#f7f8fb", border: "none", padding: "0 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", marginTop: 2 }}
                     >
                       Focus
                     </button>
                   )}
                 </div>
-                {/* Expanded subtasks */}
-                {isExpanded && note.steps.length > 0 && (
-                  <div style={{ borderTop: `1px solid ${border(theme)}`, padding: "10px 14px 13px", display: "flex", flexDirection: "column", gap: 8 }}>
-                    {note.steps.map(step => (
-                      <div key={step.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <span style={{ width: 9, height: 9, borderRadius: "50%", border: step.done ? "1px solid #3d8b40" : `1px solid ${theme === "dark" ? "rgba(255,255,255,.22)" : "rgba(0,0,0,.22)"}`, backgroundColor: step.done ? "#6fc46b" : "transparent", display: "inline-block", flexShrink: 0 }} />
-                        <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: step.done ? muted(theme) : pageText(theme), opacity: step.done ? .5 : 1, textDecoration: step.done ? "line-through" : "none" }}>{step.title}</span>
-                        {step.minutes && <span style={{ fontSize: 11, color: muted(theme), opacity: .5 }}>{step.minutes}m</span>}
-                        {!step.done && !isDone && (
-                          <button
-                            onClick={() => startFocus(note.id, true)}
-                            style={{ flexShrink: 0, height: 26, borderRadius: 999, backgroundColor: "transparent", color: theme === "dark" ? "rgba(255,255,255,.5)" : "rgba(0,0,0,.4)", border: `1px solid ${border(theme)}`, padding: "0 10px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}
-                          >
-                            Focus
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             );
           }
@@ -1921,21 +1890,29 @@ export function HomeShell() {
                       style={{ fontSize: 16, fontWeight: 600, color: pageText(theme), backgroundColor: paper(theme), border: `1.5px solid ${border(theme)}`, borderRadius: 12, padding: "13px 14px", outline: "none", width: "100%", boxSizing: "border-box" }}
                     />
                     {mobileAddMode === "task" && (
-                      <div style={{ display: "flex", gap: 6 }}>
-                        {(["none", "Low", "Medium", "High"] as Importance[]).map(imp => {
-                          const active = mobileAddImportance === imp;
-                          const col = imp === "none" ? muted(theme) : PRIORITY_COLORS[imp as "High"|"Medium"|"Low"];
-                          return (
-                            <button
-                              key={imp}
-                              onClick={() => setMobileAddImportance(imp)}
-                              style={{ flex: 1, height: 34, borderRadius: 999, border: active ? `1.5px solid ${col}` : `1px solid ${border(theme)}`, backgroundColor: (active && imp !== "none") ? hexToRgba(PRIORITY_COLORS[imp as "High"|"Medium"|"Low"], 0.12) : "transparent", color: active ? col : muted(theme), fontSize: 12, fontWeight: 700, cursor: "pointer" }}
-                            >
-                              {imp === "none" ? "None" : imp}
-                            </button>
-                          );
-                        })}
-                      </div>
+                      <>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          {(["none", "Low", "Medium", "High"] as Importance[]).map(imp => {
+                            const active = mobileAddImportance === imp;
+                            const col = imp === "none" ? muted(theme) : PRIORITY_COLORS[imp as "High"|"Medium"|"Low"];
+                            return (
+                              <button
+                                key={imp}
+                                onClick={() => setMobileAddImportance(imp)}
+                                style={{ flex: 1, height: 34, borderRadius: 999, border: active ? `1.5px solid ${col}` : `1px solid ${border(theme)}`, backgroundColor: (active && imp !== "none") ? hexToRgba(PRIORITY_COLORS[imp as "High"|"Medium"|"Low"], 0.12) : "transparent", color: active ? col : muted(theme), fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                              >
+                                {imp === "none" ? "None" : imp}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <input
+                          type="date"
+                          value={mobileAddDueDate}
+                          onChange={e => setMobileAddDueDate(e.target.value)}
+                          style={{ fontSize: 15, fontWeight: 600, color: mobileAddDueDate ? pageText(theme) : muted(theme), backgroundColor: paper(theme), border: `1.5px solid ${border(theme)}`, borderRadius: 12, padding: "11px 14px", outline: "none", width: "100%", boxSizing: "border-box", appearance: "none", WebkitAppearance: "none" }}
+                        />
+                      </>
                     )}
                     <button
                       onClick={mobileCreateNote}
@@ -2003,7 +1980,7 @@ export function HomeShell() {
 
               {/* FAB */}
               <button
-                onClick={() => { setMobileAddMode(isThoughtBoard ? "thought" : "task"); setMobileAddTitle(""); setMobileAddImportance("none"); }}
+                onClick={() => { setMobileAddMode(isThoughtBoard ? "thought" : "task"); setMobileAddTitle(""); setMobileAddImportance("none"); setMobileAddDueDate(""); }}
                 style={{ position: "fixed", bottom: 24, right: 20, width: 56, height: 56, borderRadius: "50%", backgroundColor: theme === "dark" ? "#f5f5f2" : "#171613", color: theme === "dark" ? "#171613" : "#f7f8fb", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 20px rgba(0,0,0,.28)", zIndex: 100 }}
               >
                 <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><line x1="11" y1="3" x2="11" y2="19" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/><line x1="3" y1="11" x2="19" y2="11" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
@@ -3605,6 +3582,7 @@ export function HomeShell() {
 
       {focusOpen && focusNoteId && (() => {
         const focusNote = notes.find(n => n.id === focusNoteId);
+        if (!focusNote) return null;
         const focusStep = focusStepId ? focusNote?.steps.find(s => s.id === focusStepId) : null;
         const completedLabel = focusStep ? focusStep.title : focusNote?.title;
         const isSubtask = !!focusStep;
@@ -3720,7 +3698,7 @@ export function HomeShell() {
         return (
           <div
             style={{
-              position: "fixed", inset: 0, zIndex: 40,
+              position: "fixed", inset: 0, zIndex: 900,
               backgroundColor: focusCompleted
                 ? "rgba(6,20,9,.98)"
                 : focusPaused
