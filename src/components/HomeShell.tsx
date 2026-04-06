@@ -104,6 +104,13 @@ function formatDate(date?: string) {
   });
 }
 
+function isDueToday(date?: string) {
+  if (!date) return false;
+  const today = new Date();
+  const d = new Date(date + "T12:00:00");
+  return d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth() && d.getDate() === today.getDate();
+}
+
 function nextBoardName(existing: Board[], type: BoardType) {
   const base = type === "task" ? "My Board" : "My Ideas";
   const count = existing.filter((b) => b.type === type).length;
@@ -1828,7 +1835,18 @@ export function HomeShell() {
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                     <div style={pill(boardTheme)}>{note.type === "task" ? "Task" : "Idea"}</div>
-                    {note.type === "task" && note.dueDate && <div style={{ ...pill(boardTheme), fontWeight: 800 }}>Due {formatDate(note.dueDate)}</div>}
+                    {note.type === "task" && note.dueDate && (
+                      <div style={{
+                        ...pill(boardTheme),
+                        fontWeight: 800,
+                        ...(isDueToday(note.dueDate) ? {
+                          color: "#ff4444",
+                          border: "1px solid rgba(255,60,60,.45)",
+                          backgroundColor: "rgba(255,60,60,.12)",
+                          boxShadow: "0 0 8px rgba(255,60,60,.35)",
+                        } : {}),
+                      }}>Due {formatDate(note.dueDate)}</div>
+                    )}
                   </div>
 
                   <div style={{ marginTop: 18, marginBottom: 6, fontSize: titleFontSize(note.title), lineHeight: 1.22, fontWeight: 700, color: noteText(boardTheme), display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
@@ -2671,12 +2689,24 @@ export function HomeShell() {
                   ) : (
                     <>
                       {detailNote.dueDate && (
-                        <div style={{ fontSize: 15, fontWeight: 600, color: pageText(boardTheme), marginBottom: 6 }}>
+                        <div style={{
+                          fontSize: 15,
+                          fontWeight: 600,
+                          marginBottom: 6,
+                          color: isDueToday(detailNote.dueDate) ? "#ff4444" : pageText(boardTheme),
+                          ...(isDueToday(detailNote.dueDate) ? { textShadow: "0 0 10px rgba(255,60,60,.5)" } : {}),
+                        }}>
                           Due {formatDate(detailNote.dueDate)}
                         </div>
                       )}
                       {detailNote.type !== "task" && detailEditing ? (
                         <>
+                          <input
+                            value={detailEditTitle}
+                            onChange={e => setDetailEditTitle(e.target.value)}
+                            placeholder="Idea title…"
+                            style={{ width: "100%", background: "none", border: "none", outline: "none", fontSize: 18, fontWeight: 700, color: pageText(boardTheme), fontFamily: "inherit", padding: 0, marginBottom: 10, boxSizing: "border-box" }}
+                          />
                           <textarea
                             value={detailEditBody}
                             onChange={e => setDetailEditBody(e.target.value)}
