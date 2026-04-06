@@ -80,7 +80,7 @@ function ideaNoteWidth(title: string): number {
   if (len <= 100) return 330;
   return 370;
 }
-const STEP_W = 166;
+const STEP_W = 210;
 const STEP_H = 62;
 
 const INITIAL_BOARDS: Board[] = [
@@ -257,7 +257,7 @@ function buildBreakdown(title: string, body: string, total: number, variant = 0)
 function layoutWeb(noteX: number, noteY: number, steps: Step[]) {
   const cx = noteX + NOTE_W / 2 - STEP_W / 2;
   const cy = noteY + NOTE_H / 2 - STEP_H / 2;
-  const spread = 220;
+  const spread = 260;
   return steps.map((step, index) => {
     const angle = (-Math.PI / 2) + (index - (steps.length - 1) / 2) * 0.82;
     return {
@@ -490,6 +490,7 @@ export function HomeShell() {
   const [detailEditImportance, setDetailEditImportance] = useState<Importance>("none");
   const [detailEditMinutes, setDetailEditMinutes] = useState(60);
   const [detailEditSteps, setDetailEditSteps] = useState<Step[]>([]);
+  const [detailBreakdownVariant, setDetailBreakdownVariant] = useState(0);
   const [activeStep, setActiveStep] = useState<{ noteId: number; stepId: number } | null>(null);
 
   const [composerOpen, setComposerOpen] = useState(false);
@@ -2436,7 +2437,7 @@ export function HomeShell() {
                     <div style={{ borderRadius: 12, border: `1px solid ${border(boardTheme)}`, backgroundColor: panel(boardTheme), padding: 18 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme) }}>
-                          AI planning
+                          BOB Planning
                         </div>
                         <div style={{ display: "flex", gap: 6 }}>
                           {aiSteps.length > 0 && (
@@ -2462,14 +2463,14 @@ export function HomeShell() {
                             disabled={!title.trim()}
                             style={{ ...buttonStyle(boardTheme, true, true), fontSize: 12, height: 28, padding: "0 10px", opacity: !title.trim() ? 0.4 : 1, cursor: !title.trim() ? "not-allowed" : "pointer" }}
                           >
-                            {aiSteps.length > 0 ? "Re-breakdown" : "Breakdown Task"}
+                            {aiSteps.length > 0 ? "Re-breakdown" : "BOB Breakdown"}
                           </button>
                         </div>
                       </div>
                       <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
                         {aiSteps.length === 0 ? (
                           <div style={{ color: muted(boardTheme), fontSize: 14 }}>
-                            {title.trim() ? "Click Breakdown Task to generate subtasks." : "Type a task first."}
+                            {title.trim() ? "Click BOB Breakdown to generate subtasks." : "Type a task first."}
                           </div>
                         ) : (
                           aiSteps.map((step) => (
@@ -2709,6 +2710,22 @@ export function HomeShell() {
                     </div>
                     {detailEditing ? (
                       <div style={{ display: "grid", gap: 8 }}>
+                        {detailNote.steps.length === 0 && detailEditSteps.length === 0 && (
+                          <div style={{ borderRadius: 10, border: `1px solid ${border(boardTheme)}`, backgroundColor: panel(boardTheme), padding: "12px 14px", display: "grid", gap: 10 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme) }}>BOB Planning</div>
+                              <button
+                                onClick={() => {
+                                  const steps = buildBreakdown(detailEditTitle || detailNote.title, detailNote.body ?? "", detailNote.minutes ?? 60, detailBreakdownVariant);
+                                  setDetailEditSteps(steps);
+                                }}
+                                disabled={!detailEditTitle.trim() && !detailNote.title.trim()}
+                                style={{ ...buttonStyle(boardTheme, true, true), fontSize: 12, height: 28, padding: "0 10px", opacity: (!detailEditTitle.trim() && !detailNote.title.trim()) ? 0.4 : 1 }}
+                              >BOB Breakdown</button>
+                            </div>
+                            <div style={{ fontSize: 13, color: muted(boardTheme) }}>Let BOB break this task into subtasks, or add them manually below.</div>
+                          </div>
+                        )}
                         {detailEditSteps.map((step) => (
                           <div key={step.id} style={{ display: "flex", gap: 8, alignItems: "center", borderBottom: `1px solid ${border(boardTheme)}`, paddingBottom: 8 }}>
                             <input
@@ -2735,6 +2752,17 @@ export function HomeShell() {
                             >✕</button>
                           </div>
                         ))}
+                        {detailEditSteps.length > 0 && (
+                          <button
+                            onClick={() => {
+                              const nextVariant = detailBreakdownVariant + 1;
+                              setDetailBreakdownVariant(nextVariant);
+                              const steps = buildBreakdown(detailEditTitle || detailNote.title, detailNote.body ?? "", detailNote.minutes ?? 60, nextVariant);
+                              setDetailEditSteps(steps);
+                            }}
+                            style={{ height: 28, borderRadius: 8, border: `1px solid ${border(boardTheme)}`, background: "none", color: muted(boardTheme), fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}
+                          >BOB Breakdown again</button>
+                        )}
                         <button
                           onClick={() => setDetailEditSteps(prev => [...prev, { id: Date.now(), title: "", minutes: 15, done: false, x: 0, y: 0 }])}
                           style={{ height: 34, borderRadius: 8, border: `1px dashed ${border(boardTheme)}`, background: "none", color: muted(boardTheme), fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
@@ -2803,7 +2831,10 @@ export function HomeShell() {
                               dueDate: detailEditDueDate || undefined,
                               importance: detailEditImportance,
                               minutes: newMinutes,
-                              steps: newSteps,
+                              steps: (() => {
+                                const laid = n.flowMode === "chain" ? layoutChain(n.x, n.y, newSteps) : layoutWeb(n.x, n.y, newSteps);
+                                return newSteps.map((s, i) => (s.x === 0 && s.y === 0) ? laid[i] : s);
+                              })(),
                             } : n));
                             setDetailEditing(false);
                           }}
