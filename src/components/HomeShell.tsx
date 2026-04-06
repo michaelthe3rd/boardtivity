@@ -1600,7 +1600,7 @@ export function HomeShell() {
             {isSignedIn ? (
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 {!isMobile && <span style={{ fontSize: 13, color: muted(theme) }}>{user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress}</span>}
-                <button onClick={() => signOut()} style={buttonStyle(theme, false)}>Sign out</button>
+                <button onClick={() => signOut({ redirectUrl: "/" })} style={buttonStyle(theme, false)}>Sign out</button>
               </div>
             ) : (
               <>
@@ -1655,11 +1655,11 @@ export function HomeShell() {
               placeholder="your@email.com"
               value={waitlistEmail}
               onChange={e => setWaitlistEmail(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter") submitWaitlist(waitlistEmail); }}
+              onKeyDown={e => { if (e.key === "Enter") { submitWaitlist(waitlistEmail); openSignUp({ initialValues: { emailAddress: waitlistEmail } }); } }}
               style={{ width: "100%", height: 48, borderRadius: 10, border: `1px solid ${border(theme)}`, backgroundColor: theme === "dark" ? "#1c1f25" : "#ffffff", color: pageText(theme), fontSize: 15, padding: "0 16px", outline: "none", boxSizing: "border-box", fontFamily: "inherit", marginBottom: 10 }}
             />
             <button
-              onClick={() => submitWaitlist(waitlistEmail)}
+              onClick={() => { submitWaitlist(waitlistEmail); openSignUp({ initialValues: { emailAddress: waitlistEmail } }); }}
               style={{ width: "100%", height: 48, borderRadius: 10, border: "none", backgroundColor: theme === "dark" ? "#f7f8fb" : "#111315", color: theme === "dark" ? "#111315" : "#f7f8fb", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-.01em" }}
             >
               Save my board &amp; sign up
@@ -2604,7 +2604,7 @@ export function HomeShell() {
                       <span style={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, backgroundColor: cloudSyncState === "synced" ? "#3db83d" : cloudSyncState === "error" ? "#c03030" : "#c8960a" }} />
                       {cloudSyncState === "synced" ? "Synced" : cloudSyncState === "saving" ? "Saving…" : cloudSyncState === "error" ? "Sync error — check connection" : "Connecting…"}
                     </div>
-                    <button onClick={() => { setSettingsOpen(false); signOut(); }} style={{ ...buttonStyle(boardTheme, false), width: "100%", fontSize: 14, height: 42 }}>Sign out</button>
+                    <button onClick={() => { setSettingsOpen(false); signOut({ redirectUrl: "/" }); }} style={{ ...buttonStyle(boardTheme, false), width: "100%", fontSize: 14, height: 42 }}>Sign out</button>
                   </>
                 ) : (
                   <>
@@ -4088,13 +4088,13 @@ export function HomeShell() {
                   placeholder="your@email.com"
                   value={waitlistEmail}
                   onChange={(e) => setWaitlistEmail(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter" && waitlistEmail.includes("@")) setWaitlistDone(true); }}
+                  onKeyDown={(e) => { if (e.key === "Enter" && waitlistEmail.includes("@")) { submitWaitlist(waitlistEmail); openSignUp({ initialValues: { emailAddress: waitlistEmail } }); } }}
                   style={{ width: "100%", height: 48, borderRadius: 10, border: `1px solid ${border(theme)}`, backgroundColor: inputBg(theme), color: pageText(theme), padding: "0 14px", fontSize: 14, outline: "none", boxSizing: "border-box" }}
                 />
                 <button
-                  onClick={() => submitWaitlist(waitlistEmail)}
+                  onClick={() => { submitWaitlist(waitlistEmail); openSignUp({ initialValues: { emailAddress: waitlistEmail } }); }}
                   style={{ ...buttonStyle(theme, true), marginTop: 10, width: "100%", fontSize: 14, height: 44 }}
-                >Join waitlist</button>
+                >Sign up</button>
                 <button onClick={() => setWaitlistOpen(false)} style={{ background: "none", border: "none", width: "100%", marginTop: 8, fontSize: 13, color: muted(theme), cursor: "pointer", padding: "6px 0" }}>Cancel</button>
               </>
             )}
