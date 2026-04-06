@@ -792,25 +792,37 @@ export function HomeShell() {
     if (convexAppliedRef.current) return; // already applied once — don't override user's in-session changes
     convexAppliedRef.current = true;
     if (savedBoard) {
-      // Cloud has data — apply it (loads from another device)
+      // Compare timestamps: only apply cloud data if it's newer than local data
+      let localSavedAt = 0;
       try {
-        const data = JSON.parse(savedBoard.boardState) as {
-          boards?: Board[];
-          notes?: Note[];
-          activeBoardId?: string;
-          drafts?: Draft[];
-          thoughtColorMode?: "random" | "fixed";
-          thoughtFixedColorIdx?: number;
-          boardGrid?: "grid" | "dots" | "blank";
-        };
-        if (Array.isArray(data.boards) && data.boards.length > 0) setBoards(data.boards);
-        if (Array.isArray(data.notes)) setNotes(data.notes);
-        if (data.activeBoardId) setActiveBoardId(data.activeBoardId);
-        if (Array.isArray(data.drafts)) setDrafts(data.drafts);
-        if (data.thoughtColorMode) setThoughtColorMode(data.thoughtColorMode);
-        if (typeof data.thoughtFixedColorIdx === "number") setThoughtFixedColorIdx(data.thoughtFixedColorIdx);
-        if (data.boardGrid) setBoardGrid(data.boardGrid);
+        const raw = localStorage.getItem("boardtivity");
+        if (raw) localSavedAt = (JSON.parse(raw) as { savedAt?: number }).savedAt ?? 0;
       } catch {}
+
+      if (savedBoard.updatedAt >= localSavedAt) {
+        // Cloud is newer (or same) — apply it (loads from another device)
+        try {
+          const data = JSON.parse(savedBoard.boardState) as {
+            boards?: Board[];
+            notes?: Note[];
+            activeBoardId?: string;
+            drafts?: Draft[];
+            thoughtColorMode?: "random" | "fixed";
+            thoughtFixedColorIdx?: number;
+            boardGrid?: "grid" | "dots" | "blank";
+          };
+          if (Array.isArray(data.boards) && data.boards.length > 0) setBoards(data.boards);
+          if (Array.isArray(data.notes)) setNotes(data.notes);
+          if (data.activeBoardId) setActiveBoardId(data.activeBoardId);
+          if (Array.isArray(data.drafts)) setDrafts(data.drafts);
+          if (data.thoughtColorMode) setThoughtColorMode(data.thoughtColorMode);
+          if (typeof data.thoughtFixedColorIdx === "number") setThoughtFixedColorIdx(data.thoughtFixedColorIdx);
+          if (data.boardGrid) setBoardGrid(data.boardGrid);
+        } catch {}
+      } else {
+        // Local is newer — push it to Convex so other devices get the latest
+        saveBoard({ boardState: JSON.stringify({ boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid }) }).catch(() => {});
+      }
     } else {
       // Cloud is empty — push local state up immediately so other devices can see it
       saveBoard({ boardState: JSON.stringify({ boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid }) }).catch(() => {});
@@ -841,7 +853,7 @@ export function HomeShell() {
     try {
       if (isSignedIn) {
         // Signed in: save everything locally
-        localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid }));
+        localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, savedAt: Date.now() }));
         // Debounced save to Convex — only after Convex has confirmed its state (avoids overwriting fresh cloud data with stale local cache)
         if (convexReadyRef.current) {
           if (convexSaveTimerRef.current) clearTimeout(convexSaveTimerRef.current);
@@ -855,6 +867,25 @@ export function HomeShell() {
       }
     } catch {}
   }, [isHydrated, isSignedIn, theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid]);
+
+  // Flush any pending debounced Convex save immediately when the tab is hidden or closed
+  useEffect(() => {
+    function flush() {
+      if (!convexReadyRef.current || !isSignedIn) return;
+      if (convexSaveTimerRef.current) {
+        clearTimeout(convexSaveTimerRef.current);
+        convexSaveTimerRef.current = null;
+      }
+      saveBoard({ boardState: JSON.stringify({ boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid }) }).catch(() => {});
+    }
+    function handleVisibilityChange() { if (document.visibilityState === "hidden") flush(); }
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [isSignedIn, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid]);
 
   useEffect(() => {
     function onDocPointerDown(e: PointerEvent) {
