@@ -1331,7 +1331,7 @@ export function HomeShell() {
     setDetailNoteId(null);
   }
 
-  function handleLumaSweep(positions: { id: number; x: number; y: number }[]) {
+  function handleBobSweep(positions: { id: number; x: number; y: number }[]) {
     setNotes(prev => prev.map(n => {
       const pos = positions.find(p => p.id === n.id);
       return pos ? { ...n, x: pos.x, y: pos.y } : n;
@@ -1344,7 +1344,7 @@ export function HomeShell() {
     setPan(clampPan(0, 0, s));
   }
 
-  function handleLumaAddNote(note: BobNewNote) {
+  function handleBobAddNote(note: BobNewNote) {
     const id = Date.now();
     const now = new Date().toISOString();
     const newNote: Note = {
@@ -1889,8 +1889,8 @@ export function HomeShell() {
                 <BobAgent
                   theme={boardTheme}
                   notes={activeNotes}
-                  onSweep={handleLumaSweep}
-                  onAddNote={handleLumaAddNote}
+                  onSweep={handleBobSweep}
+                  onAddNote={handleBobAddNote}
                 />
               </div>
             )}

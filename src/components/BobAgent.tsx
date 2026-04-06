@@ -207,7 +207,7 @@ export default function BobAgent({ theme: t, notes, onSweep, onAddNote }: Props)
     setBrainLoading(true);
     setBrainResponse(null);
     try {
-      const res  = await fetch("/api/luma", {
+      const res  = await fetch("/api/bob", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -261,7 +261,7 @@ export default function BobAgent({ theme: t, notes, onSweep, onAddNote }: Props)
     setVoiceLoading(true);
     setVoiceResult(null);
     try {
-      const res  = await fetch("/api/luma", {
+      const res  = await fetch("/api/bob", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ action: "voice", transcript }),
@@ -360,11 +360,12 @@ export default function BobAgent({ theme: t, notes, onSweep, onAddNote }: Props)
         <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
           <BobIcon size={18} color={ic} />
           <span style={{
-            fontSize:      open ? 13 : 13,
+            fontSize:      13,
             fontWeight:    800,
             letterSpacing: "-.015em",
             color:         T.text(t),
             lineHeight:    1,
+            fontFamily:    "'Satoshi', Arial, sans-serif",
           }}>
             BOB
           </span>
