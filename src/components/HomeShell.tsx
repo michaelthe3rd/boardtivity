@@ -1667,7 +1667,7 @@ export function HomeShell() {
       <section style={{ maxWidth: 1440, margin: "0 auto", padding: "0 48px 16px", textAlign: "center" }}>
         <div style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 700, letterSpacing: ".14em", textTransform: "uppercase", color: muted(theme), opacity: .55 }}>
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="7" y1="2" x2="7" y2="12"/><polyline points="3,8 7,12 11,8"/></svg>
-          Try the board
+          {isMobile ? "See your work" : "Try the board"}
         </div>
       </section>
 
@@ -1726,25 +1726,23 @@ export function HomeShell() {
             setMobileAddTitle(""); setMobileAddImportance("none"); setMobileAddMode(null);
           }
 
-          function MobileTaskCard({ note }: { note: Note }) {
+          // Plain render functions (not React components) so focus state updates work correctly
+          function renderTaskCard(note: Note) {
             const isDone = note.completed || (note.steps.length > 0 && note.steps.every(s => s.done));
             const imp = note.importance === "none" ? undefined : note.importance;
             const bg = isDone ? (theme === "dark" ? "#0d2218" : "#eef9f2") : mobileGetBg(imp);
             const bord = mobileGetBorder(imp, isDone);
-            const accent = mobileGetAccent(imp, isDone);
             const [dueLabel, dueColor] = dueLabelAndColor(note.dueDate);
             const isExpanded = mobileExpandedIds.has(note.id);
             const impColor = priorityColor(imp, theme);
             const doneDots = note.steps.filter(s => s.done).length;
 
             return (
-              <div style={{ borderRadius: 14, backgroundColor: bg, border: bord, marginBottom: 9, overflow: "hidden", position: "relative" }}>
-                {/* Left accent bar */}
-                <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 4, backgroundColor: accent, borderRadius: "4px 0 0 4px" }} />
+              <div key={note.id} style={{ borderRadius: 14, backgroundColor: bg, border: bord, marginBottom: 9, overflow: "hidden" }}>
                 {/* Top pill row */}
-                <div style={{ paddingLeft: 18, paddingRight: 14, paddingTop: 11, display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ padding: "11px 14px 0", display: "flex", alignItems: "center", gap: 6 }}>
                   <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: isDone ? (theme === "dark" ? "rgba(100,220,120,.8)" : "rgba(30,120,60,.7)") : (imp ? impColor : muted(theme)), opacity: isDone ? 1 : 0.75 }}>
-                    {isDone ? "Completed" : (imp ?? "Task")}
+                    {isDone ? "Completed" : (imp ? `${imp} priority` : "Task")}
                   </span>
                   {dueLabel && !isDone && (
                     <>
@@ -1755,7 +1753,7 @@ export function HomeShell() {
                 </div>
                 {/* Title + Focus row */}
                 <div
-                  style={{ paddingLeft: 18, paddingRight: 14, paddingBottom: 12, paddingTop: 4, display: "flex", alignItems: "flex-start", gap: 10, cursor: note.steps.length > 0 ? "pointer" : "default" }}
+                  style={{ padding: "4px 14px 13px", display: "flex", alignItems: "flex-start", gap: 10, cursor: note.steps.length > 0 ? "pointer" : "default" }}
                   onClick={() => {
                     if (note.steps.length === 0) return;
                     setMobileExpandedIds(prev => {
@@ -1790,7 +1788,7 @@ export function HomeShell() {
                 </div>
                 {/* Expanded subtasks */}
                 {isExpanded && note.steps.length > 0 && (
-                  <div style={{ borderTop: `1px solid ${border(theme)}`, paddingTop: 10, paddingBottom: 12, paddingLeft: 18, paddingRight: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={{ borderTop: `1px solid ${border(theme)}`, padding: "10px 14px 13px", display: "flex", flexDirection: "column", gap: 8 }}>
                     {note.steps.map(step => (
                       <div key={step.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <span style={{ width: 9, height: 9, borderRadius: "50%", border: step.done ? "1px solid #3d8b40" : `1px solid ${theme === "dark" ? "rgba(255,255,255,.22)" : "rgba(0,0,0,.22)"}`, backgroundColor: step.done ? "#6fc46b" : "transparent", display: "inline-block", flexShrink: 0 }} />
@@ -1812,19 +1810,16 @@ export function HomeShell() {
             );
           }
 
-          function MobileIdeaCard({ note }: { note: Note }) {
+          function renderIdeaCard(note: Note) {
             const idx = note.colorIdx ?? 0;
             const palette = NOTE_PALETTE[idx % NOTE_PALETTE.length];
             const bg = theme === "dark" ? palette.dark : palette.light;
-            const bord = palette.halo.replace(/[\d.]+\)$/, theme === "dark" ? "0.35)" : "0.45)");
+            const bord = palette.halo.replace(/[\d.]+\)$/, theme === "dark" ? "0.45)" : "0.55)");
             return (
-              <div style={{ borderRadius: 14, backgroundColor: bg, border: `1.5px solid ${bord}`, marginBottom: 9, padding: "12px 14px 14px", position: "relative", overflow: "hidden" }}>
-                <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 4, backgroundColor: palette.swatch, opacity: .55, borderRadius: "4px 0 0 4px" }} />
-                <div style={{ paddingLeft: 6 }}>
-                  <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: palette.swatch, opacity: .7, marginBottom: 5 }}>Idea</div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: pageText(theme), lineHeight: 1.35, wordBreak: "break-word" }}>{note.title}</div>
-                  {note.body && <div style={{ fontSize: 13, color: muted(theme), marginTop: 5, lineHeight: 1.5, opacity: .7 }}>{note.body}</div>}
-                </div>
+              <div key={note.id} style={{ borderRadius: 14, backgroundColor: bg, border: `1.5px solid ${bord}`, marginBottom: 9, padding: "11px 14px 14px" }}>
+                <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: palette.swatch, opacity: .75, marginBottom: 5 }}>Idea</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: pageText(theme), lineHeight: 1.35, wordBreak: "break-word" }}>{note.title}</div>
+                {note.body && <div style={{ fontSize: 13, color: muted(theme), marginTop: 5, lineHeight: 1.5, opacity: .7 }}>{note.body}</div>}
               </div>
             );
           }
@@ -1855,8 +1850,8 @@ export function HomeShell() {
                     </svg>
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: pageText(theme), marginBottom: 2 }}>Full board on iPad or Mac</div>
-                    <div style={{ fontSize: 12, color: muted(theme), opacity: .7, lineHeight: 1.4 }}>Sign in on a larger screen for the interactive board experience.</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: pageText(theme), marginBottom: 2 }}>See the full board on iPad or Mac</div>
+                    <div style={{ fontSize: 12, color: muted(theme), opacity: .7, lineHeight: 1.4 }}>Sign in on a larger screen for the interactive board.</div>
                   </div>
                 </div>
               )}
@@ -1868,11 +1863,11 @@ export function HomeShell() {
                     {pendingTasks.length === 0 && doneTasks.length === 0 && (
                       <div style={{ textAlign: "center", padding: "52px 0 20px", color: muted(theme), fontSize: 14, opacity: .45 }}>No tasks yet — tap + to add one</div>
                     )}
-                    {pendingTasks.map(note => <MobileTaskCard key={note.id} note={note} />)}
+                    {pendingTasks.map(note => renderTaskCard(note))}
                     {doneTasks.length > 0 && (
                       <>
                         <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".09em", textTransform: "uppercase", color: muted(theme), opacity: .4, marginTop: pendingTasks.length > 0 ? 20 : 0, marginBottom: 10 }}>Completed</div>
-                        {doneTasks.map(note => <MobileTaskCard key={note.id} note={note} />)}
+                        {doneTasks.map(note => renderTaskCard(note))}
                       </>
                     )}
                   </>
@@ -1882,7 +1877,7 @@ export function HomeShell() {
                     {thoughts.length === 0 && (
                       <div style={{ textAlign: "center", padding: "52px 0 20px", color: muted(theme), fontSize: 14, opacity: .45 }}>No ideas yet — tap + to add one</div>
                     )}
-                    {thoughts.map(note => <MobileIdeaCard key={note.id} note={note} />)}
+                    {thoughts.map(note => renderIdeaCard(note))}
                   </>
                 )}
               </div>
