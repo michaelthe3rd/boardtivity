@@ -1850,18 +1850,25 @@ export function HomeShell() {
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                     <div style={pill(boardTheme)}>{note.type === "task" ? "Task" : "Idea"}</div>
-                    {note.type === "task" && note.dueDate && (
-                      <div style={{
-                        ...pill(boardTheme),
-                        fontWeight: 800,
-                        ...(isDueToday(note.dueDate) && !note.completed && !note.steps.every(s => s.done) ? {
-                          color: "#ff4444",
-                          border: "1px solid rgba(255,60,60,.45)",
-                          backgroundColor: "rgba(255,60,60,.12)",
-                          boxShadow: "0 0 8px rgba(255,60,60,.35)",
-                        } : {}),
-                      }}>Due {formatDateShort(note.dueDate)}</div>
-                    )}
+                    {note.type === "task" && (note.dueDate || note.completed || note.steps.every(s => s.done && s.id)) && (() => {
+                      const done = note.completed || (note.steps.length > 0 && note.steps.every(s => s.done));
+                      if (done) return (
+                        <div style={{ ...pill(boardTheme), fontWeight: 800, color: boardTheme === "dark" ? "rgba(100,220,120,.9)" : "rgba(30,120,60,.85)", border: "1px solid rgba(60,180,90,.3)", backgroundColor: "rgba(60,180,90,.1)" }}>Completed</div>
+                      );
+                      if (!note.dueDate) return null;
+                      return (
+                        <div style={{
+                          ...pill(boardTheme),
+                          fontWeight: 800,
+                          ...(isDueToday(note.dueDate) ? {
+                            color: "#ff4444",
+                            border: "1px solid rgba(255,60,60,.45)",
+                            backgroundColor: "rgba(255,60,60,.12)",
+                            boxShadow: "0 0 8px rgba(255,60,60,.35)",
+                          } : {}),
+                        }}>Due {formatDateShort(note.dueDate)}</div>
+                      );
+                    })()}
                   </div>
 
                   <div style={{ marginTop: 18, marginBottom: 6, fontSize: titleFontSize(note.title), lineHeight: 1.22, fontWeight: 700, color: noteText(boardTheme), display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
