@@ -1388,25 +1388,6 @@ export function HomeShell() {
   return (
     <main style={{ minHeight: "100vh", fontFamily: "'Satoshi', Arial, sans-serif" }}>
 
-      {/* ── BOB Agent banner — non-dismissible, shown to non-admin users ── */}
-      {!isAdmin && (
-        <div style={{
-          borderBottom: `1px solid ${theme === "dark" ? "rgba(255,255,255,.07)" : "rgba(17,19,21,.07)"}`,
-          backgroundColor: theme === "dark" ? "rgba(255,255,255,.02)" : "rgba(17,19,21,.02)",
-          padding: "8px 16px",
-          display: "flex", alignItems: "center", justifyContent: "center", gap: 9,
-        }}>
-          {/* Subtle pulse dot */}
-          <span style={{ position: "relative", display: "inline-flex", alignItems: "center", justifyContent: "center", width: 7, height: 7, flexShrink: 0 }}>
-            <span style={{ position: "absolute", width: 7, height: 7, borderRadius: "50%", backgroundColor: "#5a96e6", animation: "ping 2s ease-in-out infinite", opacity: .45 }} />
-            <span style={{ width: 5, height: 5, borderRadius: "50%", backgroundColor: "#5a96e6", flexShrink: 0 }} />
-          </span>
-          <span style={{ fontSize: isMobile ? 12 : 13, color: pageText(theme), letterSpacing: "-.01em" }}>
-            <span style={{ fontWeight: 700 }}>BOB Agent</span>
-            <span style={{ opacity: .5, fontWeight: 400 }}>{" "}— your AI board brain for smart prioritization, sweep organizing, and voice task capture. Coming to all users soon.</span>
-          </span>
-        </div>
-      )}
 
       <section style={{ padding: isMobile ? "16px 18px 0" : "24px 48px 0" }}>
         <header style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
@@ -1883,17 +1864,16 @@ export function HomeShell() {
           )}
 
           <div style={{ position: "absolute", top: 12, left: 16, right: 16, zIndex: 3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            {/* BOB — admin only, centered */}
-            {isAdmin && (
-              <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", top: 0 }}>
-                <BobAgent
-                  theme={boardTheme}
-                  notes={activeNotes}
-                  onSweep={handleBobSweep}
-                  onAddNote={handleBobAddNote}
-                />
-              </div>
-            )}
+            {/* BOB — visible to all, admin-gated features */}
+            <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", top: 0 }}>
+              <BobAgent
+                theme={boardTheme}
+                notes={activeNotes}
+                onSweep={handleBobSweep}
+                onAddNote={handleBobAddNote}
+                isAdmin={!!isAdmin}
+              />
+            </div>
             <div style={{
                 display: "flex", alignItems: "center", gap: 8,
                 fontSize: 14,

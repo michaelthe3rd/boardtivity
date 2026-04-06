@@ -26,6 +26,7 @@ interface Props {
   notes: Note[];
   onSweep: (positions: BobSweepResult) => void;
   onAddNote: (note: BobNewNote) => void;
+  isAdmin?: boolean;
 }
 
 // ── Defaults ─────────────────────────────────────────────────────────────────
@@ -139,7 +140,7 @@ function BobIcon({ size = 20, color }: { size?: number; color: string }) {
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
-export default function BobAgent({ theme: t, notes, onSweep, onAddNote }: Props) {
+export default function BobAgent({ theme: t, notes, onSweep, onAddNote, isAdmin = true }: Props) {
   const [open,    setOpen]    = useState(false);
   const [closing, setClosing] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -377,160 +378,181 @@ export default function BobAgent({ theme: t, notes, onSweep, onAddNote }: Props)
           pointerEvents: isExpanded ? "auto" : "none",
         }}>
 
-          {/* Response area */}
-          {(loading || response) && (
+          {!isAdmin ? (
+            /* ── Coming soon panel for non-admin users ── */
             <div style={{
-              padding: "13px 14px 12px",
-              fontSize: 13, color: T.text(t), lineHeight: 1.7,
-              borderBottom: `1px solid ${T.border(t)}`,
-              maxHeight: 180, overflowY: "auto",
+              padding: "20px 18px 22px",
+              display: "flex", flexDirection: "column", alignItems: "center",
+              gap: 8, textAlign: "center",
             }}>
-              {loading
-                ? <span style={{ display: "flex", alignItems: "center", gap: 7, color: mu }}>
-                    <Spinner c={mu} /> Thinking…
-                  </span>
-                : response}
+              <BobIcon size={28} color={mu} />
+              <span style={{
+                fontSize: 13, fontWeight: 700, letterSpacing: "0.12em",
+                color: mu, textTransform: "uppercase",
+                fontFamily: "'Satoshi', Arial, sans-serif",
+              }}>Coming Soon</span>
+              <span style={{
+                fontSize: 12, color: mu, lineHeight: 1.55, maxWidth: 280,
+                fontFamily: "'Satoshi', Arial, sans-serif",
+              }}>
+                BOB — your AI board brain for smart prioritization, voice tasks, and quick sweeps.
+              </span>
             </div>
-          )}
+          ) : (
+            <>
+              {/* Response area */}
+              {(loading || response) && (
+                <div style={{
+                  padding: "13px 14px 12px",
+                  fontSize: 13, color: T.text(t), lineHeight: 1.7,
+                  borderBottom: `1px solid ${T.border(t)}`,
+                  maxHeight: 180, overflowY: "auto",
+                }}>
+                  {loading
+                    ? <span style={{ display: "flex", alignItems: "center", gap: 7, color: mu }}>
+                        <Spinner c={mu} /> Thinking…
+                      </span>
+                    : response}
+                </div>
+              )}
 
-          {/* Input row */}
-          <div style={{
-            display: "flex", alignItems: "center", gap: 8,
-            padding: "9px 10px",
-            borderBottom: `1px solid ${T.border(t)}`,
-          }}>
-            {hasSpeech && (
-              <button
-                onClick={listening ? stopListening : startListening}
-                title={listening ? "Stop listening" : "Speak to BOB"}
-                style={{
-                  width: 30, height: 30, borderRadius: "50%", border: "none", flexShrink: 0,
-                  background: listening
-                    ? "rgba(192,48,48,.18)"
-                    : "transparent",
-                  cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                  animation: listening ? "micPulse 1.2s ease-in-out infinite" : "none",
-                  transition: "background .2s",
-                }}
-              >
-                <SpeechWave
-                  listening={listening}
-                  s={15}
-                  c={listening
-                    ? "#e05555"
-                    : t === "dark" ? "rgba(237,237,235,.55)" : "rgba(17,19,21,.4)"}
-                />
-              </button>
-            )}
+              {/* Input row */}
+              <div style={{
+                display: "flex", alignItems: "center", gap: 8,
+                padding: "9px 10px",
+                borderBottom: `1px solid ${T.border(t)}`,
+              }}>
+                {hasSpeech && (
+                  <button
+                    onClick={listening ? stopListening : startListening}
+                    title={listening ? "Stop listening" : "Speak to BOB"}
+                    style={{
+                      width: 30, height: 30, borderRadius: "50%", border: "none", flexShrink: 0,
+                      background: listening ? "rgba(192,48,48,.18)" : "transparent",
+                      cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                      animation: listening ? "micPulse 1.2s ease-in-out infinite" : "none",
+                      transition: "background .2s",
+                    }}
+                  >
+                    <SpeechWave
+                      listening={listening}
+                      s={15}
+                      c={listening
+                        ? "#e05555"
+                        : t === "dark" ? "rgba(237,237,235,.55)" : "rgba(17,19,21,.4)"}
+                    />
+                  </button>
+                )}
 
-            <input
-              ref={inputRef}
-              value={inputText}
-              onChange={e => setInputText(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }}}
-              placeholder="Ask anything about your board…"
-              style={{
-                flex: 1, border: "none", outline: "none", background: "transparent",
-                fontSize: 13, color: T.text(t), fontFamily: "'Satoshi', Arial, sans-serif",
-                caretColor: T.text(t),
-              }}
-            />
-
-            <button
-              onClick={() => send()}
-              disabled={!inputText.trim() || loading}
-              style={{
-                width: 28, height: 28, borderRadius: 8, border: "none", flexShrink: 0,
-                background: inputText.trim() && !loading
-                  ? t === "dark" ? "rgba(255,255,255,.18)" : "rgba(17,19,21,.14)"
-                  : "transparent",
-                cursor: inputText.trim() && !loading ? "pointer" : "default",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                transition: "background .15s",
-              }}
-            >
-              <Send c={inputText.trim() && !loading ? T.text(t) : mu} />
-            </button>
-          </div>
-
-          {/* Quick actions */}
-          <div style={{
-            display: "flex", flexWrap: "wrap", alignItems: "center",
-            gap: 6, padding: "8px 10px 10px",
-          }}>
-            {quickActions.map(action => (
-              <div
-                key={action.id}
-                style={{ position: "relative", display: "inline-flex" }}
-                onMouseEnter={() => setHoveredChip(action.id)}
-                onMouseLeave={() => setHoveredChip(null)}
-              >
-                <button
-                  onClick={() => handleQuickAction(action)}
-                  disabled={loading}
+                <input
+                  ref={inputRef}
+                  value={inputText}
+                  onChange={e => setInputText(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }}}
+                  placeholder="Ask anything about your board…"
                   style={{
-                    padding: "4px 10px", borderRadius: 99,
-                    border:  `1px solid ${T.chipBdr(t)}`,
-                    background: T.chip(t),
-                    color:  T.text(t), fontSize: 11.5, fontWeight: 500,
-                    cursor: loading ? "default" : "pointer",
-                    fontFamily: "'Satoshi', Arial, sans-serif",
-                    opacity: loading ? .5 : 1,
-                    transition: "all .12s",
-                    paddingRight: hoveredChip === action.id ? 22 : 10,
+                    flex: 1, border: "none", outline: "none", background: "transparent",
+                    fontSize: 13, color: T.text(t), fontFamily: "'Satoshi', Arial, sans-serif",
+                    caretColor: T.text(t),
+                  }}
+                />
+
+                <button
+                  onClick={() => send()}
+                  disabled={!inputText.trim() || loading}
+                  style={{
+                    width: 28, height: 28, borderRadius: 8, border: "none", flexShrink: 0,
+                    background: inputText.trim() && !loading
+                      ? t === "dark" ? "rgba(255,255,255,.18)" : "rgba(17,19,21,.14)"
+                      : "transparent",
+                    cursor: inputText.trim() && !loading ? "pointer" : "default",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    transition: "background .15s",
                   }}
                 >
-                  {action.label}
+                  <Send c={inputText.trim() && !loading ? T.text(t) : mu} />
                 </button>
-                {hoveredChip === action.id && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); deleteAction(action.id); }}
-                    style={{
-                      position: "absolute", right: 4, top: "50%", transform: "translateY(-50%)",
-                      background: "none", border: "none", cursor: "pointer",
-                      color: mu, fontSize: 12, lineHeight: 1, padding: 0,
-                      display: "flex", alignItems: "center",
+              </div>
+
+              {/* Quick actions */}
+              <div style={{
+                display: "flex", flexWrap: "wrap", alignItems: "center",
+                gap: 6, padding: "8px 10px 10px",
+              }}>
+                {quickActions.map(action => (
+                  <div
+                    key={action.id}
+                    style={{ position: "relative", display: "inline-flex" }}
+                    onMouseEnter={() => setHoveredChip(action.id)}
+                    onMouseLeave={() => setHoveredChip(null)}
+                  >
+                    <button
+                      onClick={() => handleQuickAction(action)}
+                      disabled={loading}
+                      style={{
+                        padding: "4px 10px", borderRadius: 99,
+                        border:  `1px solid ${T.chipBdr(t)}`,
+                        background: T.chip(t),
+                        color:  T.text(t), fontSize: 11.5, fontWeight: 500,
+                        cursor: loading ? "default" : "pointer",
+                        fontFamily: "'Satoshi', Arial, sans-serif",
+                        opacity: loading ? .5 : 1,
+                        transition: "all .12s",
+                        paddingRight: hoveredChip === action.id ? 22 : 10,
+                      }}
+                    >
+                      {action.label}
+                    </button>
+                    {hoveredChip === action.id && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); deleteAction(action.id); }}
+                        style={{
+                          position: "absolute", right: 4, top: "50%", transform: "translateY(-50%)",
+                          background: "none", border: "none", cursor: "pointer",
+                          color: mu, fontSize: 12, lineHeight: 1, padding: 0,
+                          display: "flex", alignItems: "center",
+                        }}
+                      >×</button>
+                    )}
+                  </div>
+                ))}
+
+                {addingAction ? (
+                  <input
+                    autoFocus
+                    value={newActionLabel}
+                    onChange={e => setNewActionLabel(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === "Enter")  addAction();
+                      if (e.key === "Escape") { setAddingAction(false); setNewActionLabel(""); }
                     }}
-                  >×</button>
+                    onBlur={() => { if (!newActionLabel.trim()) { setAddingAction(false); } }}
+                    placeholder="Name this action…"
+                    style={{
+                      padding: "4px 12px", borderRadius: 99,
+                      border: `1px solid ${T.chipBdr(t)}`,
+                      background: T.chip(t),
+                      color: T.text(t), fontSize: 11.5,
+                      fontFamily: "'Satoshi', Arial, sans-serif",
+                      outline: "none", flex: 1, minWidth: 0,
+                    }}
+                  />
+                ) : (
+                  <button
+                    onClick={() => setAddingAction(true)}
+                    style={{
+                      padding: "4px 12px", borderRadius: 99,
+                      border:  `1px dashed ${T.chipBdr(t)}`,
+                      background: "transparent",
+                      color: mu, fontSize: 11.5, cursor: "pointer",
+                      fontFamily: "'Satoshi', Arial, sans-serif",
+                      whiteSpace: "nowrap",
+                    }}
+                  >+ Add Quick Action</button>
                 )}
               </div>
-            ))}
-
-            {/* Add new action */}
-            {addingAction ? (
-              <input
-                autoFocus
-                value={newActionLabel}
-                onChange={e => setNewActionLabel(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === "Enter")  addAction();
-                  if (e.key === "Escape") { setAddingAction(false); setNewActionLabel(""); }
-                }}
-                onBlur={() => { if (!newActionLabel.trim()) { setAddingAction(false); } }}
-                placeholder="Name this action…"
-                style={{
-                  padding: "4px 12px", borderRadius: 99,
-                  border: `1px solid ${T.chipBdr(t)}`,
-                  background: T.chip(t),
-                  color: T.text(t), fontSize: 11.5,
-                  fontFamily: "'Satoshi', Arial, sans-serif",
-                  outline: "none", flex: 1, minWidth: 0,
-                }}
-              />
-            ) : (
-              <button
-                onClick={() => setAddingAction(true)}
-                style={{
-                  padding: "4px 12px", borderRadius: 99,
-                  border:  `1px dashed ${T.chipBdr(t)}`,
-                  background: "transparent",
-                  color: mu, fontSize: 11.5, cursor: "pointer",
-                  fontFamily: "'Satoshi', Arial, sans-serif",
-                  whiteSpace: "nowrap",
-                }}
-              >+ Add Quick Action</button>
-            )}
-          </div>
+            </>
+          )}
 
         </div>
       )}
