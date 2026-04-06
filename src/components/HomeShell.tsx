@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import type { ThemeMode, BoardType, Importance, FlowMode, Board, Step, Note, Draft } from "@/lib/board";
+import LumaAgent, { type LumaNewNote } from "@/components/LumaAgent";
 import { useMutation, useQuery } from "convex/react";
 import { useUser, useClerk } from "@clerk/nextjs";
 import { api } from "../../convex/_generated/api";
@@ -1329,6 +1330,36 @@ export function HomeShell() {
     setDetailNoteId(null);
   }
 
+  function handleLumaSweep(positions: { id: number; x: number; y: number }[]) {
+    setNotes(prev => prev.map(n => {
+      const pos = positions.find(p => p.id === n.id);
+      return pos ? { ...n, x: pos.x, y: pos.y } : n;
+    }));
+  }
+
+  function handleLumaAddNote(note: LumaNewNote) {
+    const id = Date.now();
+    const now = new Date().toISOString();
+    const newNote: Note = {
+      id,
+      boardId: activeBoardId,
+      type: note.type === "task" ? "task" : "thought",
+      title: note.title,
+      body: note.body,
+      importance: note.importance,
+      createdAt: now,
+      completed: false,
+      x: 80 + Math.random() * 200,
+      y: 80 + Math.random() * 200,
+      steps: note.steps.map((s, i) => ({ id: id + i + 1, title: s.title, minutes: s.minutes, done: false, x: 0, y: 0 })),
+      showFlow: false,
+      flowMode: "web",
+      linkedNoteIds: [],
+      colorIdx: Math.floor(Math.random() * 8),
+    };
+    setNotes(prev => [...prev, newNote]);
+  }
+
   function startFocus(noteId: number, chain = false) {
     const note = notes.find((n) => n.id === noteId);
     if (!note) return;
@@ -1867,6 +1898,15 @@ export function HomeShell() {
           )}
 
           <div style={{ position: "absolute", top: 12, left: 16, right: 16, zIndex: 3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            {/* Luma — centered */}
+            <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", top: 0 }}>
+              <LumaAgent
+                theme={boardTheme}
+                notes={activeNotes}
+                onSweep={handleLumaSweep}
+                onAddNote={handleLumaAddNote}
+              />
+            </div>
             <div style={{
                 display: "flex", alignItems: "center", gap: 8,
                 fontSize: 14,
