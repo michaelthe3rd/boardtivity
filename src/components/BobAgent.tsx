@@ -346,14 +346,14 @@ export default function BobAgent({ theme: t, notes, onSweep, onAddNote }: Props)
       onClick={!open ? doOpen : undefined}
     >
       {/* ── Pill / Header bar ─────────────────────────────────────────────── */}
+      {/* BOB logo is always centered; close button is absolutely positioned so it never shifts the center */}
       <div style={{
         display: "flex",
         alignItems: "center",
-        justifyContent: open ? "space-between" : "flex-start",
-        gap: 7,
-        padding: open ? "10px 14px 9px" : "5px 10px 5px 7px",
+        justifyContent: "center",
+        position: "relative",
+        padding: open ? "10px 14px 9px" : "5px 14px",
         flexShrink: 0,
-        minWidth: 0,
         whiteSpace: "nowrap",
         transition: "padding 0.3s ease",
       }}>
@@ -375,9 +375,10 @@ export default function BobAgent({ theme: t, notes, onSweep, onAddNote }: Props)
           <button
             onClick={(e) => { e.stopPropagation(); doClose(); }}
             style={{
+              position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)",
               background: "none", border: "none", cursor: "pointer",
               color: mu, fontSize: 18, lineHeight: 1,
-              padding: "1px 4px", fontFamily: "inherit", flexShrink: 0,
+              padding: "2px 4px", fontFamily: "inherit",
               opacity: 0.7,
             }}
           >×</button>
