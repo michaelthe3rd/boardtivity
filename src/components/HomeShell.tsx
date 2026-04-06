@@ -607,9 +607,12 @@ export function HomeShell() {
   const saveBoard = useMutation(api.boards.save);
   const savedBoard = useQuery(api.boards.load);
   const ensureWaitlistLinked = useMutation(api.waitlist.ensureLinked);
-  const convexReadyRef = useRef(false);   // Convex has responded (data or null)
-  const convexAppliedRef = useRef(false); // first Convex state has been applied — stops re-applying on every cloud write
+  const convexReadyRef = useRef(false);
   const convexSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Set true in effect-2 when we apply cloud data; cleared in effect-3 so we
+  // don't immediately push the same data back to Convex (prevents apply→save loop)
+  const justAppliedCloudRef = useRef(false);
+  const lastAppliedCloudAtRef = useRef(0);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | string | null>(null);
@@ -813,15 +816,11 @@ export function HomeShell() {
     }
   }
 
-  // ── Hydrate from Convex on first load (cross-device sync) ───────────────────
+  // ── Sync with Convex whenever savedBoard changes (real-time cross-device sync) ──
   useEffect(() => {
     if (!isSignedIn || savedBoard === undefined) return;
     convexReadyRef.current = true;
-    if (convexAppliedRef.current) return;
-    convexAppliedRef.current = true;
 
-    // Read the preserved localSavedAt — tells us when local data last changed
-    // after Convex had already loaded (so fresh-device installs have 0 here)
     let localSavedAt = 0;
     try {
       const r = localStorage.getItem("boardtivity");
@@ -830,8 +829,19 @@ export function HomeShell() {
 
     const cloudHasRealData = savedBoard && !isCloudDefaultOnly(savedBoard.boardState);
 
-    if (cloudHasRealData && savedBoard.updatedAt > localSavedAt) {
-      // Cloud is strictly newer — apply it (fresh device or another device made changes)
+    // Debug — remove once sync is confirmed working
+    console.log("[Boardtivity sync]", {
+      userId: user?.id,
+      cloudUpdatedAt: savedBoard?.updatedAt,
+      localSavedAt,
+      cloudHasRealData,
+      lastAppliedCloudAt: lastAppliedCloudAtRef.current,
+    });
+
+    if (cloudHasRealData && savedBoard.updatedAt > localSavedAt && savedBoard.updatedAt > lastAppliedCloudAtRef.current) {
+      // Cloud is newer and not something we already applied — apply it
+      justAppliedCloudRef.current = true;
+      lastAppliedCloudAtRef.current = savedBoard.updatedAt;
       try {
         const data = JSON.parse(savedBoard.boardState) as {
           boards?: Board[]; notes?: Note[]; activeBoardId?: string;
@@ -847,10 +857,11 @@ export function HomeShell() {
         if (data.boardGrid) setBoardGrid(data.boardGrid);
         setCloudSyncState("synced");
       } catch { setCloudSyncState("error"); }
-    } else {
-      // Local is newer or cloud is empty/default-only — push local up to cloud
+    } else if (!cloudHasRealData) {
+      // Cloud is empty or only has defaults — push local up
       pushToCloud();
     }
+    // else: local is newer, debounced save in effect-3 will handle it
   }, [isSignedIn, savedBoard]);
 
   // ── Persist to localStorage + debounced Convex save on every change ─────────
@@ -858,21 +869,29 @@ export function HomeShell() {
     if (!isHydrated) return;
     try {
       if (isSignedIn) {
-        // Preserve savedAt when Convex hasn't loaded yet (avoids resetting it to 0
-        // on page reload, which would make stale cloud data look "newer" than local).
-        // Once Convex is ready, stamp the current time so future comparisons work.
+        // Preserve savedAt when Convex hasn't loaded yet so a fresh page load
+        // doesn't reset it to 0 and make stale cloud data look newer than local.
         let savedAt = 0;
         try { const r = localStorage.getItem("boardtivity"); if (r) savedAt = (JSON.parse(r) as { savedAt?: number }).savedAt ?? 0; } catch {}
-        if (convexReadyRef.current) savedAt = Date.now();
-        localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, savedAt }));
-        if (convexReadyRef.current) {
-          setCloudSyncState("saving");
-          if (convexSaveTimerRef.current) clearTimeout(convexSaveTimerRef.current);
-          convexSaveTimerRef.current = setTimeout(() => {
-            saveBoard({ boardState: currentBoardState() })
-              .then(() => setCloudSyncState("synced"))
-              .catch((e) => { console.error("[Boardtivity] Convex save failed:", e); setCloudSyncState("error"); });
-          }, 300);
+
+        if (justAppliedCloudRef.current) {
+          // State changed because we just applied cloud data — don't push it back.
+          // Use cloud's own timestamp so future comparisons stay accurate.
+          justAppliedCloudRef.current = false;
+          savedAt = lastAppliedCloudAtRef.current;
+          localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, savedAt }));
+        } else {
+          if (convexReadyRef.current) savedAt = Date.now();
+          localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, savedAt }));
+          if (convexReadyRef.current) {
+            setCloudSyncState("saving");
+            if (convexSaveTimerRef.current) clearTimeout(convexSaveTimerRef.current);
+            convexSaveTimerRef.current = setTimeout(() => {
+              saveBoard({ boardState: currentBoardState() })
+                .then(() => setCloudSyncState("synced"))
+                .catch((e) => { console.error("[Boardtivity] Convex save failed:", e); setCloudSyncState("error"); });
+            }, 300);
+          }
         }
       } else {
         localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme }));
