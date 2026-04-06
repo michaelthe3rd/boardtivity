@@ -609,7 +609,7 @@ export function HomeShell() {
   const deleteFeedback = useMutation(api.feedback.remove);
   const replyFeedback = useMutation(api.feedback.reply);
   const deleteReplyFeedback = useMutation(api.feedback.removeReply);
-  const { user, isSignedIn } = useUser();
+  const { user, isSignedIn, isLoaded: clerkLoaded } = useUser();
   const { openSignIn, openSignUp, signOut } = useClerk();
 
   async function submitWaitlist(email: string) {
@@ -753,6 +753,15 @@ export function HomeShell() {
     const t = setTimeout(() => centerBoard(), 20);
     return () => clearTimeout(t);
   }, [activeBoardId]);
+
+  // When user signs in via modal (false → true), reload so all state is fresh
+  const prevSignedInRef = useRef<boolean | undefined>(undefined);
+  useEffect(() => {
+    if (prevSignedInRef.current === false && isSignedIn === true) {
+      window.location.reload();
+    }
+    if (isSignedIn !== undefined) prevSignedInRef.current = isSignedIn;
+  }, [isSignedIn]);
 
   // Load persisted state — wait for Clerk to resolve before hydrating
   useEffect(() => {
@@ -1830,8 +1839,8 @@ export function HomeShell() {
                 ))}
               </div>
 
-              {/* Not signed in hint */}
-              {!isSignedIn && (
+              {/* Not signed in hint — only show once Clerk has confirmed the session state */}
+              {clerkLoaded && !isSignedIn && (
                 <div style={{ marginBottom: 20, marginLeft: 16, marginRight: 16, borderRadius: 12, border: `1px solid ${border(theme)}`, backgroundColor: paper(theme), padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
                   <div style={{ flexShrink: 0, width: 36, height: 36, borderRadius: 10, backgroundColor: theme === "dark" ? "#23262b" : "#f0f0ee", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke={muted(theme)} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity=".7">
@@ -1847,8 +1856,11 @@ export function HomeShell() {
                 </div>
               )}
 
-              {/* List */}
-              <div style={{ padding: "0 16px" }}>
+              {/* List — show spinner while cloud is loading after sign-in */}
+              {isSignedIn && cloudSyncState === "loading" && (
+                <div style={{ textAlign: "center", padding: "52px 0", color: muted(theme), fontSize: 13, opacity: .5 }}>Loading your boards…</div>
+              )}
+              <div style={{ padding: "0 16px", display: isSignedIn && cloudSyncState === "loading" ? "none" : undefined }}>
                 {!isThoughtBoard && (
                   <>
                     {pendingTasks.length === 0 && doneTasks.length === 0 && (
