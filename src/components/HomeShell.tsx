@@ -550,6 +550,12 @@ export function HomeShell() {
 
   const focusNoteIdRef = useRef<number | null>(null);
   const focusStepIdRef = useRef<number | null>(null);
+  // Wall-clock timer: stores the epoch ms when the current segment started running
+  const focusStartedAtRef = useRef<number>(0);
+  // Total seconds for the current segment (so we can recompute after backgrounding)
+  const focusTotalSecsRef = useRef<number>(0);
+  // Seconds remaining when paused — used to reset wall-clock on resume
+  const focusPausedSecsRef = useRef<number>(0);
   const notesRef = useRef<typeof notes>([]);
 
   const [drafts, setDrafts] = useState<Draft[]>([]);
@@ -990,30 +996,62 @@ export function HomeShell() {
     return () => { c0?.(); c1?.(); c2?.(); c3?.(); };
   }, []);
 
+  // Wall-clock timer: tick every second, compute remaining from start time
   useEffect(() => {
     if (!focusOpen || focusCompleted || focusPaused) return;
-    const id = window.setInterval(() => {
-      setFocusSecondsLeft((prev) => {
-        if (prev <= 1) {
-          window.clearInterval(id);
-          const nId = focusNoteIdRef.current;
-          const sId = focusStepIdRef.current;
-          if (sId && nId) {
-            setNotes((ns) => ns.map((n) =>
-              n.id === nId
-                ? { ...n, steps: n.steps.map((s) => s.id === sId ? { ...s, done: true } : s) }
-                : n
-            ));
-          } else if (nId) {
-            setNotes((ns) => ns.map((n) => n.id === nId ? { ...n, completed: true, steps: n.steps.map((s) => ({ ...s, done: true })) } : n));
-          }
-          setFocusCompleted(true);
-          return 0;
+    // If startedAt not yet set (e.g. resume from pause), stamp now
+    if (!focusStartedAtRef.current) focusStartedAtRef.current = Date.now();
+
+    function tick() {
+      const elapsed = (Date.now() - focusStartedAtRef.current) / 1000;
+      const remaining = Math.max(0, focusTotalSecsRef.current - elapsed);
+      setFocusSecondsLeft(Math.round(remaining));
+      if (remaining <= 0) {
+        const nId = focusNoteIdRef.current;
+        const sId = focusStepIdRef.current;
+        if (sId && nId) {
+          setNotes((ns) => ns.map((n) =>
+            n.id === nId
+              ? { ...n, steps: n.steps.map((s) => s.id === sId ? { ...s, done: true } : s) }
+              : n
+          ));
+        } else if (nId) {
+          setNotes((ns) => ns.map((n) => n.id === nId ? { ...n, completed: true, steps: n.steps.map((s) => ({ ...s, done: true })) } : n));
         }
-        return prev - 1;
-      });
-    }, 1000);
+        setFocusCompleted(true);
+        clearInterval(id);
+      }
+    }
+    tick(); // immediate first tick so display is right away correct
+    const id = window.setInterval(tick, 1000);
     return () => window.clearInterval(id);
+  }, [focusOpen, focusCompleted, focusPaused]);
+
+  // Recalculate remaining when app comes back to foreground (phone unlock / tab switch)
+  useEffect(() => {
+    if (!focusOpen || focusCompleted || focusPaused) return;
+    function onVisible() {
+      if (document.visibilityState !== "visible") return;
+      const elapsed = (Date.now() - focusStartedAtRef.current) / 1000;
+      const remaining = Math.max(0, focusTotalSecsRef.current - elapsed);
+      setFocusSecondsLeft(Math.round(remaining));
+      if (remaining <= 0) {
+        const nId = focusNoteIdRef.current;
+        const sId = focusStepIdRef.current;
+        if (sId && nId) {
+          setNotes((ns) => ns.map((n) =>
+            n.id === nId
+              ? { ...n, steps: n.steps.map((s) => s.id === sId ? { ...s, done: true } : s) }
+              : n
+          ));
+        } else if (nId) {
+          setNotes((ns) => ns.map((n) => n.id === nId ? { ...n, completed: true, steps: n.steps.map((s) => ({ ...s, done: true })) } : n));
+        }
+        setFocusCompleted(true);
+      }
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
   }, [focusOpen, focusCompleted, focusPaused]);
 
   useEffect(() => {
@@ -1047,9 +1085,12 @@ export function HomeShell() {
     setFocusCompleted(false);
     setFocusNextStep(null);
     if (next) {
+      const nextSecs = (next.minutes ?? 25) * 60;
+      focusTotalSecsRef.current = nextSecs;
+      focusStartedAtRef.current = Date.now();
       setFocusStepId(next.id);
       focusStepIdRef.current = next.id;
-      setFocusSecondsLeft((next.minutes ?? 25) * 60);
+      setFocusSecondsLeft(nextSecs);
     } else {
       setFocusOpen(false);
       setFocusNoteId(null);
@@ -1513,10 +1554,15 @@ export function HomeShell() {
     }
     const step = stepId ? note.steps.find(s => s.id === stepId) : null;
     const total = step ? (step.minutes ?? 25) : (note.minutes ?? estimateTime(note.title));
+    const totalSecs = total * 60;
+    focusTotalSecsRef.current = totalSecs;
+    focusStartedAtRef.current = Date.now();
     setFocusNoteId(noteId);
     setFocusStepId(stepId ?? null);
     setFocusChainMode(chain);
-    setFocusSecondsLeft(total * 60);
+    setFocusSecondsLeft(totalSecs);
+    setFocusCompleted(false);
+    setFocusPaused(false);
     setFocusOpen(true);
   }
 
@@ -1619,20 +1665,139 @@ export function HomeShell() {
         </div>
       </section>
 
-      <section id="boardtivity-board" style={{ maxWidth: 1440, margin: "0 auto", padding: "0 48px 24px" }}>
-        {isMobile && (
-          <div style={{ borderRadius: 16, border: `1px solid ${border(theme)}`, backgroundColor: paper(theme), padding: "32px 24px", textAlign: "center" }}>
-            <div style={{ marginBottom: 12, display: "flex", justifyContent: "center" }}>
-              <svg width="36" height="36" viewBox="0 0 36 36" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ color: muted(theme), opacity: .5 }}>
-                <rect x="3" y="5" width="30" height="20" rx="2.5"/>
-                <line x1="11" y1="31" x2="25" y2="31"/>
-                <line x1="18" y1="25" x2="18" y2="31"/>
-              </svg>
+      <section id="boardtivity-board" style={{ maxWidth: 1440, margin: "0 auto", padding: isMobile ? "0 0 24px" : "0 48px 24px" }}>
+        {isMobile && (() => {
+          // Mobile board: task+idea list per board
+          const mobileBoardNotes = notes.filter(n => n.boardId === activeBoardId);
+          const tasks = mobileBoardNotes.filter(n => n.type === "task");
+          const thoughts = mobileBoardNotes.filter(n => n.type === "thought");
+          const taskBoards = boards.filter(b => b.type === "task");
+          const thoughtBoards = boards.filter(b => b.type === "thought");
+
+          const completedCount = tasks.filter(t => t.completed || (t.steps.length > 0 && t.steps.every(s => s.done))).length;
+          const pendingCount = tasks.filter(t => !(t.completed || (t.steps.length > 0 && t.steps.every(s => s.done)))).length;
+
+          function mobileTaskRow(note: Note) {
+            const isDone = note.completed || (note.steps.length > 0 && note.steps.every(s => s.done));
+            const bg = isDone
+              ? (theme === "dark" ? "rgba(60,180,90,.06)" : "rgba(60,180,90,.05)")
+              : (theme === "dark" ? "#1f2329" : "#ffffff");
+            const impColor = priorityColor(note.importance === "none" ? undefined : note.importance, theme);
+            const hasDue = !!note.dueDate;
+            let dueLabel = "";
+            let dueColor = muted(theme);
+            if (hasDue) {
+              const today = new Date(); today.setHours(0,0,0,0);
+              const due = new Date(note.dueDate!); due.setHours(0,0,0,0);
+              const diff = Math.round((due.getTime() - today.getTime()) / 86400000);
+              if (diff < 0) { dueLabel = "Overdue"; dueColor = theme === "dark" ? "#ff8080" : "#c03030"; }
+              else if (diff === 0) { dueLabel = "Today"; dueColor = theme === "dark" ? "#ffaa60" : "#b05a20"; }
+              else if (diff === 1) { dueLabel = "Tomorrow"; }
+              else { dueLabel = due.toLocaleDateString(undefined, { month: "short", day: "numeric" }); }
+            }
+            return (
+              <div key={note.id} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "14px 16px", borderRadius: 14, backgroundColor: bg, border: `1px solid ${isDone ? (theme === "dark" ? "rgba(60,180,90,.15)" : "rgba(60,180,90,.12)") : border(theme)}`, marginBottom: 8 }}>
+                {/* Checkbox */}
+                <button
+                  onClick={() => setNotes(ns => ns.map(n => n.id === note.id ? { ...n, completed: !n.completed } : n))}
+                  style={{ flexShrink: 0, width: 22, height: 22, borderRadius: 6, border: isDone ? "none" : `2px solid ${impColor}`, backgroundColor: isDone ? (theme === "dark" ? "#3db83d" : "#3db83d") : "transparent", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", marginTop: 1 }}
+                >
+                  {isDone && <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                </button>
+                {/* Content */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: isDone ? muted(theme) : pageText(theme), textDecoration: isDone ? "line-through" : "none", lineHeight: 1.35, wordBreak: "break-word", opacity: isDone ? .6 : 1 }}>{note.title}</div>
+                  <div style={{ display: "flex", gap: 8, marginTop: 5, flexWrap: "wrap", alignItems: "center" }}>
+                    {note.importance && note.importance !== "none" && (
+                      <span style={{ fontSize: 11, fontWeight: 700, color: impColor, opacity: .85 }}>{note.importance}</span>
+                    )}
+                    {hasDue && !isDone && (
+                      <span style={{ fontSize: 11, color: dueColor, opacity: .8 }}>{dueLabel}</span>
+                    )}
+                    {note.steps.length > 0 && (
+                      <span style={{ fontSize: 11, color: muted(theme), opacity: .6 }}>{note.steps.filter(s => s.done).length}/{note.steps.length} steps</span>
+                    )}
+                  </div>
+                </div>
+                {/* Focus button */}
+                {!isDone && (
+                  <button
+                    onClick={() => startFocus(note.id, note.steps.length > 0)}
+                    style={{ flexShrink: 0, height: 34, borderRadius: 999, backgroundColor: theme === "dark" ? "#111315" : "#171613", color: "#f7f8fb", border: "none", padding: "0 14px", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}
+                  >
+                    Focus
+                  </button>
+                )}
+              </div>
+            );
+          }
+
+          function mobileIdeaRow(note: Note) {
+            const idx = note.colorIdx ?? 0;
+            const palette = NOTE_PALETTE[idx % NOTE_PALETTE.length];
+            const bg = theme === "dark" ? palette.dark : palette.light;
+            return (
+              <div key={note.id} style={{ padding: "12px 14px", borderRadius: 12, backgroundColor: bg, border: `1px solid ${palette.halo.replace(/[\d.]+\)$/, theme === "dark" ? "0.3)" : "0.4)")}`, marginBottom: 8 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: pageText(theme), lineHeight: 1.4 }}>{note.title}</div>
+                {note.body && <div style={{ fontSize: 13, color: muted(theme), marginTop: 4, lineHeight: 1.5, opacity: .75 }}>{note.body}</div>}
+              </div>
+            );
+          }
+
+          const activeBoard = boards.find(b => b.id === activeBoardId);
+          const isThoughtBoard = activeBoard?.type === "thought";
+
+          return (
+            <div style={{ padding: "0 16px" }}>
+              {/* Board tabs */}
+              <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 12, scrollbarWidth: "none" }}>
+                {boards.map(b => (
+                  <button
+                    key={b.id}
+                    onClick={() => setActiveBoardId(b.id)}
+                    style={{ flexShrink: 0, height: 34, borderRadius: 999, border: b.id === activeBoardId ? "none" : `1px solid ${border(theme)}`, backgroundColor: b.id === activeBoardId ? (theme === "dark" ? "#f5f5f2" : "#171613") : (theme === "dark" ? "#1f2329" : "#ffffff"), color: b.id === activeBoardId ? (theme === "dark" ? "#171613" : "#f7f8fb") : pageText(theme), padding: "0 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}
+                  >
+                    {b.name}
+                  </button>
+                ))}
+              </div>
+
+              {/* Task board */}
+              {!isThoughtBoard && (
+                <>
+                  {tasks.length === 0 ? (
+                    <div style={{ textAlign: "center", padding: "48px 0", color: muted(theme), fontSize: 14, opacity: .55 }}>No tasks yet</div>
+                  ) : (
+                    <>
+                      {pendingCount > 0 && (
+                        <div style={{ marginBottom: 4 }}>
+                          {tasks.filter(t => !(t.completed || (t.steps.length > 0 && t.steps.every(s => s.done)))).map(mobileTaskRow)}
+                        </div>
+                      )}
+                      {completedCount > 0 && (
+                        <div>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: muted(theme), opacity: .5, letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 8, marginTop: pendingCount > 0 ? 16 : 0 }}>Completed</div>
+                          {tasks.filter(t => t.completed || (t.steps.length > 0 && t.steps.every(s => s.done))).map(mobileTaskRow)}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+
+              {/* Thought/idea board */}
+              {isThoughtBoard && (
+                <>
+                  {thoughts.length === 0 ? (
+                    <div style={{ textAlign: "center", padding: "48px 0", color: muted(theme), fontSize: 14, opacity: .55 }}>No ideas yet</div>
+                  ) : (
+                    thoughts.map(mobileIdeaRow)
+                  )}
+                </>
+              )}
             </div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: pageText(theme), marginBottom: 8 }}>Best on desktop</div>
-            <div style={{ fontSize: 13, color: muted(theme), lineHeight: 1.7, opacity: .7 }}>The interactive board is designed for larger screens. Try it on your computer or iPad.</div>
-          </div>
-        )}
+          );
+        })()}
         <div id="board-shell" ref={boardContainerRef} style={{ ...boardStyle, ...fullscreenOverride, ...(isMobile ? { display: "none" } : {}) }}>
           <div
             style={{
@@ -3416,7 +3581,7 @@ export function HomeShell() {
                   {progressBar(true)}
                 </div>
                 <div style={{ marginTop: 44, display: "flex", gap: 10, alignItems: "center" }}>
-                  <button onClick={() => { setFocusPaused(false); setBreakSecondsLeft(0); }} style={focusBtnPrimary}>
+                  <button onClick={() => { focusTotalSecsRef.current = focusPausedSecsRef.current; focusStartedAtRef.current = Date.now(); setFocusPaused(false); setBreakSecondsLeft(0); }} style={focusBtnPrimary}>
                     Resume now
                   </button>
                   <button onClick={() => setFocusExitConfirm(true)} style={focusBtnGhost}>
@@ -3447,10 +3612,10 @@ export function HomeShell() {
                   {progressBar(false)}
                 </div>
                 <div style={{ marginTop: 44, display: "flex", gap: 10, alignItems: "center" }}>
-                  <button onClick={() => { setFocusPaused(true); setBreakSecondsLeft(300); }} style={focusBtnPrimary}>
+                  <button onClick={() => { focusPausedSecsRef.current = focusSecondsLeft; setFocusPaused(true); setBreakSecondsLeft(300); }} style={focusBtnPrimary}>
                     5 min break
                   </button>
-                  <button onClick={() => setFocusSecondsLeft(1)} style={focusBtnSecondary}>
+                  <button onClick={() => { focusTotalSecsRef.current = 0; focusStartedAtRef.current = Date.now(); }} style={focusBtnSecondary}>
                     Skip
                   </button>
                   <button onClick={() => setFocusExitConfirm(true)} style={focusBtnGhost}>
