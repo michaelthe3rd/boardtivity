@@ -3958,9 +3958,11 @@ export function HomeShell() {
                   <button onClick={() => { focusPausedSecsRef.current = focusSecondsLeft; setFocusPaused(true); setBreakSecondsLeft(300); }} style={focusBtnPrimary}>
                     5 min break
                   </button>
-                  <button onClick={() => { focusTotalSecsRef.current = 0; focusStartedAtRef.current = Date.now(); }} style={focusBtnSecondary}>
-                    Skip
-                  </button>
+                  {!!isAdmin && (
+                    <button onClick={() => { focusTotalSecsRef.current = 0; focusStartedAtRef.current = Date.now(); }} style={focusBtnSecondary}>
+                      Skip
+                    </button>
+                  )}
                   <button onClick={() => setFocusExitConfirm(true)} style={focusBtnGhost}>
                     Exit
                   </button>
