@@ -618,6 +618,7 @@ export function HomeShell() {
   const [thoughtColorMode, setThoughtColorMode] = useState<"random" | "fixed">(() => readLocal("thoughtColorMode", "random"));
   const [thoughtFixedColorIdx, setThoughtFixedColorIdx] = useState<number>(() => readLocal("thoughtFixedColorIdx", 0));
   const settingsRef = useRef<HTMLDivElement | null>(null);
+  const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "done">("idle");
 
   const boardDragRef = useRef<null | { startX: number; startY: number; panX: number; panY: number }>(null);
   const noteDragRef = useRef<null | { pointerId: number; noteId: number; noteType: BoardType; boardId: string; startX: number; startY: number; noteX: number; noteY: number }>(null);
@@ -785,13 +786,33 @@ export function HomeShell() {
   }, []);
 
 
+  // Returns true if the saved cloud state is just the factory defaults (no real user data).
+  // This happens when a fresh device pushed INITIAL_BOARDS before syncing properly.
+  function isCloudDefaultOnly(boardState: string): boolean {
+    try {
+      const data = JSON.parse(boardState) as { boards?: Board[]; notes?: Note[] };
+      const b = data.boards ?? [];
+      const n = data.notes ?? [];
+      return (
+        n.length === 0 &&
+        b.length === 2 &&
+        b[0]?.id === "my-board" &&
+        b[1]?.id === "my-thoughts"
+      );
+    } catch { return false; }
+  }
+
   // Hydrate from Convex when data arrives — enables cross-device sync for signed-in users
   useEffect(() => {
     if (!isSignedIn || savedBoard === undefined) return; // still loading or not signed in
     convexReadyRef.current = true;
     if (convexAppliedRef.current) return; // already applied once — don't override user's in-session changes
     convexAppliedRef.current = true;
-    if (savedBoard) {
+
+    // Treat cloud as empty if it only has factory defaults (could be from a sync bug on another device)
+    const cloudHasRealData = savedBoard && !isCloudDefaultOnly(savedBoard.boardState);
+
+    if (cloudHasRealData) {
       // Compare timestamps: only apply cloud data if it's newer than local data
       let localSavedAt = 0;
       try {
@@ -799,10 +820,10 @@ export function HomeShell() {
         if (raw) localSavedAt = (JSON.parse(raw) as { savedAt?: number }).savedAt ?? 0;
       } catch {}
 
-      if (savedBoard.updatedAt >= localSavedAt) {
+      if (savedBoard!.updatedAt >= localSavedAt) {
         // Cloud is newer (or same) — apply it (loads from another device)
         try {
-          const data = JSON.parse(savedBoard.boardState) as {
+          const data = JSON.parse(savedBoard!.boardState) as {
             boards?: Board[];
             notes?: Note[];
             activeBoardId?: string;
@@ -824,7 +845,7 @@ export function HomeShell() {
         saveBoard({ boardState: JSON.stringify({ boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid }) }).catch(() => {});
       }
     } else {
-      // Cloud is empty — push local state up immediately so other devices can see it
+      // Cloud is empty or only has defaults — push local state up so other devices can see it
       saveBoard({ boardState: JSON.stringify({ boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid }) }).catch(() => {});
     }
   }, [isSignedIn, savedBoard]);
@@ -2208,6 +2229,20 @@ export function HomeShell() {
                     <div style={{ fontSize: 13, color: muted(boardTheme), opacity: .7, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {user?.firstName ? `${user.firstName}${user.lastName ? ` ${user.lastName}` : ""}` : user?.emailAddresses?.[0]?.emailAddress}
                     </div>
+                    <button
+                      onClick={async () => {
+                        setSyncStatus("syncing");
+                        try {
+                          await saveBoard({ boardState: JSON.stringify({ boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid }) });
+                          setSyncStatus("done");
+                          setTimeout(() => setSyncStatus("idle"), 2000);
+                        } catch { setSyncStatus("idle"); }
+                      }}
+                      disabled={syncStatus === "syncing"}
+                      style={{ ...buttonStyle(boardTheme, true), width: "100%", fontSize: 14, height: 42 }}
+                    >
+                      {syncStatus === "syncing" ? "Syncing…" : syncStatus === "done" ? "Synced ✓" : "Sync to Cloud"}
+                    </button>
                     <button onClick={() => { setSettingsOpen(false); signOut(); }} style={{ ...buttonStyle(boardTheme, false), width: "100%", fontSize: 14, height: 42 }}>Sign out</button>
                   </>
                 ) : (
