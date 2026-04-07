@@ -1249,7 +1249,7 @@ export function HomeShell() {
 
   function addBoard(type: BoardType) {
     const existingOfType = boards.filter((b) => b.type === type);
-    const boardLimit = isPlus ? 10 : 1;
+    const boardLimit = isPlus ? (type === "task" ? 10 : 5) : 1;
     if (existingOfType.length >= boardLimit) {
       if (isPlus) {
         setLimitReachedOpen(true);
@@ -1458,14 +1458,11 @@ export function HomeShell() {
   }
 
   function createNote() {
-    // Enforce idea-per-board limit for idea boards
-    if (activeBoard?.type === "thought") {
-      const ideaLimit = isPlus ? 5 : 1;
+    // Enforce idea-per-board limit for free users (1 idea per board)
+    if (activeBoard?.type === "thought" && !isPlus) {
       const ideaCount = notes.filter(n => n.boardId === activeBoardId).length;
-      if (ideaCount >= ideaLimit) {
-        if (isPlus) {
-          setLimitReachedOpen(true);
-        } else {
+      if (ideaCount >= 1) {
+        {
           setUpgradeType("thought");
           setUpgradeOpen(true);
           setComposerOpen(false);
@@ -2879,11 +2876,6 @@ export function HomeShell() {
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.5"/><circle cx="8" cy="8" r="1.5" fill="currentColor"/></svg>
               </button>
 
-              {/* Reorganize — auto-arrange cards in a grid */}
-              <button onClick={reorganizeBoard} style={circleButton(boardTheme)} aria-label="Reorganize board" title="Reorganize — arrange cards in a grid">
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="1" y="1" width="5.5" height="5.5" rx="1.5"/><rect x="9.5" y="1" width="5.5" height="5.5" rx="1.5"/><rect x="1" y="9.5" width="5.5" height="5.5" rx="1.5"/><rect x="9.5" y="9.5" width="5.5" height="5.5" rx="1.5"/></svg>
-              </button>
-
               {/* Cloud sync indicator — only when signed in */}
               {isSignedIn && (
                 <div title={cloudSyncState === "synced" ? "Synced" : cloudSyncState === "saving" ? "Saving…" : cloudSyncState === "error" ? "Sync error" : "Connecting…"} style={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, backgroundColor: cloudSyncState === "synced" ? "#3db83d" : cloudSyncState === "error" ? "#c03030" : "#c8960a", boxShadow: cloudSyncState === "saving" ? "0 0 0 3px rgba(200,150,10,.25)" : "none", transition: "background-color .3s" }} />
@@ -3130,12 +3122,11 @@ export function HomeShell() {
               position: "absolute", right: 18, bottom: 18, zIndex: 3,
               display: "flex", alignItems: "center", gap: 6,
               padding: "0 16px 0 12px", height: 38, borderRadius: 999,
-              backgroundColor: boardTheme === "dark" ? "rgba(255,255,255,.1)" : "rgba(0,0,0,.07)",
+              backgroundColor: boardTheme === "dark" ? "#23262b" : "#ffffff",
               border: `1px solid ${border(boardTheme)}`,
-              color: boardTheme === "dark" ? "rgba(255,255,255,.85)" : "rgba(0,0,0,.7)",
+              color: boardTheme === "dark" ? "#f5f5f2" : "#433d35",
               fontSize: 13, fontWeight: 500, cursor: "pointer",
               boxShadow: "0 8px 16px rgba(89,72,48,.08)",
-              backdropFilter: "blur(8px)",
             }}
             aria-label={thoughtMode ? "Add idea" : "Add task"}
           >
@@ -4523,9 +4514,9 @@ export function HomeShell() {
               <div style={{ fontSize: 10, letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 700, color: "rgba(255,255,255,.38)", border: "1px solid rgba(255,255,255,.14)", borderRadius: 999, padding: "3px 8px" }}>Most popular</div>
             </div>
             <div style={{ fontSize: 34, fontWeight: 800, lineHeight: 1.08, letterSpacing: "-.035em", color: "#f7f8fb", marginBottom: 14 }}>$6 / mo</div>
-            <div style={{ fontSize: 13, lineHeight: 1.75, color: "rgba(255,255,255,.42)", marginBottom: 18, flexGrow: 1 }}>Everything in Free, plus more boards and personalization to match your workflow.</div>
+            <div style={{ fontSize: 13, lineHeight: 1.75, color: "rgba(255,255,255,.42)", marginBottom: 18, flexGrow: 1 }}>More boards, custom idea colors, and everything we build next.</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 26 }}>
-              {["Up to 10 boards", "Custom idea note colors", "Google & Apple Calendar sync", "Priority support"].map((f) => (
+              {["Up to 10 task boards", "Up to 5 idea boards", "Custom idea note colors", "Early access to new features"].map((f) => (
                 <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "rgba(255,255,255,.72)" }}>
                   <div style={{ width: 16, height: 16, borderRadius: "50%", backgroundColor: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.18)", display: "grid", placeItems: "center", flexShrink: 0 }}>
                     <svg width="8" height="8" viewBox="0 0 10 10"><polyline points="2,5.5 4.2,7.5 8,3" stroke="rgba(255,255,255,.7)" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -4739,13 +4730,13 @@ export function HomeShell() {
               Unlock more with Plus
             </div>
             <div style={{ fontSize: 14, color: muted(theme), lineHeight: 1.65, marginBottom: 22 }}>
-              Free accounts include 1 board per type and 1 idea per board. Upgrade to Plus for up to 10 boards, 5 ideas per board, custom idea colors, and everything we build next.
+              More boards, custom idea colors, and everything we build next.
             </div>
             {/* Feature list */}
             <div style={{ display: "flex", flexDirection: "column", gap: 9, marginBottom: 24 }}>
               {[
-                "Up to 10 boards per type",
-                "Up to 5 ideas per board",
+                "Up to 10 task boards",
+                "Up to 5 idea boards",
                 "Custom idea note colors",
                 "Early access to new features",
               ].map((f) => (
@@ -4788,7 +4779,7 @@ export function HomeShell() {
             </div>
             <div style={{ fontSize: 19, fontWeight: 800, letterSpacing: "-.03em", color: pageText(theme), marginBottom: 8 }}>You've hit the limit</div>
             <div style={{ fontSize: 14, color: muted(theme), lineHeight: 1.65, marginBottom: 22 }}>
-              Plus accounts support up to 10 boards per type and 5 ideas per board. You've reached the maximum.
+              Plus accounts support up to 10 task boards and 5 idea boards. You've reached the maximum.
             </div>
             <button
               onClick={() => setLimitReachedOpen(false)}
@@ -4815,7 +4806,7 @@ export function HomeShell() {
             <div style={{ fontSize: 11, letterSpacing: ".16em", textTransform: "uppercase", fontWeight: 700, color: muted(theme), marginBottom: 10 }}>Welcome to</div>
             <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: "-.04em", color: pageText(theme), marginBottom: 10 }}>Boardtivity Plus</div>
             <div style={{ fontSize: 14, color: muted(theme), lineHeight: 1.7, marginBottom: 28 }}>
-              Your subscription is active. You now have access to up to 10 boards, 5 ideas per board, custom idea colors, and more features to come. Thank you for your support!
+              Your subscription is active. You now have access to up to 10 task boards, 5 idea boards, custom idea colors, and more features to come. Thank you for your support!
             </div>
             <button
               onClick={() => setShowSubscribedModal(false)}
