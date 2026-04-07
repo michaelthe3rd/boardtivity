@@ -1757,7 +1757,7 @@ export function HomeShell() {
             {!isSignedIn && <span style={{ fontSize: isMobile ? 15 : 17, letterSpacing: ".02em", color: pageText(theme), fontWeight: 700 }}>Boardtivity</span>}
           </div>
           {isSignedIn && (
-            <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase", fontWeight: 800, color: pageText(theme), pointerEvents: "none", userSelect: "none" }}>
+            <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", fontSize: 15, letterSpacing: ".18em", textTransform: "uppercase", fontWeight: 800, color: pageText(theme), pointerEvents: "none", userSelect: "none", whiteSpace: "nowrap" }}>
               Boardtivity
             </div>
           )}
