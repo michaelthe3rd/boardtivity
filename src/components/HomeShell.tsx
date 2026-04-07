@@ -1796,7 +1796,7 @@ export function HomeShell() {
                   </svg>
                 </button>
                 {userMenuOpen && (
-                  <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, minWidth: 220, backgroundColor: theme === "dark" ? "#1a1d22" : "#ffffff", border: `1px solid ${border(theme)}`, borderRadius: 14, boxShadow: "0 12px 32px rgba(0,0,0,.18)", padding: "6px", zIndex: 100, fontFamily: "inherit" }}>
+                  <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, minWidth: 220, maxWidth: "calc(100vw - 32px)", backgroundColor: theme === "dark" ? "#1a1d22" : "#ffffff", border: `1px solid ${border(theme)}`, borderRadius: 14, boxShadow: "0 12px 32px rgba(0,0,0,.18)", padding: "6px", zIndex: 100, fontFamily: "inherit" }}>
                     {/* Account header */}
                     <div style={{ padding: "10px 12px 10px", borderBottom: `1px solid ${border(theme)}`, marginBottom: 4 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>

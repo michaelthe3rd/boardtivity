@@ -174,6 +174,10 @@ const SSE_HEADERS = {
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
+  const { auth } = await import("@clerk/nextjs/server");
+  const { userId } = await auth();
+  if (!userId) return new Response("Unauthorized", { status: 401 });
+
   let body: { message?: string; notes?: NoteSnap[]; mode?: Mode; history?: HistoryMsg[] };
   try { body = await req.json(); }
   catch { return new Response("Invalid JSON", { status: 400 }); }

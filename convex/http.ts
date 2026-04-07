@@ -18,7 +18,7 @@ http.route({
 
     let event: Stripe.Event;
     try {
-      event = await stripe.webhooks.constructEventAsync(body, sig, webhookSecret, 0);
+      event = await stripe.webhooks.constructEventAsync(body, sig, webhookSecret, 300);
     } catch (err) {
       console.error("Webhook signature error:", err);
       return new Response("Invalid signature", { status: 400 });
