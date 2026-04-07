@@ -860,12 +860,18 @@ export function HomeShell() {
     } catch {}
   }, [clerkLoaded, isSignedIn, user?.firstName]);
 
-  // When user signs in via modal (false → true), reload so all state is fresh
+  // When user signs in (false → true), reload for fresh state.
+  // When user signs out (true → false), immediately clear board data.
   const prevSignedInRef = useRef<boolean | undefined>(undefined);
   useEffect(() => {
     if (prevSignedInRef.current === false && isSignedIn === true) {
       try { sessionStorage.setItem("boardtivity_just_signed_in", "1"); } catch {}
       window.location.reload();
+    }
+    if (prevSignedInRef.current === true && isSignedIn === false) {
+      setBoards(INITIAL_BOARDS);
+      setNotes([]);
+      setActiveBoardId(INITIAL_BOARDS[0].id);
     }
     if (isSignedIn !== undefined) prevSignedInRef.current = isSignedIn;
   }, [isSignedIn]);
@@ -1831,10 +1837,7 @@ export function HomeShell() {
                 )}
               </div>
             ) : (
-              <>
-                <button onClick={() => openSignIn()} style={buttonStyle(theme, false)}>Sign in</button>
-                {!isMobile && <button onClick={() => openSignUp()} style={buttonStyle(theme, true)}>Sign up</button>}
-              </>
+              <button onClick={() => openSignIn()} style={buttonStyle(theme, false)}>Sign in</button>
             )}
           </div>
         </header>
