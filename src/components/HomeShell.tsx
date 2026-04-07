@@ -1763,10 +1763,10 @@ export function HomeShell() {
     <main style={{ minHeight: "100vh", fontFamily: "'Satoshi', Arial, sans-serif" }}>
 
 
-      <section style={{ padding: isMobile ? "16px 18px 0" : "24px 48px 0" }}>
+      <section style={{ padding: isMobile ? "10px 18px 0" : "24px 48px 0" }}>
         <header style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", position: "relative" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-            <BoardtivityLogo size={isMobile ? 46 : 52} dark={theme === "dark"} />
+            <BoardtivityLogo size={isMobile ? 36 : 52} dark={theme === "dark"} />
             {!isSignedIn && <span style={{ fontSize: isMobile ? 15 : 17, letterSpacing: ".02em", color: pageText(theme), fontWeight: 700 }}>Boardtivity</span>}
           </div>
           {titleMounted && (
@@ -2089,7 +2089,7 @@ export function HomeShell() {
           return (
             <div style={{ padding: "0 0 100px" }}>
               {/* Board switcher */}
-              <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 14, paddingLeft: 16, paddingRight: 16, scrollbarWidth: "none" }}>
+              <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 10, paddingTop: 8, paddingLeft: 16, paddingRight: 16, scrollbarWidth: "none" }}>
                 {boards.map(b => (
                   <button
                     key={b.id}
