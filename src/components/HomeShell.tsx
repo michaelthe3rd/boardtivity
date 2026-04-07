@@ -1769,8 +1769,8 @@ export function HomeShell() {
             <BoardtivityLogo size={isMobile ? 36 : 52} dark={theme === "dark"} />
             {!isSignedIn && <span style={{ fontSize: isMobile ? 15 : 17, letterSpacing: ".02em", color: pageText(theme), fontWeight: 700 }}>Boardtivity</span>}
           </div>
-          {titleMounted && !isMobile && (
-            <div className={titleIn ? "title-slide-in" : "title-slide-out"} style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", fontSize: 20, letterSpacing: ".18em", textTransform: "uppercase", fontWeight: 800, color: pageText(theme), pointerEvents: "none", userSelect: "none", whiteSpace: "nowrap" }}>
+          {titleMounted && (
+            <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", fontSize: isMobile ? 13 : 20, letterSpacing: ".18em", textTransform: "uppercase", fontWeight: 800, color: pageText(theme), pointerEvents: "none", userSelect: "none", whiteSpace: "nowrap" }}>
               Boardtivity
             </div>
           )}
@@ -2099,6 +2099,13 @@ export function HomeShell() {
                     {b.name}
                   </button>
                 ))}
+                <button
+                  onClick={() => addBoard(isThoughtBoard ? "thought" : "task")}
+                  style={{ flexShrink: 0, width: 34, height: 34, borderRadius: 999, border: `1px solid ${border(theme)}`, backgroundColor: theme === "dark" ? "#1e2126" : "#ffffff", color: pageText(theme), cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+                  title={isThoughtBoard ? "New idea board" : "New task board"}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                </button>
               </div>
 
               {/* Not signed in hint — only show once Clerk has confirmed the session state */}
@@ -2478,9 +2485,10 @@ export function HomeShell() {
               {/* FAB */}
               <button
                 onClick={() => { setMobileAddMode(isThoughtBoard ? "thought" : "task"); setMobileAddTitle(""); setMobileAddImportance("none"); setMobileAddDueDate(""); }}
-                style={{ position: "fixed", bottom: 24, right: 20, width: 56, height: 56, borderRadius: "50%", backgroundColor: theme === "dark" ? "#f5f5f2" : "#171613", color: theme === "dark" ? "#171613" : "#f7f8fb", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 20px rgba(0,0,0,.28)", zIndex: 100 }}
+                style={{ position: "fixed", bottom: 24, right: 20, height: 42, borderRadius: 999, backgroundColor: theme === "dark" ? "#23262b" : "#ffffff", color: theme === "dark" ? "#f5f5f2" : "#433d35", border: `1px solid ${border(theme)}`, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, padding: "0 18px 0 14px", boxShadow: "0 4px 20px rgba(0,0,0,.22)", zIndex: 100, fontSize: 14, fontWeight: 600, fontFamily: "inherit" }}
               >
-                <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><line x1="11" y1="3" x2="11" y2="19" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/><line x1="3" y1="11" x2="19" y2="11" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                {isThoughtBoard ? "Add Idea" : "Add Task"}
               </button>
             </div>
           );
