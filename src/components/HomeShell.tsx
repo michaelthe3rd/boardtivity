@@ -1685,12 +1685,16 @@ export function HomeShell() {
         transform: heroVisible ? "none" : "translateY(20px)",
         transition: "opacity .75s ease, transform .75s ease",
       }}>
-        <h1 style={{ margin: "0 0 24px", fontSize: "clamp(34px,4.8vw,64px)", lineHeight: 1.0, fontWeight: 900, letterSpacing: "-.055em", color: pageText(theme) }}>
-          The <span className="hue-rotate">Board</span> and the Produc<span className="hue-rotate">tivity</span><br/>in one.
-        </h1>
-        <p style={{ margin: "0 auto 40px", maxWidth: 460, fontSize: 17, color: muted(theme), lineHeight: 1.82, opacity: .7 }}>
-          Boardtivity is a freeform visual board for your tasks, ideas, and focus. Drag tasks anywhere, let AI break them down into steps, link ideas, chain subtasks, and lock into focus mode — all in one place.
-        </p>
+        {!isSignedIn && (
+          <>
+            <h1 style={{ margin: "0 0 24px", fontSize: "clamp(34px,4.8vw,64px)", lineHeight: 1.0, fontWeight: 900, letterSpacing: "-.055em", color: pageText(theme) }}>
+              The <span className="hue-rotate">Board</span> and the Produc<span className="hue-rotate">tivity</span><br/>in one.
+            </h1>
+            <p style={{ margin: "0 auto 40px", maxWidth: 460, fontSize: 17, color: muted(theme), lineHeight: 1.82, opacity: .7 }}>
+              Boardtivity is a freeform visual board for your tasks, ideas, and focus. Drag tasks anywhere, let AI break them down into steps, link ideas, chain subtasks, and lock into focus mode — all in one place.
+            </p>
+          </>
+        )}
 
         {/* Inline email capture */}
         {isSignedIn ? (
@@ -1716,12 +1720,14 @@ export function HomeShell() {
         )}
         </section>
 
-      <section style={{ maxWidth: 1440, margin: "0 auto", padding: "0 48px 16px", textAlign: "center" }}>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 700, letterSpacing: ".14em", textTransform: "uppercase", color: muted(theme), opacity: .55 }}>
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="7" y1="2" x2="7" y2="12"/><polyline points="3,8 7,12 11,8"/></svg>
-          {isMobile ? "See your work" : "Try the board"}
-        </div>
-      </section>
+      {!isSignedIn && (
+        <section style={{ maxWidth: 1440, margin: "0 auto", padding: "0 48px 16px", textAlign: "center" }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 700, letterSpacing: ".14em", textTransform: "uppercase", color: muted(theme), opacity: .55 }}>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="7" y1="2" x2="7" y2="12"/><polyline points="3,8 7,12 11,8"/></svg>
+            {isMobile ? "See your work" : "Try the board"}
+          </div>
+        </section>
+      )}
 
       <section id="boardtivity-board" style={{ maxWidth: 1440, margin: "0 auto", padding: isMobile ? "0 0 24px" : "0 48px 24px" }}>
         {isMobile && (() => {
