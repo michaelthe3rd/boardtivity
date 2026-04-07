@@ -10,8 +10,8 @@ export async function POST(req: NextRequest) {
 
   const { plan } = await req.json() as { plan: "monthly" | "annual" };
   const PRICES: Record<string, string> = {
-    monthly: process.env.STRIPE_PRICE_MONTHLY!,
-    annual: process.env.STRIPE_PRICE_ANNUAL!,
+    monthly: process.env.STRIPE_PRICE_MONTHLY!.trim(),
+    annual: process.env.STRIPE_PRICE_ANNUAL!.trim(),
   };
   const priceId = PRICES[plan];
   if (!priceId) return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
