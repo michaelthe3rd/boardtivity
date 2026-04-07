@@ -547,6 +547,8 @@ export function HomeShell() {
   const [focusExitConfirm, setFocusExitConfirm] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeType, setUpgradeType] = useState<BoardType>("task");
+  const [limitReachedOpen, setLimitReachedOpen] = useState(false);
+  const [showSubscribedModal, setShowSubscribedModal] = useState(false);
 
   const focusNoteIdRef = useRef<number | null>(null);
   const focusStepIdRef = useRef<number | null>(null);
@@ -820,6 +822,16 @@ export function HomeShell() {
     const t = setTimeout(() => centerBoard(), 20);
     return () => clearTimeout(t);
   }, [activeBoardId]);
+
+  // Check for ?subscribed=true after Stripe redirect
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("subscribed") === "true") {
+      setShowSubscribedModal(true);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
 
   // When user signs in via modal (false → true), reload so all state is fresh
   const prevSignedInRef = useRef<boolean | undefined>(undefined);
@@ -1213,9 +1225,14 @@ export function HomeShell() {
 
   function addBoard(type: BoardType) {
     const existingOfType = boards.filter((b) => b.type === type);
-    if (existingOfType.length >= 10) {
-      setUpgradeType(type);
-      setUpgradeOpen(true);
+    const boardLimit = isPlus ? 10 : 1;
+    if (existingOfType.length >= boardLimit) {
+      if (isPlus) {
+        setLimitReachedOpen(true);
+      } else {
+        setUpgradeType(type);
+        setUpgradeOpen(true);
+      }
       setBoardsOpen(false);
       return;
     }
@@ -1417,6 +1434,22 @@ export function HomeShell() {
   }
 
   function createNote() {
+    // Enforce idea-per-board limit for idea boards
+    if (activeBoard?.type === "thought") {
+      const ideaLimit = isPlus ? 5 : 1;
+      const ideaCount = notes.filter(n => n.boardId === activeBoardId).length;
+      if (ideaCount >= ideaLimit) {
+        if (isPlus) {
+          setLimitReachedOpen(true);
+        } else {
+          setUpgradeType("thought");
+          setUpgradeOpen(true);
+          setComposerOpen(false);
+        }
+        return;
+      }
+    }
+
     const nextError = {
       title: !title.trim(),
       dueDate: !thoughtMode && !dueDate,
@@ -1708,7 +1741,20 @@ export function HomeShell() {
             <ThemeToggle theme={theme} onToggle={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} />
             {isSignedIn ? (
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {!isMobile && <span style={{ fontSize: 13, color: muted(theme) }}>{user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress}</span>}
+                {!isMobile && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontSize: 13, color: muted(theme) }}>
+                      {user?.firstName && user?.lastName
+                        ? `${user.firstName} ${user.lastName}`
+                        : user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress}
+                    </span>
+                    {isPlus && (
+                      <span style={{ fontSize: 9, letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 800, color: "#f7f8fb", background: "linear-gradient(135deg,#1a1d22,#2d3140)", border: "1px solid rgba(255,255,255,.18)", borderRadius: 999, padding: "2px 7px", lineHeight: 1 }}>
+                        Plus
+                      </span>
+                    )}
+                  </div>
+                )}
                 {confirmSignOut === "header" ? (
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ fontSize: 12, color: muted(theme) }}>Sign out?</span>
@@ -2947,7 +2993,10 @@ export function HomeShell() {
                 <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), fontWeight: 700, marginBottom: 10 }}>Idea Note Color</div>
                 <div style={{ display: "flex", gap: 6, marginBottom: 12, padding: 3, backgroundColor: boardTheme === "dark" ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", borderRadius: 10, border: `1px solid ${border(boardTheme)}` }}>
                   {(["random","fixed"] as const).map(mode => (
-                    <button key={mode} onClick={() => setThoughtColorMode(mode)} style={{
+                    <button key={mode} onClick={() => {
+                      if (mode === "fixed" && !isPlus) { setUpgradeOpen(true); return; }
+                      setThoughtColorMode(mode);
+                    }} style={{
                       flex: 1, height: 32, borderRadius: 8,
                       border: "none",
                       backgroundColor: thoughtColorMode === mode ? (boardTheme === "dark" ? "rgba(255,255,255,.12)" : "#ffffff") : "transparent",
@@ -2955,7 +3004,15 @@ export function HomeShell() {
                       color: thoughtColorMode === mode ? pageText(boardTheme) : muted(boardTheme),
                       fontSize: 13, fontWeight: thoughtColorMode === mode ? 700 : 500, cursor: "pointer", textTransform: "capitalize",
                       transition: "background-color .12s, box-shadow .12s",
-                    }}>{mode}</button>
+                      display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+                    }}>
+                      {mode}
+                      {mode === "fixed" && !isPlus && (
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: .5 }}>
+                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                        </svg>
+                      )}
+                    </button>
                   ))}
                 </div>
                 {thoughtColorMode === "fixed" && (
@@ -3023,7 +3080,7 @@ export function HomeShell() {
 
           {/* Add note button — bottom right */}
           <button
-            onClick={() => { setComposerColorIdx(thoughtColorMode === "fixed" ? thoughtFixedColorIdx : Math.floor(Math.random() * NOTE_PALETTE.length)); setComposerOpen(true); }}
+            onClick={() => { setComposerColorIdx(isPlus && thoughtColorMode === "fixed" ? thoughtFixedColorIdx : Math.floor(Math.random() * NOTE_PALETTE.length)); setComposerOpen(true); }}
             style={{ ...circleButton(boardTheme, 34), position: "absolute", right: 18, bottom: 18, zIndex: 3, boxShadow: "0 8px 16px rgba(89,72,48,.08)" }}
             aria-label="Add note"
           >
@@ -4391,7 +4448,7 @@ export function HomeShell() {
             <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1.08, letterSpacing: "-.035em", color: pageText(theme), marginBottom: 14 }}>Free forever</div>
             <div style={{ fontSize: 13, color: muted(theme), marginBottom: 18, lineHeight: 1.75, flexGrow: 1 }}>Full access to every feature — boards, tasks, subtasks, focus sessions, and idea notes. No credit card needed.</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 26 }}>
-              {["1 board per type", "Unlimited tasks & ideas", "Focus mode & subtasks", "Taskweb & Taskchain"].map((f) => (
+              {["1 board per type", "1 idea per board", "Focus mode & subtasks", "Taskweb & Taskchain"].map((f) => (
                 <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: pageText(theme) }}>
                   <div style={{ width: 16, height: 16, borderRadius: "50%", backgroundColor: hexToRgba("#6fc46b", .15), border: "1px solid rgba(111,196,107,.35)", display: "grid", placeItems: "center", flexShrink: 0 }}>
                     <svg width="8" height="8" viewBox="0 0 10 10"><polyline points="2,5.5 4.2,7.5 8,3" stroke="#6fc46b" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -4400,7 +4457,7 @@ export function HomeShell() {
                 </div>
               ))}
             </div>
-            <button onClick={() => openSignUp()} style={{ ...buttonStyle(theme, false), width: "100%", fontSize: 14, height: 42 }}>{isPlus ? "You're on Plus" : "Get started free"}</button>
+            <button onClick={() => !isSignedIn && openSignUp()} style={{ ...buttonStyle(theme, false), width: "100%", fontSize: 14, height: 42, cursor: isSignedIn ? "default" : "pointer", opacity: isSignedIn ? .5 : 1 }}>{isSignedIn ? "Signed in" : "Get started free"}</button>
           </div>
           {/* Plus */}
           <div style={{ position: "relative", overflow: "hidden", borderRadius: 18, border: `1px solid ${theme === "dark" ? "rgba(255,255,255,.18)" : "rgba(0,0,0,.18)"}`, backgroundColor: theme === "dark" ? "#0d0f12" : "#111315", padding: "36px 28px", display: "flex", flexDirection: "column", opacity: pricingVisible ? 1 : 0, transform: pricingVisible ? "none" : "translateY(28px)", transition: "opacity .65s ease .1s, transform .65s ease .1s" }}>
@@ -4421,7 +4478,7 @@ export function HomeShell() {
                 </div>
               ))}
             </div>
-            <button onClick={() => isPlus ? null : startCheckout("monthly")} disabled={checkoutLoading} style={{ width: "100%", height: 42, borderRadius: 999, border: "none", backgroundColor: "#f7f8fb", color: "#111315", fontSize: 14, fontWeight: 700, cursor: isPlus ? "default" : "pointer", opacity: checkoutLoading ? 0.6 : 1 }}>{isPlus ? "Current plan" : checkoutLoading ? "Loading…" : "Get Plus"}</button>
+            <button onClick={() => isPlus ? null : startCheckout("monthly")} disabled={checkoutLoading} style={{ width: "100%", height: 42, borderRadius: 999, border: isPlus ? "1px solid rgba(255,255,255,.18)" : "none", backgroundColor: isPlus ? "transparent" : "#f7f8fb", color: isPlus ? "rgba(255,255,255,.55)" : "#111315", fontSize: 14, fontWeight: 700, cursor: isPlus ? "default" : "pointer", opacity: checkoutLoading ? 0.6 : 1 }}>{isPlus ? "✓ Current plan" : checkoutLoading ? "Loading…" : "Get Plus — $6/mo"}</button>
           </div>
           {/* Beta */}
           <div style={{ position: "relative", overflow: "hidden", borderRadius: 18, border: `1px solid ${border(theme)}`, backgroundColor: panel(theme), padding: "36px 28px", display: "flex", flexDirection: "column", opacity: pricingVisible ? 1 : 0, transform: pricingVisible ? "none" : "translateY(28px)", transition: "opacity .65s ease .2s, transform .65s ease .2s" }}>
@@ -4438,7 +4495,7 @@ export function HomeShell() {
                 </div>
               ))}
             </div>
-            <button onClick={() => isPlus ? null : startCheckout("annual")} disabled={checkoutLoading} style={{ ...buttonStyle(theme, true), width: "100%", fontSize: 14, height: 42, opacity: checkoutLoading ? 0.6 : 1, cursor: isPlus ? "default" : "pointer" }}>{isPlus ? "Current plan" : checkoutLoading ? "Loading…" : "Sign up free"}</button>
+            <button onClick={() => isPlus ? null : startCheckout("annual")} disabled={checkoutLoading} style={{ ...buttonStyle(theme, false), width: "100%", fontSize: 14, height: 42, opacity: checkoutLoading ? 0.6 : 1, cursor: isPlus ? "default" : "pointer" }}>{isPlus ? "✓ Active" : checkoutLoading ? "Loading…" : "Sign up free"}</button>
           </div>
         </div>
       </section>
@@ -4640,16 +4697,17 @@ export function HomeShell() {
             {/* Label */}
             <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", fontWeight: 700, color: muted(theme), marginBottom: 14 }}>Boardtivity Plus</div>
             <div style={{ fontSize: 21, fontWeight: 800, letterSpacing: "-.03em", color: pageText(theme), marginBottom: 8, lineHeight: 1.2 }}>
-              Unlock unlimited boards
+              Unlock more with Plus
             </div>
             <div style={{ fontSize: 14, color: muted(theme), lineHeight: 1.65, marginBottom: 22 }}>
-              Free accounts include 1 task board and 1 idea board. Upgrade to Plus for unlimited boards and everything we build next.
+              Free accounts include 1 board per type and 1 idea per board. Upgrade to Plus for up to 10 boards, 5 ideas per board, custom idea colors, and everything we build next.
             </div>
             {/* Feature list */}
             <div style={{ display: "flex", flexDirection: "column", gap: 9, marginBottom: 24 }}>
               {[
-                "Unlimited task & idea boards",
-                "Priority cloud sync across all devices",
+                "Up to 10 task & idea boards",
+                "5 ideas per board",
+                "Custom idea note colors",
                 "Early access to every new feature",
               ].map((f) => (
                 <div key={f} style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 13.5, color: pageText(theme) }}>
@@ -4674,6 +4732,51 @@ export function HomeShell() {
               style={{ width: "100%", padding: "10px 0", borderRadius: 11, border: "none", background: "none", color: muted(theme), fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
             >
               Maybe later
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Limit reached modal (Plus users at max) ── */}
+      {limitReachedOpen && (
+        <div
+          style={{ position: "fixed", inset: 0, zIndex: 60, backgroundColor: theme === "dark" ? "rgba(6,8,12,.7)" : "rgba(10,10,12,.32)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+          onClick={(e) => { if (e.target === e.currentTarget) setLimitReachedOpen(false); }}
+        >
+          <div style={{ width: "min(360px,100%)", backgroundColor: theme === "dark" ? "#1a1d22" : "#fbf8f1", borderRadius: 20, boxShadow: "0 30px 80px rgba(0,0,0,.28)", border: `1px solid ${border(theme)}`, padding: "28px 26px 22px", fontFamily: "inherit", textAlign: "center" }}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>🚧</div>
+            <div style={{ fontSize: 19, fontWeight: 800, letterSpacing: "-.03em", color: pageText(theme), marginBottom: 8 }}>You've hit the limit</div>
+            <div style={{ fontSize: 14, color: muted(theme), lineHeight: 1.65, marginBottom: 22 }}>
+              Plus accounts support up to 10 boards per type and 5 ideas per board. You've reached the maximum.
+            </div>
+            <button
+              onClick={() => setLimitReachedOpen(false)}
+              style={{ width: "100%", padding: "12px 0", borderRadius: 11, border: "none", backgroundColor: pageText(theme), color: pageBg(theme), fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Post-purchase thank you modal ── */}
+      {showSubscribedModal && (
+        <div
+          style={{ position: "fixed", inset: 0, zIndex: 60, backgroundColor: theme === "dark" ? "rgba(6,8,12,.8)" : "rgba(10,10,12,.4)", backdropFilter: "blur(12px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowSubscribedModal(false); }}
+        >
+          <div style={{ width: "min(400px,100%)", backgroundColor: theme === "dark" ? "#1a1d22" : "#fbf8f1", borderRadius: 22, boxShadow: "0 40px 100px rgba(0,0,0,.32)", border: `1px solid ${border(theme)}`, padding: "36px 30px 26px", fontFamily: "inherit", textAlign: "center" }}>
+            <div style={{ fontSize: 48, marginBottom: 16, lineHeight: 1 }}>🎉</div>
+            <div style={{ fontSize: 11, letterSpacing: ".16em", textTransform: "uppercase", fontWeight: 700, color: muted(theme), marginBottom: 10 }}>Welcome to</div>
+            <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: "-.04em", color: pageText(theme), marginBottom: 10 }}>Boardtivity Plus</div>
+            <div style={{ fontSize: 14, color: muted(theme), lineHeight: 1.7, marginBottom: 28 }}>
+              Your subscription is active. You now have access to up to 10 boards, 5 ideas per board, and custom idea colors. Thank you for your support!
+            </div>
+            <button
+              onClick={() => setShowSubscribedModal(false)}
+              style={{ width: "100%", padding: "14px 0", borderRadius: 12, border: "none", background: "linear-gradient(135deg,#1a1d22,#2d3140)", color: "#f7f8fb", fontSize: 15, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-.02em" }}
+            >
+              Start building →
             </button>
           </div>
         </div>
