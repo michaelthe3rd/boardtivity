@@ -554,6 +554,18 @@ export function HomeShell() {
   const [namePromptLast, setNamePromptLast] = useState("");
   const [namePromptSaving, setNamePromptSaving] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [titleMounted, setTitleMounted] = useState(!!isSignedIn);
+  const [titleIn, setTitleIn] = useState(!!isSignedIn);
+  useEffect(() => {
+    if (isSignedIn) {
+      setTitleMounted(true);
+      requestAnimationFrame(() => setTitleIn(true));
+    } else {
+      setTitleIn(false);
+      const t = setTimeout(() => setTitleMounted(false), 450);
+      return () => clearTimeout(t);
+    }
+  }, [isSignedIn]);
 
   const focusNoteIdRef = useRef<number | null>(null);
   const focusStepIdRef = useRef<number | null>(null);
@@ -1756,8 +1768,8 @@ export function HomeShell() {
             <BoardtivityLogo size={isMobile ? 36 : 52} dark={theme === "dark"} />
             {!isSignedIn && <span style={{ fontSize: isMobile ? 15 : 17, letterSpacing: ".02em", color: pageText(theme), fontWeight: 700 }}>Boardtivity</span>}
           </div>
-          {isSignedIn && (
-            <div className="title-slide-in" style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", fontSize: 20, letterSpacing: ".18em", textTransform: "uppercase", fontWeight: 800, color: pageText(theme), pointerEvents: "none", userSelect: "none", whiteSpace: "nowrap" }}>
+          {titleMounted && (
+            <div className={titleIn ? "title-slide-in" : "title-slide-out"} style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", fontSize: 20, letterSpacing: ".18em", textTransform: "uppercase", fontWeight: 800, color: pageText(theme), pointerEvents: "none", userSelect: "none", whiteSpace: "nowrap" }}>
               Boardtivity
             </div>
           )}
