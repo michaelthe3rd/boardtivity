@@ -445,7 +445,7 @@ function BoardtivityLogo({ size = 32, dark = false }: { size?: number; dark?: bo
   );
 }
 
-function ThemeToggle({ theme, onToggle }: { theme: ThemeMode; onToggle: () => void }) {
+function ThemeToggle({ theme, onToggle, size = 40 }: { theme: ThemeMode; onToggle: () => void; size?: number }) {
   const [flicker, setFlicker] = useState(false);
   function handleClick() {
     setFlicker(true);
@@ -459,7 +459,7 @@ function ThemeToggle({ theme, onToggle }: { theme: ThemeMode; onToggle: () => vo
       onAnimationEnd={() => setFlicker(false)}
       aria-label="Toggle theme"
       style={{
-        ...circleButton(theme, 40),
+        ...circleButton(theme, size),
         boxShadow: isOn ? `0 0 0 1px ${border(theme)}, 0 0 10px rgba(255,200,40,.35)` : undefined,
       }}
     >
@@ -1766,7 +1766,7 @@ export function HomeShell() {
       <section style={{ padding: isMobile ? "16px 18px 0" : "24px 48px 0" }}>
         <header style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", position: "relative" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-            <BoardtivityLogo size={isMobile ? 36 : 52} dark={theme === "dark"} />
+            <BoardtivityLogo size={isMobile ? 46 : 52} dark={theme === "dark"} />
             {!isSignedIn && <span style={{ fontSize: isMobile ? 15 : 17, letterSpacing: ".02em", color: pageText(theme), fontWeight: 700 }}>Boardtivity</span>}
           </div>
           {titleMounted && (
@@ -1783,12 +1783,12 @@ export function HomeShell() {
                 Feedback
               </button>
             )}
-            <ThemeToggle theme={theme} onToggle={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} />
+            <ThemeToggle theme={theme} onToggle={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} size={isMobile ? 32 : 40} />
             {isSignedIn ? (
               <div ref={userMenuRef} style={{ position: "relative" }}>
                 <button
                   onClick={() => { setUserMenuOpen(v => !v); setConfirmSignOut(null); }}
-                  style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 700, color: pageText(theme), backgroundColor: panel(theme), border: `1px solid ${border(theme)}`, borderRadius: 999, padding: "0 12px", height: 40, cursor: "pointer", fontFamily: "inherit" }}
+                  style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 700, color: pageText(theme), backgroundColor: panel(theme), border: `1px solid ${border(theme)}`, borderRadius: 999, padding: isMobile ? "0 10px" : "0 12px", height: isMobile ? 32 : 40, cursor: "pointer", fontFamily: "inherit" }}
                 >
                   {isMobile ? (
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
