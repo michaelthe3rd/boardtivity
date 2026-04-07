@@ -10,7 +10,7 @@ http.route({
   method: "POST",
   handler: httpAction(async (ctx, req) => {
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!.trim());
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!.trim();
 
     const body = await req.text();
     const sig = req.headers.get("stripe-signature");
