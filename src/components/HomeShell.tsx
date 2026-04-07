@@ -837,6 +837,13 @@ export function HomeShell() {
       setShowSubscribedModal(true);
       window.history.replaceState({}, "", window.location.pathname);
     }
+    // Detect fresh sign-in across the reload boundary
+    try {
+      if (sessionStorage.getItem("boardtivity_just_signed_in")) {
+        didJustSignInRef.current = true;
+        sessionStorage.removeItem("boardtivity_just_signed_in");
+      }
+    } catch {}
   }, []);
 
   // Prompt existing users without a name to set one
@@ -853,6 +860,7 @@ export function HomeShell() {
   const prevSignedInRef = useRef<boolean | undefined>(undefined);
   useEffect(() => {
     if (prevSignedInRef.current === false && isSignedIn === true) {
+      try { sessionStorage.setItem("boardtivity_just_signed_in", "1"); } catch {}
       window.location.reload();
     }
     if (isSignedIn !== undefined) prevSignedInRef.current = isSignedIn;
@@ -1035,9 +1043,15 @@ export function HomeShell() {
     return () => { window.removeEventListener("pagehide", flush); document.removeEventListener("visibilitychange", onVisibility); };
   }, [isSignedIn, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid]);
 
-  // ── Sync pill: show briefly on sign-in then fade out ─────────────────────────
+  // ── Sync pill: only show on fresh sign-in (not on page refresh) ──────────────
+  const didJustSignInRef = useRef(false);
   useEffect(() => {
     if (!isSignedIn) return;
+    if (!didJustSignInRef.current) {
+      // Page was already signed in on load — skip pill
+      setShowSyncPill(false);
+      return;
+    }
     setShowSyncPill(true);
     const t = setTimeout(() => setShowSyncPill(false), 4000);
     return () => clearTimeout(t);
@@ -1810,11 +1824,11 @@ export function HomeShell() {
 
       {/* ── HERO ── */}
       <section ref={heroRef} style={{
-        maxWidth: 560, margin: "0 auto", padding: isMobile ? "48px 20px 48px" : "80px 24px 72px",
+        maxWidth: 560, margin: "0 auto", padding: isMobile ? `48px 20px ${isSignedIn && !showSyncPill ? "16px" : "48px"}` : `80px 24px ${isSignedIn && !showSyncPill ? "16px" : "72px"}`,
         textAlign: "center",
         opacity: heroVisible ? 1 : 0,
         transform: heroVisible ? "none" : "translateY(20px)",
-        transition: "opacity .75s ease, transform .75s ease",
+        transition: "opacity .75s ease, transform .75s ease, padding-bottom .5s ease .7s",
       }}>
         {!isSignedIn && (
           <>
@@ -1829,14 +1843,14 @@ export function HomeShell() {
 
         {/* Inline email capture */}
         {isSignedIn ? (
-          <div style={{ maxWidth: 400, margin: "0 auto", textAlign: "center", overflow: "hidden", maxHeight: showSyncPill ? 80 : 0, paddingBottom: showSyncPill ? 4 : 0, transition: showSyncPill ? "none" : "max-height .4s ease .7s, padding-bottom .4s ease .7s" }}>
+          <div style={{ maxWidth: 400, margin: "0 auto", textAlign: "center", overflow: "hidden", maxHeight: showSyncPill ? 80 : 0, paddingBottom: showSyncPill ? 4 : 0, marginBottom: showSyncPill ? 0 : 0, transition: showSyncPill ? "none" : "max-height .5s ease .7s, padding-bottom .5s ease .7s" }}>
             <div style={{
               display: "inline-flex", alignItems: "center", gap: 8, fontSize: 15, color: muted(theme),
               backgroundColor: theme === "dark" ? "rgba(111,196,107,.08)" : "rgba(60,190,90,.07)",
               border: `1px solid ${theme === "dark" ? "rgba(111,196,107,.2)" : "rgba(60,190,90,.2)"}`,
               borderRadius: 999, padding: "10px 20px",
               opacity: showSyncPill ? .75 : 0,
-              transform: showSyncPill ? "none" : "translateY(-6px)",
+              transform: showSyncPill ? "none" : "translateY(10px)",
               transition: "opacity .6s ease, transform .6s ease",
               pointerEvents: "none",
             }}>
