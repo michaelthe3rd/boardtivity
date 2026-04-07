@@ -403,7 +403,7 @@ function fieldStyle(theme: ThemeMode): CSSProperties {
     opacity: 1,
   };
 }
-function circleButton(theme: ThemeMode, size = 36): CSSProperties {
+function circleButton(theme: ThemeMode, size = 40): CSSProperties {
   return {
     width: size,
     height: size,
@@ -459,7 +459,7 @@ function ThemeToggle({ theme, onToggle }: { theme: ThemeMode; onToggle: () => vo
       onAnimationEnd={() => setFlicker(false)}
       aria-label="Toggle theme"
       style={{
-        ...circleButton(theme, 36),
+        ...circleButton(theme, 40),
         boxShadow: isOn ? `0 0 0 1px ${border(theme)}, 0 0 10px rgba(255,200,40,.35)` : undefined,
       }}
     >
@@ -553,6 +553,7 @@ export function HomeShell() {
   const [namePromptFirst, setNamePromptFirst] = useState("");
   const [namePromptLast, setNamePromptLast] = useState("");
   const [namePromptSaving, setNamePromptSaving] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   const focusNoteIdRef = useRef<number | null>(null);
   const focusStepIdRef = useRef<number | null>(null);
@@ -576,6 +577,7 @@ export function HomeShell() {
   const boardMenuRef = useRef<HTMLDivElement | null>(null);
   const boardButtonRef = useRef<HTMLButtonElement | null>(null);
   const settingsButtonRef = useRef<HTMLButtonElement | null>(null);
+  const userMenuRef = useRef<HTMLDivElement | null>(null);
   const dateInputRef = useRef<HTMLInputElement | null>(null);
   const heroRef = useRef<HTMLDivElement | null>(null);
   const whyRef = useRef<HTMLDivElement | null>(null);
@@ -1062,13 +1064,15 @@ export function HomeShell() {
   useEffect(() => {
     function onDocPointerDown(e: PointerEvent) {
       const target = e.target as Node | null;
-      if (!boardsOpen && !settingsOpen) return;
+      if (!boardsOpen && !settingsOpen && !userMenuOpen) return;
       if (boardMenuRef.current?.contains(target)) return;
       if (boardButtonRef.current?.contains(target)) return;
       if (settingsRef.current?.contains(target)) return;
       if (settingsButtonRef.current?.contains(target)) return;
+      if (userMenuRef.current?.contains(target)) return;
       setBoardsOpen(false);
       setSettingsOpen(false);
+      setUserMenuOpen(false);
     }
     document.addEventListener("pointerdown", onDocPointerDown);
     return () => document.removeEventListener("pointerdown", onDocPointerDown);
@@ -1754,27 +1758,44 @@ export function HomeShell() {
             )}
             <ThemeToggle theme={theme} onToggle={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} />
             {isSignedIn ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {!isMobile && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: muted(theme), backgroundColor: panel(theme), border: `1px solid ${border(theme)}`, borderRadius: 999, padding: "5px 12px", lineHeight: 1 }}>
-                    {user?.firstName && user?.lastName
-                      ? `${user.firstName} ${user.lastName}`
-                      : user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress}
-                    {isPlus && (
-                      <span style={{ fontSize: 9, letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 800, color: "#f7f8fb", background: "#111315", border: "1px solid rgba(255,255,255,.15)", borderRadius: 999, padding: "2px 7px", lineHeight: 1 }}>
-                        Plus
-                      </span>
+              <div ref={userMenuRef} style={{ position: "relative" }}>
+                <button
+                  onClick={() => { setUserMenuOpen(v => !v); setConfirmSignOut(null); }}
+                  style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 700, color: pageText(theme), backgroundColor: panel(theme), border: `1px solid ${border(theme)}`, borderRadius: 999, padding: "0 12px", height: 40, cursor: "pointer", fontFamily: "inherit" }}
+                >
+                  {isMobile ? (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                  ) : (
+                    <>
+                      {user?.firstName && user?.lastName
+                        ? `${user.firstName} ${user.lastName}`
+                        : user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress}
+                      {isPlus && (
+                        <span style={{ fontSize: 9, letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 800, color: "#f7f8fb", background: "#111315", border: "1px solid rgba(255,255,255,.15)", borderRadius: 999, padding: "2px 7px", lineHeight: 1 }}>
+                          Plus
+                        </span>
+                      )}
+                    </>
+                  )}
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ opacity: .4, transition: "transform .15s", transform: userMenuOpen ? "rotate(180deg)" : "none" }}>
+                    <path d="M2 3.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+                {userMenuOpen && (
+                  <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, minWidth: 160, backgroundColor: theme === "dark" ? "#1a1d22" : "#ffffff", border: `1px solid ${border(theme)}`, borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,.18)", padding: "6px", zIndex: 100, fontFamily: "inherit" }}>
+                    <div style={{ padding: "8px 10px 6px", fontSize: 12, color: muted(theme), opacity: .6, borderBottom: `1px solid ${border(theme)}`, marginBottom: 4 }}>
+                      {user?.emailAddresses?.[0]?.emailAddress}
+                    </div>
+                    {confirmSignOut === "header" ? (
+                      <div style={{ padding: "4px 2px", display: "flex", flexDirection: "column", gap: 4 }}>
+                        <div style={{ fontSize: 12, color: muted(theme), padding: "4px 8px" }}>Sign out?</div>
+                        <button onClick={() => { setConfirmSignOut(null); setUserMenuOpen(false); signOut({ redirectUrl: "/" }); }} style={{ width: "100%", textAlign: "left", padding: "8px 10px", borderRadius: 8, border: "none", background: "none", fontSize: 13, fontWeight: 700, color: "#c03030", cursor: "pointer", fontFamily: "inherit" }}>Yes, sign out</button>
+                        <button onClick={() => setConfirmSignOut(null)} style={{ width: "100%", textAlign: "left", padding: "8px 10px", borderRadius: 8, border: "none", background: "none", fontSize: 13, color: muted(theme), cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setConfirmSignOut("header")} style={{ width: "100%", textAlign: "left", padding: "8px 10px", borderRadius: 8, border: "none", background: "none", fontSize: 13, fontWeight: 600, color: pageText(theme), cursor: "pointer", fontFamily: "inherit" }}>Sign out</button>
                     )}
                   </div>
-                )}
-                {confirmSignOut === "header" ? (
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ fontSize: 12, color: muted(theme) }}>Sign out?</span>
-                    <button onClick={() => { setConfirmSignOut(null); signOut({ redirectUrl: "/" }); }} style={{ ...buttonStyle(theme, false), fontSize: 12 }}>Yes</button>
-                    <button onClick={() => setConfirmSignOut(null)} style={{ background: "none", border: "none", fontSize: 12, color: muted(theme), cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
-                  </div>
-                ) : (
-                  <button onClick={() => setConfirmSignOut("header")} style={buttonStyle(theme, false)}>Sign out</button>
                 )}
               </div>
             ) : (
@@ -1808,7 +1829,7 @@ export function HomeShell() {
 
         {/* Inline email capture */}
         {isSignedIn ? (
-          <div style={{ maxWidth: 400, margin: "0 auto", textAlign: "center", overflow: "hidden", maxHeight: showSyncPill ? 60 : 0, transition: "max-height .4s ease .7s" }}>
+          <div style={{ maxWidth: 400, margin: "0 auto", textAlign: "center", overflow: "hidden", maxHeight: showSyncPill ? 80 : 0, paddingBottom: showSyncPill ? 4 : 0, transition: "max-height .4s ease .7s, padding-bottom .4s ease .7s" }}>
             <div style={{
               display: "inline-flex", alignItems: "center", gap: 8, fontSize: 15, color: muted(theme),
               backgroundColor: theme === "dark" ? "rgba(111,196,107,.08)" : "rgba(60,190,90,.07)",
@@ -3083,7 +3104,7 @@ export function HomeShell() {
           {/* Fullscreen button — bottom left */}
           <button
             onClick={toggleFullscreen}
-            style={{ ...circleButton(boardTheme, 34), position: "absolute", left: 18, bottom: 18, zIndex: 3, boxShadow: "0 8px 16px rgba(89,72,48,.08)" }}
+            style={{ ...circleButton(boardTheme, 38), position: "absolute", left: 18, bottom: 18, zIndex: 3, boxShadow: "0 8px 16px rgba(89,72,48,.08)" }}
             aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
           >
             {isFullscreen ? (
@@ -3100,7 +3121,7 @@ export function HomeShell() {
           {/* Add note button — bottom right */}
           <button
             onClick={() => { setComposerColorIdx(isPlus && thoughtColorMode === "fixed" ? thoughtFixedColorIdx : Math.floor(Math.random() * NOTE_PALETTE.length)); setComposerOpen(true); }}
-            style={{ ...circleButton(boardTheme, 34), position: "absolute", right: 18, bottom: 18, zIndex: 3, boxShadow: "0 8px 16px rgba(89,72,48,.08)" }}
+            style={{ ...circleButton(boardTheme, 38), position: "absolute", right: 18, bottom: 18, zIndex: 3, boxShadow: "0 8px 16px rgba(89,72,48,.08)" }}
             aria-label="Add note"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -4771,9 +4792,9 @@ export function HomeShell() {
         >
           <div style={{ width: "min(400px,100%)", backgroundColor: theme === "dark" ? "#1a1d22" : "#fbf8f1", borderRadius: 22, boxShadow: "0 40px 100px rgba(0,0,0,.32)", border: `1px solid ${border(theme)}`, padding: "36px 30px 26px", fontFamily: "inherit", textAlign: "center" }}>
             <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
-                <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" fill={theme === "dark" ? "rgba(255,255,255,.9)" : "#111315"} />
-              </svg>
+              <div style={{ width: 52, height: 52, borderRadius: "50%", backgroundColor: theme === "dark" ? "rgba(111,196,107,.12)" : "rgba(60,190,90,.1)", border: "1.5px solid rgba(111,196,107,.35)", display: "grid", placeItems: "center" }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><polyline points="4,12 9,17 20,6" stroke="#6fc46b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </div>
             </div>
             <div style={{ fontSize: 11, letterSpacing: ".16em", textTransform: "uppercase", fontWeight: 700, color: muted(theme), marginBottom: 10 }}>Welcome to</div>
             <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: "-.04em", color: pageText(theme), marginBottom: 10 }}>Boardtivity Plus</div>
