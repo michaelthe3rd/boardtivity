@@ -1745,11 +1745,16 @@ export function HomeShell() {
 
 
       <section style={{ padding: isMobile ? "16px 18px 0" : "24px 48px 0" }}>
-        <header style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+        <header style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", position: "relative" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
             <BoardtivityLogo size={isMobile ? 36 : 52} dark={theme === "dark"} />
-            <span style={{ fontSize: isMobile ? 15 : 17, letterSpacing: ".02em", color: pageText(theme), fontWeight: 700 }}>Boardtivity</span>
+            {!isSignedIn && <span style={{ fontSize: isMobile ? 15 : 17, letterSpacing: ".02em", color: pageText(theme), fontWeight: 700 }}>Boardtivity</span>}
           </div>
+          {isSignedIn && (
+            <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase", fontWeight: 800, color: pageText(theme), pointerEvents: "none", userSelect: "none" }}>
+              Boardtivity
+            </div>
+          )}
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             {!isMobile && (
               <button
@@ -1774,7 +1779,7 @@ export function HomeShell() {
                         ? `${user.firstName}${user.lastName ? ` ${user.lastName}` : ""}`
                         : user?.emailAddresses?.[0]?.emailAddress}
                       {isPlus && (
-                        <span style={{ fontSize: 9, letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 700, color: theme === "dark" ? "rgba(255,255,255,.7)" : "rgba(0,0,0,.55)", background: theme === "dark" ? "rgba(255,255,255,.08)" : "rgba(0,0,0,.06)", border: `1px solid ${border(theme)}`, borderRadius: 999, padding: "2px 7px", lineHeight: 1 }}>
+                        <span style={{ fontSize: 9, letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 700, color: theme === "dark" ? "rgba(255,255,255,.7)" : "rgba(0,0,0,.55)", background: theme === "dark" ? "rgba(255,255,255,.08)" : "rgba(0,0,0,.06)", border: `1px solid ${border(theme)}`, borderRadius: 999, padding: "3px 9px", lineHeight: 1 }}>
                           Plus
                         </span>
                       )}
@@ -1795,7 +1800,7 @@ export function HomeShell() {
                             : "No name set"}
                         </div>
                         {isPlus && (
-                          <span style={{ fontSize: 9, letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 700, color: theme === "dark" ? "rgba(255,255,255,.6)" : "rgba(0,0,0,.5)", background: theme === "dark" ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.05)", border: `1px solid ${border(theme)}`, borderRadius: 999, padding: "2px 7px", lineHeight: 1, flexShrink: 0 }}>
+                          <span style={{ fontSize: 9, letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 700, color: theme === "dark" ? "rgba(255,255,255,.6)" : "rgba(0,0,0,.5)", background: theme === "dark" ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.05)", border: `1px solid ${border(theme)}`, borderRadius: 999, padding: "3px 9px", lineHeight: 1, flexShrink: 0 }}>
                             Plus
                           </span>
                         )}
@@ -3094,7 +3099,7 @@ export function HomeShell() {
                         {user?.firstName ? `${user.firstName}${user.lastName ? ` ${user.lastName}` : ""}` : user?.emailAddresses?.[0]?.emailAddress}
                       </span>
                       {isPlus && (
-                        <span style={{ flexShrink: 0, fontSize: 9, letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 800, color: "#f7f8fb", background: "#111315", border: "1px solid rgba(255,255,255,.15)", borderRadius: 999, padding: "2px 7px", lineHeight: 1 }}>
+                        <span style={{ flexShrink: 0, fontSize: 9, letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 700, color: boardTheme === "dark" ? "rgba(255,255,255,.6)" : "rgba(0,0,0,.5)", background: boardTheme === "dark" ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.05)", border: `1px solid ${border(boardTheme)}`, borderRadius: 999, padding: "3px 9px", lineHeight: 1 }}>
                           Plus
                         </span>
                       )}
@@ -4822,13 +4827,13 @@ export function HomeShell() {
           onClick={(e) => { if (e.target === e.currentTarget) setShowSubscribedModal(false); }}
         >
           <div style={{ width: "min(400px,100%)", backgroundColor: theme === "dark" ? "#1a1d22" : "#fbf8f1", borderRadius: 22, boxShadow: "0 40px 100px rgba(0,0,0,.32)", border: `1px solid ${border(theme)}`, padding: "36px 30px 26px", fontFamily: "inherit", textAlign: "center" }}>
-            <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
-              <div style={{ width: 52, height: 52, borderRadius: "50%", backgroundColor: theme === "dark" ? "rgba(111,196,107,.12)" : "rgba(60,190,90,.1)", border: "1.5px solid rgba(111,196,107,.35)", display: "grid", placeItems: "center" }}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><polyline points="4,12 9,17 20,6" stroke="#6fc46b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              </div>
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
+              <span style={{ fontSize: 13, letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 700, color: theme === "dark" ? "rgba(255,255,255,.65)" : "rgba(0,0,0,.5)", background: theme === "dark" ? "rgba(255,255,255,.08)" : "rgba(0,0,0,.06)", border: `1px solid ${border(theme)}`, borderRadius: 999, padding: "6px 16px" }}>
+                Plus
+              </span>
             </div>
-            <div style={{ fontSize: 11, letterSpacing: ".16em", textTransform: "uppercase", fontWeight: 700, color: muted(theme), marginBottom: 10 }}>Welcome to</div>
-            <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: "-.04em", color: pageText(theme), marginBottom: 10 }}>Boardtivity Plus</div>
+            <div style={{ fontSize: 11, letterSpacing: ".16em", textTransform: "uppercase", fontWeight: 700, color: muted(theme), marginBottom: 10 }}>Now on your account</div>
+            <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: "-.04em", color: pageText(theme), marginBottom: 10 }}>You're all set</div>
             <div style={{ fontSize: 14, color: muted(theme), lineHeight: 1.7, marginBottom: 28 }}>
               Your subscription is active. You now have access to up to 10 task boards, 5 idea boards, custom idea colors, and more features to come. Thank you for your support!
             </div>
