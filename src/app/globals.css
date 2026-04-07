@@ -74,3 +74,8 @@ textarea{resize:none}
   100%{filter:hue-rotate(360deg)}
 }
 .hue-rotate{color:#5a96e6;animation:hueRotate 10s linear infinite;display:inline}
+@keyframes titleSlideIn{
+  from{opacity:0;transform:translateX(-50%) translateY(-6px)}
+  to{opacity:1;transform:translateX(-50%) translateY(0)}
+}
+.title-slide-in{animation:titleSlideIn .45s cubic-bezier(.22,1,.36,1) both}
