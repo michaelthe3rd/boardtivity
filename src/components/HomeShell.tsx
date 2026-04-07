@@ -1862,7 +1862,7 @@ export function HomeShell() {
 
       {/* ── HERO ── */}
       <section ref={heroRef} style={{
-        maxWidth: 560, margin: "0 auto", padding: isMobile ? (isSignedIn ? "0" : `48px 20px 48px`) : `80px 24px ${isSignedIn && !showSyncPill ? "16px" : "72px"}`,
+        maxWidth: 560, margin: "0 auto", padding: isMobile ? (isSignedIn ? "8px 0 0" : `48px 20px 48px`) : `80px 24px ${isSignedIn && !showSyncPill ? "16px" : "72px"}`,
         textAlign: "center",
         opacity: heroVisible ? 1 : 0,
         transform: heroVisible ? "none" : "translateY(20px)",
