@@ -9,7 +9,7 @@ http.route({
   path: "/stripe",
   method: "POST",
   handler: httpAction(async (ctx, req) => {
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!.trim());
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
     const body = await req.text();
