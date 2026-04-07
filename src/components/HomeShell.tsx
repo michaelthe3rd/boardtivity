@@ -1756,14 +1756,12 @@ export function HomeShell() {
             {isSignedIn ? (
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 {!isMobile && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ fontSize: 13, color: muted(theme) }}>
-                      {user?.firstName && user?.lastName
-                        ? `${user.firstName} ${user.lastName}`
-                        : user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress}
-                    </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: muted(theme), backgroundColor: panel(theme), border: `1px solid ${border(theme)}`, borderRadius: 999, padding: "5px 12px", lineHeight: 1 }}>
+                    {user?.firstName && user?.lastName
+                      ? `${user.firstName} ${user.lastName}`
+                      : user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress}
                     {isPlus && (
-                      <span style={{ fontSize: 9, letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 800, color: "#f7f8fb", background: "linear-gradient(135deg,#1a1d22,#2d3140)", border: "1px solid rgba(255,255,255,.18)", borderRadius: 999, padding: "2px 7px", lineHeight: 1 }}>
+                      <span style={{ fontSize: 9, letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 800, color: "#f7f8fb", background: "#111315", border: "1px solid rgba(255,255,255,.15)", borderRadius: 999, padding: "2px 7px", lineHeight: 1 }}>
                         Plus
                       </span>
                     )}
@@ -1810,7 +1808,7 @@ export function HomeShell() {
 
         {/* Inline email capture */}
         {isSignedIn ? (
-          <div style={{ maxWidth: 400, margin: "0 auto", textAlign: "center", minHeight: 44 }}>
+          <div style={{ maxWidth: 400, margin: "0 auto", textAlign: "center", overflow: "hidden", maxHeight: showSyncPill ? 60 : 0, transition: "max-height .4s ease .7s" }}>
             <div style={{
               display: "inline-flex", alignItems: "center", gap: 8, fontSize: 15, color: muted(theme),
               backgroundColor: theme === "dark" ? "rgba(111,196,107,.08)" : "rgba(60,190,90,.07)",
@@ -3049,8 +3047,15 @@ export function HomeShell() {
                 <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), fontWeight: 700, marginBottom: 2 }}>Account</div>
                 {isSignedIn ? (
                   <>
-                    <div style={{ fontSize: 13, color: muted(boardTheme), opacity: .7, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {user?.firstName ? `${user.firstName}${user.lastName ? ` ${user.lastName}` : ""}` : user?.emailAddresses?.[0]?.emailAddress}
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
+                      <span style={{ fontSize: 13, color: muted(boardTheme), opacity: .7, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {user?.firstName ? `${user.firstName}${user.lastName ? ` ${user.lastName}` : ""}` : user?.emailAddresses?.[0]?.emailAddress}
+                      </span>
+                      {isPlus && (
+                        <span style={{ flexShrink: 0, fontSize: 9, letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 800, color: "#f7f8fb", background: "#111315", border: "1px solid rgba(255,255,255,.15)", borderRadius: 999, padding: "2px 7px", lineHeight: 1 }}>
+                          Plus
+                        </span>
+                      )}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: muted(boardTheme) }}>
                       <span style={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, backgroundColor: cloudSyncState === "synced" ? "#3db83d" : cloudSyncState === "error" ? "#c03030" : "#c8960a" }} />
