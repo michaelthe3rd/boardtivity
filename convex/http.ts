@@ -18,8 +18,10 @@ http.route({
 
     let event: Stripe.Event;
     try {
-      event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
-    } catch {
+      // tolerance: 0 disables timestamp check (allows replayed/resent events)
+      event = stripe.webhooks.constructEvent(body, sig, webhookSecret, 0);
+    } catch (err) {
+      console.error("Webhook signature error:", err);
       return new Response("Invalid signature", { status: 400 });
     }
 
