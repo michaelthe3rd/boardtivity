@@ -4362,7 +4362,7 @@ export function HomeShell() {
               <div style={{ fontSize: 10, letterSpacing: ".16em", textTransform: "uppercase", fontWeight: 700, color: "rgba(255,255,255,.45)" }}>Plus</div>
               <div style={{ fontSize: 10, letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 700, color: "rgba(255,255,255,.38)", border: "1px solid rgba(255,255,255,.14)", borderRadius: 999, padding: "3px 8px" }}>Most popular</div>
             </div>
-            <div style={{ fontSize: 34, fontWeight: 800, lineHeight: 1.08, letterSpacing: "-.035em", color: "#f7f8fb", marginBottom: 14 }}>$5.99 / mo</div>
+            <div style={{ fontSize: 34, fontWeight: 800, lineHeight: 1.08, letterSpacing: "-.035em", color: "#f7f8fb", marginBottom: 14 }}>$6 / mo</div>
             <div style={{ fontSize: 13, lineHeight: 1.75, color: "rgba(255,255,255,.42)", marginBottom: 18, flexGrow: 1 }}>Everything in Free, plus more boards and personalization to match your workflow.</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 26 }}>
               {["Up to 10 boards", "Custom idea note colors", "Google & Apple Calendar sync", "Priority support"].map((f) => (
