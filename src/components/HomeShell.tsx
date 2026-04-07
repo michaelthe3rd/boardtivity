@@ -608,6 +608,10 @@ export function HomeShell() {
   const [mobileEditMinutes, setMobileEditMinutes] = useState("");
   const [mobileEditSteps, setMobileEditSteps] = useState<{ id: number; title: string; minutes: number }[]>([]);
   const [mobileDeleteConfirm, setMobileDeleteConfirm] = useState(false);
+  const [mobileBoardTypePicker, setMobileBoardTypePicker] = useState(false);
+  const [mobileBoardActionId, setMobileBoardActionId] = useState<string | null>(null);
+  const [mobileBoardRename, setMobileBoardRename] = useState("");
+  const [mobileBoardRenaming, setMobileBoardRenaming] = useState(false);
   const [mobileFilterPriority, setMobileFilterPriority] = useState<"all" | "High" | "Medium" | "Low">("all");
   const [mobileSortDate, setMobileSortDate] = useState(false);
   const [confirmSignOut, setConfirmSignOut] = useState<"header" | "settings" | null>(null);
@@ -2090,23 +2094,78 @@ export function HomeShell() {
             <div style={{ padding: "0 0 100px" }}>
               {/* Board switcher */}
               <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 10, paddingTop: 8, paddingLeft: 16, paddingRight: 16, scrollbarWidth: "none" }}>
-                {boards.map(b => (
-                  <button
-                    key={b.id}
-                    onClick={() => setActiveBoardId(b.id)}
-                    style={{ flexShrink: 0, height: 34, borderRadius: 999, border: b.id === activeBoardId ? "none" : `1px solid ${border(theme)}`, backgroundColor: b.id === activeBoardId ? (theme === "dark" ? "#f5f5f2" : "#171613") : (theme === "dark" ? "#1e2126" : "#ffffff"), color: b.id === activeBoardId ? (theme === "dark" ? "#171613" : "#f7f8fb") : pageText(theme), padding: "0 18px", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}
-                  >
-                    {b.name}
-                  </button>
-                ))}
+                {boards.map(b => {
+                  const isActive = b.id === activeBoardId;
+                  return (
+                    <button
+                      key={b.id}
+                      onClick={() => {
+                        if (isActive) { setMobileBoardActionId(b.id); setMobileBoardRename(b.name); setMobileBoardRenaming(false); }
+                        else setActiveBoardId(b.id);
+                      }}
+                      style={{ flexShrink: 0, height: 34, borderRadius: 999, border: isActive ? "none" : `1px solid ${border(theme)}`, backgroundColor: isActive ? (theme === "dark" ? "#f5f5f2" : "#171613") : (theme === "dark" ? "#1e2126" : "#ffffff"), color: isActive ? (theme === "dark" ? "#171613" : "#f7f8fb") : pageText(theme), padding: "0 18px", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}
+                    >
+                      {b.name}
+                    </button>
+                  );
+                })}
                 <button
-                  onClick={() => addBoard(isThoughtBoard ? "thought" : "task")}
+                  onClick={() => setMobileBoardTypePicker(true)}
                   style={{ flexShrink: 0, width: 34, height: 34, borderRadius: 999, border: `1px solid ${border(theme)}`, backgroundColor: theme === "dark" ? "#1e2126" : "#ffffff", color: pageText(theme), cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
-                  title={isThoughtBoard ? "New idea board" : "New task board"}
                 >
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 </button>
               </div>
+
+              {/* Board type picker sheet */}
+              {mobileBoardTypePicker && (
+                <div style={{ position: "fixed", inset: 0, zIndex: 50, backgroundColor: "rgba(0,0,0,.4)", display: "flex", alignItems: "flex-end" }} onClick={() => setMobileBoardTypePicker(false)}>
+                  <div style={{ width: "100%", backgroundColor: theme === "dark" ? "#1a1d22" : "#ffffff", borderRadius: "20px 20px 0 0", padding: "20px 16px 36px", display: "flex", flexDirection: "column", gap: 10 }} onClick={e => e.stopPropagation()}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: muted(theme), marginBottom: 4, textAlign: "center" }}>New Board</div>
+                    <button onClick={() => { addBoard("task"); setMobileBoardTypePicker(false); }} style={{ height: 48, borderRadius: 12, border: `1px solid ${border(theme)}`, backgroundColor: theme === "dark" ? "#23262b" : "#f4f4f1", color: pageText(theme), fontSize: 15, fontWeight: 700, cursor: "pointer" }}>Task Board</button>
+                    <button onClick={() => { addBoard("thought"); setMobileBoardTypePicker(false); }} style={{ height: 48, borderRadius: 12, border: `1px solid ${border(theme)}`, backgroundColor: theme === "dark" ? "#23262b" : "#f4f4f1", color: pageText(theme), fontSize: 15, fontWeight: 700, cursor: "pointer" }}>Idea Board</button>
+                    <button onClick={() => setMobileBoardTypePicker(false)} style={{ height: 44, borderRadius: 12, border: "none", background: "none", color: muted(theme), fontSize: 14, cursor: "pointer" }}>Cancel</button>
+                  </div>
+                </div>
+              )}
+
+              {/* Board action sheet (rename / delete) */}
+              {mobileBoardActionId && (() => {
+                const actionBoard = boards.find(b => b.id === mobileBoardActionId);
+                if (!actionBoard) return null;
+                return (
+                  <div style={{ position: "fixed", inset: 0, zIndex: 50, backgroundColor: "rgba(0,0,0,.4)", display: "flex", alignItems: "flex-end" }} onClick={() => { setMobileBoardActionId(null); setMobileBoardRenaming(false); }}>
+                    <div style={{ width: "100%", backgroundColor: theme === "dark" ? "#1a1d22" : "#ffffff", borderRadius: "20px 20px 0 0", padding: "20px 16px 36px", display: "flex", flexDirection: "column", gap: 10 }} onClick={e => e.stopPropagation()}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: muted(theme), marginBottom: 4, textAlign: "center" }}>{actionBoard.name}</div>
+                      {mobileBoardRenaming ? (
+                        <>
+                          <input
+                            autoFocus
+                            value={mobileBoardRename}
+                            onChange={e => setMobileBoardRename(e.target.value)}
+                            onKeyDown={e => { if (e.key === "Enter" && mobileBoardRename.trim()) { setBoards(bs => bs.map(b => b.id === mobileBoardActionId ? { ...b, name: mobileBoardRename.trim() } : b)); setMobileBoardActionId(null); setMobileBoardRenaming(false); } if (e.key === "Escape") { setMobileBoardActionId(null); setMobileBoardRenaming(false); } }}
+                            style={{ height: 48, borderRadius: 12, border: `1px solid ${border(theme)}`, backgroundColor: theme === "dark" ? "#23262b" : "#f4f4f1", color: pageText(theme), fontSize: 15, padding: "0 16px", outline: "none" }}
+                            placeholder="Board name"
+                          />
+                          <button
+                            onClick={() => { if (mobileBoardRename.trim()) { setBoards(bs => bs.map(b => b.id === mobileBoardActionId ? { ...b, name: mobileBoardRename.trim() } : b)); setMobileBoardActionId(null); setMobileBoardRenaming(false); } }}
+                            disabled={!mobileBoardRename.trim()}
+                            style={{ height: 48, borderRadius: 12, border: "none", backgroundColor: theme === "dark" ? "#f5f5f2" : "#171613", color: theme === "dark" ? "#171613" : "#f7f8fb", fontSize: 15, fontWeight: 700, cursor: "pointer", opacity: mobileBoardRename.trim() ? 1 : 0.4 }}
+                          >Save</button>
+                        </>
+                      ) : (
+                        <>
+                          <button onClick={() => setMobileBoardRenaming(true)} style={{ height: 48, borderRadius: 12, border: `1px solid ${border(theme)}`, backgroundColor: theme === "dark" ? "#23262b" : "#f4f4f1", color: pageText(theme), fontSize: 15, fontWeight: 700, cursor: "pointer" }}>Rename</button>
+                          {boards.length > 1 && (
+                            <button onClick={() => { deleteBoard(mobileBoardActionId); setMobileBoardActionId(null); }} style={{ height: 48, borderRadius: 12, border: `1px solid rgba(200,50,50,.35)`, backgroundColor: theme === "dark" ? "rgba(200,50,50,.12)" : "rgba(200,50,50,.07)", color: theme === "dark" ? "#ff8080" : "#c03030", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>Delete Board</button>
+                          )}
+                        </>
+                      )}
+                      <button onClick={() => { setMobileBoardActionId(null); setMobileBoardRenaming(false); }} style={{ height: 44, borderRadius: 12, border: "none", background: "none", color: muted(theme), fontSize: 14, cursor: "pointer" }}>Cancel</button>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Not signed in hint — only show once Clerk has confirmed the session state */}
               {clerkLoaded && !isSignedIn && (
