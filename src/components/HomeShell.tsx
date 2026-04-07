@@ -604,22 +604,30 @@ export function HomeShell() {
   const [mobileSortDate, setMobileSortDate] = useState(false);
   const [confirmSignOut, setConfirmSignOut] = useState<"header" | "settings" | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [showSyncPill, setShowSyncPill] = useState(true);
   const subscription = useQuery(api.subscriptions.getMySubscription);
   const isPlus = !!subscription;
 
   async function startCheckout(plan: "monthly" | "annual") {
     if (!isSignedIn) { openSignUp(); return; }
     setCheckoutLoading(true);
+    setCheckoutError(null);
     try {
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ plan }),
       });
-      const { url } = await res.json();
-      if (url) window.location.href = url;
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setCheckoutError(data.error ?? "Something went wrong. Try again.");
+      }
     } catch (e) {
       console.error("Checkout failed", e);
+      setCheckoutError("Network error. Try again.");
     } finally {
       setCheckoutLoading(false);
     }
@@ -998,6 +1006,14 @@ export function HomeShell() {
     document.addEventListener("visibilitychange", onVisibility);
     return () => { window.removeEventListener("pagehide", flush); document.removeEventListener("visibilitychange", onVisibility); };
   }, [isSignedIn, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid]);
+
+  // ── Sync pill: show briefly on sign-in then fade out ─────────────────────────
+  useEffect(() => {
+    if (!isSignedIn) return;
+    setShowSyncPill(true);
+    const t = setTimeout(() => setShowSyncPill(false), 4000);
+    return () => clearTimeout(t);
+  }, [isSignedIn]);
 
   // ── Auto-link signed-in users to waitlist ────────────────────────────────────
   useEffect(() => {
@@ -1734,8 +1750,17 @@ export function HomeShell() {
 
         {/* Inline email capture */}
         {isSignedIn ? (
-          <div style={{ maxWidth: 400, margin: "0 auto", textAlign: "center" }}>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 15, color: muted(theme), opacity: .75, backgroundColor: theme === "dark" ? "rgba(111,196,107,.08)" : "rgba(60,190,90,.07)", border: `1px solid ${theme === "dark" ? "rgba(111,196,107,.2)" : "rgba(60,190,90,.2)"}`, borderRadius: 999, padding: "10px 20px" }}>
+          <div style={{ maxWidth: 400, margin: "0 auto", textAlign: "center", minHeight: 44 }}>
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: 8, fontSize: 15, color: muted(theme),
+              backgroundColor: theme === "dark" ? "rgba(111,196,107,.08)" : "rgba(60,190,90,.07)",
+              border: `1px solid ${theme === "dark" ? "rgba(111,196,107,.2)" : "rgba(60,190,90,.2)"}`,
+              borderRadius: 999, padding: "10px 20px",
+              opacity: showSyncPill ? .75 : 0,
+              transform: showSyncPill ? "none" : "translateY(-6px)",
+              transition: "opacity .6s ease, transform .6s ease",
+              pointerEvents: "none",
+            }}>
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="2,7 5.5,10.5 12,3.5" stroke="#6fc46b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
               Signed in — your board saves automatically and syncs across devices
             </div>
@@ -4636,6 +4661,7 @@ export function HomeShell() {
             {/* Divider */}
             <div style={{ height: 1, backgroundColor: border(theme), marginBottom: 18 }} />
             {/* CTA */}
+            {checkoutError && <div style={{ fontSize: 12, color: "#c03030", marginBottom: 10, textAlign: "center" }}>{checkoutError}</div>}
             <button
               onClick={() => { setUpgradeOpen(false); startCheckout("monthly"); }}
               disabled={checkoutLoading}
