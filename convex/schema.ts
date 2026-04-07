@@ -47,4 +47,15 @@ export default defineSchema({
     isSignedIn: v.boolean(),
   }).index("by_session", ["sessionId"])
     .index("by_lastSeen", ["lastSeen"]),
+
+  subscriptions: defineTable({
+    tokenIdentifier: v.string(),
+    stripeCustomerId: v.string(),
+    stripeSubscriptionId: v.string(),
+    stripePriceId: v.string(),
+    status: v.string(), // "active" | "canceled" | "past_due" | "unpaid"
+    currentPeriodEnd: v.optional(v.number()),
+  }).index("by_token", ["tokenIdentifier"])
+    .index("by_stripe_customer", ["stripeCustomerId"])
+    .index("by_stripe_subscription", ["stripeSubscriptionId"]),
 });

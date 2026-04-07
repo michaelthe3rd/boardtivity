@@ -603,6 +603,28 @@ export function HomeShell() {
   const [mobileFilterPriority, setMobileFilterPriority] = useState<"all" | "High" | "Medium" | "Low">("all");
   const [mobileSortDate, setMobileSortDate] = useState(false);
   const [confirmSignOut, setConfirmSignOut] = useState<"header" | "settings" | null>(null);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const subscription = useQuery(api.subscriptions.getMySubscription);
+  const isPlus = !!subscription;
+
+  async function startCheckout(plan: "monthly" | "annual") {
+    if (!isSignedIn) { openSignUp(); return; }
+    setCheckoutLoading(true);
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan }),
+      });
+      const { url } = await res.json();
+      if (url) window.location.href = url;
+    } catch (e) {
+      console.error("Checkout failed", e);
+    } finally {
+      setCheckoutLoading(false);
+    }
+  }
+
   const isAdmin = useQuery(api.admin.checkAdmin);
   const feedbackPosts = useQuery(api.feedback.list);
   const postFeedback = useMutation(api.feedback.post);
@@ -4353,7 +4375,7 @@ export function HomeShell() {
                 </div>
               ))}
             </div>
-            <button onClick={() => openSignUp()} style={{ ...buttonStyle(theme, false), width: "100%", fontSize: 14, height: 42 }}>Get started free</button>
+            <button onClick={() => openSignUp()} style={{ ...buttonStyle(theme, false), width: "100%", fontSize: 14, height: 42 }}>{isPlus ? "You're on Plus" : "Get started free"}</button>
           </div>
           {/* Plus */}
           <div style={{ position: "relative", overflow: "hidden", borderRadius: 18, border: `1px solid ${theme === "dark" ? "rgba(255,255,255,.18)" : "rgba(0,0,0,.18)"}`, backgroundColor: theme === "dark" ? "#0d0f12" : "#111315", padding: "36px 28px", display: "flex", flexDirection: "column", opacity: pricingVisible ? 1 : 0, transform: pricingVisible ? "none" : "translateY(28px)", transition: "opacity .65s ease .1s, transform .65s ease .1s" }}>
@@ -4374,7 +4396,7 @@ export function HomeShell() {
                 </div>
               ))}
             </div>
-            <button onClick={() => openSignUp()} style={{ width: "100%", height: 42, borderRadius: 999, border: "none", backgroundColor: "#f7f8fb", color: "#111315", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>Get Plus</button>
+            <button onClick={() => isPlus ? null : startCheckout("monthly")} disabled={checkoutLoading} style={{ width: "100%", height: 42, borderRadius: 999, border: "none", backgroundColor: "#f7f8fb", color: "#111315", fontSize: 14, fontWeight: 700, cursor: isPlus ? "default" : "pointer", opacity: checkoutLoading ? 0.6 : 1 }}>{isPlus ? "Current plan" : checkoutLoading ? "Loading…" : "Get Plus"}</button>
           </div>
           {/* Beta */}
           <div style={{ position: "relative", overflow: "hidden", borderRadius: 18, border: `1px solid ${border(theme)}`, backgroundColor: panel(theme), padding: "36px 28px", display: "flex", flexDirection: "column", opacity: pricingVisible ? 1 : 0, transform: pricingVisible ? "none" : "translateY(28px)", transition: "opacity .65s ease .2s, transform .65s ease .2s" }}>
@@ -4391,7 +4413,7 @@ export function HomeShell() {
                 </div>
               ))}
             </div>
-            <button onClick={() => openSignUp()} style={{ ...buttonStyle(theme, true), width: "100%", fontSize: 14, height: 42 }}>Sign up free</button>
+            <button onClick={() => isPlus ? null : startCheckout("annual")} disabled={checkoutLoading} style={{ ...buttonStyle(theme, true), width: "100%", fontSize: 14, height: 42, opacity: checkoutLoading ? 0.6 : 1, cursor: isPlus ? "default" : "pointer" }}>{isPlus ? "Current plan" : checkoutLoading ? "Loading…" : "Sign up free"}</button>
           </div>
         </div>
       </section>
@@ -4615,10 +4637,11 @@ export function HomeShell() {
             <div style={{ height: 1, backgroundColor: border(theme), marginBottom: 18 }} />
             {/* CTA */}
             <button
-              onClick={() => { setUpgradeOpen(false); openSignUp(); }}
-              style={{ width: "100%", padding: "13px 0", borderRadius: 11, border: "none", backgroundColor: pageText(theme), color: pageBg(theme), fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-.02em", marginBottom: 8 }}
+              onClick={() => { setUpgradeOpen(false); startCheckout("monthly"); }}
+              disabled={checkoutLoading}
+              style={{ width: "100%", padding: "13px 0", borderRadius: 11, border: "none", backgroundColor: pageText(theme), color: pageBg(theme), fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-.02em", marginBottom: 8, opacity: checkoutLoading ? 0.6 : 1 }}
             >
-              Sign up for Plus →
+              {checkoutLoading ? "Loading…" : "Get Plus — $6/mo →"}
             </button>
             <button
               onClick={() => setUpgradeOpen(false)}
