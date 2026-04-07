@@ -549,6 +549,10 @@ export function HomeShell() {
   const [upgradeType, setUpgradeType] = useState<BoardType>("task");
   const [limitReachedOpen, setLimitReachedOpen] = useState(false);
   const [showSubscribedModal, setShowSubscribedModal] = useState(false);
+  const [namePromptOpen, setNamePromptOpen] = useState(false);
+  const [namePromptFirst, setNamePromptFirst] = useState("");
+  const [namePromptLast, setNamePromptLast] = useState("");
+  const [namePromptSaving, setNamePromptSaving] = useState(false);
 
   const focusNoteIdRef = useRef<number | null>(null);
   const focusStepIdRef = useRef<number | null>(null);
@@ -832,6 +836,16 @@ export function HomeShell() {
       window.history.replaceState({}, "", window.location.pathname);
     }
   }, []);
+
+  // Prompt existing users without a name to set one
+  useEffect(() => {
+    if (!clerkLoaded || !isSignedIn) return;
+    if (user?.firstName) return; // already has name
+    try {
+      const dismissed = localStorage.getItem("boardtivity_name_prompt_dismissed");
+      if (!dismissed) setNamePromptOpen(true);
+    } catch {}
+  }, [clerkLoaded, isSignedIn, user?.firstName]);
 
   // When user signs in via modal (false → true), reload so all state is fresh
   const prevSignedInRef = useRef<boolean | undefined>(undefined);
@@ -4441,7 +4455,7 @@ export function HomeShell() {
         </div>
 
         {/* ── Pricing ── */}
-        <div ref={pricingRef} style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 16 }}>
+        <div ref={pricingRef} style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, maxWidth: 720, margin: "0 auto" }}>
           {/* Free */}
           <div style={{ position: "relative", overflow: "hidden", borderRadius: 18, border: `1px solid ${border(theme)}`, backgroundColor: panel(theme), padding: "36px 28px", display: "flex", flexDirection: "column", opacity: pricingVisible ? 1 : 0, transform: pricingVisible ? "none" : "translateY(28px)", transition: "opacity .65s ease 0s, transform .65s ease 0s" }}>
             <div style={{ fontSize: 10, letterSpacing: ".16em", textTransform: "uppercase", fontWeight: 700, color: muted(theme), marginBottom: 16 }}>Free</div>
@@ -4479,23 +4493,6 @@ export function HomeShell() {
               ))}
             </div>
             <button onClick={() => isPlus ? null : startCheckout("monthly")} disabled={checkoutLoading} style={{ width: "100%", height: 42, borderRadius: 999, border: isPlus ? "1px solid rgba(255,255,255,.18)" : "none", backgroundColor: isPlus ? "transparent" : "#f7f8fb", color: isPlus ? "rgba(255,255,255,.55)" : "#111315", fontSize: 14, fontWeight: 700, cursor: isPlus ? "default" : "pointer", opacity: checkoutLoading ? 0.6 : 1 }}>{isPlus ? "✓ Current plan" : checkoutLoading ? "Loading…" : "Get Plus — $6/mo"}</button>
-          </div>
-          {/* Beta */}
-          <div style={{ position: "relative", overflow: "hidden", borderRadius: 18, border: `1px solid ${border(theme)}`, backgroundColor: panel(theme), padding: "36px 28px", display: "flex", flexDirection: "column", opacity: pricingVisible ? 1 : 0, transform: pricingVisible ? "none" : "translateY(28px)", transition: "opacity .65s ease .2s, transform .65s ease .2s" }}>
-            <div style={{ fontSize: 10, letterSpacing: ".16em", textTransform: "uppercase", fontWeight: 700, color: muted(theme), marginBottom: 16 }}>Beta</div>
-            <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1.08, letterSpacing: "-.035em", color: pageText(theme), marginBottom: 14 }}>Join early.</div>
-            <div style={{ fontSize: 13, color: muted(theme), marginBottom: 18, lineHeight: 1.75, flexGrow: 1 }}>Get early access, shape the product with direct feedback, and lock in launch pricing before we go live.</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 26 }}>
-              {["Everything in Plus, free during beta", "Direct line to the founders", "Lock in launch pricing"].map((f) => (
-                <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: pageText(theme) }}>
-                  <div style={{ width: 16, height: 16, borderRadius: "50%", backgroundColor: hexToRgba("#6fc46b", .15), border: "1px solid rgba(111,196,107,.35)", display: "grid", placeItems: "center", flexShrink: 0 }}>
-                    <svg width="8" height="8" viewBox="0 0 10 10"><polyline points="2,5.5 4.2,7.5 8,3" stroke="#6fc46b" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  </div>
-                  {f}
-                </div>
-              ))}
-            </div>
-            <button onClick={() => isPlus ? null : startCheckout("annual")} disabled={checkoutLoading} style={{ ...buttonStyle(theme, false), width: "100%", fontSize: 14, height: 42, opacity: checkoutLoading ? 0.6 : 1, cursor: isPlus ? "default" : "pointer" }}>{isPlus ? "✓ Active" : checkoutLoading ? "Loading…" : "Sign up free"}</button>
           </div>
         </div>
       </section>
@@ -4744,7 +4741,9 @@ export function HomeShell() {
           onClick={(e) => { if (e.target === e.currentTarget) setLimitReachedOpen(false); }}
         >
           <div style={{ width: "min(360px,100%)", backgroundColor: theme === "dark" ? "#1a1d22" : "#fbf8f1", borderRadius: 20, boxShadow: "0 30px 80px rgba(0,0,0,.28)", border: `1px solid ${border(theme)}`, padding: "28px 26px 22px", fontFamily: "inherit", textAlign: "center" }}>
-            <div style={{ fontSize: 32, marginBottom: 12 }}>🚧</div>
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={pageText(theme)} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </div>
             <div style={{ fontSize: 19, fontWeight: 800, letterSpacing: "-.03em", color: pageText(theme), marginBottom: 8 }}>You've hit the limit</div>
             <div style={{ fontSize: 14, color: muted(theme), lineHeight: 1.65, marginBottom: 22 }}>
               Plus accounts support up to 10 boards per type and 5 ideas per board. You've reached the maximum.
@@ -4766,17 +4765,71 @@ export function HomeShell() {
           onClick={(e) => { if (e.target === e.currentTarget) setShowSubscribedModal(false); }}
         >
           <div style={{ width: "min(400px,100%)", backgroundColor: theme === "dark" ? "#1a1d22" : "#fbf8f1", borderRadius: 22, boxShadow: "0 40px 100px rgba(0,0,0,.32)", border: `1px solid ${border(theme)}`, padding: "36px 30px 26px", fontFamily: "inherit", textAlign: "center" }}>
-            <div style={{ fontSize: 48, marginBottom: 16, lineHeight: 1 }}>🎉</div>
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" fill={theme === "dark" ? "rgba(255,255,255,.9)" : "#111315"} />
+              </svg>
+            </div>
             <div style={{ fontSize: 11, letterSpacing: ".16em", textTransform: "uppercase", fontWeight: 700, color: muted(theme), marginBottom: 10 }}>Welcome to</div>
             <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: "-.04em", color: pageText(theme), marginBottom: 10 }}>Boardtivity Plus</div>
             <div style={{ fontSize: 14, color: muted(theme), lineHeight: 1.7, marginBottom: 28 }}>
-              Your subscription is active. You now have access to up to 10 boards, 5 ideas per board, and custom idea colors. Thank you for your support!
+              Your subscription is active. You now have access to up to 10 boards, 5 ideas per board, custom idea colors, and more features to come. Thank you for your support!
             </div>
             <button
               onClick={() => setShowSubscribedModal(false)}
-              style={{ width: "100%", padding: "14px 0", borderRadius: 12, border: "none", background: "linear-gradient(135deg,#1a1d22,#2d3140)", color: "#f7f8fb", fontSize: 15, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-.02em" }}
+              style={{ width: "100%", padding: "14px 0", borderRadius: 12, border: "none", background: theme === "dark" ? "#f7f8fb" : "#111315", color: theme === "dark" ? "#111315" : "#f7f8fb", fontSize: 15, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-.02em" }}
             >
-              Start building →
+              Jump back in →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Name prompt modal ── */}
+      {namePromptOpen && (
+        <div
+          style={{ position: "fixed", inset: 0, zIndex: 60, backgroundColor: theme === "dark" ? "rgba(6,8,12,.7)" : "rgba(10,10,12,.32)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+        >
+          <div style={{ width: "min(380px,100%)", backgroundColor: theme === "dark" ? "#1a1d22" : "#fbf8f1", borderRadius: 20, boxShadow: "0 30px 80px rgba(0,0,0,.28)", border: `1px solid ${border(theme)}`, padding: "28px 26px 22px", fontFamily: "inherit" }}>
+            <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", fontWeight: 700, color: muted(theme), marginBottom: 12 }}>Quick setup</div>
+            <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: "-.03em", color: pageText(theme), marginBottom: 8 }}>What's your name?</div>
+            <div style={{ fontSize: 14, color: muted(theme), lineHeight: 1.6, marginBottom: 22 }}>Add your name so we can personalize your experience.</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 18 }}>
+              {[
+                { placeholder: "First name", value: namePromptFirst, setter: setNamePromptFirst },
+                { placeholder: "Last name (optional)", value: namePromptLast, setter: setNamePromptLast },
+              ].map(({ placeholder, value, setter }) => (
+                <input
+                  key={placeholder}
+                  type="text"
+                  placeholder={placeholder}
+                  value={value}
+                  onChange={e => setter(e.target.value)}
+                  style={{ width: "100%", height: 42, borderRadius: 10, border: `1px solid ${border(theme)}`, backgroundColor: theme === "dark" ? "rgba(255,255,255,.05)" : "#fff", color: pageText(theme), fontSize: 14, padding: "0 14px", fontFamily: "inherit", outline: "none", boxSizing: "border-box" }}
+                />
+              ))}
+            </div>
+            <button
+              disabled={!namePromptFirst.trim() || namePromptSaving}
+              onClick={async () => {
+                if (!namePromptFirst.trim() || !user) return;
+                setNamePromptSaving(true);
+                try {
+                  await user.update({ firstName: namePromptFirst.trim(), lastName: namePromptLast.trim() || undefined });
+                  setNamePromptOpen(false);
+                  localStorage.setItem("boardtivity_name_prompt_dismissed", "1");
+                } catch {}
+                setNamePromptSaving(false);
+              }}
+              style={{ width: "100%", padding: "13px 0", borderRadius: 11, border: "none", backgroundColor: pageText(theme), color: pageBg(theme), fontSize: 14, fontWeight: 800, cursor: namePromptFirst.trim() ? "pointer" : "not-allowed", fontFamily: "inherit", marginBottom: 8, opacity: !namePromptFirst.trim() || namePromptSaving ? 0.5 : 1 }}
+            >
+              {namePromptSaving ? "Saving…" : "Save name"}
+            </button>
+            <button
+              onClick={() => { setNamePromptOpen(false); try { localStorage.setItem("boardtivity_name_prompt_dismissed", "1"); } catch {} }}
+              style={{ width: "100%", padding: "10px 0", borderRadius: 11, border: "none", background: "none", color: muted(theme), fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
+            >
+              Skip for now
             </button>
           </div>
         </div>
