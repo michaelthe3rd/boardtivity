@@ -1082,7 +1082,7 @@ export function HomeShell() {
     }
     document.addEventListener("pointerdown", onDocPointerDown);
     return () => document.removeEventListener("pointerdown", onDocPointerDown);
-  }, [boardsOpen, settingsOpen]);
+  }, [boardsOpen, settingsOpen, userMenuOpen]);
 
   useEffect(() => {
     const el = viewportRef.current;
@@ -1770,11 +1770,11 @@ export function HomeShell() {
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
                   ) : (
                     <>
-                      {user?.firstName && user?.lastName
-                        ? `${user.firstName} ${user.lastName}`
-                        : user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress}
+                      {user?.firstName
+                        ? `${user.firstName}${user.lastName ? ` ${user.lastName}` : ""}`
+                        : user?.emailAddresses?.[0]?.emailAddress}
                       {isPlus && (
-                        <span style={{ fontSize: 9, letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 800, color: "#f7f8fb", background: "#111315", border: "1px solid rgba(255,255,255,.15)", borderRadius: 999, padding: "2px 7px", lineHeight: 1 }}>
+                        <span style={{ fontSize: 9, letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 700, color: theme === "dark" ? "rgba(255,255,255,.7)" : "rgba(0,0,0,.55)", background: theme === "dark" ? "rgba(255,255,255,.08)" : "rgba(0,0,0,.06)", border: `1px solid ${border(theme)}`, borderRadius: 999, padding: "2px 7px", lineHeight: 1 }}>
                           Plus
                         </span>
                       )}
@@ -1785,18 +1785,42 @@ export function HomeShell() {
                   </svg>
                 </button>
                 {userMenuOpen && (
-                  <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, minWidth: 160, backgroundColor: theme === "dark" ? "#1a1d22" : "#ffffff", border: `1px solid ${border(theme)}`, borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,.18)", padding: "6px", zIndex: 100, fontFamily: "inherit" }}>
-                    <div style={{ padding: "8px 10px 6px", fontSize: 12, color: muted(theme), opacity: .6, borderBottom: `1px solid ${border(theme)}`, marginBottom: 4 }}>
-                      {user?.emailAddresses?.[0]?.emailAddress}
+                  <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, minWidth: 220, backgroundColor: theme === "dark" ? "#1a1d22" : "#ffffff", border: `1px solid ${border(theme)}`, borderRadius: 14, boxShadow: "0 12px 32px rgba(0,0,0,.18)", padding: "6px", zIndex: 100, fontFamily: "inherit" }}>
+                    {/* Account header */}
+                    <div style={{ padding: "10px 12px 10px", borderBottom: `1px solid ${border(theme)}`, marginBottom: 4 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: pageText(theme), lineHeight: 1.2 }}>
+                          {user?.firstName
+                            ? `${user.firstName}${user.lastName ? ` ${user.lastName}` : ""}`
+                            : "No name set"}
+                        </div>
+                        {isPlus && (
+                          <span style={{ fontSize: 9, letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 700, color: theme === "dark" ? "rgba(255,255,255,.6)" : "rgba(0,0,0,.5)", background: theme === "dark" ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.05)", border: `1px solid ${border(theme)}`, borderRadius: 999, padding: "2px 7px", lineHeight: 1, flexShrink: 0 }}>
+                            Plus
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 12, color: muted(theme) }}>
+                        {user?.emailAddresses?.[0]?.emailAddress}
+                      </div>
                     </div>
+                    {/* Edit name */}
+                    <button
+                      onClick={() => { setUserMenuOpen(false); setNamePromptFirst(user?.firstName ?? ""); setNamePromptLast(user?.lastName ?? ""); setNamePromptOpen(true); }}
+                      style={{ width: "100%", textAlign: "left", padding: "8px 12px", borderRadius: 8, border: "none", background: "none", fontSize: 13, color: pageText(theme), cursor: "pointer", fontFamily: "inherit" }}
+                    >
+                      Edit name
+                    </button>
+                    <div style={{ height: 1, backgroundColor: border(theme), margin: "4px 0" }} />
+                    {/* Sign out */}
                     {confirmSignOut === "header" ? (
-                      <div style={{ padding: "4px 2px", display: "flex", flexDirection: "column", gap: 4 }}>
-                        <div style={{ fontSize: 12, color: muted(theme), padding: "4px 8px" }}>Sign out?</div>
-                        <button onClick={() => { setConfirmSignOut(null); setUserMenuOpen(false); signOut({ redirectUrl: "/" }); }} style={{ width: "100%", textAlign: "left", padding: "8px 10px", borderRadius: 8, border: "none", background: "none", fontSize: 13, fontWeight: 700, color: "#c03030", cursor: "pointer", fontFamily: "inherit" }}>Yes, sign out</button>
-                        <button onClick={() => setConfirmSignOut(null)} style={{ width: "100%", textAlign: "left", padding: "8px 10px", borderRadius: 8, border: "none", background: "none", fontSize: 13, color: muted(theme), cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+                      <div style={{ padding: "4px 2px", display: "flex", flexDirection: "column", gap: 2 }}>
+                        <div style={{ fontSize: 12, color: muted(theme), padding: "4px 12px" }}>Are you sure?</div>
+                        <button onClick={() => { setConfirmSignOut(null); setUserMenuOpen(false); signOut({ redirectUrl: "/" }); }} style={{ width: "100%", textAlign: "left", padding: "8px 12px", borderRadius: 8, border: "none", background: "none", fontSize: 13, fontWeight: 700, color: "#c03030", cursor: "pointer", fontFamily: "inherit" }}>Yes, sign out</button>
+                        <button onClick={() => setConfirmSignOut(null)} style={{ width: "100%", textAlign: "left", padding: "8px 12px", borderRadius: 8, border: "none", background: "none", fontSize: 13, color: muted(theme), cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
                       </div>
                     ) : (
-                      <button onClick={() => setConfirmSignOut("header")} style={{ width: "100%", textAlign: "left", padding: "8px 10px", borderRadius: 8, border: "none", background: "none", fontSize: 13, fontWeight: 600, color: pageText(theme), cursor: "pointer", fontFamily: "inherit" }}>Sign out</button>
+                      <button onClick={() => setConfirmSignOut("header")} style={{ width: "100%", textAlign: "left", padding: "8px 12px", borderRadius: 8, border: "none", background: "none", fontSize: 13, fontWeight: 600, color: pageText(theme), cursor: "pointer", fontFamily: "inherit" }}>Sign out</button>
                     )}
                   </div>
                 )}
