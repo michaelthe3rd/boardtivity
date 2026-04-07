@@ -613,7 +613,9 @@ export function HomeShell() {
   const [confirmSignOut, setConfirmSignOut] = useState<"header" | "settings" | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
-  const [showSyncPill, setShowSyncPill] = useState(true);
+  const [showSyncPill, setShowSyncPill] = useState(() => {
+    try { return !!sessionStorage.getItem("boardtivity_just_signed_in"); } catch { return false; }
+  });
   const subscription = useQuery(api.subscriptions.getMySubscription);
   const isPlus = !!subscription;
 
@@ -829,7 +831,7 @@ export function HomeShell() {
     return () => clearTimeout(t);
   }, [activeBoardId]);
 
-  // Check for ?subscribed=true after Stripe redirect
+  // Check for ?subscribed=true after Stripe redirect; handle fresh sign-in flag
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
@@ -837,11 +839,13 @@ export function HomeShell() {
       setShowSubscribedModal(true);
       window.history.replaceState({}, "", window.location.pathname);
     }
-    // Detect fresh sign-in across the reload boundary
     try {
       if (sessionStorage.getItem("boardtivity_just_signed_in")) {
         didJustSignInRef.current = true;
         sessionStorage.removeItem("boardtivity_just_signed_in");
+        // Pill already visible from initial state — schedule hide
+        const t = setTimeout(() => setShowSyncPill(false), 4000);
+        return () => clearTimeout(t);
       }
     } catch {}
   }, []);
@@ -1043,19 +1047,7 @@ export function HomeShell() {
     return () => { window.removeEventListener("pagehide", flush); document.removeEventListener("visibilitychange", onVisibility); };
   }, [isSignedIn, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid]);
 
-  // ── Sync pill: only show on fresh sign-in (not on page refresh) ──────────────
   const didJustSignInRef = useRef(false);
-  useEffect(() => {
-    if (!isSignedIn) return;
-    if (!didJustSignInRef.current) {
-      // Page was already signed in on load — skip pill
-      setShowSyncPill(false);
-      return;
-    }
-    setShowSyncPill(true);
-    const t = setTimeout(() => setShowSyncPill(false), 4000);
-    return () => clearTimeout(t);
-  }, [isSignedIn]);
 
   // ── Auto-link signed-in users to waitlist ────────────────────────────────────
   useEffect(() => {
@@ -1850,8 +1842,7 @@ export function HomeShell() {
               border: `1px solid ${theme === "dark" ? "rgba(111,196,107,.2)" : "rgba(60,190,90,.2)"}`,
               borderRadius: 999, padding: "10px 20px",
               opacity: showSyncPill ? .75 : 0,
-              transform: showSyncPill ? "none" : "translateY(10px)",
-              transition: "opacity .6s ease, transform .6s ease",
+              transition: "opacity .3s ease",
               pointerEvents: "none",
             }}>
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="2,7 5.5,10.5 12,3.5" stroke="#6fc46b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>

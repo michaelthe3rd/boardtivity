@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { QueryCtx, MutationCtx } from "./_generated/server";
+import { internal } from "./_generated/api";
 
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "")
   .split(",")
@@ -140,6 +141,22 @@ export const cleanupSessions = mutation({
       .take(1000);
     await Promise.all(old.map((s) => ctx.db.delete(s._id)));
     return old.length;
+  },
+});
+
+// Manually write a subscription — use from Convex dashboard when webhook fails
+export const adminUpsertSubscription = mutation({
+  args: {
+    tokenIdentifier: v.string(),
+    stripeCustomerId: v.string(),
+    stripeSubscriptionId: v.string(),
+    stripePriceId: v.string(),
+    status: v.string(),
+  },
+  handler: async (ctx, args) => {
+    if (!(await isAdmin(ctx))) throw new Error("Unauthorized");
+    await ctx.runMutation(internal.subscriptions.upsert, args);
+    return "ok";
   },
 });
 
