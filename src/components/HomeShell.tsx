@@ -1829,7 +1829,7 @@ export function HomeShell() {
 
         {/* Inline email capture */}
         {isSignedIn ? (
-          <div style={{ maxWidth: 400, margin: "0 auto", textAlign: "center", overflow: "hidden", maxHeight: showSyncPill ? 80 : 0, paddingBottom: showSyncPill ? 4 : 0, transition: "max-height .4s ease .7s, padding-bottom .4s ease .7s" }}>
+          <div style={{ maxWidth: 400, margin: "0 auto", textAlign: "center", overflow: "hidden", maxHeight: showSyncPill ? 80 : 0, paddingBottom: showSyncPill ? 4 : 0, transition: showSyncPill ? "none" : "max-height .4s ease .7s, padding-bottom .4s ease .7s" }}>
             <div style={{
               display: "inline-flex", alignItems: "center", gap: 8, fontSize: 15, color: muted(theme),
               backgroundColor: theme === "dark" ? "rgba(111,196,107,.08)" : "rgba(60,190,90,.07)",
@@ -1844,7 +1844,7 @@ export function HomeShell() {
               Signed in — your board saves automatically and syncs across devices
             </div>
           </div>
-        ) : (
+        ) : clerkLoaded ? (
           <div style={{ maxWidth: 400, margin: "0 auto" }}>
             <div style={{ marginBottom: 12, fontSize: 13, color: muted(theme), opacity: .6, letterSpacing: "-.01em" }}>
               Sign up to sync your board across devices and access Boardtivity anywhere.
@@ -1857,7 +1857,7 @@ export function HomeShell() {
             </button>
             <div style={{ marginTop: 10, fontSize: 12, color: muted(theme), opacity: .4 }}>Free · No credit card needed</div>
           </div>
-        )}
+        ) : null}
         </section>
 
       {!isSignedIn && (
