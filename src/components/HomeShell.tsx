@@ -2948,8 +2948,8 @@ export function HomeShell() {
                 ))}
                 <div style={{ height: 1, backgroundColor: border(boardTheme), margin: "6px 10px" }} />
                 <div style={{ display: "flex", gap: 6, padding: "4px 10px 6px" }}>
-                  <button onClick={() => addBoard("task")} style={{ ...buttonStyle(boardTheme, false, true), flex: 1, fontSize: 12 }}>+ Task</button>
-                  <button onClick={() => addBoard("thought")} style={{ ...buttonStyle(boardTheme, false, true), flex: 1, fontSize: 12 }}>+ Idea board</button>
+                  <button onClick={() => addBoard("task")} style={{ ...buttonStyle(boardTheme, false, true), flex: 1, fontSize: 12 }}>+ Task Board</button>
+                  <button onClick={() => addBoard("thought")} style={{ ...buttonStyle(boardTheme, false, true), flex: 1, fontSize: 12 }}>+ Idea Board</button>
                 </div>
               </div>
             </div>
@@ -3126,12 +3126,23 @@ export function HomeShell() {
           {/* Add note button — bottom right */}
           <button
             onClick={() => { setComposerColorIdx(isPlus && thoughtColorMode === "fixed" ? thoughtFixedColorIdx : Math.floor(Math.random() * NOTE_PALETTE.length)); setComposerOpen(true); }}
-            style={{ ...circleButton(boardTheme, 38), position: "absolute", right: 18, bottom: 18, zIndex: 3, boxShadow: "0 8px 16px rgba(89,72,48,.08)" }}
-            aria-label="Add note"
+            style={{
+              position: "absolute", right: 18, bottom: 18, zIndex: 3,
+              display: "flex", alignItems: "center", gap: 6,
+              padding: "0 16px 0 12px", height: 38, borderRadius: 999,
+              backgroundColor: boardTheme === "dark" ? "rgba(255,255,255,.1)" : "rgba(0,0,0,.07)",
+              border: `1px solid ${border(boardTheme)}`,
+              color: boardTheme === "dark" ? "rgba(255,255,255,.85)" : "rgba(0,0,0,.7)",
+              fontSize: 13, fontWeight: 500, cursor: "pointer",
+              boxShadow: "0 8px 16px rgba(89,72,48,.08)",
+              backdropFilter: "blur(8px)",
+            }}
+            aria-label={thoughtMode ? "Add idea" : "Add task"}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
             </svg>
+            {thoughtMode ? "Add Idea" : "Add Task"}
           </button>
       {renameBoardId && (
         <div
@@ -4733,13 +4744,13 @@ export function HomeShell() {
             {/* Feature list */}
             <div style={{ display: "flex", flexDirection: "column", gap: 9, marginBottom: 24 }}>
               {[
-                "Up to 10 task & idea boards",
-                "5 ideas per board",
+                "Up to 10 boards per type",
+                "Up to 5 ideas per board",
                 "Custom idea note colors",
-                "Early access to every new feature",
+                "Early access to new features",
               ].map((f) => (
-                <div key={f} style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 13.5, color: pageText(theme) }}>
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="2,7 5.5,10.5 12,3.5" stroke="#6fc46b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                <div key={f} style={{ display: "flex", alignItems: "flex-start", gap: 9, fontSize: 13.5, color: pageText(theme) }}>
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0, marginTop: 2 }}><polyline points="2,7 5.5,10.5 12,3.5" stroke="#6fc46b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                   {f}
                 </div>
               ))}
