@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
     mode: "subscription",
     line_items: [{ price: priceId, quantity: 1 }],
     ...(email ? { customer_email: email } : {}),
+    allow_promotion_codes: true,
     metadata: { tokenIdentifier },
     success_url: "https://www.boardtivity.com?subscribed=true",
     cancel_url: "https://www.boardtivity.com",
