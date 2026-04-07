@@ -2,21 +2,37 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
 export const save = mutation({
-  args: { boardState: v.string() },
-  handler: async (ctx, { boardState }) => {
+  args: { boardState: v.string(), id: v.optional(v.id("userBoards")) },
+  handler: async (ctx, { boardState, id }) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return null;
 
     // Limit boardState size to 1MB
     if (boardState.length > 1_000_000) return null;
 
+    // If we already know the document ID, replace directly — no read means no
+    // write conflict when concurrent saves happen.
+    if (id) {
+      await ctx.db.replace(id, {
+        tokenIdentifier: identity.tokenIdentifier,
+        boardState,
+        updatedAt: Date.now(),
+      });
+      return id;
+    }
+
+    // First save: check if a document exists for this user.
     const existing = await ctx.db
       .query("userBoards")
       .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
       .first();
 
     if (existing) {
-      await ctx.db.patch(existing._id, { boardState, updatedAt: Date.now() });
+      await ctx.db.replace(existing._id, {
+        tokenIdentifier: identity.tokenIdentifier,
+        boardState,
+        updatedAt: Date.now(),
+      });
       return existing._id;
     }
 

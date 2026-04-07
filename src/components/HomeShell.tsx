@@ -622,6 +622,9 @@ export function HomeShell() {
   // don't immediately push the same data back to Convex (prevents apply→save loop)
   const justAppliedCloudRef = useRef(false);
   const lastAppliedCloudAtRef = useRef(0);
+  // Tracks the known Convex document ID so saves can skip the read and use
+  // db.replace() directly, eliminating write conflicts on concurrent saves.
+  const savedBoardIdRef = useRef<string | undefined>(undefined);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | string | null>(null);
@@ -866,7 +869,9 @@ export function HomeShell() {
   async function pushToCloud() {
     setCloudSyncState("saving");
     try {
-      await saveBoard({ boardState: currentBoardState() });
+      const id = savedBoardIdRef.current as import("convex/values").GenericId<"userBoards"> | undefined;
+      const newId = await saveBoard({ boardState: currentBoardState(), id });
+      if (newId && !savedBoardIdRef.current) savedBoardIdRef.current = newId as string;
       setCloudSyncState("synced");
     } catch (e) {
       console.error("[Boardtivity] Convex save failed:", e);
@@ -878,6 +883,9 @@ export function HomeShell() {
   useEffect(() => {
     if (!isSignedIn || savedBoard === undefined) return;
     convexReadyRef.current = true;
+
+    // Always capture the document ID so future saves bypass the read query.
+    if (savedBoard) savedBoardIdRef.current = savedBoard._id as string;
 
     let localSavedAt = 0;
     try {
@@ -909,8 +917,12 @@ export function HomeShell() {
     } else if (!cloudHasRealData) {
       // Cloud is empty or only has defaults — push local up
       pushToCloud();
+    } else {
+      // Local is newer — Convex just became ready but effect-3 already ran
+      // without convexReadyRef set, so the debounced save was never queued.
+      // Push now to ensure cloud catches up and sync indicator resolves.
+      pushToCloud();
     }
-    // else: local is newer, debounced save in effect-3 will handle it
   }, [isSignedIn, savedBoard]);
 
   // ── Persist to localStorage + debounced Convex save on every change ─────────
@@ -936,8 +948,9 @@ export function HomeShell() {
             setCloudSyncState("saving");
             if (convexSaveTimerRef.current) clearTimeout(convexSaveTimerRef.current);
             convexSaveTimerRef.current = setTimeout(() => {
-              saveBoard({ boardState: currentBoardState() })
-                .then(() => setCloudSyncState("synced"))
+              const id = savedBoardIdRef.current as import("convex/values").GenericId<"userBoards"> | undefined;
+              saveBoard({ boardState: currentBoardState(), id })
+                .then((newId) => { if (newId && !savedBoardIdRef.current) savedBoardIdRef.current = newId as string; setCloudSyncState("synced"); })
                 .catch((e) => { console.error("[Boardtivity] Convex save failed:", e); setCloudSyncState("error"); });
             }, 300);
           }
@@ -953,7 +966,8 @@ export function HomeShell() {
     function flush() {
       if (!convexReadyRef.current || !isSignedIn) return;
       if (convexSaveTimerRef.current) { clearTimeout(convexSaveTimerRef.current); convexSaveTimerRef.current = null; }
-      saveBoard({ boardState: currentBoardState() })
+      const id = savedBoardIdRef.current as import("convex/values").GenericId<"userBoards"> | undefined;
+      saveBoard({ boardState: currentBoardState(), id })
         .then(() => setCloudSyncState("synced"))
         .catch(() => setCloudSyncState("error"));
     }
