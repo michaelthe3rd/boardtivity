@@ -12,6 +12,14 @@ export default defineSchema({
     tokenIdentifier: v.string(),
     boardState: v.string(), // JSON: { boards, notes, activeBoardId }
     updatedAt: v.number(),
+    email: v.optional(v.string()),
+  }).index("by_token", ["tokenIdentifier"]),
+
+  emailPrefs: defineTable({
+    tokenIdentifier: v.string(),
+    dailyDigest: v.boolean(),
+    weeklyDigest: v.boolean(),
+    dueSoonReminder: v.boolean(),
   }).index("by_token", ["tokenIdentifier"]),
 
   feedbackPosts: defineTable({

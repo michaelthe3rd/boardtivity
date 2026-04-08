@@ -12,11 +12,14 @@ export const save = mutation({
 
     // If we already know the document ID, replace directly — no read means no
     // write conflict when concurrent saves happen.
+    const email = identity.email ?? undefined;
+
     if (id) {
       await ctx.db.replace(id, {
         tokenIdentifier: identity.tokenIdentifier,
         boardState,
         updatedAt: Date.now(),
+        email,
       });
       return id;
     }
@@ -32,6 +35,7 @@ export const save = mutation({
         tokenIdentifier: identity.tokenIdentifier,
         boardState,
         updatedAt: Date.now(),
+        email,
       });
       return existing._id;
     }
@@ -40,6 +44,7 @@ export const save = mutation({
       tokenIdentifier: identity.tokenIdentifier,
       boardState,
       updatedAt: Date.now(),
+      email,
     });
   },
 });
