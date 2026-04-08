@@ -173,23 +173,36 @@ export const sendDailyDigests = internalAction({
 
     for (const user of users) {
       const tasks = pendingTasks(user.boardState);
-      if (tasks.length === 0) continue;
 
-      const dueToday = tasks.filter((t) => t.dueDate === today);
-      const dueTomorrow = tasks.filter((t) => t.dueDate === tomorrow);
-      const overdue = tasks.filter((t) => t.dueDate && t.dueDate < today);
-      const upcoming = tasks.filter((t) => !t.dueDate || t.dueDate > tomorrow);
+      let body: string;
+      let subject: string;
 
-      const body =
-        taskSection("Overdue", overdue, "#c03030") +
-        taskSection("Due Today", dueToday, "#d06010") +
-        taskSection("Due Tomorrow", dueTomorrow, "#888") +
-        taskSection("Upcoming", upcoming) +
-        `<p style="font-size:13px;color:#aaa;margin:20px 0 0;">You have ${tasks.length} pending task${tasks.length !== 1 ? "s" : ""} total.</p>`;
+      if (tasks.length === 0) {
+        subject = `No tasks for today — ${dateLabel}`;
+        body = `
+          <div style="text-align:center;padding:24px 0;">
+            <div style="font-size:32px;margin-bottom:12px;">✓</div>
+            <div style="font-size:18px;font-weight:700;color:#111;margin-bottom:8px;">You're all clear today!</div>
+            <p style="font-size:14px;color:#888;margin:0 0 24px;line-height:1.6;">No tasks on your plate right now. A great time to plan ahead.</p>
+            <a href="https://boardtivity.com" style="display:inline-block;background:#111;color:#fff;font-size:14px;font-weight:700;text-decoration:none;padding:12px 28px;border-radius:10px;">Add tasks for today →</a>
+          </div>`;
+      } else {
+        subject = `Your tasks for ${dateLabel}`;
+        const dueToday = tasks.filter((t) => t.dueDate === today);
+        const dueTomorrow = tasks.filter((t) => t.dueDate === tomorrow);
+        const overdue = tasks.filter((t) => t.dueDate && t.dueDate < today);
+        const upcoming = tasks.filter((t) => !t.dueDate || t.dueDate > tomorrow);
+        body =
+          taskSection("Overdue", overdue, "#c03030") +
+          taskSection("Due Today", dueToday, "#d06010") +
+          taskSection("Due Tomorrow", dueTomorrow, "#888") +
+          taskSection("Upcoming", upcoming) +
+          `<p style="font-size:13px;color:#aaa;margin:20px 0 0;">You have ${tasks.length} pending task${tasks.length !== 1 ? "s" : ""} total.</p>`;
+      }
 
       await sendEmail(
         user.email,
-        `Your tasks for ${dateLabel}`,
+        subject,
         emailWrapper("Daily Task Outline", dateLabel, body)
       );
     }
@@ -207,21 +220,34 @@ export const sendWeeklyDigests = internalAction({
 
     for (const user of users) {
       const tasks = pendingTasks(user.boardState);
-      if (tasks.length === 0) continue;
 
-      const overdue = tasks.filter((t) => t.dueDate && t.dueDate < today);
-      const withDue = tasks.filter((t) => t.dueDate && t.dueDate >= today).sort((a, b) => (a.dueDate! < b.dueDate! ? -1 : 1));
-      const noDue = tasks.filter((t) => !t.dueDate);
+      let body: string;
+      let subject: string;
 
-      const body =
-        (overdue.length > 0 ? taskSection("Overdue", overdue, "#c03030") : "") +
-        (withDue.length > 0 ? taskSection("Scheduled", withDue) : "") +
-        (noDue.length > 0 ? taskSection("No due date", noDue) : "") +
-        `<p style="font-size:13px;color:#aaa;margin:20px 0 0;">${tasks.length} pending task${tasks.length !== 1 ? "s" : ""} across all boards.</p>`;
+      if (tasks.length === 0) {
+        subject = "Clean slate this week — Boardtivity";
+        body = `
+          <div style="text-align:center;padding:24px 0;">
+            <div style="font-size:32px;margin-bottom:12px;">🗓</div>
+            <div style="font-size:18px;font-weight:700;color:#111;margin-bottom:8px;">Nothing on the books yet!</div>
+            <p style="font-size:14px;color:#888;margin:0 0 24px;line-height:1.6;">Your task list is empty this week. Head over to Boardtivity to plan out your week.</p>
+            <a href="https://boardtivity.com" style="display:inline-block;background:#111;color:#fff;font-size:14px;font-weight:700;text-decoration:none;padding:12px 28px;border-radius:10px;">Plan your week →</a>
+          </div>`;
+      } else {
+        subject = `Your week ahead — ${tasks.length} task${tasks.length !== 1 ? "s" : ""} pending`;
+        const overdue = tasks.filter((t) => t.dueDate && t.dueDate < today);
+        const withDue = tasks.filter((t) => t.dueDate && t.dueDate >= today).sort((a, b) => (a.dueDate! < b.dueDate! ? -1 : 1));
+        const noDue = tasks.filter((t) => !t.dueDate);
+        body =
+          (overdue.length > 0 ? taskSection("Overdue", overdue, "#c03030") : "") +
+          (withDue.length > 0 ? taskSection("Scheduled", withDue) : "") +
+          (noDue.length > 0 ? taskSection("No due date", noDue) : "") +
+          `<p style="font-size:13px;color:#aaa;margin:20px 0 0;">${tasks.length} pending task${tasks.length !== 1 ? "s" : ""} across all boards.</p>`;
+      }
 
       await sendEmail(
         user.email,
-        `Your week ahead — ${tasks.length} task${tasks.length !== 1 ? "s" : ""} pending`,
+        subject,
         emailWrapper("Weekly Task Outline", `Week of ${dateLabel}`, body)
       );
     }
