@@ -686,6 +686,7 @@ export function HomeShell() {
   const savedBoardIdRef = useRef<string | undefined>(undefined);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [mobileSettingsOpen, setMobileSettingsOpen] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false); // noteId (number) or boardId (string)
   const [boardGrid, setBoardGrid] = useState<"grid" | "dots" | "blank">(() => readLocal("boardGrid", "grid"));
@@ -1954,7 +1955,7 @@ export function HomeShell() {
             const today = todayStr();
             const tomorrow = tomorrowStr();
             if (dueDate < today) return ["Overdue", theme === "dark" ? "#ff8080" : "#c03030"];
-            if (dueDate === today) return ["Today", theme === "dark" ? "#ffb060" : "#a05010"];
+            if (dueDate === today) return ["Due Today", theme === "dark" ? "#ff5555" : "#cc1f1f"];
             if (dueDate === tomorrow) return ["Tomorrow", muted(theme)];
             const [y, m, d] = dueDate.split("-").map(Number);
             const due = new Date(y, m - 1, d);
@@ -2119,6 +2120,16 @@ export function HomeShell() {
                 >
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 </button>
+                {isSignedIn && (
+                  <button
+                    onClick={() => setMobileSettingsOpen(true)}
+                    style={{ flexShrink: 0, width: 34, height: 34, borderRadius: 999, border: `1px solid ${border(theme)}`, backgroundColor: theme === "dark" ? "#1e2126" : "#ffffff", color: muted(theme), cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                    </svg>
+                  </button>
+                )}
               </div>
 
               {/* Board type picker sheet */}
@@ -2256,6 +2267,42 @@ export function HomeShell() {
               </div>
 
               {/* Quick-add bottom sheet */}
+              {/* Mobile settings sheet */}
+              {mobileSettingsOpen && (
+                <div style={{ position: "fixed", inset: 0, zIndex: 900, display: "flex", flexDirection: "column", justifyContent: "flex-end" }} onClick={() => setMobileSettingsOpen(false)}>
+                  <div style={{ position: "relative", backgroundColor: theme === "dark" ? "#1a1d22" : "#ffffff", borderRadius: "20px 20px 0 0", padding: "24px 20px 48px", display: "flex", flexDirection: "column", gap: 0 }} onClick={e => e.stopPropagation()}>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: pageText(theme), marginBottom: 20 }}>Email Notifications</div>
+                    {(["dueSoonReminder", "dailyDigest", "weeklyDigest"] as const).map((key) => {
+                      const labels: Record<string, string> = {
+                        dueSoonReminder: "Due today & tomorrow reminder",
+                        dailyDigest: "Daily task outline",
+                        weeklyDigest: "Weekly task outline",
+                      };
+                      const enabled = emailPrefs ? emailPrefs[key] : true;
+                      return (
+                        <div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, paddingTop: 14, paddingBottom: 14, borderBottom: `1px solid ${border(theme)}` }}>
+                          <span style={{ fontSize: 15, color: pageText(theme) }}>{labels[key]}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const current = emailPrefs ?? { dailyDigest: true, weeklyDigest: true, dueSoonReminder: true };
+                              updateEmailPrefs({ ...current, [key]: !enabled });
+                            }}
+                            style={{ flexShrink: 0, width: 46, height: 26, borderRadius: 999, border: "none", cursor: "pointer", backgroundColor: enabled ? (theme === "dark" ? "#4a9eff" : "#2563eb") : (theme === "dark" ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.12)"), position: "relative", transition: "background-color .18s" }}
+                          >
+                            <span style={{ position: "absolute", top: 4, left: enabled ? 23 : 4, width: 18, height: 18, borderRadius: "50%", backgroundColor: "#fff", transition: "left .18s", boxShadow: "0 1px 3px rgba(0,0,0,.2)" }} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                    <p style={{ fontSize: 12, color: muted(theme), margin: "14px 0 0", lineHeight: 1.5 }}>
+                      Sent to {user?.emailAddresses?.[0]?.emailAddress ?? "your email"}.
+                    </p>
+                    <button onClick={() => setMobileSettingsOpen(false)} style={{ marginTop: 20, height: 48, borderRadius: 14, border: "none", backgroundColor: theme === "dark" ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.06)", color: pageText(theme), fontSize: 15, fontWeight: 700, cursor: "pointer" }}>Done</button>
+                  </div>
+                </div>
+              )}
+
               {mobileAddMode && (
                 <div style={{ position: "fixed", inset: 0, zIndex: 800, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
                   <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,.4)" }} onClick={() => { setMobileAddMode(null); setMobileAddTitle(""); }} />

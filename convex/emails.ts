@@ -216,7 +216,14 @@ export const sendWeeklyDigests = internalAction({
   handler: async (ctx) => {
     const users = await ctx.runQuery(internal.emails.getUsersForDigest, { digestType: "weekly" });
     const today = todayUTC();
-    const dateLabel = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+    const now = new Date();
+    const dayOfWeek = now.getUTCDay(); // 0=Sun, 1=Mon…6=Sat
+    const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    const monday = new Date(now);
+    monday.setUTCDate(now.getUTCDate() - daysToMonday);
+    const sunday = new Date(monday);
+    sunday.setUTCDate(monday.getUTCDate() + 6);
+    const dateLabel = `${monday.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${sunday.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
 
     for (const user of users) {
       const tasks = pendingTasks(user.boardState);
