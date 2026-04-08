@@ -1949,12 +1949,13 @@ export function HomeShell() {
 
           function dueLabelAndColor(dueDate: string | undefined): [string, string] {
             if (!dueDate) return ["", muted(theme)];
-            const today = new Date(); today.setHours(0,0,0,0);
-            const due = new Date(dueDate); due.setHours(0,0,0,0);
-            const diff = Math.round((due.getTime() - today.getTime()) / 86400000);
-            if (diff < 0) return ["Overdue", theme === "dark" ? "#ff8080" : "#c03030"];
-            if (diff === 0) return ["Today", theme === "dark" ? "#ffb060" : "#a05010"];
-            if (diff === 1) return ["Tomorrow", muted(theme)];
+            const today = todayStr();
+            const tomorrow = tomorrowStr();
+            if (dueDate < today) return ["Overdue", theme === "dark" ? "#ff8080" : "#c03030"];
+            if (dueDate === today) return ["Today", theme === "dark" ? "#ffb060" : "#a05010"];
+            if (dueDate === tomorrow) return ["Tomorrow", muted(theme)];
+            const [y, m, d] = dueDate.split("-").map(Number);
+            const due = new Date(y, m - 1, d);
             return [due.toLocaleDateString(undefined, { month: "short", day: "numeric" }), muted(theme)];
           }
 
