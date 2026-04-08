@@ -27,12 +27,12 @@ interface BoardState {
   notes: Task[];
 }
 
-type DigestType = "daily" | "weekly" | "dueSoon";
+type DigestType = "daily" | "weekly";
 
 // ─── Query: get users eligible for a given digest ────────────────────────────
 
 export const getUsersForDigest = internalQuery({
-  args: { digestType: v.union(v.literal("daily"), v.literal("weekly"), v.literal("dueSoon")) },
+  args: { digestType: v.union(v.literal("daily"), v.literal("weekly")) },
   handler: async (ctx, { digestType }) => {
     const users = await ctx.db.query("userBoards").take(2000);
     const result: { email: string; boardState: string; name?: string }[] = [];
@@ -45,15 +45,9 @@ export const getUsersForDigest = internalQuery({
         .withIndex("by_token", (q) => q.eq("tokenIdentifier", user.tokenIdentifier))
         .first();
 
-      // Default: all on
-      const daily = prefs ? prefs.dailyDigest : true;
-      const weekly = prefs ? prefs.weeklyDigest : true;
-      const dueSoon = prefs ? prefs.dueSoonReminder : true;
-
-      const enabled =
-        digestType === "daily" ? daily :
-        digestType === "weekly" ? weekly :
-        dueSoon;
+      const enabled = digestType === "daily"
+        ? (prefs ? prefs.dailyDigest : true)
+        : (prefs ? prefs.weeklyDigest : true);
 
       if (!enabled) continue;
       result.push({ email: user.email, boardState: user.boardState });
@@ -189,15 +183,24 @@ export const sendDailyDigests = internalAction({
       } else {
         subject = `Your tasks for ${dateLabel}`;
         const dueToday = tasks.filter((t) => t.dueDate === today);
-        const dueTomorrow = tasks.filter((t) => t.dueDate === tomorrow);
         const overdue = tasks.filter((t) => t.dueDate && t.dueDate < today);
-        const upcoming = tasks.filter((t) => !t.dueDate || t.dueDate > tomorrow);
+        const upcomingAll = tasks
+          .filter((t) => !t.dueDate || t.dueDate > today)
+          .filter((t) => t.dueDate !== today)
+          .sort((a, b) => {
+            if (a.dueDate && b.dueDate) return a.dueDate < b.dueDate ? -1 : 1;
+            if (a.dueDate) return -1;
+            if (b.dueDate) return 1;
+            return 0;
+          });
+        const upcoming3 = upcomingAll.slice(0, 3);
+        const remaining = upcomingAll.length - upcoming3.length;
         body =
           taskSection("Overdue", overdue, "#c03030") +
-          taskSection("Due Today", dueToday, "#d06010") +
-          taskSection("Due Tomorrow", dueTomorrow, "#888") +
-          taskSection("Upcoming", upcoming) +
-          `<p style="font-size:13px;color:#aaa;margin:20px 0 0;">You have ${tasks.length} pending task${tasks.length !== 1 ? "s" : ""} total.</p>`;
+          taskSection("Due Today", dueToday, "#cc1f1f") +
+          taskSection("Upcoming", upcoming3) +
+          (remaining > 0 ? `<p style="font-size:13px;color:#aaa;margin:4px 0 0;">+${remaining} more task${remaining !== 1 ? "s" : ""} — <a href="https://boardtivity.com" style="color:#aaa;">view all</a></p>` : "") +
+          `<p style="font-size:13px;color:#aaa;margin:16px 0 0;">${tasks.length} pending task${tasks.length !== 1 ? "s" : ""} total.</p>`;
       }
 
       await sendEmail(
@@ -261,37 +264,3 @@ export const sendWeeklyDigests = internalAction({
   },
 });
 
-// ─── Due-soon reminder ────────────────────────────────────────────────────────
-
-export const sendDueSoonReminders = internalAction({
-  args: {},
-  handler: async (ctx) => {
-    const users = await ctx.runQuery(internal.emails.getUsersForDigest, { digestType: "dueSoon" });
-    const today = todayUTC();
-    const tomorrow = tomorrowUTC();
-
-    for (const user of users) {
-      const tasks = pendingTasks(user.boardState);
-      const dueToday = tasks.filter((t) => t.dueDate === today);
-      const dueTomorrow = tasks.filter((t) => t.dueDate === tomorrow);
-
-      if (dueToday.length === 0 && dueTomorrow.length === 0) continue;
-
-      const total = dueToday.length + dueTomorrow.length;
-      const subject =
-        dueToday.length === 1 && dueTomorrow.length === 0
-          ? `Reminder: "${dueToday[0].title}" is due today`
-          : `${total} task${total !== 1 ? "s" : ""} due today or tomorrow`;
-
-      const body =
-        taskSection("Due Today", dueToday, "#d06010") +
-        taskSection("Due Tomorrow", dueTomorrow, "#888");
-
-      await sendEmail(
-        user.email,
-        subject,
-        emailWrapper("Tasks Due Soon", "A quick heads-up on upcoming tasks", body)
-      );
-    }
-  },
-});

@@ -2272,9 +2272,8 @@ export function HomeShell() {
                 <div style={{ position: "fixed", inset: 0, zIndex: 900, display: "flex", flexDirection: "column", justifyContent: "flex-end" }} onClick={() => setMobileSettingsOpen(false)}>
                   <div style={{ position: "relative", backgroundColor: theme === "dark" ? "#1a1d22" : "#ffffff", borderRadius: "20px 20px 0 0", padding: "24px 20px 48px", display: "flex", flexDirection: "column", gap: 0 }} onClick={e => e.stopPropagation()}>
                     <div style={{ fontSize: 16, fontWeight: 800, color: pageText(theme), marginBottom: 20 }}>Email Notifications</div>
-                    {(["dueSoonReminder", "dailyDigest", "weeklyDigest"] as const).map((key) => {
+                    {(["dailyDigest", "weeklyDigest"] as const).map((key) => {
                       const labels: Record<string, string> = {
-                        dueSoonReminder: "Due today & tomorrow reminder",
                         dailyDigest: "Daily task outline",
                         weeklyDigest: "Weekly task outline",
                       };
@@ -2285,7 +2284,7 @@ export function HomeShell() {
                           <button
                             type="button"
                             onClick={() => {
-                              const current = emailPrefs ?? { dailyDigest: true, weeklyDigest: true, dueSoonReminder: true };
+                              const current = emailPrefs ?? { dailyDigest: true, weeklyDigest: true };
                               updateEmailPrefs({ ...current, [key]: !enabled });
                             }}
                             style={{ flexShrink: 0, width: 46, height: 26, borderRadius: 999, border: "none", cursor: "pointer", backgroundColor: enabled ? (theme === "dark" ? "#4a9eff" : "#2563eb") : (theme === "dark" ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.12)"), position: "relative", transition: "background-color .18s" }}
@@ -3227,9 +3226,8 @@ export function HomeShell() {
               {isSignedIn && (
                 <div style={{ borderTop: `1px solid ${border(boardTheme)}`, paddingTop: 20, display: "grid", gap: 10 }}>
                   <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), fontWeight: 700, marginBottom: 2 }}>Email Notifications</div>
-                  {(["dueSoonReminder", "dailyDigest", "weeklyDigest"] as const).map((key) => {
+                  {(["dailyDigest", "weeklyDigest"] as const).map((key) => {
                     const labels: Record<string, string> = {
-                      dueSoonReminder: "Due today & tomorrow reminder",
                       dailyDigest: "Daily task outline",
                       weeklyDigest: "Weekly task outline",
                     };
@@ -3240,7 +3238,7 @@ export function HomeShell() {
                         <button
                           type="button"
                           onClick={() => {
-                            const current = emailPrefs ?? { dailyDigest: true, weeklyDigest: true, dueSoonReminder: true };
+                            const current = emailPrefs ?? { dailyDigest: true, weeklyDigest: true };
                             updateEmailPrefs({ ...current, [key]: !enabled });
                           }}
                           style={{
