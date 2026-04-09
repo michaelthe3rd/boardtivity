@@ -1,9 +1,12 @@
 import { mutation } from "./_generated/server";
 import { v } from "convex/values";
 
+const SESSION_ID_RE = /^[a-zA-Z0-9_-]{8,64}$/;
+
 export const startSession = mutation({
   args: { sessionId: v.string(), isSignedIn: v.boolean() },
   handler: async (ctx, { sessionId, isSignedIn }) => {
+    if (!SESSION_ID_RE.test(sessionId)) return;
     const existing = await ctx.db
       .query("sessions")
       .withIndex("by_session", (q) => q.eq("sessionId", sessionId))
@@ -20,6 +23,7 @@ export const startSession = mutation({
 export const heartbeat = mutation({
   args: { sessionId: v.string(), isSignedIn: v.boolean() },
   handler: async (ctx, { sessionId, isSignedIn }) => {
+    if (!SESSION_ID_RE.test(sessionId)) return;
     const existing = await ctx.db
       .query("sessions")
       .withIndex("by_session", (q) => q.eq("sessionId", sessionId))

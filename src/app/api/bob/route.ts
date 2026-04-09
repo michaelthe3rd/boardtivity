@@ -172,11 +172,29 @@ const SSE_HEADERS = {
   "Connection": "keep-alive",
 };
 
+// ── Per-user rate limit (20 req / 60s) ───────────────────────────────────────
+const RL = new Map<string, { count: number; resetAt: number }>();
+function checkRateLimit(userId: string): boolean {
+  const now = Date.now();
+  const entry = RL.get(userId);
+  if (!entry || now > entry.resetAt) {
+    RL.set(userId, { count: 1, resetAt: now + 60_000 });
+    return true;
+  }
+  if (entry.count >= 20) return false;
+  entry.count++;
+  return true;
+}
+
 // ── Handler ───────────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   const { auth } = await import("@clerk/nextjs/server");
   const { userId } = await auth();
   if (!userId) return new Response("Unauthorized", { status: 401 });
+
+  if (!checkRateLimit(userId)) {
+    return new Response("Rate limit exceeded — try again in a minute", { status: 429 });
+  }
 
   let body: { message?: string; notes?: NoteSnap[]; mode?: Mode; history?: HistoryMsg[] };
   try { body = await req.json(); }

@@ -1,9 +1,8 @@
-import { mutation, query } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
-// Called automatically when a user signs up for an account —
-// ensures they appear in the waitlist without requiring them to fill the form.
-export const ensureLinked = mutation({
+// Internal only — not callable from the client.
+export const ensureLinked = internalMutation({
   args: { email: v.string() },
   handler: async (ctx, { email }) => {
     const normalized = email.trim().toLowerCase();
