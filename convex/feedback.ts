@@ -69,15 +69,23 @@ export const post = mutation({
     const trimmed = content.trim();
     if (!trimmed || trimmed.length > MAX_CONTENT_LENGTH) return null;
 
-    const recent = await ctx.db
-      .query("feedbackPosts")
+    const sub = await ctx.db
+      .query("subscriptions")
       .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
-      .order("desc")
       .first();
+    const isPlus = sub?.status === "active" || sub?.status === "past_due";
 
-    if (recent && Date.now() - recent.createdAt < TWENTY_FOUR_HOURS) {
-      const hoursLeft = Math.ceil((TWENTY_FOUR_HOURS - (Date.now() - recent.createdAt)) / (60 * 60 * 1000));
-      throw new Error(`rate_limit:${hoursLeft}`);
+    if (!isPlus) {
+      const recent = await ctx.db
+        .query("feedbackPosts")
+        .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+        .order("desc")
+        .first();
+
+      if (recent && Date.now() - recent.createdAt < TWENTY_FOUR_HOURS) {
+        const hoursLeft = Math.ceil((TWENTY_FOUR_HOURS - (Date.now() - recent.createdAt)) / (60 * 60 * 1000));
+        throw new Error(`rate_limit:${hoursLeft}`);
+      }
     }
 
     return await ctx.db.insert("feedbackPosts", {
@@ -168,17 +176,24 @@ export const reply = mutation({
     const post = await ctx.db.get(postId);
     if (!post) return null;
 
-    // Rate limit: MAX_REPLIES_PER_DAY replies per 24 hours
-    const dayAgo = Date.now() - TWENTY_FOUR_HOURS;
-    const recentReplies = await ctx.db
-      .query("feedbackReplies")
+    const sub = await ctx.db
+      .query("subscriptions")
       .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
-      .order("desc")
-      .take(MAX_REPLIES_PER_DAY + 1);
+      .first();
+    const isPlus = sub?.status === "active" || sub?.status === "past_due";
 
-    const recentCount = recentReplies.filter((r) => r.createdAt > dayAgo).length;
-    if (recentCount >= MAX_REPLIES_PER_DAY) {
-      throw new Error("reply_rate_limit");
+    if (!isPlus) {
+      const dayAgo = Date.now() - TWENTY_FOUR_HOURS;
+      const recentReplies = await ctx.db
+        .query("feedbackReplies")
+        .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+        .order("desc")
+        .take(MAX_REPLIES_PER_DAY + 1);
+
+      const recentCount = recentReplies.filter((r) => r.createdAt > dayAgo).length;
+      if (recentCount >= MAX_REPLIES_PER_DAY) {
+        throw new Error("reply_rate_limit");
+      }
     }
 
     return await ctx.db.insert("feedbackReplies", {
