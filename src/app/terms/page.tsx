@@ -9,72 +9,69 @@ export const metadata: Metadata = {
 export default function TermsPage() {
   return (
     <LegalPage title="Terms of Service" lastUpdated="April 5, 2026">
-      {(t) => (
-        <>
-          <p>These Terms of Service govern your use of Boardtivity, available at boardtivity.com. By using Boardtivity, you agree to these terms. If you don't agree, please don't use the service. Questions? Email <a href="mailto:contact@boardtivity.com" style={{ color: t.link, fontWeight: 600 }}>contact@boardtivity.com</a>.</p>
+      <p>These Terms of Service govern your use of Boardtivity, available at boardtivity.com. By using Boardtivity, you agree to these terms. If you don't agree, please don't use the service. Questions? Email <a href="mailto:contact@boardtivity.com" style={a}>contact@boardtivity.com</a>.</p>
 
-          <h2 style={h2(t.h2)}>1. Who We Are</h2>
-          <p>Boardtivity is operated as a sole proprietorship under the name Boardtivity, run by a single founder. "We", "us", and "our" mean Boardtivity.</p>
+      <h2 style={h2}>1. Who We Are</h2>
+      <p>Boardtivity is operated as a sole proprietorship under the name Boardtivity, run by a single founder. "We", "us", and "our" mean Boardtivity.</p>
 
-          <h2 style={h2(t.h2)}>2. Acceptance</h2>
-          <p>By creating an account or using Boardtivity, you confirm that you're at least 13 years old, have the legal capacity to enter this agreement, and agree to these Terms and our Privacy Policy.</p>
+      <h2 style={h2}>2. Acceptance</h2>
+      <p>By creating an account or using Boardtivity, you confirm that you're at least 13 years old, have the legal capacity to enter this agreement, and agree to these Terms and our Privacy Policy.</p>
 
-          <h2 style={h2(t.h2)}>3. What the Service Is</h2>
-          <p>Boardtivity is a productivity tool for organizing tasks, ideas, and thoughts on visual boards. We offer a free tier with core functionality and a Plus tier ($6/mo) with additional features. We may change, add, or remove features at any time — we'll communicate significant changes.</p>
+      <h2 style={h2}>3. What the Service Is</h2>
+      <p>Boardtivity is a productivity tool for organizing tasks, ideas, and thoughts on visual boards. We offer a free tier with core functionality and a Plus tier ($6/mo) with additional features. We may change, add, or remove features at any time — we'll communicate significant changes.</p>
 
-          <h2 style={h2(t.h2)}>4. Your Account</h2>
-          <p>You're responsible for keeping your credentials secure and for all activity that happens under your account. Don't share your password. If you think your account has been compromised, contact us immediately.</p>
+      <h2 style={h2}>4. Your Account</h2>
+      <p>You're responsible for keeping your credentials secure and for all activity that happens under your account. Don't share your password. If you think your account has been compromised, contact us immediately.</p>
 
-          <h2 style={h2(t.h2)}>5. What You Can't Do</h2>
-          <p>You agree not to use Boardtivity to:</p>
-          <ul style={ul}>
-            <li>Store or share illegal content of any kind</li>
-            <li>Harass, threaten, or harm other users</li>
-            <li>Attempt to access other users' accounts or data</li>
-            <li>Reverse engineer, scrape, or abuse the service</li>
-            <li>Use automated scripts that degrade performance for others</li>
-            <li>Violate any applicable law or regulation</li>
-          </ul>
-          <p>We trust users to act in good faith. Violations may result in account termination.</p>
+      <h2 style={h2}>5. What You Can't Do</h2>
+      <p>You agree not to use Boardtivity to:</p>
+      <ul style={ul}>
+        <li>Store or share illegal content of any kind</li>
+        <li>Harass, threaten, or harm other users</li>
+        <li>Attempt to access other users' accounts or data</li>
+        <li>Reverse engineer, scrape, or abuse the service</li>
+        <li>Use automated scripts that degrade performance for others</li>
+        <li>Violate any applicable law or regulation</li>
+      </ul>
+      <p>We trust users to act in good faith. Violations may result in account termination.</p>
 
-          <h2 style={h2(t.h2)}>6. Your Content</h2>
-          <p><strong>You own your content.</strong> Everything you create on Boardtivity — boards, cards, notes — belongs to you. By using the service, you give us a limited license to store and display your content for the sole purpose of running the service. We don't claim ownership of anything you create, and we won't use your content for any other purpose.</p>
+      <h2 style={h2}>6. Your Content</h2>
+      <p><strong>You own your content.</strong> Everything you create on Boardtivity — boards, cards, notes — belongs to you. By using the service, you give us a limited license to store and display your content for the sole purpose of running the service. We don't claim ownership of anything you create, and we won't use your content for any other purpose.</p>
 
-          <h2 style={h2(t.h2)}>7. Our Intellectual Property</h2>
-          <p>Boardtivity's design, code, branding, and all non-user content are owned by Boardtivity. These Terms don't give you any rights to our intellectual property beyond normal use of the service.</p>
+      <h2 style={h2}>7. Our Intellectual Property</h2>
+      <p>Boardtivity's design, code, branding, and all non-user content are owned by Boardtivity. These Terms don't give you any rights to our intellectual property beyond normal use of the service.</p>
 
-          <h2 style={h2(t.h2)}>8. Service Availability</h2>
-          <p>We do our best to keep Boardtivity running, but we make no uptime guarantees. The service may be unavailable due to maintenance, outages, or issues with our infrastructure providers. We're not liable for losses resulting from downtime.</p>
+      <h2 style={h2}>8. Service Availability</h2>
+      <p>We do our best to keep Boardtivity running, but we make no uptime guarantees. The service may be unavailable due to maintenance, outages, or issues with our infrastructure providers. We're not liable for losses resulting from downtime.</p>
 
-          <h2 style={h2(t.h2)}>9. Payments and Billing</h2>
-          <p>Boardtivity offers a free tier and a paid Plus tier at $6/month, billed via Stripe. By subscribing, you authorize us to charge your payment method on a recurring monthly basis. You can cancel anytime — your Plus access continues until the end of the current billing period, after which your account reverts to the free tier. We do not offer refunds for partial months. Pricing may change with 30 days' notice.</p>
+      <h2 style={h2}>9. Payments and Billing</h2>
+      <p>Boardtivity offers a free tier and a paid Plus tier at $6/month, billed via Stripe. By subscribing, you authorize us to charge your payment method on a recurring monthly basis. You can cancel anytime — your Plus access continues until the end of the current billing period, after which your account reverts to the free tier. We do not offer refunds for partial months. Pricing may change with 30 days' notice.</p>
 
-          <h2 style={h2(t.h2)}>10. Termination</h2>
-          <p><strong>You</strong> can close your account at any time by emailing <a href="mailto:contact@boardtivity.com" style={{ color: t.link, fontWeight: 600 }}>contact@boardtivity.com</a>. We'll delete your account and content promptly.</p>
-          <p><strong>We</strong> may suspend or terminate your account if we believe you've violated these Terms or are harming the platform or other users. We'll give fair warning when possible.</p>
+      <h2 style={h2}>10. Termination</h2>
+      <p><strong>You</strong> can close your account at any time by emailing <a href="mailto:contact@boardtivity.com" style={a}>contact@boardtivity.com</a>. We'll delete your account and content promptly.</p>
+      <p><strong>We</strong> may suspend or terminate your account if we believe you've violated these Terms or are harming the platform or other users. We'll give fair warning when possible.</p>
 
-          <h2 style={h2(t.h2)}>11. Limitation of Liability</h2>
-          <p>Boardtivity is provided "as is" without warranties of any kind. To the fullest extent permitted by law, we're not liable for any indirect, incidental, or consequential damages from your use of the service. Our total liability for any claim is limited to the amount you paid us in the 12 months before the claim — or $0 if you're on the free tier.</p>
+      <h2 style={h2}>11. Limitation of Liability</h2>
+      <p>Boardtivity is provided "as is" without warranties of any kind. To the fullest extent permitted by law, we're not liable for any indirect, incidental, or consequential damages from your use of the service. Our total liability for any claim is limited to the amount you paid us in the 12 months before the claim — or $0 if you're on the free tier.</p>
 
-          <h2 style={h2(t.h2)}>12. Indemnification</h2>
-          <p>You agree to hold Boardtivity harmless from any claims, losses, or damages arising from your use of the service, your content, or your violation of these Terms.</p>
+      <h2 style={h2}>12. Indemnification</h2>
+      <p>You agree to hold Boardtivity harmless from any claims, losses, or damages arising from your use of the service, your content, or your violation of these Terms.</p>
 
-          <h2 style={h2(t.h2)}>13. Changes to Terms</h2>
-          <p>We may update these Terms over time. We'll update the date at the top and notify you by email for material changes. Continued use after a change means you accept the updated Terms.</p>
+      <h2 style={h2}>13. Changes to Terms</h2>
+      <p>We may update these Terms over time. We'll update the date at the top and notify you by email for material changes. Continued use after a change means you accept the updated Terms.</p>
 
-          <h2 style={h2(t.h2)}>14. Governing Law</h2>
-          <p>These Terms are governed by the laws of the Province of Ontario and the federal laws of Canada applicable therein. Any disputes will be resolved in the courts of Ontario, Canada.</p>
+      <h2 style={h2}>14. Governing Law</h2>
+      <p>These Terms are governed by the laws of the Province of Ontario and the federal laws of Canada applicable therein. Any disputes will be resolved in the courts of Ontario, Canada.</p>
 
-          <h2 style={h2(t.h2)}>15. Entire Agreement</h2>
-          <p>These Terms and our Privacy Policy constitute the entire agreement between you and Boardtivity regarding your use of the service.</p>
+      <h2 style={h2}>15. Entire Agreement</h2>
+      <p>These Terms and our Privacy Policy constitute the entire agreement between you and Boardtivity regarding your use of the service.</p>
 
-          <h2 style={h2(t.h2)}>16. Contact</h2>
-          <p>Questions about these Terms? Email <a href="mailto:contact@boardtivity.com" style={{ color: t.link, fontWeight: 600 }}>contact@boardtivity.com</a>.</p>
-        </>
-      )}
+      <h2 style={h2}>16. Contact</h2>
+      <p>Questions about these Terms? Email <a href="mailto:contact@boardtivity.com" style={a}>contact@boardtivity.com</a>.</p>
     </LegalPage>
   );
 }
 
-const h2 = (color: string): React.CSSProperties => ({ fontSize: 19, fontWeight: 800, letterSpacing: "-.02em", marginTop: 44, marginBottom: 10, color });
+const h2: React.CSSProperties = { fontSize: 19, fontWeight: 800, letterSpacing: "-.02em", marginTop: 44, marginBottom: 10, color: "var(--legal-text)" };
+const a: React.CSSProperties = { color: "var(--legal-link)", fontWeight: 600 };
 const ul: React.CSSProperties = { paddingLeft: 20, marginBottom: 16 };
