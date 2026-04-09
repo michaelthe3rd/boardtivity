@@ -282,8 +282,8 @@ export default function BobAgent({
     const msg = (message ?? inputText).trim();
     if (!msg || streaming) return;
 
-    // Quota check — block if free tier is exhausted
-    if (usage !== undefined && usage !== null && usage.remaining <= 0) {
+    // Quota check — block if Plus monthly limit is exhausted
+    if (usage !== undefined && usage !== null && usage.isPlus && usage.remaining <= 0) {
       setMessages(prev => [
         ...prev,
         { role: "user", content: msg },
@@ -514,14 +514,25 @@ export default function BobAgent({
           opacity: contentOpacity, transition: contentTransition,
           pointerEvents: isExpanded ? "auto" : "none",
         }}>
-          {!isAdmin ? (
-            /* Coming soon for non-admins */
-            <div style={{ padding: "20px 18px 22px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, textAlign: "center" }}>
+          {(!isAdmin && !usage?.isPlus) ? (
+            /* Plus-only gate */
+            <div style={{ padding: "20px 18px 22px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10, textAlign: "center" }}>
               <BobIcon size={28} color={mu} />
-              <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.12em", color: mu, textTransform: "uppercase", fontFamily: "'Satoshi', Arial, sans-serif" }}>Coming Soon</span>
-              <span style={{ fontSize: 12, color: mu, lineHeight: 1.55, maxWidth: 280, fontFamily: "'Satoshi', Arial, sans-serif" }}>
-                BOB — your AI board brain for smart prioritization, voice tasks, and quick sweeps.
-              </span>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: ic, fontFamily: "'Satoshi', Arial, sans-serif" }}>BOB is a Plus feature</span>
+                <span style={{ fontSize: 12, color: mu, lineHeight: 1.55, maxWidth: 260, fontFamily: "'Satoshi', Arial, sans-serif" }}>
+                  Your AI board brain — smart prioritization, voice tasks, autopilot sweeps, and more.
+                </span>
+              </div>
+              <a
+                href="/billing"
+                style={{
+                  display: "inline-block", padding: "7px 18px", borderRadius: 99,
+                  background: t === "dark" ? "rgba(255,255,255,.12)" : "rgba(17,19,21,.1)",
+                  color: ic, fontSize: 12, fontWeight: 700,
+                  textDecoration: "none", fontFamily: "'Satoshi', Arial, sans-serif",
+                }}
+              >Upgrade to Plus →</a>
             </div>
           ) : (
             <>
@@ -699,19 +710,8 @@ export default function BobAgent({
                 }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <span style={{ fontSize: 10.5, color: mu, fontFamily: "'Satoshi', Arial, sans-serif" }}>
-                      {usage.totalUsed.toLocaleString()} / {(usage.baseLimit + usage.purchasedTokens).toLocaleString()} tokens
-                      {usage.isPlus ? " (Plus)" : ""}
+                      {usage.totalUsed.toLocaleString()} / {(usage.baseLimit + usage.purchasedTokens).toLocaleString()} tokens this month
                     </span>
-                    {!usage.isPlus && (
-                      <a
-                        href="/billing"
-                        style={{
-                          fontSize: 10.5, color: t === "dark" ? "rgba(160,130,255,.85)" : "rgba(100,60,200,.8)",
-                          textDecoration: "none", fontFamily: "'Satoshi', Arial, sans-serif",
-                          fontWeight: 600,
-                        }}
-                      >Upgrade</a>
-                    )}
                   </div>
                   <div style={{
                     height: 3, borderRadius: 99,

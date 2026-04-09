@@ -1,8 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
-export const FREE_TOKEN_LIMIT  = 50_000;
-export const PLUS_TOKEN_LIMIT  = 2_000_000;
+export const PLUS_TOKEN_LIMIT = 500_000;
 
 function currentMonth(): string {
   return new Date().toISOString().slice(0, 7); // "YYYY-MM"
@@ -28,20 +27,19 @@ export const getUsage = query({
       .first();
     const isPlus = sub?.status === "active" || sub?.status === "past_due";
 
-    const inputTokens    = usage?.inputTokens    ?? 0;
-    const outputTokens   = usage?.outputTokens   ?? 0;
+    const inputTokens     = usage?.inputTokens    ?? 0;
+    const outputTokens    = usage?.outputTokens   ?? 0;
     const purchasedTokens = usage?.purchasedTokens ?? 0;
-    const totalUsed      = inputTokens + outputTokens;
-    const baseLimit      = isPlus ? PLUS_TOKEN_LIMIT : FREE_TOKEN_LIMIT;
+    const totalUsed       = inputTokens + outputTokens;
 
     return {
       inputTokens,
       outputTokens,
       totalUsed,
       purchasedTokens,
-      baseLimit,
+      baseLimit: PLUS_TOKEN_LIMIT,
       isPlus,
-      remaining: Math.max(0, baseLimit + purchasedTokens - totalUsed),
+      remaining: isPlus ? Math.max(0, PLUS_TOKEN_LIMIT + purchasedTokens - totalUsed) : 0,
     };
   },
 });
