@@ -7,6 +7,7 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
+    <div style={{ minHeight: "100vh", backgroundColor: "#ffffff", color: "#1a1a18" }}>
     <div style={{ maxWidth: 680, margin: "0 auto", padding: "60px 24px 100px", fontFamily: "'Satoshi', Arial, sans-serif", color: "#1a1a18", lineHeight: 1.8 }}>
       <div style={{ marginBottom: 48 }}>
         <a href="/" style={{ fontSize: 13, color: "rgba(17,19,21,.45)", textDecoration: "none", fontWeight: 600 }}>← Back to Boardtivity</a>
@@ -82,6 +83,7 @@ export default function PrivacyPage() {
         <a href="/terms" style={{ color: "rgba(17,19,21,.45)", marginRight: 20, textDecoration: "none", fontWeight: 600 }}>Terms of Service</a>
         <a href="/" style={{ color: "rgba(17,19,21,.45)", textDecoration: "none", fontWeight: 600 }}>Back to Boardtivity</a>
       </div>
+    </div>
     </div>
   );
 }
