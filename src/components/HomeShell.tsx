@@ -998,11 +998,21 @@ export function HomeShell() {
 
     const blob = new Blob([lines.join("\r\n")], { type: "text/calendar;charset=utf-8" });
     const url  = URL.createObjectURL(blob);
-    const a    = document.createElement("a");
-    a.href     = url;
-    a.download = "boardtivity-tasks.ics";
-    a.click();
-    URL.revokeObjectURL(url);
+
+    // iOS Safari doesn't support the download attribute — open in new tab
+    // which triggers the native "Add to Calendar" / "Open in Calendar" prompt
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    if (isIOS) {
+      window.open(url, "_blank");
+      // Revoke after a short delay so the new tab can read the blob
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    } else {
+      const a    = document.createElement("a");
+      a.href     = url;
+      a.download = "boardtivity-tasks.ics";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
   }
 
   function currentBoardState() {
@@ -2339,6 +2349,17 @@ export function HomeShell() {
                     <p style={{ fontSize: 12, color: muted(theme), margin: "14px 0 0", lineHeight: 1.5 }}>
                       Sent to {user?.emailAddresses?.[0]?.emailAddress ?? "your email"}.
                     </p>
+                    <div style={{ marginTop: 24, display: "flex", flexDirection: "column", gap: 8 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: pageText(theme) }}>Calendar</div>
+                      <button
+                        onClick={() => { exportToIcs(); setMobileSettingsOpen(false); }}
+                        disabled={!notes.some(n => n.dueDate && !n.completed)}
+                        style={{ height: 48, borderRadius: 14, border: "none", backgroundColor: theme === "dark" ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.06)", color: pageText(theme), fontSize: 15, fontWeight: 600, cursor: "pointer", opacity: notes.some(n => n.dueDate && !n.completed) ? 1 : 0.4 }}
+                      >Export tasks to calendar</button>
+                      <p style={{ fontSize: 12, color: muted(theme), margin: 0, lineHeight: 1.5 }}>
+                        Exports tasks with due dates. Opens in Apple Calendar or import into Google Calendar.
+                      </p>
+                    </div>
                     <button onClick={() => setMobileSettingsOpen(false)} style={{ marginTop: 20, height: 48, borderRadius: 14, border: "none", backgroundColor: theme === "dark" ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.06)", color: pageText(theme), fontSize: 15, fontWeight: 700, cursor: "pointer" }}>Done</button>
                   </div>
                 </div>
