@@ -10,6 +10,7 @@
 
 import type * as admin from "../admin.js";
 import type * as boards from "../boards.js";
+import type * as bob from "../bob.js";
 import type * as crons from "../crons.js";
 import type * as emailPrefs from "../emailPrefs.js";
 import type * as emails from "../emails.js";
@@ -28,6 +29,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   admin: typeof admin;
   boards: typeof boards;
+  bob: typeof bob;
   crons: typeof crons;
   emailPrefs: typeof emailPrefs;
   emails: typeof emails;

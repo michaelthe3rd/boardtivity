@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
 import type { ThemeMode, Note, Importance } from "@/lib/board";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -184,6 +186,10 @@ export default function BobAgent({
   // Mode
   const [mode, setMode] = useState<Mode>("assistant");
 
+  // Usage tracking
+  const usage       = useQuery(api.bob.getUsage);
+  const recordUsage = useMutation(api.bob.recordUsage);
+
   // Voice
   const [listening, setListening] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -275,6 +281,17 @@ export default function BobAgent({
   async function send(message?: string) {
     const msg = (message ?? inputText).trim();
     if (!msg || streaming) return;
+
+    // Quota check — block if free tier is exhausted
+    if (usage !== undefined && usage !== null && usage.remaining <= 0) {
+      setMessages(prev => [
+        ...prev,
+        { role: "user", content: msg },
+        { role: "bob", content: "You've used your monthly BOB tokens. Upgrade to Plus or buy credits to continue." },
+      ]);
+      setInputText("");
+      return;
+    }
     setInputText("");
 
     // Undo detection — handle locally without API call
@@ -331,6 +348,8 @@ export default function BobAgent({
                 next[next.length - 1] = { role: "bob", content: bobText, streaming: true };
                 return next;
               });
+            } else if (data.type === "usage") {
+              recordUsage({ inputTokens: data.inputTokens, outputTokens: data.outputTokens }).catch(() => {});
             } else if (data.type === "tool") {
               executeTool(data.name, data.input);
             } else if (data.type === "done") {
@@ -652,7 +671,7 @@ export default function BobAgent({
               {/* ── Mode selector ── */}
               <div style={{
                 display: "flex", alignItems: "center", justifyContent: "center",
-                gap: 4, padding: "8px 10px 10px",
+                gap: 4, padding: "8px 10px 8px",
                 borderTop: `1px solid ${T.border(t)}`,
               }}>
                 {(["advisor", "assistant", "autopilot"] as Mode[]).map(m => (
@@ -670,6 +689,48 @@ export default function BobAgent({
                   >{MODE_LABELS[m]}</button>
                 ))}
               </div>
+
+              {/* ── Usage meter ── */}
+              {usage && (
+                <div style={{
+                  padding: "6px 14px 10px",
+                  borderTop: `1px solid ${T.border(t)}`,
+                  display: "flex", flexDirection: "column", gap: 5,
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: 10.5, color: mu, fontFamily: "'Satoshi', Arial, sans-serif" }}>
+                      {usage.totalUsed.toLocaleString()} / {(usage.baseLimit + usage.purchasedTokens).toLocaleString()} tokens
+                      {usage.isPlus ? " (Plus)" : ""}
+                    </span>
+                    {!usage.isPlus && (
+                      <a
+                        href="/billing"
+                        style={{
+                          fontSize: 10.5, color: t === "dark" ? "rgba(160,130,255,.85)" : "rgba(100,60,200,.8)",
+                          textDecoration: "none", fontFamily: "'Satoshi', Arial, sans-serif",
+                          fontWeight: 600,
+                        }}
+                      >Upgrade</a>
+                    )}
+                  </div>
+                  <div style={{
+                    height: 3, borderRadius: 99,
+                    background: t === "dark" ? "rgba(255,255,255,.1)" : "rgba(17,19,21,.1)",
+                    overflow: "hidden",
+                  }}>
+                    <div style={{
+                      height: "100%", borderRadius: 99,
+                      width: `${Math.min(100, (usage.totalUsed / (usage.baseLimit + usage.purchasedTokens)) * 100)}%`,
+                      background: usage.remaining === 0
+                        ? "#e05555"
+                        : usage.remaining < (usage.baseLimit + usage.purchasedTokens) * 0.1
+                        ? "#e08c30"
+                        : t === "dark" ? "rgba(255,255,255,.5)" : "rgba(17,19,21,.4)",
+                      transition: "width .4s ease",
+                    }} />
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>

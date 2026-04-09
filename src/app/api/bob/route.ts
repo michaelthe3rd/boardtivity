@@ -229,6 +229,8 @@ export async function POST(req: NextRequest) {
     const tools = mode === "advisor" ? [] : TOOLS;
 
     const toolBuffers = new Map<number, { name: string; json: string }>();
+    let inputTokens  = 0;
+    let outputTokens = 0;
 
     const response = client.messages.stream({
       model: "claude-haiku-4-5-20251001",
@@ -239,7 +241,11 @@ export async function POST(req: NextRequest) {
     });
 
     for await (const event of response) {
-      if (event.type === "content_block_start") {
+      if (event.type === "message_start") {
+        inputTokens = event.message.usage.input_tokens;
+      } else if (event.type === "message_delta" && event.usage) {
+        outputTokens = event.usage.output_tokens;
+      } else if (event.type === "content_block_start") {
         if (event.content_block.type === "tool_use") {
           toolBuffers.set(event.index, { name: event.content_block.name, json: "" });
         }
@@ -258,6 +264,11 @@ export async function POST(req: NextRequest) {
           toolBuffers.delete(event.index);
         }
       }
+    }
+
+    // Send token counts so the client can record usage in Convex
+    if (inputTokens > 0 || outputTokens > 0) {
+      push({ type: "usage", inputTokens, outputTokens });
     }
 
     push({ type: "done" });

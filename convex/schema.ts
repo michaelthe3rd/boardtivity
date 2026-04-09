@@ -56,6 +56,14 @@ export default defineSchema({
   }).index("by_session", ["sessionId"])
     .index("by_lastSeen", ["lastSeen"]),
 
+  bobUsage: defineTable({
+    tokenIdentifier: v.string(),
+    month: v.string(), // "YYYY-MM"
+    inputTokens: v.number(),
+    outputTokens: v.number(),
+    purchasedTokens: v.number(),
+  }).index("by_token_and_month", ["tokenIdentifier", "month"]),
+
   subscriptions: defineTable({
     tokenIdentifier: v.string(),
     stripeCustomerId: v.string(),
