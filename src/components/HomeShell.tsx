@@ -674,7 +674,6 @@ export function HomeShell() {
   const emailPrefs = useQuery(api.emailPrefs.get);
   const updateEmailPrefs = useMutation(api.emailPrefs.update);
   const savedBoard = useQuery(api.boards.load);
-  const ensureWaitlistLinked = useMutation(api.waitlist.ensureLinked);
   const convexReadyRef = useRef(false);
   const convexSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Set true in effect-2 when we apply cloud data; cleared in effect-3 so we
@@ -962,16 +961,23 @@ export function HomeShell() {
     return JSON.stringify({ boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid });
   }
 
-  async function pushToCloud() {
+  async function pushToCloud(retries = 3) {
     setCloudSyncState("saving");
-    try {
-      const id = savedBoardIdRef.current as import("convex/values").GenericId<"userBoards"> | undefined;
-      const newId = await saveBoard({ boardState: currentBoardState(), id });
-      if (newId && !savedBoardIdRef.current) savedBoardIdRef.current = newId as string;
-      setCloudSyncState("synced");
-    } catch (e) {
-      console.error("[Boardtivity] Convex save failed:", e);
-      setCloudSyncState("error");
+    for (let attempt = 0; attempt < retries; attempt++) {
+      try {
+        const id = savedBoardIdRef.current as import("convex/values").GenericId<"userBoards"> | undefined;
+        const newId = await saveBoard({ boardState: currentBoardState(), id });
+        if (newId && !savedBoardIdRef.current) savedBoardIdRef.current = newId as string;
+        setCloudSyncState("synced");
+        return;
+      } catch (e) {
+        if (attempt < retries - 1) {
+          await new Promise((r) => setTimeout(r, 1500 * Math.pow(2, attempt)));
+        } else {
+          console.error("[Boardtivity] Convex save failed after retries:", e);
+          setCloudSyncState("error");
+        }
+      }
     }
   }
 
@@ -1073,15 +1079,16 @@ export function HomeShell() {
     return () => { window.removeEventListener("pagehide", flush); document.removeEventListener("visibilitychange", onVisibility); };
   }, [isSignedIn, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid]);
 
-  const didJustSignInRef = useRef(false);
-
-  // ── Auto-link signed-in users to waitlist ────────────────────────────────────
+  // ── Error fallback if Convex never connects ──────────────────────────────────
   useEffect(() => {
-    if (!isSignedIn || !user) return;
-    const email = user.emailAddresses?.[0]?.emailAddress;
-    if (!email) return;
-    ensureWaitlistLinked({ email }).catch(() => {});
-  }, [isSignedIn, user?.id]);
+    if (!isSignedIn) return;
+    const timer = setTimeout(() => {
+      setCloudSyncState((s) => (s === "loading" ? "error" : s));
+    }, 15000);
+    return () => clearTimeout(timer);
+  }, [isSignedIn]);
+
+  const didJustSignInRef = useRef(false);
 
   // Sync theme attributes to document root so CSS data-theme rules apply reactively
   useEffect(() => {
@@ -1484,19 +1491,6 @@ export function HomeShell() {
   }
 
   function createNote() {
-    // Enforce idea-per-board limit for free users (1 idea per board)
-    if (activeBoard?.type === "thought" && !isPlus) {
-      const ideaCount = notes.filter(n => n.boardId === activeBoardId).length;
-      if (ideaCount >= 1) {
-        {
-          setUpgradeType("thought");
-          setUpgradeOpen(true);
-          setComposerOpen(false);
-        }
-        return;
-      }
-    }
-
     const nextError = {
       title: !title.trim(),
       dueDate: !thoughtMode && !dueDate,
@@ -3040,7 +3034,11 @@ export function HomeShell() {
 
               {/* Cloud sync indicator — only when signed in */}
               {isSignedIn && (
-                <div title={cloudSyncState === "synced" ? "Synced" : cloudSyncState === "saving" ? "Saving…" : cloudSyncState === "error" ? "Sync error" : "Connecting…"} style={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, backgroundColor: cloudSyncState === "synced" ? "#3db83d" : cloudSyncState === "error" ? "#c03030" : "#c8960a", boxShadow: cloudSyncState === "saving" ? "0 0 0 3px rgba(200,150,10,.25)" : "none", transition: "background-color .3s" }} />
+                <div
+                  title={cloudSyncState === "synced" ? "Synced" : cloudSyncState === "saving" ? "Saving…" : cloudSyncState === "error" ? "Sync error — click to retry" : "Connecting…"}
+                  onClick={cloudSyncState === "error" ? () => { setCloudSyncState("loading"); pushToCloud(); } : undefined}
+                  style={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, backgroundColor: cloudSyncState === "synced" ? "#3db83d" : cloudSyncState === "error" ? "#c03030" : "#c8960a", boxShadow: cloudSyncState === "saving" ? "0 0 0 3px rgba(200,150,10,.25)" : "none", transition: "background-color .3s", cursor: cloudSyncState === "error" ? "pointer" : "default" }}
+                />
               )}
 
               {/* Settings button — gear */}
@@ -3279,9 +3277,12 @@ export function HomeShell() {
                         </span>
                       )}
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: muted(boardTheme) }}>
+                    <div
+                      onClick={cloudSyncState === "error" ? () => { setCloudSyncState("loading"); pushToCloud(); } : undefined}
+                      style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: muted(boardTheme), cursor: cloudSyncState === "error" ? "pointer" : "default" }}
+                    >
                       <span style={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, backgroundColor: cloudSyncState === "synced" ? "#3db83d" : cloudSyncState === "error" ? "#c03030" : "#c8960a" }} />
-                      {cloudSyncState === "synced" ? "Synced" : cloudSyncState === "saving" ? "Saving…" : cloudSyncState === "error" ? "Sync error — check connection" : "Connecting…"}
+                      {cloudSyncState === "synced" ? "Synced" : cloudSyncState === "saving" ? "Saving…" : cloudSyncState === "error" ? "Sync error — tap to retry" : "Connecting…"}
                     </div>
                     {confirmSignOut === "settings" ? (
                       <div style={{ display: "flex", gap: 8 }}>

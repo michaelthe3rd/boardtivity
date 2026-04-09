@@ -73,9 +73,53 @@ export const getUsers = query({
     return users.map((u) => ({
       id: u._id,
       tokenIdentifier: u.tokenIdentifier,
+      email: u.email ?? null,
       updatedAt: u.updatedAt,
       boardStateSize: u.boardState.length,
     }));
+  },
+});
+
+export const getUserBoardDetail = query({
+  args: { id: v.id("userBoards") },
+  handler: async (ctx, { id }) => {
+    if (!(await isAdmin(ctx))) return null;
+    const user = await ctx.db.get(id);
+    if (!user) return null;
+    try {
+      const data = JSON.parse(user.boardState) as {
+        boards?: { id: string; name: string }[];
+        notes?: { type: string; title: string; completed: boolean; dueDate?: string; boardId: string; importance: string; steps?: { done: boolean }[] }[];
+      };
+      const boards = data.boards ?? [];
+      const notes = data.notes ?? [];
+      const tasks = notes.filter((n) => n.type === "task");
+      const isPending = (t: typeof tasks[number]) =>
+        !t.completed && !(t.steps && t.steps.length > 0 && t.steps.every((s) => s.done));
+      return {
+        email: user.email ?? null,
+        updatedAt: user.updatedAt,
+        boards: boards.map((b) => ({
+          id: b.id,
+          name: b.name,
+          total: tasks.filter((t) => t.boardId === b.id).length,
+          pending: tasks.filter((t) => t.boardId === b.id && isPending(t)).length,
+        })),
+        totalTasks: tasks.length,
+        pendingTasks: tasks.filter(isPending).length,
+        pendingList: tasks
+          .filter(isPending)
+          .slice(0, 20)
+          .map((t) => ({
+            title: t.title,
+            dueDate: t.dueDate ?? null,
+            importance: t.importance,
+            boardId: t.boardId,
+          })),
+      };
+    } catch {
+      return { email: user.email ?? null, updatedAt: user.updatedAt, boards: [], totalTasks: 0, pendingTasks: 0, pendingList: [] };
+    }
   },
 });
 

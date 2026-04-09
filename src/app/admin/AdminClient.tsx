@@ -156,6 +156,7 @@ export default function AdminClient() {
   const [unlocked, setUnlocked] = useState(false);
   const [tab, setTab] = useState<Tab>("overview");
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [isDark, setIsDark] = useState(true);
   const [bulbFlicker, setBulbFlicker] = useState(false);
 
@@ -168,6 +169,11 @@ export default function AdminClient() {
   const waitlist = useQuery(api.admin.getWaitlist);
   const analytics = useQuery(api.admin.getAnalytics);
   const sessionStats = useQuery(api.admin.getSessionStats);
+
+  const boardDetail = useQuery(
+    api.admin.getUserBoardDetail,
+    selectedUserId ? { id: selectedUserId as Id<"userBoards"> } : "skip"
+  );
 
   const deletePost = useMutation(api.admin.adminDeletePost);
   const deleteWaitlist = useMutation(api.admin.adminDeleteWaitlist);
@@ -486,27 +492,85 @@ export default function AdminClient() {
               <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-.03em", color: t.titleText, marginBottom: 4 }}>Users</div>
               <div style={{ fontSize: 14, color: t.subText, marginBottom: 28 }}>{stats.totalUsers} registered accounts.</div>
             </div>
-            <div style={{ padding: "0 32px 40px" }}>
+            <div style={{ padding: "0 32px 40px", display: "flex", flexDirection: "column", gap: 16 }}>
               <div style={card({ overflow: "hidden" })}>
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                  <thead><tr>{["Token identifier", "Last active", "Data size", ""].map(h => <th key={h} style={tableHead}>{h}</th>)}</tr></thead>
+                  <thead><tr>{["Email / token", "Last active", "Data size", ""].map(h => <th key={h} style={tableHead}>{h}</th>)}</tr></thead>
                   <tbody>
                     {users?.map((u) => (
-                      <tr key={u.id}>
-                        <td style={{ ...tableCell, fontFamily: "monospace", color: t.tableBodyText, fontSize: 11 }}>{maskToken(u.tokenIdentifier)}</td>
-                        <td style={{ ...tableCell, color: t.tableBodyText }}>{fmt(u.updatedAt)}</td>
-                        <td style={{ ...tableCell, color: t.tableBodyText }}>{fmtBytes(u.boardStateSize)}</td>
-                        <td style={tableCell}>
-                          {confirmDelete === u.id ? (
+                      <>
+                        <tr key={u.id} style={{ backgroundColor: selectedUserId === u.id ? (isDark ? "rgba(255,255,255,.04)" : "rgba(0,0,0,.03)") : undefined }}>
+                          <td style={{ ...tableCell, color: t.tableBodyText }}>
+                            {u.email
+                              ? <span style={{ fontSize: 13 }}>{u.email}</span>
+                              : <span style={{ fontFamily: "monospace", fontSize: 11 }}>{maskToken(u.tokenIdentifier)}</span>}
+                          </td>
+                          <td style={{ ...tableCell, color: t.tableBodyText }}>{fmt(u.updatedAt)}</td>
+                          <td style={{ ...tableCell, color: t.tableBodyText }}>{fmtBytes(u.boardStateSize)}</td>
+                          <td style={tableCell}>
                             <span style={{ display: "flex", gap: 6 }}>
-                              <button onClick={() => { deleteUser({ id: u.id as Id<"userBoards"> }); setConfirmDelete(null); }} style={dangerBtn}>Confirm</button>
-                              <button onClick={() => setConfirmDelete(null)} style={cancelBtn}>Cancel</button>
+                              <button onClick={() => setSelectedUserId(selectedUserId === u.id ? null : u.id)} style={ghostBtn}>
+                                {selectedUserId === u.id ? "Hide" : "View"}
+                              </button>
+                              {confirmDelete === u.id ? (
+                                <>
+                                  <button onClick={() => { deleteUser({ id: u.id as Id<"userBoards"> }); setConfirmDelete(null); setSelectedUserId(null); }} style={dangerBtn}>Confirm</button>
+                                  <button onClick={() => setConfirmDelete(null)} style={cancelBtn}>Cancel</button>
+                                </>
+                              ) : (
+                                <button onClick={() => setConfirmDelete(u.id)} style={ghostBtn}>Delete</button>
+                              )}
                             </span>
-                          ) : (
-                            <button onClick={() => setConfirmDelete(u.id)} style={ghostBtn}>Delete</button>
-                          )}
-                        </td>
-                      </tr>
+                          </td>
+                        </tr>
+                        {selectedUserId === u.id && (
+                          <tr key={`${u.id}-detail`}>
+                            <td colSpan={4} style={{ padding: "0 18px 16px", borderBottom: `1px solid ${t.tableRowBorder}` }}>
+                              {!boardDetail ? (
+                                <div style={{ fontSize: 13, color: t.mutedText, padding: "12px 0" }}>Loading…</div>
+                              ) : (
+                                <div style={{ padding: "12px 0", display: "flex", flexDirection: "column", gap: 12 }}>
+                                  {/* Board summary */}
+                                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                    {boardDetail.boards.map((b) => (
+                                      <div key={b.id} style={{ backgroundColor: isDark ? "rgba(255,255,255,.06)" : "rgba(0,0,0,.05)", borderRadius: 8, padding: "6px 12px" }}>
+                                        <div style={{ fontSize: 12, fontWeight: 700, color: t.titleText }}>{b.name}</div>
+                                        <div style={{ fontSize: 11, color: t.mutedText }}>{b.pending} pending / {b.total} total</div>
+                                      </div>
+                                    ))}
+                                    {boardDetail.boards.length === 0 && (
+                                      <div style={{ fontSize: 13, color: t.mutedText }}>No boards found.</div>
+                                    )}
+                                  </div>
+                                  {/* Pending tasks */}
+                                  {boardDetail.pendingList.length > 0 && (
+                                    <div>
+                                      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", color: t.mutedText, marginBottom: 6 }}>
+                                        Pending tasks ({boardDetail.pendingTasks})
+                                      </div>
+                                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                        {boardDetail.pendingList.map((task, i) => {
+                                          const impColor = task.importance === "High" ? "#c03030" : task.importance === "Medium" ? "#b07010" : t.mutedText;
+                                          return (
+                                            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+                                              <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: impColor, flexShrink: 0 }} />
+                                              <span style={{ color: t.tableBodyText, flex: 1 }}>{task.title}</span>
+                                              {task.dueDate && <span style={{ fontSize: 11, color: t.mutedText }}>{task.dueDate}</span>}
+                                            </div>
+                                          );
+                                        })}
+                                        {boardDetail.pendingTasks > 20 && (
+                                          <div style={{ fontSize: 12, color: t.mutedText }}>+{boardDetail.pendingTasks - 20} more</div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        )}
+                      </>
                     ))}
                   </tbody>
                 </table>

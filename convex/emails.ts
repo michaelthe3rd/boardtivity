@@ -35,7 +35,7 @@ export const getUsersForDigest = internalQuery({
   args: { digestType: v.union(v.literal("daily"), v.literal("weekly")) },
   handler: async (ctx, { digestType }) => {
     const users = await ctx.db.query("userBoards").take(2000);
-    const result: { email: string; boardState: string; name?: string }[] = [];
+    const byEmail = new Map<string, { email: string; boardState: string; updatedAt: number }>();
 
     for (const user of users) {
       if (!user.email) continue;
@@ -50,10 +50,16 @@ export const getUsersForDigest = internalQuery({
         : (prefs ? prefs.weeklyDigest : true);
 
       if (!enabled) continue;
-      result.push({ email: user.email, boardState: user.boardState });
+
+      // Keep only the most recently updated entry per email address to avoid
+      // duplicate sends when a user has two accounts with the same email.
+      const existing = byEmail.get(user.email);
+      if (!existing || user.updatedAt > existing.updatedAt) {
+        byEmail.set(user.email, { email: user.email, boardState: user.boardState, updatedAt: user.updatedAt });
+      }
     }
 
-    return result;
+    return Array.from(byEmail.values());
   },
 });
 
