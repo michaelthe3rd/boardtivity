@@ -51,7 +51,7 @@ export default function TermsPage() {
       <p>We do our best to keep Boardtivity running, but we make no uptime guarantees at this stage. The service may be unavailable due to maintenance, outages, or issues with our infrastructure providers. We're not liable for losses resulting from downtime.</p>
 
       <h2 style={h2}>9. Payments and Billing</h2>
-      <p>A Plus tier with paid features is planned but not yet active. When billing launches, the specific terms (pricing, refunds, cancellation) will be updated here. Until then, all features are provided free of charge with no payment obligations.</p>
+      <p>Boardtivity offers a free tier and a paid Plus tier at $6/month, billed via Stripe. By subscribing, you authorize us to charge your payment method on a recurring monthly basis. You can cancel anytime — your Plus access continues until the end of the current billing period, after which your account reverts to the free tier. We do not offer refunds for partial months. Pricing may change with 30 days' notice.</p>
 
       <h2 style={h2}>10. Termination</h2>
       <p><strong>You</strong> can close your account at any time by emailing <a href="mailto:contact@boardtivity.com" style={a}>contact@boardtivity.com</a>. We'll delete your account and content promptly.</p>

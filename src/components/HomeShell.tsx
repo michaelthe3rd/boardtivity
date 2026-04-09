@@ -3300,6 +3300,11 @@ export function HomeShell() {
                   </>
                 )}
               </div>
+              <div style={{ textAlign: "center", paddingTop: 12, fontSize: 11, color: muted(boardTheme) }}>
+                <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: muted(boardTheme), textDecoration: "none" }}>Terms</a>
+                <span style={{ margin: "0 6px" }}>·</span>
+                <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: muted(boardTheme), textDecoration: "none" }}>Privacy</a>
+              </div>
             </div>
           </div>
 
@@ -4968,6 +4973,11 @@ export function HomeShell() {
             >
               Maybe later
             </button>
+            <div style={{ textAlign: "center", marginTop: 10, fontSize: 11, color: muted(theme) }}>
+              <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: muted(theme), textDecoration: "none" }}>Terms</a>
+              <span style={{ margin: "0 6px" }}>·</span>
+              <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: muted(theme), textDecoration: "none" }}>Privacy</a>
+            </div>
           </div>
         </div>
       )}
