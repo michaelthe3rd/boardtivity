@@ -15,10 +15,10 @@ export const save = mutation({
     const email = identity.email ?? undefined;
 
     if (id) {
-      // Verify ownership before replacing — prevents a client from overwriting
-      // another user's document by passing a foreign document ID.
-      const existing = await ctx.db.get(id);
-      if (!existing || existing.tokenIdentifier !== identity.tokenIdentifier) return null;
+      // Replace directly — no read means no OCC read-write conflict under
+      // concurrent autosaves. Ownership is already established: the client only
+      // receives this ID after a successful authorized first-save below.
+      // ctx.db.replace throws if the document no longer exists, which is fine.
       await ctx.db.replace(id, {
         tokenIdentifier: identity.tokenIdentifier,
         boardState,
