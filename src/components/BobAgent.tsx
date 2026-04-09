@@ -702,35 +702,44 @@ export default function BobAgent({
               </div>
 
               {/* ── Usage meter ── */}
-              {usage && (
-                <div style={{
-                  padding: "6px 14px 10px",
-                  borderTop: `1px solid ${T.border(t)}`,
-                  display: "flex", flexDirection: "column", gap: 5,
-                }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <span style={{ fontSize: 10.5, color: mu, fontFamily: "'Satoshi', Arial, sans-serif" }}>
-                      {usage.totalUsed.toLocaleString()} / {(usage.baseLimit + usage.purchasedTokens).toLocaleString()} tokens this month
-                    </span>
-                  </div>
+              {usage && (() => {
+                const cap = usage.baseLimit + usage.purchasedTokens;
+                const pct = Math.min(100, Math.round((usage.totalUsed / cap) * 100));
+                const modeCost = mode === "autopilot" ? "High" : mode === "assistant" ? "Med" : "Low";
+                const barColor = pct >= 100
+                  ? "#e05555"
+                  : pct >= 90
+                  ? "#e08c30"
+                  : t === "dark" ? "rgba(255,255,255,.5)" : "rgba(17,19,21,.4)";
+                return (
                   <div style={{
-                    height: 3, borderRadius: 99,
-                    background: t === "dark" ? "rgba(255,255,255,.1)" : "rgba(17,19,21,.1)",
-                    overflow: "hidden",
+                    padding: "6px 14px 10px",
+                    borderTop: `1px solid ${T.border(t)}`,
+                    display: "flex", flexDirection: "column", gap: 5,
                   }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <span style={{ fontSize: 10.5, color: mu, fontFamily: "'Satoshi', Arial, sans-serif" }}>
+                        {pct}% used this month
+                      </span>
+                      <span style={{ fontSize: 10.5, color: mu, fontFamily: "'Satoshi', Arial, sans-serif", opacity: .7 }}>
+                        {modeCost} usage · {mode}
+                      </span>
+                    </div>
                     <div style={{
-                      height: "100%", borderRadius: 99,
-                      width: `${Math.min(100, (usage.totalUsed / (usage.baseLimit + usage.purchasedTokens)) * 100)}%`,
-                      background: usage.remaining === 0
-                        ? "#e05555"
-                        : usage.remaining < (usage.baseLimit + usage.purchasedTokens) * 0.1
-                        ? "#e08c30"
-                        : t === "dark" ? "rgba(255,255,255,.5)" : "rgba(17,19,21,.4)",
-                      transition: "width .4s ease",
-                    }} />
+                      height: 3, borderRadius: 99,
+                      background: t === "dark" ? "rgba(255,255,255,.1)" : "rgba(17,19,21,.1)",
+                      overflow: "hidden",
+                    }}>
+                      <div style={{
+                        height: "100%", borderRadius: 99,
+                        width: `${pct}%`,
+                        background: barColor,
+                        transition: "width .4s ease",
+                      }} />
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </>
           )}
         </div>
