@@ -957,6 +957,54 @@ export function HomeShell() {
     } catch { return false; }
   }
 
+  function exportToIcs() {
+    const dueTasks = notes.filter(n => n.dueDate && !n.completed);
+    if (!dueTasks.length) return;
+
+    const lines: string[] = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//Boardtivity//EN",
+      "CALSCALE:GREGORIAN",
+      "METHOD:PUBLISH",
+    ];
+
+    for (const n of dueTasks) {
+      // dueDate is "YYYY-MM-DD" — convert to YYYYMMDD for all-day event
+      const d = n.dueDate!.replace(/-/g, "");
+      // DTEND is the day after for all-day events in iCal
+      const endDate = new Date(n.dueDate!);
+      endDate.setDate(endDate.getDate() + 1);
+      const dEnd = endDate.toISOString().slice(0, 10).replace(/-/g, "");
+      const uid = `task-${n.id}-${n.boardId}@boardtivity.com`;
+      const stamp = new Date().toISOString().replace(/[-:]/g, "").slice(0, 15) + "Z";
+      const esc = (s: string) => s.replace(/\\/g, "\\\\").replace(/,/g, "\\,").replace(/;/g, "\\;").replace(/\n/g, "\\n");
+
+      lines.push("BEGIN:VEVENT");
+      lines.push(`UID:${uid}`);
+      lines.push(`DTSTAMP:${stamp}`);
+      lines.push(`DTSTART;VALUE=DATE:${d}`);
+      lines.push(`DTEND;VALUE=DATE:${dEnd}`);
+      lines.push(`SUMMARY:${esc(n.title)}`);
+      if (n.body) lines.push(`DESCRIPTION:${esc(n.body)}`);
+      if (n.importance && n.importance !== "none") {
+        const prio = n.importance === "High" ? 1 : n.importance === "Medium" ? 5 : 9;
+        lines.push(`PRIORITY:${prio}`);
+      }
+      lines.push("END:VEVENT");
+    }
+
+    lines.push("END:VCALENDAR");
+
+    const blob = new Blob([lines.join("\r\n")], { type: "text/calendar;charset=utf-8" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href     = url;
+    a.download = "boardtivity-tasks.ics";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   function currentBoardState() {
     return JSON.stringify({ boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid });
   }
@@ -3261,6 +3309,25 @@ export function HomeShell() {
                   </p>
                 </div>
               )}
+
+              {/* Calendar Export */}
+              <div style={{ borderTop: `1px solid ${border(boardTheme)}`, paddingTop: 20, display: "grid", gap: 10 }}>
+                <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), fontWeight: 700, marginBottom: 2 }}>Calendar</div>
+                <button
+                  onClick={exportToIcs}
+                  disabled={!notes.some(n => n.dueDate && !n.completed)}
+                  style={{
+                    ...buttonStyle(boardTheme, false),
+                    width: "100%", fontSize: 13, height: 40,
+                    opacity: notes.some(n => n.dueDate && !n.completed) ? 1 : 0.45,
+                  }}
+                >
+                  Export tasks to calendar (.ics)
+                </button>
+                <p style={{ fontSize: 11, color: muted(boardTheme), margin: 0, lineHeight: 1.5 }}>
+                  Exports all tasks with due dates. Open with Apple Calendar, or import into Google Calendar via Settings → Import.
+                </p>
+              </div>
 
               {/* Account */}
               <div style={{ borderTop: `1px solid ${border(boardTheme)}`, paddingTop: 20, display: "grid", gap: 8 }}>
