@@ -63,7 +63,7 @@ export default function TermsPage() {
           <p>We may update these Terms over time. We'll update the date at the top and notify you by email for material changes. Continued use after a change means you accept the updated Terms.</p>
 
           <h2 style={h2(t.h2)}>14. Governing Law</h2>
-          <p>These Terms are governed by the laws of the State of California. Any disputes will be resolved in courts located in California.</p>
+          <p>These Terms are governed by the laws of the Province of Ontario and the federal laws of Canada applicable therein. Any disputes will be resolved in the courts of Ontario, Canada.</p>
 
           <h2 style={h2(t.h2)}>15. Entire Agreement</h2>
           <p>These Terms and our Privacy Policy constitute the entire agreement between you and Boardtivity regarding your use of the service.</p>
