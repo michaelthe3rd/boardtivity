@@ -1069,7 +1069,24 @@ export function HomeShell() {
       return;
     }
 
-    // New data from Convex — apply it (initial load or cross-device update).
+    // Check whether Convex actually has real user data.
+    const cloudHasRealData = !isCloudDefaultOnly(savedBoard.boardState);
+    const localHasRealData = notes.length > 0 || boards.some(b => b.id !== "my-board" && b.id !== "my-thoughts");
+
+    if (!cloudHasRealData && localHasRealData) {
+      // Convex is empty but local has data — Convex was likely wiped by a bug.
+      // Push local state to restore Convex rather than applying the empty cloud data.
+      pushToCloud();
+      return;
+    }
+
+    if (!cloudHasRealData) {
+      // Both empty — nothing to do.
+      setCloudSyncState("synced");
+      return;
+    }
+
+    // Convex has real data — apply it (initial load or cross-device update).
     lastAppliedCloudAtRef.current = savedBoard.updatedAt;
     justAppliedCloudRef.current = true;
     try {
