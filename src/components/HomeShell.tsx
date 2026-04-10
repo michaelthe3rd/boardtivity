@@ -680,6 +680,9 @@ export function HomeShell() {
   // don't immediately push the same data back to Convex (prevents apply→save loop)
   const justAppliedCloudRef = useRef(false);
   const lastAppliedCloudAtRef = useRef(0);
+  // Tracks the exact boardState string we last pushed to Convex so we can
+  // detect our own saves reflected back by the subscription and skip re-applying them.
+  const lastSavedStateRef = useRef<string | null>(null);
   // Tracks the known Convex document ID so saves can skip the read and use
   // db.replace() directly, eliminating write conflicts on concurrent saves.
   const savedBoardIdRef = useRef<string | undefined>(undefined);
@@ -1020,11 +1023,13 @@ export function HomeShell() {
   }
 
   async function pushToCloud(retries = 3) {
+    const stateToSave = currentBoardState();
+    lastSavedStateRef.current = stateToSave;
     setCloudSyncState("saving");
     for (let attempt = 0; attempt < retries; attempt++) {
       try {
         const id = savedBoardIdRef.current as import("convex/values").GenericId<"userBoards"> | undefined;
-        const newId = await saveBoard({ boardState: currentBoardState(), id });
+        const newId = await saveBoard({ boardState: stateToSave, id });
         if (newId && !savedBoardIdRef.current) savedBoardIdRef.current = newId as string;
         setCloudSyncState("synced");
         return;
@@ -1056,24 +1061,34 @@ export function HomeShell() {
     const cloudHasRealData = savedBoard && !isCloudDefaultOnly(savedBoard.boardState);
 
     if (cloudHasRealData && savedBoard.updatedAt > localSavedAt && savedBoard.updatedAt > lastAppliedCloudAtRef.current) {
-      // Cloud is newer and not something we already applied — apply it
-      justAppliedCloudRef.current = true;
-      lastAppliedCloudAtRef.current = savedBoard.updatedAt;
-      try {
-        const data = JSON.parse(savedBoard.boardState) as {
-          boards?: Board[]; notes?: Note[]; activeBoardId?: string;
-          drafts?: Draft[]; thoughtColorMode?: "random" | "fixed";
-          thoughtFixedColorIdx?: number; boardGrid?: "grid" | "dots" | "blank";
-        };
-        if (Array.isArray(data.boards) && data.boards.length > 0) setBoards(data.boards);
-        if (Array.isArray(data.notes)) setNotes(data.notes);
-        if (data.activeBoardId) setActiveBoardId(data.activeBoardId);
-        if (Array.isArray(data.drafts)) setDrafts(data.drafts);
-        if (data.thoughtColorMode) setThoughtColorMode(data.thoughtColorMode);
-        if (typeof data.thoughtFixedColorIdx === "number") setThoughtFixedColorIdx(data.thoughtFixedColorIdx);
-        if (data.boardGrid) setBoardGrid(data.boardGrid);
+      // Cloud timestamp is newer. Check if this is our own save reflected back
+      // by the subscription — if so, just update tracking refs and skip re-applying
+      // state (re-applying creates new object references that trigger another
+      // isHydrated effect cycle, which can overwrite changes made since the save).
+      if (savedBoard.boardState === lastSavedStateRef.current) {
+        // Our own save reflected back — acknowledge it without touching state
+        lastAppliedCloudAtRef.current = savedBoard.updatedAt;
         setCloudSyncState("synced");
-      } catch { setCloudSyncState("error"); }
+      } else {
+        // Genuine update from another device/tab — apply it
+        justAppliedCloudRef.current = true;
+        lastAppliedCloudAtRef.current = savedBoard.updatedAt;
+        try {
+          const data = JSON.parse(savedBoard.boardState) as {
+            boards?: Board[]; notes?: Note[]; activeBoardId?: string;
+            drafts?: Draft[]; thoughtColorMode?: "random" | "fixed";
+            thoughtFixedColorIdx?: number; boardGrid?: "grid" | "dots" | "blank";
+          };
+          if (Array.isArray(data.boards) && data.boards.length > 0) setBoards(data.boards);
+          if (Array.isArray(data.notes)) setNotes(data.notes);
+          if (data.activeBoardId) setActiveBoardId(data.activeBoardId);
+          if (Array.isArray(data.drafts)) setDrafts(data.drafts);
+          if (data.thoughtColorMode) setThoughtColorMode(data.thoughtColorMode);
+          if (typeof data.thoughtFixedColorIdx === "number") setThoughtFixedColorIdx(data.thoughtFixedColorIdx);
+          if (data.boardGrid) setBoardGrid(data.boardGrid);
+          setCloudSyncState("synced");
+        } catch { setCloudSyncState("error"); }
+      }
     } else if (!cloudHasRealData) {
       // Cloud is empty or only has defaults — push local up
       pushToCloud();
@@ -1109,7 +1124,9 @@ export function HomeShell() {
             if (convexSaveTimerRef.current) clearTimeout(convexSaveTimerRef.current);
             convexSaveTimerRef.current = setTimeout(() => {
               const id = savedBoardIdRef.current as import("convex/values").GenericId<"userBoards"> | undefined;
-              saveBoard({ boardState: currentBoardState(), id })
+              const stateToSave = currentBoardState();
+              lastSavedStateRef.current = stateToSave;
+              saveBoard({ boardState: stateToSave, id })
                 .then((newId) => { if (newId && !savedBoardIdRef.current) savedBoardIdRef.current = newId as string; setCloudSyncState("synced"); })
                 .catch((e) => { console.error("[Boardtivity] Convex save failed:", e); setCloudSyncState("error"); });
             }, 300);
@@ -1127,7 +1144,9 @@ export function HomeShell() {
       if (!convexReadyRef.current || !isSignedIn) return;
       if (convexSaveTimerRef.current) { clearTimeout(convexSaveTimerRef.current); convexSaveTimerRef.current = null; }
       const id = savedBoardIdRef.current as import("convex/values").GenericId<"userBoards"> | undefined;
-      saveBoard({ boardState: currentBoardState(), id })
+      const stateToSave = currentBoardState();
+      lastSavedStateRef.current = stateToSave;
+      saveBoard({ boardState: stateToSave, id })
         .then(() => setCloudSyncState("synced"))
         .catch(() => setCloudSyncState("error"));
     }
