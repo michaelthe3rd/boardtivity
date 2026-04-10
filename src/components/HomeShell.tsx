@@ -919,11 +919,11 @@ export function HomeShell() {
           thoughtFixedColorIdx?: number;
           boardGrid?: "grid" | "dots" | "blank";
         };
-        // Theme always restores — signed in or not (no flash risk)
+        // Theme always restores — signed in or not
         if (data.theme) setTheme(data.theme);
         if (data.boardTheme) setBoardTheme(data.boardTheme);
-        if (!isSignedIn) {
-          // Signed-out: restore everything from localStorage, then reveal page
+        // Everything else only restores for signed-in users
+        if (isSignedIn) {
           if (Array.isArray(data.boards) && data.boards.length > 0) setBoards(data.boards);
           if (Array.isArray(data.notes)) setNotes(data.notes);
           if (data.activeBoardId) setActiveBoardId(data.activeBoardId);
@@ -932,12 +932,9 @@ export function HomeShell() {
           if (typeof data.thoughtFixedColorIdx === "number") setThoughtFixedColorIdx(data.thoughtFixedColorIdx);
           if (data.boardGrid) setBoardGrid(data.boardGrid);
         }
-        // Signed-in: board data comes from Convex (authoritative). Applying stale
-        // localStorage here causes the deleted-tasks flash. The Convex sync effect
-        // will call setIsHydrated(true) once real data arrives, revealing the page.
       }
     } catch {}
-    if (!isSignedIn) setIsHydrated(true);
+    setIsHydrated(true);
   }, [isSignedIn]);
 
   // Reveal page only after Clerk auth + localStorage have resolved (prevents signed-out flash)
@@ -947,34 +944,9 @@ export function HomeShell() {
     }
   }, [isHydrated]);
 
-  // Safety fallback: if Clerk/Convex fail to initialize, never leave page blank.
-  // Also loads from localStorage so signed-in users get their data in offline scenarios.
+  // Safety fallback: if Clerk fails to initialize (e.g. domain not whitelisted), never leave page blank
   useEffect(() => {
-    const t = setTimeout(() => {
-      document.documentElement.style.visibility = "";
-      setIsHydrated(prev => {
-        if (prev) return prev; // already hydrated — no-op
-        // Offline fallback: Convex never responded, load from localStorage
-        try {
-          const saved = localStorage.getItem("boardtivity");
-          if (saved) {
-            const data = JSON.parse(saved) as {
-              boards?: Board[]; notes?: Note[]; activeBoardId?: string;
-              drafts?: Draft[]; thoughtColorMode?: "random" | "fixed";
-              thoughtFixedColorIdx?: number; boardGrid?: "grid" | "dots" | "blank";
-            };
-            if (Array.isArray(data.boards) && data.boards.length > 0) setBoards(data.boards);
-            if (Array.isArray(data.notes)) setNotes(data.notes);
-            if (data.activeBoardId) setActiveBoardId(data.activeBoardId);
-            if (Array.isArray(data.drafts)) setDrafts(data.drafts);
-            if (data.thoughtColorMode) setThoughtColorMode(data.thoughtColorMode);
-            if (typeof data.thoughtFixedColorIdx === "number") setThoughtFixedColorIdx(data.thoughtFixedColorIdx);
-            if (data.boardGrid) setBoardGrid(data.boardGrid);
-          }
-        } catch {}
-        return true;
-      });
-    }, 4000);
+    const t = setTimeout(() => { document.documentElement.style.visibility = ""; }, 4000);
     return () => clearTimeout(t);
   }, []);
 
@@ -1133,10 +1105,6 @@ export function HomeShell() {
       pushToCloud();
     }
 
-    // Reveal the page now that we have authoritative cloud data. For signed-in
-    // users we deliberately skipped setIsHydrated(true) in the hydration effect
-    // to avoid showing stale localStorage content before Convex responds.
-    setIsHydrated(true);
   }, [isSignedIn, savedBoard]);
 
   // ── Persist to localStorage + debounced Convex save on every change ─────────
