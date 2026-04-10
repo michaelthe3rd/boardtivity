@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenerativeAI, type FunctionDeclaration } from "@google/generative-ai";
 import { NextRequest } from "next/server";
 
 type NoteSnap = {
@@ -10,13 +10,13 @@ type NoteSnap = {
 type Mode = "advisor" | "assistant" | "autopilot";
 type HistoryMsg = { role: "user" | "assistant"; content: string };
 
-// ── Tools ────────────────────────────────────────────────────────────────────
-const TOOLS: Anthropic.Tool[] = [
+// ── Function declarations (Gemini format) ────────────────────────────────────
+const FUNCTION_DECLARATIONS = [
   {
     name: "create_note",
     description: "Create a new note or task on the board. Place it at an optimal position.",
-    input_schema: {
-      type: "object" as const,
+    parameters: {
+      type: "object",
       properties: {
         type:       { type: "string", enum: ["task", "thought"] },
         title:      { type: "string", description: "Concise title, max 60 chars" },
@@ -25,8 +25,15 @@ const TOOLS: Anthropic.Tool[] = [
         dueDate:    { type: "string", description: "ISO date YYYY-MM-DD, optional" },
         steps: {
           type: "array",
-          items: { type: "object", properties: { title: { type: "string" }, minutes: { type: "number" } }, required: ["title", "minutes"] },
-          description: "Subtasks for tasks, optional"
+          items: {
+            type: "object",
+            properties: {
+              title:   { type: "string" },
+              minutes: { type: "number" },
+            },
+            required: ["title", "minutes"],
+          },
+          description: "Subtasks for tasks, optional",
         },
       },
       required: ["type", "title"],
@@ -35,10 +42,10 @@ const TOOLS: Anthropic.Tool[] = [
   {
     name: "edit_note",
     description: "Edit an existing note. Only specify the fields to change.",
-    input_schema: {
-      type: "object" as const,
+    parameters: {
+      type: "object",
       properties: {
-        id:     { type: "number", description: "The note ID to edit" },
+        id: { type: "number", description: "The note ID to edit" },
         fields: {
           type: "object",
           description: "Fields to update. Allowed: title, body, importance, dueDate, minutes",
@@ -57,8 +64,8 @@ const TOOLS: Anthropic.Tool[] = [
   {
     name: "delete_notes",
     description: "Delete one or more notes from the board.",
-    input_schema: {
-      type: "object" as const,
+    parameters: {
+      type: "object",
       properties: {
         ids: { type: "array", items: { type: "number" }, description: "IDs of notes to delete" },
       },
@@ -68,14 +75,18 @@ const TOOLS: Anthropic.Tool[] = [
   {
     name: "organize_board",
     description: "Move notes to new positions on the canvas. Use for sorting, grouping, or cleaning up the board.",
-    input_schema: {
-      type: "object" as const,
+    parameters: {
+      type: "object",
       properties: {
         positions: {
           type: "array",
           items: {
             type: "object",
-            properties: { id: { type: "number" }, x: { type: "number" }, y: { type: "number" } },
+            properties: {
+              id: { type: "number" },
+              x:  { type: "number" },
+              y:  { type: "number" },
+            },
             required: ["id", "x", "y"],
           },
         },
@@ -86,8 +97,8 @@ const TOOLS: Anthropic.Tool[] = [
   {
     name: "highlight_notes",
     description: "Highlight specific notes on the board to draw the user's attention — use for search results or references.",
-    input_schema: {
-      type: "object" as const,
+    parameters: {
+      type: "object",
       properties: {
         ids: { type: "array", items: { type: "number" }, description: "IDs of notes to highlight" },
       },
@@ -97,8 +108,8 @@ const TOOLS: Anthropic.Tool[] = [
   {
     name: "launch_focus",
     description: "Launch focus mode for a task, starting its timer immediately.",
-    input_schema: {
-      type: "object" as const,
+    parameters: {
+      type: "object",
       properties: {
         noteId: { type: "number", description: "ID of the note to focus on" },
         chain:  { type: "boolean", description: "If true, auto-chain through subtasks when each timer ends" },
@@ -204,9 +215,9 @@ export async function POST(req: NextRequest) {
   if (!message.trim()) return new Response("No message", { status: 400 });
 
   // ── Mock mode ─────────────────────────────────────────────────────────────
-  if (!process.env.ANTHROPIC_API_KEY) {
+  if (!process.env.GEMINI_API_KEY) {
     const stream = makeSSE(async (push) => {
-      const words = `Running in mock mode — no API key set. In ${mode} mode I'd handle that request fully. Connect an Anthropic API key to unlock the real BOB.`.split(" ");
+      const words = `Running in mock mode — no API key set. In ${mode} mode I'd handle that request fully. Connect a Gemini API key to unlock the real BOB.`.split(" ");
       for (const w of words) {
         await new Promise(r => setTimeout(r, 55));
         push({ type: "token", text: w + " " });
@@ -217,58 +228,49 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Real mode ─────────────────────────────────────────────────────────────
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+  const model = genAI.getGenerativeModel({
+    model: "gemini-2.0-flash",
+    systemInstruction: buildSystem(notes, mode),
+    tools: mode === "advisor" ? [] : [{ functionDeclarations: FUNCTION_DECLARATIONS as unknown as FunctionDeclaration[] }],
+  });
+
+  // Gemini uses "model" instead of "assistant" for role
+  const geminiHistory = history.slice(-6).map(h => ({
+    role: h.role === "assistant" ? "model" : "user" as "user" | "model",
+    parts: [{ text: h.content }],
+  }));
 
   const stream = makeSSE(async (push) => {
-    const messages: Anthropic.MessageParam[] = [
-      ...history.slice(-6).map(h => ({ role: h.role, content: h.content })) as Anthropic.MessageParam[],
-      { role: "user", content: message },
-    ];
+    const chat = model.startChat({ history: geminiHistory });
+    const result = await chat.sendMessageStream(message);
 
-    // Advisor mode gets no action tools
-    const tools = mode === "advisor" ? [] : TOOLS;
+    // Stream text tokens as they arrive
+    for await (const chunk of result.stream) {
+      try {
+        const text = chunk.text();
+        if (text) push({ type: "token", text });
+      } catch { /* blocked or non-text chunk */ }
+    }
 
-    const toolBuffers = new Map<number, { name: string; json: string }>();
-    let inputTokens  = 0;
-    let outputTokens = 0;
-
-    const response = client.messages.stream({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 1024,
-      system: buildSystem(notes, mode),
-      tools: tools.length ? tools : undefined,
-      messages,
-    });
-
-    for await (const event of response) {
-      if (event.type === "message_start") {
-        inputTokens = event.message.usage.input_tokens;
-      } else if (event.type === "message_delta" && event.usage) {
-        outputTokens = event.usage.output_tokens;
-      } else if (event.type === "content_block_start") {
-        if (event.content_block.type === "tool_use") {
-          toolBuffers.set(event.index, { name: event.content_block.name, json: "" });
-        }
-      } else if (event.type === "content_block_delta") {
-        if (event.delta.type === "text_delta") {
-          push({ type: "token", text: event.delta.text });
-        } else if (event.delta.type === "input_json_delta") {
-          const buf = toolBuffers.get(event.index);
-          if (buf) buf.json += event.delta.partial_json;
-        }
-      } else if (event.type === "content_block_stop") {
-        const buf = toolBuffers.get(event.index);
-        if (buf) {
-          try { push({ type: "tool", name: buf.name, input: JSON.parse(buf.json || "{}") }); }
-          catch { /* malformed — skip */ }
-          toolBuffers.delete(event.index);
-        }
+    // Function calls arrive complete in the aggregated response
+    const response = await result.response;
+    const functionCalls = response.functionCalls();
+    if (functionCalls?.length) {
+      for (const fc of functionCalls) {
+        push({ type: "tool", name: fc.name, input: fc.args });
       }
     }
 
-    // Send token counts so the client can record usage in Convex
-    if (inputTokens > 0 || outputTokens > 0) {
-      push({ type: "usage", inputTokens, outputTokens });
+    // Usage metadata
+    const usage = response.usageMetadata;
+    if (usage) {
+      push({
+        type: "usage",
+        inputTokens:  usage.promptTokenCount     ?? 0,
+        outputTokens: usage.candidatesTokenCount ?? 0,
+      });
     }
 
     push({ type: "done" });
