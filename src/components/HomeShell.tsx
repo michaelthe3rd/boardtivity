@@ -1120,16 +1120,8 @@ export function HomeShell() {
           if (convexReadyRef.current) savedAt = Date.now();
           localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, savedAt }));
           if (convexReadyRef.current) {
-            setCloudSyncState("saving");
             if (convexSaveTimerRef.current) clearTimeout(convexSaveTimerRef.current);
-            convexSaveTimerRef.current = setTimeout(() => {
-              const id = savedBoardIdRef.current as import("convex/values").GenericId<"userBoards"> | undefined;
-              const stateToSave = currentBoardState();
-              lastSavedStateRef.current = stateToSave;
-              saveBoard({ boardState: stateToSave, id })
-                .then((newId) => { if (newId && !savedBoardIdRef.current) savedBoardIdRef.current = newId as string; setCloudSyncState("synced"); })
-                .catch((e) => { console.error("[Boardtivity] Convex save failed:", e); setCloudSyncState("error"); });
-            }, 300);
+            convexSaveTimerRef.current = setTimeout(() => { pushToCloud(); }, 300);
           }
         }
       } else {
