@@ -680,6 +680,9 @@ export function HomeShell() {
   // don't immediately push the same data back to Convex (prevents apply→save loop)
   const justAppliedCloudRef = useRef(false);
   const lastAppliedCloudAtRef = useRef(0);
+  // The updatedAt of the most recent Convex data we've received (whether applied or not).
+  // Used by the flush to avoid overwriting newer cloud data with stale local state.
+  const lastKnownCloudAtRef = useRef(0);
   // Tracks the exact boardState string we last pushed to Convex so we can
   // detect our own saves reflected back by the subscription and skip re-applying them.
   const lastSavedStateRef = useRef<string | null>(null);
@@ -1049,8 +1052,11 @@ export function HomeShell() {
     if (!isSignedIn || savedBoard === undefined) return;
     convexReadyRef.current = true;
 
-    // Always capture the document ID so future saves bypass the read query.
-    if (savedBoard) savedBoardIdRef.current = savedBoard._id as string;
+    // Always capture the document ID and latest cloud timestamp.
+    if (savedBoard) {
+      savedBoardIdRef.current = savedBoard._id as string;
+      lastKnownCloudAtRef.current = savedBoard.updatedAt;
+    }
 
     let localSavedAt = 0;
     try {
@@ -1134,6 +1140,12 @@ export function HomeShell() {
   useEffect(() => {
     function flush() {
       if (!convexReadyRef.current || !isSignedIn) return;
+      // Don't flush stale local state over newer cloud data.
+      // This prevents the ping-pong: device A saves S2, device B (still showing
+      // old S3) goes to background and its flush would overwrite S2 with S3.
+      let localSavedAt = 0;
+      try { const r = localStorage.getItem("boardtivity"); if (r) localSavedAt = (JSON.parse(r) as { savedAt?: number }).savedAt ?? 0; } catch {}
+      if (localSavedAt <= lastKnownCloudAtRef.current) return;
       if (convexSaveTimerRef.current) { clearTimeout(convexSaveTimerRef.current); convexSaveTimerRef.current = null; }
       const id = savedBoardIdRef.current as import("convex/values").GenericId<"userBoards"> | undefined;
       const stateToSave = currentBoardState();
@@ -4055,8 +4067,8 @@ export function HomeShell() {
                         )}
                         <button
                           onClick={() => setDetailEditSteps(prev => [...prev, { id: Date.now(), title: "", minutes: 15, done: false, x: 0, y: 0 }])}
-                          style={{ height: 34, borderRadius: 8, border: `1px dashed ${border(boardTheme)}`, background: "none", color: muted(boardTheme), fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
-                        >+ Add subtask</button>
+                          style={{ height: 36, borderRadius: 8, border: `1.5px dashed ${boardTheme === "dark" ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.22)"}`, background: boardTheme === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)", color: muted(boardTheme), fontSize: 13, cursor: "pointer", fontFamily: "inherit", width: "100%", textAlign: "left", paddingLeft: 12, display: "flex", alignItems: "center", gap: 6 }}
+                        ><span style={{ fontSize: 16, lineHeight: 1, opacity: 0.7 }}>+</span> Type a subtask…</button>
                       </div>
                     ) : detailNote.steps.length === 0 ? (
                       <div style={{ color: muted(boardTheme), fontSize: 14, lineHeight: 1.6 }}>
