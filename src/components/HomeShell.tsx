@@ -901,16 +901,30 @@ export function HomeShell() {
   }, [isSignedIn]);
 
   // Load persisted state — wait for Clerk to resolve before hydrating.
-  // For signed-in users, board data comes exclusively from Convex — no localStorage.
-  // localStorage only stores theme preferences (no sync risk).
+  // localStorage gives instant initial render; Convex then overwrites with
+  // authoritative cloud data when it arrives.
   useEffect(() => {
     if (isSignedIn === undefined) return;
     try {
       const saved = localStorage.getItem("boardtivity");
       if (saved) {
-        const data = JSON.parse(saved) as { theme?: ThemeMode; boardTheme?: ThemeMode };
+        const data = JSON.parse(saved) as {
+          theme?: ThemeMode; boardTheme?: ThemeMode;
+          boards?: Board[]; notes?: Note[]; activeBoardId?: string;
+          drafts?: Draft[]; thoughtColorMode?: "random" | "fixed";
+          thoughtFixedColorIdx?: number; boardGrid?: "grid" | "dots" | "blank";
+        };
         if (data.theme) setTheme(data.theme);
         if (data.boardTheme) setBoardTheme(data.boardTheme);
+        if (isSignedIn) {
+          if (Array.isArray(data.boards) && data.boards.length > 0) setBoards(data.boards);
+          if (Array.isArray(data.notes)) setNotes(data.notes);
+          if (data.activeBoardId) setActiveBoardId(data.activeBoardId);
+          if (Array.isArray(data.drafts)) setDrafts(data.drafts);
+          if (data.thoughtColorMode) setThoughtColorMode(data.thoughtColorMode);
+          if (typeof data.thoughtFixedColorIdx === "number") setThoughtFixedColorIdx(data.thoughtFixedColorIdx);
+          if (data.boardGrid) setBoardGrid(data.boardGrid);
+        }
       }
     } catch {}
     setIsHydrated(true);
@@ -1032,9 +1046,11 @@ export function HomeShell() {
     convexReadyRef.current = true;
 
     if (!savedBoard) {
-      // No document yet (new user or auth still propagating) — nothing to apply.
-      // The user's first save will create the document.
-      setCloudSyncState("synced");
+      // No Convex document yet. Push whatever is in local state so localStorage-only
+      // users get migrated to Convex on first load.
+      const localHasRealData = notes.length > 0 || boards.some(b => b.id !== "my-board" && b.id !== "my-thoughts");
+      if (localHasRealData) pushToCloud();
+      else setCloudSyncState("synced");
       return;
     }
 
@@ -1073,23 +1089,29 @@ export function HomeShell() {
     } catch { setCloudSyncState("error"); }
   }, [isSignedIn, savedBoard]);
 
-  // ── Persist theme to localStorage; board data goes to Convex only ────────────
+  // ── Persist to localStorage (instant reload cache) + debounced Convex save ───
   useEffect(() => {
     if (!isHydrated) return;
-    // Theme preferences go to localStorage so they're instant on next load
-    try { localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme })); } catch {}
 
-    if (!isSignedIn || !convexReadyRef.current) return;
+    if (isSignedIn) {
+      // Save full state to localStorage as a fast-load cache for same-browser visits.
+      // Convex is authoritative — it always overwrites this on load.
+      try { localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid })); } catch {}
 
-    if (justAppliedCloudRef.current) {
-      // State changed because we just applied cloud data — don't push it back.
-      justAppliedCloudRef.current = false;
-      return;
+      if (!convexReadyRef.current) return;
+
+      if (justAppliedCloudRef.current) {
+        // State changed because we applied cloud data — don't push it back.
+        justAppliedCloudRef.current = false;
+        return;
+      }
+
+      // User made a change — debounce-save to Convex
+      if (convexSaveTimerRef.current) clearTimeout(convexSaveTimerRef.current);
+      convexSaveTimerRef.current = setTimeout(() => { pushToCloud(); }, 300);
+    } else {
+      try { localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme })); } catch {}
     }
-
-    // User made a change — debounce-save to Convex
-    if (convexSaveTimerRef.current) clearTimeout(convexSaveTimerRef.current);
-    convexSaveTimerRef.current = setTimeout(() => { pushToCloud(); }, 300);
   }, [isHydrated, isSignedIn, theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid]);
 
   // ── Flush any pending debounced save when tab hides or closes ────────────────
