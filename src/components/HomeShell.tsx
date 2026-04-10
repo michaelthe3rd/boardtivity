@@ -679,10 +679,9 @@ export function HomeShell() {
   // Set true in effect-2 when we apply cloud data; cleared in effect-3 so we
   // don't immediately push the same data back to Convex (prevents apply→save loop)
   const justAppliedCloudRef = useRef(false);
+  // updatedAt of the last Convex snapshot we applied to state.
+  // Prevents re-applying the same snapshot on every subscription tick.
   const lastAppliedCloudAtRef = useRef(0);
-  // The updatedAt of the most recent Convex data we've received (whether applied or not).
-  // Used by the flush to avoid overwriting newer cloud data with stale local state.
-  const lastKnownCloudAtRef = useRef(0);
   // Tracks the exact boardState string we last pushed to Convex so we can
   // detect our own saves reflected back by the subscription and skip re-applying them.
   const lastSavedStateRef = useRef<string | null>(null);
@@ -901,37 +900,17 @@ export function HomeShell() {
     if (isSignedIn !== undefined) prevSignedInRef.current = isSignedIn;
   }, [isSignedIn]);
 
-  // Load persisted state — wait for Clerk to resolve before hydrating
+  // Load persisted state — wait for Clerk to resolve before hydrating.
+  // For signed-in users, board data comes exclusively from Convex — no localStorage.
+  // localStorage only stores theme preferences (no sync risk).
   useEffect(() => {
-    // isSignedIn is undefined while Clerk is still loading — wait for it
     if (isSignedIn === undefined) return;
     try {
       const saved = localStorage.getItem("boardtivity");
       if (saved) {
-        const data = JSON.parse(saved) as {
-          theme?: ThemeMode;
-          boardTheme?: ThemeMode;
-          boards?: Board[];
-          notes?: Note[];
-          activeBoardId?: string;
-          drafts?: Draft[];
-          thoughtColorMode?: "random" | "fixed";
-          thoughtFixedColorIdx?: number;
-          boardGrid?: "grid" | "dots" | "blank";
-        };
-        // Theme always restores — signed in or not
+        const data = JSON.parse(saved) as { theme?: ThemeMode; boardTheme?: ThemeMode };
         if (data.theme) setTheme(data.theme);
         if (data.boardTheme) setBoardTheme(data.boardTheme);
-        // Everything else only restores for signed-in users
-        if (isSignedIn) {
-          if (Array.isArray(data.boards) && data.boards.length > 0) setBoards(data.boards);
-          if (Array.isArray(data.notes)) setNotes(data.notes);
-          if (data.activeBoardId) setActiveBoardId(data.activeBoardId);
-          if (Array.isArray(data.drafts)) setDrafts(data.drafts);
-          if (data.thoughtColorMode) setThoughtColorMode(data.thoughtColorMode);
-          if (typeof data.thoughtFixedColorIdx === "number") setThoughtFixedColorIdx(data.thoughtFixedColorIdx);
-          if (data.boardGrid) setBoardGrid(data.boardGrid);
-        }
       }
     } catch {}
     setIsHydrated(true);
@@ -1047,148 +1026,86 @@ export function HomeShell() {
     }
   }
 
-  // ── Sync with Convex whenever savedBoard changes (real-time cross-device sync) ──
+  // ── Sync with Convex — Convex is the sole source of truth for board data ──────
   useEffect(() => {
     if (!isSignedIn || savedBoard === undefined) return;
     convexReadyRef.current = true;
 
-    // Always capture the document ID and latest cloud timestamp.
-    if (savedBoard) {
-      savedBoardIdRef.current = savedBoard._id as string;
-      lastKnownCloudAtRef.current = savedBoard.updatedAt;
+    if (!savedBoard) {
+      // No document yet (new user or auth still propagating) — nothing to apply.
+      // The user's first save will create the document.
+      setCloudSyncState("synced");
+      return;
     }
 
-    let localSavedAt = 0;
+    savedBoardIdRef.current = savedBoard._id as string;
+
+    // Skip if we've already applied this exact snapshot.
+    if (savedBoard.updatedAt <= lastAppliedCloudAtRef.current) {
+      setCloudSyncState("synced");
+      return;
+    }
+
+    // Skip if this is our own save reflected back by the subscription.
+    if (savedBoard.boardState === lastSavedStateRef.current) {
+      lastAppliedCloudAtRef.current = savedBoard.updatedAt;
+      setCloudSyncState("synced");
+      return;
+    }
+
+    // New data from Convex — apply it (initial load or cross-device update).
+    lastAppliedCloudAtRef.current = savedBoard.updatedAt;
+    justAppliedCloudRef.current = true;
     try {
-      const r = localStorage.getItem("boardtivity");
-      if (r) localSavedAt = (JSON.parse(r) as { savedAt?: number }).savedAt ?? 0;
-    } catch {}
-
-    const cloudHasRealData = savedBoard && !isCloudDefaultOnly(savedBoard.boardState);
-
-    if (cloudHasRealData && savedBoard.updatedAt > localSavedAt && savedBoard.updatedAt > lastAppliedCloudAtRef.current) {
-      // Cloud timestamp is newer. Check if this is our own save reflected back
-      // by the subscription — if so, just update tracking refs and skip re-applying
-      // state (re-applying creates new object references that trigger another
-      // isHydrated effect cycle, which can overwrite changes made since the save).
-      if (savedBoard.boardState === lastSavedStateRef.current) {
-        // Our own save reflected back — acknowledge it without touching state
-        lastAppliedCloudAtRef.current = savedBoard.updatedAt;
-        setCloudSyncState("synced");
-      } else {
-        // Genuine update from another device/tab — apply it
-        justAppliedCloudRef.current = true;
-        lastAppliedCloudAtRef.current = savedBoard.updatedAt;
-        try {
-          const data = JSON.parse(savedBoard.boardState) as {
-            boards?: Board[]; notes?: Note[]; activeBoardId?: string;
-            drafts?: Draft[]; thoughtColorMode?: "random" | "fixed";
-            thoughtFixedColorIdx?: number; boardGrid?: "grid" | "dots" | "blank";
-          };
-          if (Array.isArray(data.boards) && data.boards.length > 0) setBoards(data.boards);
-          if (Array.isArray(data.notes)) setNotes(data.notes);
-          if (data.activeBoardId) setActiveBoardId(data.activeBoardId);
-          if (Array.isArray(data.drafts)) setDrafts(data.drafts);
-          if (data.thoughtColorMode) setThoughtColorMode(data.thoughtColorMode);
-          if (typeof data.thoughtFixedColorIdx === "number") setThoughtFixedColorIdx(data.thoughtFixedColorIdx);
-          if (data.boardGrid) setBoardGrid(data.boardGrid);
-          setCloudSyncState("synced");
-        } catch { setCloudSyncState("error"); }
-      }
-    } else if (!cloudHasRealData) {
-      // Cloud has no real data. Only push local state if it actually has content —
-      // never push empty defaults. On fresh device login, Convex auth can take a
-      // moment to propagate: boards.load briefly returns null before auth is ready,
-      // then returns real data. Pushing empty here would race against that and
-      // could overwrite real Convex data with nothing.
-      const localHasRealData = notes.length > 0 || boards.some(b => b.id !== "my-board" && b.id !== "my-thoughts");
-      if (localHasRealData) pushToCloud();
-      // else: local is also empty — wait for real cloud data to arrive, or let
-      // the user's first real action trigger the initial save.
-    } else {
-      // Local timestamp is >= cloud — local may be genuinely newer.
-      // Only push if local has real content; don't push empty state over real data.
-      const localHasRealData = notes.length > 0 || boards.some(b => b.id !== "my-board" && b.id !== "my-thoughts");
-      if (localHasRealData) {
-        pushToCloud();
-      } else {
-        // Local is empty but cloud has data — apply cloud regardless of timestamp.
-        // This happens on a fresh device where localStorage savedAt is stale/wrong.
-        justAppliedCloudRef.current = true;
-        lastAppliedCloudAtRef.current = savedBoard.updatedAt;
-        try {
-          const data = JSON.parse(savedBoard.boardState) as {
-            boards?: Board[]; notes?: Note[]; activeBoardId?: string;
-            drafts?: Draft[]; thoughtColorMode?: "random" | "fixed";
-            thoughtFixedColorIdx?: number; boardGrid?: "grid" | "dots" | "blank";
-          };
-          if (Array.isArray(data.boards) && data.boards.length > 0) setBoards(data.boards);
-          if (Array.isArray(data.notes)) setNotes(data.notes);
-          if (data.activeBoardId) setActiveBoardId(data.activeBoardId);
-          if (Array.isArray(data.drafts)) setDrafts(data.drafts);
-          if (data.thoughtColorMode) setThoughtColorMode(data.thoughtColorMode);
-          if (typeof data.thoughtFixedColorIdx === "number") setThoughtFixedColorIdx(data.thoughtFixedColorIdx);
-          if (data.boardGrid) setBoardGrid(data.boardGrid);
-          setCloudSyncState("synced");
-        } catch { setCloudSyncState("error"); }
-      }
-    }
-
+      const data = JSON.parse(savedBoard.boardState) as {
+        boards?: Board[]; notes?: Note[]; activeBoardId?: string;
+        drafts?: Draft[]; thoughtColorMode?: "random" | "fixed";
+        thoughtFixedColorIdx?: number; boardGrid?: "grid" | "dots" | "blank";
+      };
+      if (Array.isArray(data.boards) && data.boards.length > 0) setBoards(data.boards);
+      if (Array.isArray(data.notes)) setNotes(data.notes);
+      if (data.activeBoardId) setActiveBoardId(data.activeBoardId);
+      if (Array.isArray(data.drafts)) setDrafts(data.drafts);
+      if (data.thoughtColorMode) setThoughtColorMode(data.thoughtColorMode);
+      if (typeof data.thoughtFixedColorIdx === "number") setThoughtFixedColorIdx(data.thoughtFixedColorIdx);
+      if (data.boardGrid) setBoardGrid(data.boardGrid);
+      setCloudSyncState("synced");
+    } catch { setCloudSyncState("error"); }
   }, [isSignedIn, savedBoard]);
 
-  // ── Persist to localStorage + debounced Convex save on every change ─────────
+  // ── Persist theme to localStorage; board data goes to Convex only ────────────
   useEffect(() => {
     if (!isHydrated) return;
-    try {
-      if (isSignedIn) {
-        // Preserve savedAt when Convex hasn't loaded yet so a fresh page load
-        // doesn't reset it to 0 and make stale cloud data look newer than local.
-        let savedAt = 0;
-        try { const r = localStorage.getItem("boardtivity"); if (r) savedAt = (JSON.parse(r) as { savedAt?: number }).savedAt ?? 0; } catch {}
+    // Theme preferences go to localStorage so they're instant on next load
+    try { localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme })); } catch {}
 
-        if (justAppliedCloudRef.current) {
-          // State changed because we just applied cloud data — don't push it back.
-          // Use cloud's own timestamp so future comparisons stay accurate.
-          justAppliedCloudRef.current = false;
-          savedAt = lastAppliedCloudAtRef.current;
-          localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, savedAt }));
-        } else {
-          if (convexReadyRef.current) savedAt = Date.now();
-          localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, savedAt }));
-          if (convexReadyRef.current) {
-            if (convexSaveTimerRef.current) clearTimeout(convexSaveTimerRef.current);
-            convexSaveTimerRef.current = setTimeout(() => { pushToCloud(); }, 300);
-          }
-        }
-      } else {
-        localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme }));
-      }
-    } catch {}
+    if (!isSignedIn || !convexReadyRef.current) return;
+
+    if (justAppliedCloudRef.current) {
+      // State changed because we just applied cloud data — don't push it back.
+      justAppliedCloudRef.current = false;
+      return;
+    }
+
+    // User made a change — debounce-save to Convex
+    if (convexSaveTimerRef.current) clearTimeout(convexSaveTimerRef.current);
+    convexSaveTimerRef.current = setTimeout(() => { pushToCloud(); }, 300);
   }, [isHydrated, isSignedIn, theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid]);
 
-  // ── Flush pending save when tab hides or closes ──────────────────────────────
+  // ── Flush any pending debounced save when tab hides or closes ────────────────
   useEffect(() => {
     function flush() {
       if (!convexReadyRef.current || !isSignedIn) return;
-      // Don't flush stale local state over newer cloud data.
-      // This prevents the ping-pong: device A saves S2, device B (still showing
-      // old S3) goes to background and its flush would overwrite S2 with S3.
-      let localSavedAt = 0;
-      try { const r = localStorage.getItem("boardtivity"); if (r) localSavedAt = (JSON.parse(r) as { savedAt?: number }).savedAt ?? 0; } catch {}
-      if (localSavedAt <= lastKnownCloudAtRef.current) return;
-      if (convexSaveTimerRef.current) { clearTimeout(convexSaveTimerRef.current); convexSaveTimerRef.current = null; }
-      const id = savedBoardIdRef.current as import("convex/values").GenericId<"userBoards"> | undefined;
-      const stateToSave = currentBoardState();
-      lastSavedStateRef.current = stateToSave;
-      saveBoard({ boardState: stateToSave, id })
-        .then(() => setCloudSyncState("synced"))
-        .catch(() => setCloudSyncState("error"));
+      if (!convexSaveTimerRef.current) return; // nothing pending
+      clearTimeout(convexSaveTimerRef.current);
+      convexSaveTimerRef.current = null;
+      pushToCloud();
     }
     function onVisibility() { if (document.visibilityState === "hidden") flush(); }
     window.addEventListener("pagehide", flush);
     document.addEventListener("visibilitychange", onVisibility);
     return () => { window.removeEventListener("pagehide", flush); document.removeEventListener("visibilitychange", onVisibility); };
-  }, [isSignedIn, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid]);
+  }, [isSignedIn]);
 
   // ── Error fallback if Convex never connects ──────────────────────────────────
   useEffect(() => {
