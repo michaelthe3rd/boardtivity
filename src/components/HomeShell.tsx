@@ -549,6 +549,7 @@ export function HomeShell() {
   const [upgradeType, setUpgradeType] = useState<BoardType>("task");
   const [limitReachedOpen, setLimitReachedOpen] = useState(false);
   const [showSubscribedModal, setShowSubscribedModal] = useState(false);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [namePromptOpen, setNamePromptOpen] = useState(false);
   const [namePromptFirst, setNamePromptFirst] = useState("");
   const [namePromptLast, setNamePromptLast] = useState("");
@@ -873,6 +874,15 @@ export function HomeShell() {
       }
     } catch {}
   }, []);
+
+  // Show one-time sync-overhaul update notice to signed-in users
+  useEffect(() => {
+    if (!clerkLoaded || !isSignedIn) return;
+    try {
+      const seen = localStorage.getItem("boardtivity_update_sync_v1_seen");
+      if (!seen) setShowUpdateModal(true);
+    } catch {}
+  }, [clerkLoaded, isSignedIn]);
 
   // Prompt existing users without a name to set one
   useEffect(() => {
@@ -5127,6 +5137,49 @@ export function HomeShell() {
             >
               Jump back in →
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Sync overhaul update notice ── */}
+      {showUpdateModal && (
+        <div
+          style={{ position: "fixed", inset: 0, zIndex: 60, backgroundColor: theme === "dark" ? "rgba(6,8,12,.8)" : "rgba(10,10,12,.4)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+          onClick={(e) => { if (e.target === e.currentTarget) { setShowUpdateModal(false); try { localStorage.setItem("boardtivity_update_sync_v1_seen", "1"); } catch {} } }}
+        >
+          <div style={{ width: "min(420px,100%)", backgroundColor: theme === "dark" ? "#1a1d22" : "#fbf8f1", borderRadius: 22, boxShadow: "0 40px 100px rgba(0,0,0,.35)", border: `1px solid ${border(theme)}`, padding: "36px 30px 28px", fontFamily: "inherit", textAlign: "center" }}>
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
+              <span style={{ fontSize: 12, letterSpacing: ".14em", textTransform: "uppercase", fontWeight: 700, color: theme === "dark" ? "rgba(255,255,255,.65)" : "rgba(0,0,0,.5)", background: theme === "dark" ? "rgba(255,255,255,.08)" : "rgba(0,0,0,.06)", border: `1px solid ${border(theme)}`, borderRadius: 999, padding: "6px 16px" }}>
+                What&apos;s new
+              </span>
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 900, letterSpacing: "-.04em", color: pageText(theme), marginBottom: 8, lineHeight: 1.2 }}>
+              Boardtivity just got a major upgrade ✦
+            </div>
+            <div style={{ fontSize: 14, color: muted(theme), lineHeight: 1.75, marginBottom: 24, textAlign: "left" }}>
+              <div style={{ marginBottom: 10 }}>We&apos;ve been heads down building — here&apos;s what&apos;s new:</div>
+              {[
+                ["Real-time sync", "your board now stays in perfect sync across all your devices, instantly"],
+                ["One step closer to BOB", "our AI agent is coming, and it\u2019s going to change how you work"],
+                ["Subtasks revamped", "cleaner flow for building out your tasks step by step"],
+                ["Stability improvements", "a ton of under-the-hood fixes for a smoother experience"],
+              ].map(([title, desc]) => (
+                <div key={title} style={{ display: "flex", gap: 10, marginBottom: 8, alignItems: "flex-start" }}>
+                  <span style={{ marginTop: 2, flexShrink: 0, width: 6, height: 6, borderRadius: "50%", background: theme === "dark" ? "rgba(255,255,255,.35)" : "rgba(0,0,0,.25)", display: "inline-block" }} />
+                  <span><strong style={{ color: pageText(theme) }}>{title}</strong> — {desc}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: 13, color: muted(theme), lineHeight: 1.6, marginBottom: 22, padding: "12px 14px", borderRadius: 10, background: theme === "dark" ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", border: `1px solid ${border(theme)}`, textAlign: "left" }}>
+              Unfortunately, this update may have caused some tasks or ideas to not carry over. We&apos;re sorry for the disruption — everything will sync perfectly from here.
+            </div>
+            <button
+              onClick={() => { setShowUpdateModal(false); try { localStorage.setItem("boardtivity_update_sync_v1_seen", "1"); } catch {} }}
+              style={{ width: "100%", padding: "14px 0", borderRadius: 12, border: "none", background: theme === "dark" ? "#f7f8fb" : "#111315", color: theme === "dark" ? "#111315" : "#f7f8fb", fontSize: 15, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-.02em" }}
+            >
+              Let&apos;s go →
+            </button>
+            <div style={{ marginTop: 12, fontSize: 12, color: muted(theme) }}>— The Boardtivity Team</div>
           </div>
         </div>
       )}
