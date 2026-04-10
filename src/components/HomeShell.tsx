@@ -1096,13 +1096,42 @@ export function HomeShell() {
         } catch { setCloudSyncState("error"); }
       }
     } else if (!cloudHasRealData) {
-      // Cloud is empty or only has defaults — push local up
-      pushToCloud();
+      // Cloud has no real data. Only push local state if it actually has content —
+      // never push empty defaults. On fresh device login, Convex auth can take a
+      // moment to propagate: boards.load briefly returns null before auth is ready,
+      // then returns real data. Pushing empty here would race against that and
+      // could overwrite real Convex data with nothing.
+      const localHasRealData = notes.length > 0 || boards.some(b => b.id !== "my-board" && b.id !== "my-thoughts");
+      if (localHasRealData) pushToCloud();
+      // else: local is also empty — wait for real cloud data to arrive, or let
+      // the user's first real action trigger the initial save.
     } else {
-      // Local is newer — Convex just became ready but effect-3 already ran
-      // without convexReadyRef set, so the debounced save was never queued.
-      // Push now to ensure cloud catches up and sync indicator resolves.
-      pushToCloud();
+      // Local timestamp is >= cloud — local may be genuinely newer.
+      // Only push if local has real content; don't push empty state over real data.
+      const localHasRealData = notes.length > 0 || boards.some(b => b.id !== "my-board" && b.id !== "my-thoughts");
+      if (localHasRealData) {
+        pushToCloud();
+      } else {
+        // Local is empty but cloud has data — apply cloud regardless of timestamp.
+        // This happens on a fresh device where localStorage savedAt is stale/wrong.
+        justAppliedCloudRef.current = true;
+        lastAppliedCloudAtRef.current = savedBoard.updatedAt;
+        try {
+          const data = JSON.parse(savedBoard.boardState) as {
+            boards?: Board[]; notes?: Note[]; activeBoardId?: string;
+            drafts?: Draft[]; thoughtColorMode?: "random" | "fixed";
+            thoughtFixedColorIdx?: number; boardGrid?: "grid" | "dots" | "blank";
+          };
+          if (Array.isArray(data.boards) && data.boards.length > 0) setBoards(data.boards);
+          if (Array.isArray(data.notes)) setNotes(data.notes);
+          if (data.activeBoardId) setActiveBoardId(data.activeBoardId);
+          if (Array.isArray(data.drafts)) setDrafts(data.drafts);
+          if (data.thoughtColorMode) setThoughtColorMode(data.thoughtColorMode);
+          if (typeof data.thoughtFixedColorIdx === "number") setThoughtFixedColorIdx(data.thoughtFixedColorIdx);
+          if (data.boardGrid) setBoardGrid(data.boardGrid);
+          setCloudSyncState("synced");
+        } catch { setCloudSyncState("error"); }
+      }
     }
 
   }, [isSignedIn, savedBoard]);
