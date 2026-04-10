@@ -1037,6 +1037,13 @@ export function HomeShell() {
         const id = savedBoardIdRef.current as import("convex/values").GenericId<"userBoards"> | undefined;
         const newId = await saveBoard({ boardState: stateToSave, id });
         if (newId && !savedBoardIdRef.current) savedBoardIdRef.current = newId as string;
+        // Stamp localStorage with the time we last successfully pushed so the
+        // sync effect can compare local vs cloud freshness on next page load.
+        try {
+          const raw = localStorage.getItem("boardtivity");
+          const existing = raw ? JSON.parse(raw) : {};
+          localStorage.setItem("boardtivity", JSON.stringify({ ...existing, savedAt: Date.now() }));
+        } catch {}
         setCloudSyncState("synced");
         return;
       } catch (e) {
@@ -1079,24 +1086,35 @@ export function HomeShell() {
       return;
     }
 
-    // Check whether Convex actually has real user data.
+    // Read when local was last successfully pushed to Convex.
+    let localSavedAt = 0;
+    try {
+      const raw = localStorage.getItem("boardtivity");
+      if (raw) localSavedAt = (JSON.parse(raw) as { savedAt?: number }).savedAt ?? 0;
+    } catch {}
+
     const cloudHasRealData = !isCloudDefaultOnly(savedBoard.boardState);
     const localHasRealData = notes.length > 0 || boards.some(b => b.id !== "my-board" && b.id !== "my-thoughts");
 
     if (!cloudHasRealData && localHasRealData) {
-      // Convex is empty but local has data — Convex was likely wiped by a bug.
-      // Push local state to restore Convex rather than applying the empty cloud data.
+      // Convex has no real data but local does — push local to migrate it.
       pushToCloud();
       return;
     }
 
     if (!cloudHasRealData) {
-      // Both empty — nothing to do.
       setCloudSyncState("synced");
       return;
     }
 
-    // Convex has real data — apply it (initial load or cross-device update).
+    // Both have real data. If local was pushed more recently than Convex was last
+    // updated, local is newer — push it (covers migration from localStorage-only).
+    if (localHasRealData && localSavedAt > savedBoard.updatedAt) {
+      pushToCloud();
+      return;
+    }
+
+    // Convex is newer — apply it.
     lastAppliedCloudAtRef.current = savedBoard.updatedAt;
     justAppliedCloudRef.current = true;
     try {
