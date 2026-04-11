@@ -236,6 +236,7 @@ Idea color names: none (grey), pink, orchid, coral, peach, butter, lilac, blue, 
 Task color names: red, orange, yellow, pink, orchid, coral, peach, butter, lilac, blue, mint
 
 Rules:
+— You have Google Search available. Use it freely whenever the user asks about real-world info: places, hours, events, recommendations, how-to guides, current news, local spots, travel, or anything requiring up-to-date or location-specific knowledge. Search first, then answer.
 — Stream your thinking naturally, then call tools.
 — After acting, narrate what you did in 1-2 sentences max.
 — Reference actual note titles and IDs.
@@ -335,10 +336,14 @@ export async function POST(req: NextRequest) {
   // ── Real mode ─────────────────────────────────────────────────────────────
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const searchTool = { googleSearch: {} } as any;
   const model = genAI.getGenerativeModel({
     model: "gemini-2.5-flash",
     systemInstruction: buildSystem(notes, mode, userInfo, settings),
-    tools: mode === "advisor" ? [] : [{ functionDeclarations: FUNCTION_DECLARATIONS as unknown as FunctionDeclaration[] }],
+    tools: mode === "advisor"
+      ? [searchTool]
+      : [{ functionDeclarations: FUNCTION_DECLARATIONS as unknown as FunctionDeclaration[] }, searchTool],
   });
 
   // Gemini uses "model" instead of "assistant" for role

@@ -484,14 +484,16 @@ export default function BobAgent({
   const DI2 = "cubic-bezier(0.4, 0, 0.2, 1)";    // material ease for collapse
   const transition = mobile
     ? (isExpanded
-        ? [`max-height 0.38s ${DI}`, `border-radius 0.3s ${DI}`].join(", ")
-        : [`max-height 0.24s ${DI2}`, `border-radius 0.22s ${DI2}`].join(", "))
+        ? "max-height 0.5s ease-out, border-radius 0.4s ease-out"
+        : "max-height 0.28s ease-in, border-radius 0.22s ease-in")
     : (isExpanded
         ? [`width 0.42s ${DI}`, `max-height 0.44s ${DI} 0.02s`, `border-radius 0.38s ${DI}`].join(", ")
         : [`max-height 0.28s ${DI2}`, `width 0.30s ${DI2} 0.02s`, `border-radius 0.28s ${DI2}`].join(", "));
 
   const contentOpacity    = isExpanded ? 1 : 0;
-  const contentTransition = isExpanded ? "opacity 0.18s ease 0.22s" : "opacity 0.08s ease";
+  const contentTransition = mobile
+    ? (isExpanded ? "opacity 0.25s ease 0.15s" : "opacity 0.1s ease")
+    : (isExpanded ? "opacity 0.18s ease 0.22s" : "opacity 0.08s ease");
 
   const pillBg  = t === "dark" ? "rgba(22,24,28,.72)"   : "rgba(255,255,255,.72)";
   const openBg  = t === "dark" ? "rgba(22,24,28,.94)"   : "rgba(255,255,255,.94)";
@@ -501,9 +503,9 @@ export default function BobAgent({
     <div
       ref={containerRef}
       style={{
-        width: open ? OPEN_W : PILL_W, maxHeight: open ? (mobile ? "calc(100svh - 140px)" : 560) : PILL_H,
+        width: open ? OPEN_W : PILL_W, maxHeight: open ? (mobile ? 560 : 560) : PILL_H,
         borderRadius: open ? 18 : 999, overflow: "hidden",
-        willChange: mobile ? "max-height, border-radius" : "width, max-height, border-radius", transition,
+        willChange: mobile ? "auto" : "width, max-height, border-radius", transition,
         backgroundColor: open ? openBg : pillBg,
         backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)",
         border: `1px solid ${pillBdr}`,
