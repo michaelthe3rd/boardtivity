@@ -728,6 +728,10 @@ export function HomeShell() {
   // Tracks the known Convex document ID so saves can skip the read and use
   // db.replace() directly, eliminating write conflicts on concurrent saves.
   const savedBoardIdRef = useRef<string | undefined>(undefined);
+  // Always-current board state string — updated in the persist effect so that
+  // pushToCloud() and the flush handler always save the LATEST state even when
+  // called from a stale closure (e.g. the pagehide / visibilitychange handler).
+  const latestBoardStateRef = useRef<string>("");
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const bobUserInfoData  = useQuery(api.bob.getBobUserInfo);
@@ -1098,7 +1102,8 @@ export function HomeShell() {
   }
 
   async function pushToCloud(retries = 3) {
-    const stateToSave = currentBoardState();
+    // Read from ref so stale closures (e.g. pagehide flush) still save the latest state
+    const stateToSave = latestBoardStateRef.current || currentBoardState();
     lastSavedStateRef.current = stateToSave;
     setCloudSyncState("saving");
     for (let attempt = 0; attempt < retries; attempt++) {
@@ -1215,9 +1220,14 @@ export function HomeShell() {
     if (!isHydrated) return;
 
     if (isSignedIn) {
+      // Always keep the latest board state in a ref so pushToCloud() (even stale closures)
+      // can read the freshest data. This fixes the pagehide/visibilitychange flush saving stale state.
+      const freshState = currentBoardState();
+      latestBoardStateRef.current = freshState;
+
       // Save full state to localStorage as a fast-load cache for same-browser visits.
-      // Convex is authoritative — it always overwrites this on load.
-      try { localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx })); } catch {}
+      // Include savedAt so the sync effect can determine which source is fresher.
+      try { localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, savedAt: Date.now() })); } catch {}
 
       if (!convexReadyRef.current) return;
 
