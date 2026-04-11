@@ -657,46 +657,18 @@ export default function BobAgent({
                 </button>
               </div>}
 
-              {/* ── Mode toast ── */}
+              {/* ── Mode toast (appears where the mode bar was, fades out) ── */}
               {modeToast && (
                 <div style={{
-                  position: "absolute", inset: 0, zIndex: 20, display: "flex", alignItems: "center", justifyContent: "center",
-                  pointerEvents: "none",
+                  borderTop: `1px solid ${T.border(t)}`,
+                  padding: "7px 10px", textAlign: "center",
+                  pointerEvents: "none", animation: "bobToastFade 1.8s ease forwards",
                 }}>
-                  <div style={{
-                    background: t === "dark" ? "rgba(22,24,28,.92)" : "rgba(255,255,255,.92)",
-                    border: `1px solid ${T.border(t)}`, borderRadius: 14,
-                    padding: "12px 28px", textAlign: "center",
-                    backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
-                    animation: "bobToastIn .2s ease",
-                  }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase", color: mu, fontFamily: "'Satoshi', Arial, sans-serif", marginBottom: 2 }}>Mode</div>
-                    <div style={{ fontSize: 20, fontWeight: 800, color: ic, fontFamily: "'Satoshi', Arial, sans-serif" }}>{MODE_LABELS[modeToast as Mode]}</div>
-                  </div>
+                  <span style={{ fontSize: 11.5, fontWeight: 600, color: mu, fontFamily: "'Satoshi', Arial, sans-serif", letterSpacing: ".02em" }}>
+                    {MODE_LABELS[modeToast as Mode]}
+                  </span>
                 </div>
               )}
-
-              {/* ── Mode selector ── */}
-              <div style={{
-                display: "flex", alignItems: "center", justifyContent: "center",
-                gap: 4, padding: "8px 10px 8px",
-                borderTop: `1px solid ${T.border(t)}`,
-              }}>
-                {(["advisor", "assistant", "autopilot"] as Mode[]).map(m => (
-                  <button
-                    key={m}
-                    onClick={() => changeMode(m)}
-                    style={{
-                      padding: "3px 10px", borderRadius: 99, border: "none",
-                      background: mode === m ? T.modeBg(t) : "transparent",
-                      color: mode === m ? T.text(t) : mu,
-                      fontSize: 11, fontWeight: mode === m ? 600 : 400,
-                      cursor: "pointer", fontFamily: "'Satoshi', Arial, sans-serif",
-                      transition: "all .15s",
-                    }}
-                  >{MODE_LABELS[m]}</button>
-                ))}
-              </div>
 
               {/* ── Usage meter ── */}
               {usage && (() => {

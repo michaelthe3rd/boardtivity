@@ -65,6 +65,7 @@ textarea{resize:none}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0}}
 @keyframes bobToastIn{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
+@keyframes bobToastFade{0%{opacity:0}10%{opacity:1}70%{opacity:1}100%{opacity:0}}
 @keyframes micPulse{0%,100%{box-shadow:0 0 0 8px rgba(192,48,48,.2),0 4px 20px rgba(192,48,48,.35)}50%{box-shadow:0 0 0 14px rgba(192,48,48,.1),0 4px 24px rgba(192,48,48,.45)}}
 @keyframes hueShift{
   0%{background-position:0% 50%}
