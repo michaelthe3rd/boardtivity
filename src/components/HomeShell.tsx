@@ -1794,14 +1794,6 @@ export function HomeShell() {
   function handleBobHighlightNotes(ids: number[]) {
     if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
     setHighlightedNoteIds(new Set(ids));
-    // Pan to center of highlighted notes
-    const targets = notes.filter(n => ids.includes(n.id));
-    if (targets.length) {
-      const cx = targets.reduce((s, n) => s + n.x, 0) / targets.length;
-      const cy = targets.reduce((s, n) => s + n.y, 0) / targets.length;
-      const s = scale;
-      setPan(clampPan(-cx * s + window.innerWidth / 2, -cy * s + window.innerHeight / 2, s));
-    }
     highlightTimerRef.current = setTimeout(() => setHighlightedNoteIds(new Set()), 4000);
   }
 
@@ -2492,17 +2484,17 @@ export function HomeShell() {
                           {mobileEditDueDate && (
                             <button type="button" onClick={() => setMobileEditDueDate("")} style={{ background: "none", border: "none", color: muted(theme), fontSize: 13, opacity: .5, cursor: "pointer", padding: "0 2px" }}>✕</button>
                           )}
-                          <input
-                            type="text"
-                            placeholder="mm-dd-yyyy"
-                            value={isoToMDY(mobileEditDueDate)}
-                            onChange={e => {
-                              const iso = mdyToISO(e.target.value);
-                              if (iso) setMobileEditDueDate(iso);
-                              else if (!e.target.value) setMobileEditDueDate("");
-                            }}
-                            style={{ border: "none", backgroundColor: "transparent", color: pageText(theme), fontSize: 14, fontWeight: 600, outline: "none", textAlign: "right", padding: 0, cursor: "pointer" }}
-                          />
+                          <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+                            <span style={{ fontSize: 14, fontWeight: 600, color: mobileEditDueDate ? pageText(theme) : muted(theme), pointerEvents: "none" }}>
+                              {mobileEditDueDate ? isoToMDY(mobileEditDueDate) : "mm-dd-yyyy"}
+                            </span>
+                            <input
+                              type="date"
+                              value={mobileEditDueDate}
+                              onChange={e => setMobileEditDueDate(e.target.value)}
+                              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer", zIndex: 1 }}
+                            />
+                          </div>
                         </div>
                         <div style={{ display: "flex", alignItems: "center", height: 44, backgroundColor: paper(theme), border: `1.5px solid ${border(theme)}`, borderRadius: 12, padding: "0 14px", gap: 8 }}>
                           <span style={{ fontSize: 13, fontWeight: 600, color: muted(theme), flex: 1 }}>Duration</span>
@@ -3953,17 +3945,17 @@ export function HomeShell() {
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                         <div>
                           <div style={{ fontSize: 11, letterSpacing: ".1em", textTransform: "uppercase", color: muted(boardTheme), marginBottom: 5 }}>Due date</div>
-                          <input
-                            type="text"
-                            placeholder="mm-dd-yyyy"
-                            value={isoToMDY(detailEditDueDate)}
-                            onChange={e => {
-                              const iso = mdyToISO(e.target.value);
-                              if (iso) setDetailEditDueDate(iso);
-                              else if (!e.target.value) setDetailEditDueDate("");
-                            }}
-                            style={{ width: "100%", background: "none", border: `1px solid ${border(boardTheme)}`, borderRadius: 8, padding: "6px 10px", fontSize: 13, color: pageText(boardTheme), fontFamily: "inherit", boxSizing: "border-box", outline: "none" }}
-                          />
+                          <div style={{ position: "relative", width: "100%", border: `1px solid ${border(boardTheme)}`, borderRadius: 8, padding: "6px 10px", boxSizing: "border-box", display: "flex", alignItems: "center" }}>
+                            <span style={{ fontSize: 13, color: detailEditDueDate ? pageText(boardTheme) : muted(boardTheme), flex: 1, pointerEvents: "none" }}>
+                              {detailEditDueDate ? isoToMDY(detailEditDueDate) : "mm-dd-yyyy"}
+                            </span>
+                            <input
+                              type="date"
+                              value={detailEditDueDate}
+                              onChange={e => setDetailEditDueDate(e.target.value)}
+                              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer", zIndex: 1 }}
+                            />
+                          </div>
                         </div>
                         <div>
                           <div style={{ fontSize: 11, letterSpacing: ".1em", textTransform: "uppercase", color: muted(boardTheme), marginBottom: 5 }}>Priority</div>
