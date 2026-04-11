@@ -147,9 +147,10 @@ export default function BobAgent({
   // Voice
   const [listening, setListening] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const recognitionRef = useRef<any>(null);
-  const transcriptRef  = useRef("");
-  const autoSendRef    = useRef(autoSend);
+  const recognitionRef  = useRef<any>(null);
+  const transcriptRef   = useRef("");
+  const autoSendRef     = useRef(autoSend);
+  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const inputRef     = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -358,6 +359,27 @@ export default function BobAgent({
   const hasSpeech = typeof window !== "undefined" &&
     ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
 
+  function cancelListening() {
+    if (silenceTimerRef.current) { clearTimeout(silenceTimerRef.current); silenceTimerRef.current = null; }
+    transcriptRef.current = "";
+    setInputText("");
+    recognitionRef.current?.stop();
+    setListening(false);
+  }
+
+  function finishListening() {
+    if (silenceTimerRef.current) { clearTimeout(silenceTimerRef.current); silenceTimerRef.current = null; }
+    const txt = transcriptRef.current;
+    transcriptRef.current = "";
+    recognitionRef.current?.stop();
+    setListening(false);
+    if (autoSendRef.current && txt.trim()) {
+      setInputText("");
+      send(txt);
+    }
+    // If autoSend is off, the transcript stays in the input for the user to review
+  }
+
   const startListening = useCallback(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const SR: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -376,10 +398,15 @@ export default function BobAgent({
         .map(x => x[0].transcript).join(" ");
       transcriptRef.current = txt;
       setInputText(txt);
+
+      // Reset silence timer — send after 1.8 s of no new speech
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = setTimeout(() => finishListening(), 1800);
     };
     r.onend = () => setListening(false);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     r.onerror = (e: any) => {
+      if (silenceTimerRef.current) { clearTimeout(silenceTimerRef.current); silenceTimerRef.current = null; }
       setListening(false);
       if (e.error === "aborted" || e.error === "no-speech") return;
       const msg = e.error === "not-allowed"
@@ -391,18 +418,7 @@ export default function BobAgent({
     };
     recognitionRef.current = r;
     r.start();
-  }, []);
-
-  function stopListening() {
-    const txt = transcriptRef.current;
-    transcriptRef.current = "";
-    recognitionRef.current?.stop();
-    setListening(false);
-    if (autoSendRef.current && txt.trim()) {
-      setInputText("");
-      send(txt);
-    }
-  }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const isExpanded = open && !closing;
@@ -537,8 +553,8 @@ export default function BobAgent({
               <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", borderBottom: `1px solid ${T.border(t)}` }}>
                 {hasSpeech && (
                   <button
-                    onClick={listening ? stopListening : startListening}
-                    title={listening ? "Stop recording" : "Speak to BOB"}
+                    onClick={listening ? cancelListening : startListening}
+                    title={listening ? "Cancel recording" : "Speak to BOB"}
                     style={{
                       width: 30, height: 30, borderRadius: "50%", border: "none", flexShrink: 0,
                       background: listening ? "rgba(192,48,48,.18)" : "transparent",
@@ -555,7 +571,7 @@ export default function BobAgent({
                   value={inputText}
                   onChange={e => setInputText(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-                  placeholder={listening ? "Listening…" : mode === "autopilot" ? "Tell BOB what to do…" : mode === "advisor" ? "Ask BOB anything…" : "Ask or tell BOB…"}
+                  placeholder={listening ? "Listening… (pause to send)" : mode === "autopilot" ? "Tell BOB what to do…" : mode === "advisor" ? "Ask BOB anything…" : "Ask or tell BOB…"}
                   style={{
                     flex: 1, border: "none", outline: "none", background: "transparent",
                     fontSize: 13, color: T.text(t), fontFamily: "'Satoshi', Arial, sans-serif",

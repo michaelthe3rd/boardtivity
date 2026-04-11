@@ -664,6 +664,21 @@ export function HomeShell() {
     }
   }
 
+  async function startPortal() {
+    if (!subscription?.stripeCustomerId) return;
+    try {
+      const res = await fetch("/api/portal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customerId: subscription.stripeCustomerId }),
+      });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+    } catch (e) {
+      console.error("Portal failed", e);
+    }
+  }
+
   const isAdmin = useQuery(api.admin.checkAdmin);
   const feedbackPosts = useQuery(api.feedback.list);
   const postFeedback = useMutation(api.feedback.post);
@@ -707,7 +722,9 @@ export function HomeShell() {
   const savedBoardIdRef = useRef<string | undefined>(undefined);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [bobUserInfo, setBobUserInfo] = useState(() => { try { return localStorage.getItem("bob_user_info") || ""; } catch { return ""; } });
+  const bobUserInfoData  = useQuery(api.bob.getBobUserInfo);
+  const setBobUserInfoFn = useMutation(api.bob.setBobUserInfo);
+  const bobUserInfo = bobUserInfoData ?? "";
   const [bobAutoSend, setBobAutoSend] = useState(() => { try { return localStorage.getItem("bob_auto_send") === "true"; } catch { return false; } });
   const [mobileSettingsOpen, setMobileSettingsOpen] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | string | null>(null);
@@ -3296,26 +3313,26 @@ export function HomeShell() {
                 </div>
               </div>
 
-              {/* Thought Note Color */}
+              {/* Idea Colors */}
               <div>
-                <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), fontWeight: 700, marginBottom: 10 }}>Idea Note Color</div>
+                <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), fontWeight: 700, marginBottom: 10 }}>Idea Colors</div>
                 <div style={{ display: "flex", gap: 6, marginBottom: 12, padding: 3, backgroundColor: boardTheme === "dark" ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", borderRadius: 10, border: `1px solid ${border(boardTheme)}` }}>
-                  {(["random","fixed"] as const).map(mode => (
+                  {(["random","select"] as const).map(mode => (
                     <button key={mode} onClick={() => {
-                      if (mode === "fixed" && !isPlus) { setUpgradeOpen(true); return; }
-                      setThoughtColorMode(mode);
+                      if (mode === "select" && !isPlus) { setUpgradeOpen(true); return; }
+                      setThoughtColorMode(mode === "select" ? "fixed" : "random");
                     }} style={{
                       flex: 1, height: 32, borderRadius: 8,
                       border: "none",
-                      backgroundColor: thoughtColorMode === mode ? (boardTheme === "dark" ? "rgba(255,255,255,.12)" : "#ffffff") : "transparent",
-                      boxShadow: thoughtColorMode === mode ? (boardTheme === "dark" ? "0 1px 4px rgba(0,0,0,.3)" : "0 1px 4px rgba(0,0,0,.1)") : "none",
-                      color: thoughtColorMode === mode ? pageText(boardTheme) : muted(boardTheme),
-                      fontSize: 13, fontWeight: thoughtColorMode === mode ? 700 : 500, cursor: "pointer", textTransform: "capitalize",
+                      backgroundColor: (mode === "select" ? thoughtColorMode === "fixed" : thoughtColorMode === "random") ? (boardTheme === "dark" ? "rgba(255,255,255,.12)" : "#ffffff") : "transparent",
+                      boxShadow: (mode === "select" ? thoughtColorMode === "fixed" : thoughtColorMode === "random") ? (boardTheme === "dark" ? "0 1px 4px rgba(0,0,0,.3)" : "0 1px 4px rgba(0,0,0,.1)") : "none",
+                      color: (mode === "select" ? thoughtColorMode === "fixed" : thoughtColorMode === "random") ? pageText(boardTheme) : muted(boardTheme),
+                      fontSize: 13, fontWeight: (mode === "select" ? thoughtColorMode === "fixed" : thoughtColorMode === "random") ? 700 : 500, cursor: "pointer", textTransform: "capitalize",
                       transition: "background-color .12s, box-shadow .12s",
                       display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
                     }}>
                       {mode}
-                      {mode === "fixed" && !isPlus && (
+                      {mode === "select" && !isPlus && (
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: .5 }}>
                           <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                         </svg>
@@ -3380,46 +3397,85 @@ export function HomeShell() {
                 </div>
               )}
 
-              {/* Calendar Export */}
               {/* BOB */}
-              <div style={{ borderTop: `1px solid ${border(boardTheme)}`, paddingTop: 20, display: "grid", gap: 14 }}>
-                <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), fontWeight: 700 }}>BOB</div>
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: pageText(boardTheme), marginBottom: 6 }}>About You</div>
-                  <textarea
-                    value={bobUserInfo}
-                    onChange={e => { setBobUserInfo(e.target.value); try { localStorage.setItem("bob_user_info", e.target.value); } catch {} }}
-                    placeholder="Tell BOB about yourself — your name, role, goals, or anything helpful…"
-                    rows={4}
-                    style={{
-                      width: "100%", boxSizing: "border-box",
-                      background: boardTheme === "dark" ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.03)",
-                      border: `1px solid ${border(boardTheme)}`, borderRadius: 10,
-                      padding: "8px 10px", fontSize: 13, color: pageText(boardTheme),
-                      outline: "none", lineHeight: 1.6, resize: "vertical",
-                    }}
-                  />
+              <div style={{ borderTop: `1px solid ${border(boardTheme)}`, paddingTop: 20, display: "grid", gap: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), fontWeight: 700 }}>BOB</div>
+                  {!isPlus && (
+                    <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", color: muted(boardTheme), opacity: .6 }}>
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                      Plus only
+                    </span>
+                  )}
                 </div>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: pageText(boardTheme) }}>Auto-send after recording</div>
-                    <div style={{ fontSize: 11.5, color: muted(boardTheme), marginTop: 2 }}>Send automatically when you stop the mic</div>
-                  </div>
-                  <button
-                    onClick={() => { const v = !bobAutoSend; setBobAutoSend(v); try { localStorage.setItem("bob_auto_send", String(v)); } catch {} }}
-                    style={{
-                      flexShrink: 0, width: 40, height: 24, borderRadius: 99, border: "none", cursor: "pointer",
-                      background: bobAutoSend ? "#6c63ff" : (boardTheme === "dark" ? "rgba(255,255,255,.15)" : "rgba(0,0,0,.15)"),
-                      position: "relative", transition: "background .2s",
-                    }}
-                  >
+
+                {isPlus ? (
+                  <div style={{ display: "grid", gap: 14 }}>
+                    {/* About You */}
                     <div style={{
-                      position: "absolute", top: 4, left: bobAutoSend ? 20 : 4,
-                      width: 16, height: 16, borderRadius: "50%", background: "#fff",
-                      transition: "left .2s", boxShadow: "0 1px 3px rgba(0,0,0,.3)",
-                    }} />
-                  </button>
-                </div>
+                      background: boardTheme === "dark" ? "rgba(255,255,255,.04)" : "rgba(0,0,0,.025)",
+                      border: `1px solid ${border(boardTheme)}`, borderRadius: 12, padding: "14px 14px 12px",
+                      display: "grid", gap: 8,
+                    }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: pageText(boardTheme), letterSpacing: ".01em" }}>About You</div>
+                      <textarea
+                        value={bobUserInfo}
+                        onChange={e => setBobUserInfoFn({ userInfo: e.target.value })}
+                        placeholder="Tell BOB about yourself — your name, role, goals, or anything helpful…"
+                        rows={4}
+                        style={{
+                          width: "100%", boxSizing: "border-box",
+                          background: boardTheme === "dark" ? "rgba(255,255,255,.06)" : "rgba(0,0,0,.04)",
+                          border: `1px solid ${border(boardTheme)}`, borderRadius: 8,
+                          padding: "8px 10px", fontSize: 13, color: pageText(boardTheme),
+                          outline: "none", lineHeight: 1.6, resize: "vertical",
+                        }}
+                      />
+                      <p style={{ margin: 0, fontSize: 11, color: muted(boardTheme), lineHeight: 1.5 }}>
+                        BOB uses this context to personalize responses across all your devices.
+                      </p>
+                    </div>
+
+                    {/* Auto-send toggle */}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: pageText(boardTheme) }}>Send on silence</div>
+                        <div style={{ fontSize: 11.5, color: muted(boardTheme), marginTop: 2 }}>Auto-send after a pause in speech</div>
+                      </div>
+                      <button
+                        onClick={() => { const v = !bobAutoSend; setBobAutoSend(v); try { localStorage.setItem("bob_auto_send", String(v)); } catch {} }}
+                        style={{
+                          flexShrink: 0, width: 42, height: 24, borderRadius: 999, border: "none", cursor: "pointer",
+                          backgroundColor: bobAutoSend ? (boardTheme === "dark" ? "#4a9eff" : "#2563eb") : (boardTheme === "dark" ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.12)"),
+                          position: "relative", transition: "background-color .18s",
+                        }}
+                      >
+                        <span style={{
+                          position: "absolute", top: 3, left: bobAutoSend ? 21 : 3,
+                          width: 18, height: 18, borderRadius: "50%", backgroundColor: "#fff",
+                          transition: "left .18s", boxShadow: "0 1px 3px rgba(0,0,0,.2)",
+                          display: "block",
+                        }} />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{
+                    background: boardTheme === "dark" ? "rgba(255,255,255,.04)" : "rgba(0,0,0,.025)",
+                    border: `1px solid ${border(boardTheme)}`, borderRadius: 12, padding: "16px 14px",
+                    display: "flex", flexDirection: "column", alignItems: "center", gap: 10, textAlign: "center",
+                  }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: pageText(boardTheme) }}>BOB is a Plus feature</div>
+                    <p style={{ margin: 0, fontSize: 12, color: muted(boardTheme), lineHeight: 1.55, maxWidth: 220 }}>
+                      Your AI board brain — personalized context, voice commands, autopilot, and more.
+                    </p>
+                    <button onClick={() => { setSettingsOpen(false); setUpgradeOpen(true); }} style={{
+                      padding: "7px 18px", borderRadius: 99, border: "none", cursor: "pointer",
+                      background: boardTheme === "dark" ? "rgba(255,255,255,.1)" : "rgba(0,0,0,.08)",
+                      color: pageText(boardTheme), fontSize: 12, fontWeight: 700,
+                    }}>Upgrade to Plus →</button>
+                  </div>
+                )}
               </div>
 
               {/* Calendar */}
@@ -3440,6 +3496,61 @@ export function HomeShell() {
                   Exports all tasks with due dates. Open with Apple Calendar, or import into Google Calendar via Settings → Import.
                 </p>
               </div>
+
+              {/* Billing */}
+              {isSignedIn && (
+                <div style={{ borderTop: `1px solid ${border(boardTheme)}`, paddingTop: 20, display: "grid", gap: 14 }}>
+                  <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), fontWeight: 700 }}>Billing</div>
+
+                  {/* Plan card */}
+                  <div style={{
+                    background: boardTheme === "dark" ? "rgba(255,255,255,.04)" : "rgba(0,0,0,.025)",
+                    border: `1px solid ${border(boardTheme)}`, borderRadius: 12, padding: "14px 14px 12px",
+                    display: "grid", gap: 10,
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: pageText(boardTheme) }}>
+                          {isPlus ? "Boardtivity Plus" : "Free Plan"}
+                        </div>
+                        {isPlus && subscription?.currentPeriodEnd && (
+                          <div style={{ fontSize: 11.5, color: muted(boardTheme), marginTop: 2 }}>
+                            Renews {new Date(subscription.currentPeriodEnd * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                          </div>
+                        )}
+                        {isPlus && subscription?.status === "past_due" && (
+                          <div style={{ fontSize: 11.5, color: "#e05555", marginTop: 2 }}>Payment past due</div>
+                        )}
+                      </div>
+                      <span style={{
+                        fontSize: 10, fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase",
+                        padding: "3px 10px", borderRadius: 999,
+                        background: isPlus ? (boardTheme === "dark" ? "rgba(74,158,255,.15)" : "rgba(37,99,235,.1)") : (boardTheme === "dark" ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.05)"),
+                        color: isPlus ? (boardTheme === "dark" ? "#4a9eff" : "#2563eb") : muted(boardTheme),
+                        border: `1px solid ${isPlus ? (boardTheme === "dark" ? "rgba(74,158,255,.2)" : "rgba(37,99,235,.15)") : border(boardTheme)}`,
+                      }}>
+                        {isPlus ? "Active" : "Free"}
+                      </span>
+                    </div>
+
+                    {isPlus ? (
+                      <button
+                        onClick={startPortal}
+                        style={{ ...buttonStyle(boardTheme, false), width: "100%", fontSize: 13, height: 38 }}
+                      >
+                        Manage subscription
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => { setSettingsOpen(false); setUpgradeOpen(true); }}
+                        style={{ ...buttonStyle(boardTheme, true), width: "100%", fontSize: 13, height: 38 }}
+                      >
+                        Upgrade to Plus
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Account */}
               <div style={{ borderTop: `1px solid ${border(boardTheme)}`, paddingTop: 20, display: "grid", gap: 8 }}>

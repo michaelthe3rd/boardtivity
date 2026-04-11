@@ -20,6 +20,7 @@ export default defineSchema({
     dailyDigest: v.boolean(),
     weeklyDigest: v.boolean(),
     dueSoonReminder: v.optional(v.boolean()),
+    bobUserInfo: v.optional(v.string()),
   }).index("by_token", ["tokenIdentifier"]),
 
   feedbackPosts: defineTable({

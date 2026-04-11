@@ -1,6 +1,41 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
+export const getBobUserInfo = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return "";
+    const prefs = await ctx.db
+      .query("emailPrefs")
+      .withIndex("by_token", q => q.eq("tokenIdentifier", identity.tokenIdentifier))
+      .first();
+    return prefs?.bobUserInfo ?? "";
+  },
+});
+
+export const setBobUserInfo = mutation({
+  args: { userInfo: v.string() },
+  handler: async (ctx, { userInfo }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return;
+    const existing = await ctx.db
+      .query("emailPrefs")
+      .withIndex("by_token", q => q.eq("tokenIdentifier", identity.tokenIdentifier))
+      .first();
+    if (existing) {
+      await ctx.db.patch(existing._id, { bobUserInfo: userInfo });
+    } else {
+      await ctx.db.insert("emailPrefs", {
+        tokenIdentifier: identity.tokenIdentifier,
+        dailyDigest: false,
+        weeklyDigest: false,
+        bobUserInfo: userInfo,
+      });
+    }
+  },
+});
+
 export const PLUS_TOKEN_LIMIT = 500_000;
 
 function currentMonth(): string {
