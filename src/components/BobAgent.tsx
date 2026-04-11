@@ -657,18 +657,40 @@ export default function BobAgent({
                 </button>
               </div>}
 
-              {/* ── Mode toast (appears where the mode bar was, fades out) ── */}
-              {modeToast && (
-                <div style={{
-                  borderTop: `1px solid ${T.border(t)}`,
-                  padding: "7px 10px", textAlign: "center",
-                  pointerEvents: "none", animation: "bobToastFade 1.8s ease forwards",
-                }}>
-                  <span style={{ fontSize: 11.5, fontWeight: 600, color: mu, fontFamily: "'Satoshi', Arial, sans-serif", letterSpacing: ".02em" }}>
-                    {MODE_LABELS[modeToast as Mode]}
-                  </span>
-                </div>
-              )}
+              {/* ── Mode selector ── */}
+              <div style={{
+                display: "flex", alignItems: "center", justifyContent: "center",
+                gap: 4, padding: "8px 10px",
+                borderTop: `1px solid ${T.border(t)}`, position: "relative",
+              }}>
+                {(["advisor", "assistant", "autopilot"] as Mode[]).map(m => (
+                  <button
+                    key={m}
+                    onClick={() => changeMode(m)}
+                    style={{
+                      padding: "3px 10px", borderRadius: 99, border: "none",
+                      background: mode === m ? T.modeBg(t) : "transparent",
+                      color: mode === m ? T.text(t) : mu,
+                      fontSize: 11, fontWeight: mode === m ? 600 : 400,
+                      cursor: "pointer", fontFamily: "'Satoshi', Arial, sans-serif",
+                      transition: "all .15s",
+                    }}
+                  >{MODE_LABELS[m]}</button>
+                ))}
+                {/* Slash-command toast overlays the bar briefly */}
+                {modeToast && (
+                  <div style={{
+                    position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
+                    pointerEvents: "none", animation: "bobToastFade 1.8s ease forwards",
+                    background: t === "dark" ? "rgba(22,24,28,.85)" : "rgba(255,255,255,.85)",
+                    borderRadius: 4,
+                  }}>
+                    <span style={{ fontSize: 11.5, fontWeight: 700, color: ic, fontFamily: "'Satoshi', Arial, sans-serif" }}>
+                      {MODE_LABELS[modeToast as Mode]}
+                    </span>
+                  </div>
+                )}
+              </div>
 
               {/* ── Usage meter ── */}
               {usage && (() => {
@@ -691,7 +713,7 @@ export default function BobAgent({
                         {pct}% used this month
                       </span>
                       <span style={{ fontSize: 10.5, color: mu, fontFamily: "'Satoshi', Arial, sans-serif", opacity: .7 }}>
-                        {modeCost} usage · {mode}
+                        {modeCost} usage
                       </span>
                     </div>
                     <div style={{
