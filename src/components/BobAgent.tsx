@@ -134,6 +134,48 @@ function SpeechWave({ c, listening, s = 16 }: { c: string; listening: boolean; s
   );
 }
 
+function BigSpeechWave({ c }: { c: string }) {
+  // 18 bars across ~260px width
+  const bars = [
+    { h: 4,  aH: 10, delay: "0s"     },
+    { h: 7,  aH: 18, delay: "0.08s"  },
+    { h: 10, aH: 26, delay: "0.16s"  },
+    { h: 14, aH: 30, delay: "0.24s"  },
+    { h: 18, aH: 32, delay: "0.32s"  },
+    { h: 22, aH: 36, delay: "0.40s"  },
+    { h: 26, aH: 38, delay: "0.48s"  },
+    { h: 28, aH: 40, delay: "0.56s"  },
+    { h: 30, aH: 42, delay: "0.64s"  },
+    { h: 28, aH: 40, delay: "0.56s"  },
+    { h: 26, aH: 38, delay: "0.48s"  },
+    { h: 22, aH: 36, delay: "0.40s"  },
+    { h: 18, aH: 32, delay: "0.32s"  },
+    { h: 14, aH: 30, delay: "0.24s"  },
+    { h: 10, aH: 26, delay: "0.16s"  },
+    { h: 7,  aH: 18, delay: "0.08s"  },
+    { h: 4,  aH: 10, delay: "0s"     },
+  ];
+  const VH = 44;
+  const barW = 3;
+  const gap = 11;
+  const totalW = bars.length * (barW + gap) - gap;
+  return (
+    <svg width={totalW} height={VH} viewBox={`0 0 ${totalW} ${VH}`} fill="none" style={{ display: "block" }}>
+      {bars.map((b, i) => {
+        const x = i * (barW + gap);
+        const sy = (VH - b.h) / 2;
+        const ay = (VH - b.aH) / 2;
+        return (
+          <rect key={i} x={x} width={barW} rx={1.5} fill={c} y={sy} height={b.h}>
+            <animate attributeName="height" values={`${b.h};${b.aH};${b.h}`} dur="0.7s" begin={b.delay} repeatCount="indefinite"/>
+            <animate attributeName="y"      values={`${sy};${ay};${sy}`}     dur="0.7s" begin={b.delay} repeatCount="indefinite"/>
+          </rect>
+        );
+      })}
+    </svg>
+  );
+}
+
 function Send({ c, s = 14 }: { c: string; s?: number }) {
   return (
     <svg width={s} height={s} viewBox="0 0 14 14" fill="none">
@@ -427,7 +469,7 @@ export default function BobAgent({
     if (!SR) return;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const r: any = new SR();
-    r.continuous = false; r.interimResults = true; r.lang = "en-US";
+    r.continuous = true; r.interimResults = true; r.lang = "en-US";
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     r.onresult = (e: any) => {
       const txt = Array.from(e.results as ArrayLike<{ 0: { transcript: string } }>)
@@ -446,7 +488,10 @@ export default function BobAgent({
     setListening(true);
   }, []);
 
-  function stopListening() { recognitionRef.current?.stop(); setListening(false); }
+  function stopListening() {
+    recognitionRef.current?.stop();
+    setListening(false);
+  }
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const isExpanded = open && !closing;
@@ -578,16 +623,15 @@ export default function BobAgent({
               )}
 
               {/* ── Input row ── */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", borderBottom: `1px solid ${T.border(t)}` }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: listening ? "4px 10px" : "9px 10px", borderBottom: `1px solid ${T.border(t)}`, transition: "padding .2s ease", minHeight: 48 }}>
                 {hasSpeech && (
                   <button
                     onClick={listening ? stopListening : startListening}
-                    title={listening ? "Stop" : "Speak to BOB"}
+                    title={listening ? "Stop recording" : "Speak to BOB"}
                     style={{
                       width: 30, height: 30, borderRadius: "50%", border: "none", flexShrink: 0,
                       background: listening ? "rgba(192,48,48,.18)" : "transparent",
                       cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                      animation: listening ? "micPulse 1.2s ease-in-out infinite" : "none",
                       transition: "background .2s",
                     }}
                   >
@@ -595,33 +639,41 @@ export default function BobAgent({
                       c={listening ? "#e05555" : t === "dark" ? "rgba(237,237,235,.55)" : "rgba(17,19,21,.4)"} />
                   </button>
                 )}
-                <input
-                  ref={inputRef}
-                  value={inputText}
-                  onChange={e => setInputText(e.target.value)}
-                  onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-                  placeholder={mode === "autopilot" ? "Tell BOB what to do…" : mode === "advisor" ? "Ask BOB anything…" : "Ask or tell BOB…"}
-                  style={{
-                    flex: 1, border: "none", outline: "none", background: "transparent",
-                    fontSize: 13, color: T.text(t), fontFamily: "'Satoshi', Arial, sans-serif",
-                    caretColor: T.text(t),
-                  }}
-                />
-                <button
-                  onClick={() => send()}
-                  disabled={!inputText.trim() || streaming}
-                  style={{
-                    width: 28, height: 28, borderRadius: 8, border: "none", flexShrink: 0,
-                    background: inputText.trim() && !streaming
-                      ? t === "dark" ? "rgba(255,255,255,.18)" : "rgba(17,19,21,.14)"
-                      : "transparent",
-                    cursor: inputText.trim() && !streaming ? "pointer" : "default",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    transition: "background .15s",
-                  }}
-                >
-                  <Send c={inputText.trim() && !streaming ? T.text(t) : mu} />
-                </button>
+                {listening ? (
+                  <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+                    <BigSpeechWave c={t === "dark" ? "rgba(224,85,85,.85)" : "rgba(192,48,48,.75)"} />
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      ref={inputRef}
+                      value={inputText}
+                      onChange={e => setInputText(e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+                      placeholder={mode === "autopilot" ? "Tell BOB what to do…" : mode === "advisor" ? "Ask BOB anything…" : "Ask or tell BOB…"}
+                      style={{
+                        flex: 1, border: "none", outline: "none", background: "transparent",
+                        fontSize: 13, color: T.text(t), fontFamily: "'Satoshi', Arial, sans-serif",
+                        caretColor: T.text(t),
+                      }}
+                    />
+                    <button
+                      onClick={() => send()}
+                      disabled={!inputText.trim() || streaming}
+                      style={{
+                        width: 28, height: 28, borderRadius: 8, border: "none", flexShrink: 0,
+                        background: inputText.trim() && !streaming
+                          ? t === "dark" ? "rgba(255,255,255,.18)" : "rgba(17,19,21,.14)"
+                          : "transparent",
+                        cursor: inputText.trim() && !streaming ? "pointer" : "default",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        transition: "background .15s",
+                      }}
+                    >
+                      <Send c={inputText.trim() && !streaming ? T.text(t) : mu} />
+                    </button>
+                  </>
+                )}
               </div>
 
               {/* ── Quick actions ── */}
