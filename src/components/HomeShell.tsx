@@ -2512,46 +2512,208 @@ export function HomeShell() {
               {/* Quick-add bottom sheet */}
               {/* Mobile settings sheet */}
               {mobileSettingsOpen && (
-                <div style={{ position: "fixed", inset: 0, zIndex: 900, display: "flex", flexDirection: "column", justifyContent: "flex-end" }} onClick={() => setMobileSettingsOpen(false)}>
-                  <div style={{ position: "relative", backgroundColor: theme === "dark" ? "#1a1d22" : "#ffffff", borderRadius: "20px 20px 0 0", padding: "24px 20px 48px", display: "flex", flexDirection: "column", gap: 0 }} onClick={e => e.stopPropagation()}>
-                    <div style={{ fontSize: 16, fontWeight: 800, color: pageText(theme), marginBottom: 20 }}>Email Notifications</div>
-                    {(["dailyDigest", "weeklyDigest"] as const).map((key) => {
-                      const labels: Record<string, string> = {
-                        dailyDigest: "Daily task outline",
-                        weeklyDigest: "Weekly task outline",
-                      };
-                      const enabled = emailPrefs ? emailPrefs[key] : true;
-                      return (
-                        <div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, paddingTop: 14, paddingBottom: 14, borderBottom: `1px solid ${border(theme)}` }}>
-                          <span style={{ fontSize: 15, color: pageText(theme) }}>{labels[key]}</span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const current = emailPrefs ?? { dailyDigest: true, weeklyDigest: true };
-                              updateEmailPrefs({ ...current, [key]: !enabled });
-                            }}
-                            style={{ flexShrink: 0, width: 46, height: 26, borderRadius: 999, border: "none", cursor: "pointer", backgroundColor: enabled ? (theme === "dark" ? "#4a9eff" : "#2563eb") : (theme === "dark" ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.12)"), position: "relative", transition: "background-color .18s" }}
-                          >
-                            <span style={{ position: "absolute", top: 4, left: enabled ? 23 : 4, width: 18, height: 18, borderRadius: "50%", backgroundColor: "#fff", transition: "left .18s", boxShadow: "0 1px 3px rgba(0,0,0,.2)" }} />
+                <div style={{ position: "fixed", inset: 0, zIndex: 900, display: "flex", flexDirection: "column" }} onClick={() => setMobileSettingsOpen(false)}>
+                  <div style={{ position: "relative", flex: 1, backgroundColor: theme === "dark" ? "#13151a" : "#f4f4f1", overflowY: "auto", display: "flex", flexDirection: "column" }} onClick={e => e.stopPropagation()}>
+                    {/* Header */}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 20px 14px", borderBottom: `1px solid ${border(theme)}`, position: "sticky", top: 0, backgroundColor: theme === "dark" ? "#13151a" : "#f4f4f1", zIndex: 1 }}>
+                      <span style={{ fontSize: 17, fontWeight: 800, color: pageText(theme) }}>Settings</span>
+                      <button onClick={() => setMobileSettingsOpen(false)} style={{ width: 32, height: 32, borderRadius: 999, border: `1px solid ${border(theme)}`, background: "transparent", color: pageText(theme), fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+                    </div>
+
+                    <div style={{ padding: "20px 20px 48px", display: "flex", flexDirection: "column", gap: 28 }}>
+
+                      {/* Theme */}
+                      <div>
+                        <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 10 }}>Appearance</div>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <span style={{ fontSize: 15, color: pageText(theme) }}>{theme === "dark" ? "Dark mode" : "Light mode"}</span>
+                          <button onClick={() => setTheme(t => t === "dark" ? "light" : "dark")} style={{ flexShrink: 0, width: 46, height: 26, borderRadius: 999, border: "none", cursor: "pointer", backgroundColor: theme === "dark" ? "#4a9eff" : "rgba(0,0,0,.12)", position: "relative", transition: "background-color .18s" }}>
+                            <span style={{ position: "absolute", top: 4, left: theme === "dark" ? 23 : 4, width: 18, height: 18, borderRadius: "50%", backgroundColor: "#fff", transition: "left .18s", boxShadow: "0 1px 3px rgba(0,0,0,.2)" }} />
                           </button>
                         </div>
-                      );
-                    })}
-                    <p style={{ fontSize: 12, color: muted(theme), margin: "14px 0 0", lineHeight: 1.5 }}>
-                      Sent to {user?.emailAddresses?.[0]?.emailAddress ?? "your email"}.
-                    </p>
-                    <div style={{ marginTop: 24, display: "flex", flexDirection: "column", gap: 8 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: pageText(theme) }}>Calendar</div>
-                      <button
-                        onClick={() => { exportToIcs(); setMobileSettingsOpen(false); }}
-                        disabled={!notes.some(n => n.dueDate && !n.completed)}
-                        style={{ height: 48, borderRadius: 14, border: "none", backgroundColor: theme === "dark" ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.06)", color: pageText(theme), fontSize: 15, fontWeight: 600, cursor: "pointer", opacity: notes.some(n => n.dueDate && !n.completed) ? 1 : 0.4 }}
-                      >Export tasks to calendar</button>
-                      <p style={{ fontSize: 12, color: muted(theme), margin: 0, lineHeight: 1.5 }}>
-                        Exports tasks with due dates. Opens in Apple Calendar or import into Google Calendar.
-                      </p>
+                      </div>
+
+                      {/* Board background */}
+                      <div>
+                        <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 10 }}>Board Background</div>
+                        <div style={{ display: "flex", gap: 6, padding: 3, backgroundColor: theme === "dark" ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", borderRadius: 10, border: `1px solid ${border(theme)}` }}>
+                          {(["grid", "dots", "blank"] as const).map(id => {
+                            const label = id === "grid" ? "Grid" : id === "dots" ? "Dots" : "Blank";
+                            const active = boardGrid === id;
+                            return (
+                              <button key={id} onClick={() => setBoardGrid(id)} style={{ flex: 1, height: 44, borderRadius: 8, border: "none", backgroundColor: active ? (theme === "dark" ? "rgba(255,255,255,.12)" : "#ffffff") : "transparent", boxShadow: active ? "0 1px 4px rgba(0,0,0,.12)" : "none", color: active ? pageText(theme) : muted(theme), cursor: "pointer", fontSize: 13, fontWeight: active ? 700 : 500, transition: "background-color .12s" }}>
+                                {label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Idea colors */}
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                          <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme), fontWeight: 700 }}>Idea Colors</div>
+                          {!isPlus && <span style={{ fontSize: 10, fontWeight: 700, color: muted(theme), opacity: .6 }}>Plus</span>}
+                        </div>
+                        {isPlus ? (
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                            <button onClick={() => setThoughtColorMode("random")} style={{ width: 28, height: 28, borderRadius: "50%", cursor: "pointer", padding: 0, background: theme === "dark" ? "#2a2d32" : "#d8d8d8", border: thoughtColorMode === "random" ? `2.5px solid ${pageText(theme)}` : "2.5px solid transparent", outline: thoughtColorMode === "random" ? `2px solid ${theme === "dark" ? "#888" : "#aaa"}` : "none", outlineOffset: 2 }} title="No default (randomized)" />
+                            {NOTE_PALETTE.map((p, i) => (
+                              <button key={i} onClick={() => { setThoughtColorMode("fixed"); setThoughtFixedColorIdx(i); }} style={{ width: 28, height: 28, borderRadius: "50%", border: (thoughtColorMode === "fixed" && thoughtFixedColorIdx === i) ? `2.5px solid ${pageText(theme)}` : "2.5px solid transparent", outline: (thoughtColorMode === "fixed" && thoughtFixedColorIdx === i) ? `2px solid ${p.swatch}` : "none", outlineOffset: 2, backgroundColor: p.swatch, cursor: "pointer", padding: 0 }} />
+                            ))}
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: 13, color: muted(theme), lineHeight: 1.5 }}>Ideas get a random color. Upgrade to Plus to set a default.</div>
+                        )}
+                      </div>
+
+                      {/* Task colors */}
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                          <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme), fontWeight: 700 }}>Task Colors</div>
+                          {!isPlus && <span style={{ fontSize: 10, fontWeight: 700, color: muted(theme), opacity: .6 }}>Plus</span>}
+                        </div>
+                        {isPlus ? (
+                          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                            <div style={{ display: "flex", gap: 6, padding: 3, backgroundColor: theme === "dark" ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", borderRadius: 10, border: `1px solid ${border(theme)}` }}>
+                              {(["priority", "single"] as const).map(m => (
+                                <button key={m} onClick={() => setTaskColorMode(m)} style={{ flex: 1, height: 34, borderRadius: 8, border: "none", backgroundColor: taskColorMode === m ? (theme === "dark" ? "rgba(255,255,255,.12)" : "#ffffff") : "transparent", boxShadow: taskColorMode === m ? "0 1px 4px rgba(0,0,0,.12)" : "none", color: taskColorMode === m ? pageText(theme) : muted(theme), fontSize: 13, fontWeight: taskColorMode === m ? 700 : 500, cursor: "pointer", transition: "background-color .12s" }}>
+                                  {m === "priority" ? "By Priority" : "One Color"}
+                                </button>
+                              ))}
+                            </div>
+                            {taskColorMode === "priority" ? (
+                              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                                {(["High", "Medium", "Low"] as const).map(lvl => {
+                                  const currentIdx = lvl === "High" ? taskHighColorIdx : lvl === "Medium" ? taskMedColorIdx : taskLowColorIdx;
+                                  const setter = lvl === "High" ? setTaskHighColorIdx : lvl === "Medium" ? setTaskMedColorIdx : setTaskLowColorIdx;
+                                  return (
+                                    <div key={lvl}>
+                                      <div style={{ fontSize: 12, fontWeight: 600, color: pageText(theme), marginBottom: 6 }}>{lvl} priority</div>
+                                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                                        {TASK_PALETTE.map((p, i) => (
+                                          <button key={i} onClick={() => setter(i)} style={{ width: 24, height: 24, borderRadius: "50%", border: currentIdx === i ? `2.5px solid ${pageText(theme)}` : "2.5px solid transparent", outline: currentIdx === i ? `2px solid ${p.swatch}` : "none", outlineOffset: 2, backgroundColor: p.swatch, cursor: "pointer", padding: 0 }} />
+                                        ))}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <div>
+                                <div style={{ fontSize: 12, color: muted(theme), marginBottom: 8 }}>One color for all tasks.</div>
+                                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                                  {TASK_PALETTE.map((p, i) => (
+                                    <button key={i} onClick={() => setTaskSingleColorIdx(i)} style={{ width: 24, height: 24, borderRadius: "50%", border: taskSingleColorIdx === i ? `2.5px solid ${pageText(theme)}` : "2.5px solid transparent", outline: taskSingleColorIdx === i ? `2px solid ${p.swatch}` : "none", outlineOffset: 2, backgroundColor: p.swatch, cursor: "pointer", padding: 0 }} />
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: 13, color: muted(theme), lineHeight: 1.5 }}>Tasks use priority-based colors. Upgrade to Plus to customize.</div>
+                        )}
+                      </div>
+
+                      {/* BOB */}
+                      <div style={{ borderTop: `1px solid ${border(theme)}`, paddingTop: 20 }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                          <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme), fontWeight: 700 }}>BOB</div>
+                          {!isPlus && <span style={{ fontSize: 10, fontWeight: 700, color: muted(theme), opacity: .6 }}>Plus</span>}
+                        </div>
+                        {isPlus ? (
+                          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                            <div style={{ background: theme === "dark" ? "rgba(255,255,255,.04)" : "rgba(0,0,0,.025)", border: `1px solid ${border(theme)}`, borderRadius: 12, padding: "14px 14px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
+                              <div style={{ fontSize: 12, fontWeight: 700, color: pageText(theme) }}>About You</div>
+                              <textarea
+                                value={bobUserInfo}
+                                onChange={e => setBobUserInfoFn({ userInfo: e.target.value })}
+                                placeholder="Tell BOB about yourself — name, role, goals…"
+                                rows={3}
+                                style={{ width: "100%", boxSizing: "border-box", background: theme === "dark" ? "rgba(255,255,255,.06)" : "rgba(0,0,0,.04)", border: `1px solid ${border(theme)}`, borderRadius: 8, padding: "8px 10px", fontSize: 13, color: pageText(theme), outline: "none", lineHeight: 1.6, resize: "vertical" }}
+                              />
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                              <div>
+                                <div style={{ fontSize: 13, fontWeight: 600, color: pageText(theme) }}>Send on silence</div>
+                                <div style={{ fontSize: 11.5, color: muted(theme), marginTop: 2 }}>Auto-send after a pause in speech</div>
+                              </div>
+                              <button onClick={() => { const v = !bobAutoSend; setBobAutoSend(v); try { localStorage.setItem("bob_auto_send", String(v)); } catch {} }} style={{ flexShrink: 0, width: 46, height: 26, borderRadius: 999, border: "none", cursor: "pointer", backgroundColor: bobAutoSend ? (theme === "dark" ? "#4a9eff" : "#2563eb") : (theme === "dark" ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.12)"), position: "relative", transition: "background-color .18s" }}>
+                                <span style={{ position: "absolute", top: 4, left: bobAutoSend ? 23 : 4, width: 18, height: 18, borderRadius: "50%", backgroundColor: "#fff", transition: "left .18s", boxShadow: "0 1px 3px rgba(0,0,0,.2)" }} />
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{ background: theme === "dark" ? "rgba(255,255,255,.04)" : "rgba(0,0,0,.025)", border: `1px solid ${border(theme)}`, borderRadius: 12, padding: "16px 14px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, textAlign: "center" }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: pageText(theme) }}>BOB is a Plus feature</div>
+                            <p style={{ margin: 0, fontSize: 12, color: muted(theme), lineHeight: 1.55 }}>AI board brain — voice, autopilot, smart prioritization.</p>
+                            <button onClick={() => { setMobileSettingsOpen(false); setUpgradeOpen(true); }} style={{ padding: "7px 18px", borderRadius: 99, border: "none", cursor: "pointer", background: theme === "dark" ? "rgba(255,255,255,.1)" : "rgba(0,0,0,.08)", color: pageText(theme), fontSize: 12, fontWeight: 700 }}>Upgrade to Plus →</button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Email notifications */}
+                      {isSignedIn && (
+                        <div style={{ borderTop: `1px solid ${border(theme)}`, paddingTop: 20 }}>
+                          <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 12 }}>Email Notifications</div>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                            {(["dailyDigest", "weeklyDigest"] as const).map((key) => {
+                              const labels: Record<string, string> = { dailyDigest: "Daily task outline", weeklyDigest: "Weekly task outline" };
+                              const enabled = emailPrefs ? emailPrefs[key] : true;
+                              return (
+                                <div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, paddingTop: 14, paddingBottom: 14, borderBottom: `1px solid ${border(theme)}` }}>
+                                  <span style={{ fontSize: 15, color: pageText(theme) }}>{labels[key]}</span>
+                                  <button type="button" onClick={() => { const current = emailPrefs ?? { dailyDigest: true, weeklyDigest: true }; updateEmailPrefs({ ...current, [key]: !enabled }); }} style={{ flexShrink: 0, width: 46, height: 26, borderRadius: 999, border: "none", cursor: "pointer", backgroundColor: enabled ? (theme === "dark" ? "#4a9eff" : "#2563eb") : (theme === "dark" ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.12)"), position: "relative", transition: "background-color .18s" }}>
+                                    <span style={{ position: "absolute", top: 4, left: enabled ? 23 : 4, width: 18, height: 18, borderRadius: "50%", backgroundColor: "#fff", transition: "left .18s", boxShadow: "0 1px 3px rgba(0,0,0,.2)" }} />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <p style={{ fontSize: 12, color: muted(theme), margin: "12px 0 0", lineHeight: 1.5 }}>Sent to {user?.emailAddresses?.[0]?.emailAddress ?? "your email"}.</p>
+                        </div>
+                      )}
+
+                      {/* Calendar */}
+                      <div style={{ borderTop: `1px solid ${border(theme)}`, paddingTop: 20 }}>
+                        <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 10 }}>Calendar</div>
+                        <button onClick={() => { exportToIcs(); setMobileSettingsOpen(false); }} disabled={!notes.some(n => n.dueDate && !n.completed)} style={{ width: "100%", height: 48, borderRadius: 12, border: `1px solid ${border(theme)}`, backgroundColor: theme === "dark" ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.06)", color: pageText(theme), fontSize: 15, fontWeight: 600, cursor: "pointer", opacity: notes.some(n => n.dueDate && !n.completed) ? 1 : 0.4 }}>Export tasks to calendar (.ics)</button>
+                        <p style={{ fontSize: 12, color: muted(theme), margin: "10px 0 0", lineHeight: 1.5 }}>Exports tasks with due dates. Opens in Apple Calendar or import into Google Calendar.</p>
+                      </div>
+
+                      {/* Billing */}
+                      {isSignedIn && (
+                        <div style={{ borderTop: `1px solid ${border(theme)}`, paddingTop: 20 }}>
+                          <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 12 }}>Billing</div>
+                          <div style={{ background: theme === "dark" ? "rgba(255,255,255,.04)" : "rgba(0,0,0,.025)", border: `1px solid ${border(theme)}`, borderRadius: 12, padding: "14px 14px 12px", display: "flex", flexDirection: "column", gap: 10 }}>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                              <div>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: pageText(theme) }}>{isPlus ? "Boardtivity Plus" : "Free Plan"}</div>
+                                {isPlus && subscription?.currentPeriodEnd && <div style={{ fontSize: 11.5, color: muted(theme), marginTop: 2 }}>Renews {new Date(subscription.currentPeriodEnd * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</div>}
+                              </div>
+                              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase", padding: "3px 10px", borderRadius: 999, background: isPlus ? (theme === "dark" ? "rgba(74,158,255,.15)" : "rgba(37,99,235,.1)") : (theme === "dark" ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.05)"), color: isPlus ? (theme === "dark" ? "#4a9eff" : "#2563eb") : muted(theme), border: `1px solid ${isPlus ? (theme === "dark" ? "rgba(74,158,255,.2)" : "rgba(37,99,235,.15)") : border(theme)}` }}>{isPlus ? "Active" : "Free"}</span>
+                            </div>
+                            {isPlus ? (
+                              <button onClick={startPortal} style={{ height: 44, borderRadius: 10, border: `1px solid ${border(theme)}`, backgroundColor: theme === "dark" ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.06)", color: pageText(theme), fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Manage subscription</button>
+                            ) : (
+                              <button onClick={() => { setMobileSettingsOpen(false); setUpgradeOpen(true); }} style={{ height: 44, borderRadius: 10, border: "none", backgroundColor: theme === "dark" ? "#f5f5f2" : "#171613", color: theme === "dark" ? "#171613" : "#f7f8fb", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>Upgrade to Plus</button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Account */}
+                      {isSignedIn && (
+                        <div style={{ borderTop: `1px solid ${border(theme)}`, paddingTop: 20 }}>
+                          <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 12 }}>Account</div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, overflow: "hidden" }}>
+                            <span style={{ fontSize: 13, color: muted(theme), overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.firstName ? `${user.firstName}${user.lastName ? ` ${user.lastName}` : ""}` : user?.emailAddresses?.[0]?.emailAddress}</span>
+                            {isPlus && <span style={{ flexShrink: 0, fontSize: 9, letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 700, color: theme === "dark" ? "rgba(255,255,255,.6)" : "rgba(0,0,0,.5)", background: theme === "dark" ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.05)", border: `1px solid ${border(theme)}`, borderRadius: 999, padding: "3px 9px" }}>Plus</span>}
+                          </div>
+                          <button onClick={() => signOut()} style={{ width: "100%", height: 44, borderRadius: 10, border: `1px solid ${border(theme)}`, backgroundColor: "transparent", color: theme === "dark" ? "#ff8080" : "#c03030", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Sign out</button>
+                        </div>
+                      )}
                     </div>
-                    <button onClick={() => setMobileSettingsOpen(false)} style={{ marginTop: 20, height: 48, borderRadius: 14, border: "none", backgroundColor: theme === "dark" ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.06)", color: pageText(theme), fontSize: 15, fontWeight: 700, cursor: "pointer" }}>Done</button>
                   </div>
                 </div>
               )}
@@ -2563,13 +2725,14 @@ export function HomeShell() {
                     <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: muted(theme), opacity: .6, marginBottom: 2 }}>
                       {mobileAddMode === "task" ? "New Task" : "New Idea"}
                     </div>
-                    <input
+                    <textarea
                       autoFocus
+                      rows={1}
                       value={mobileAddTitle}
-                      onChange={e => setMobileAddTitle(e.target.value)}
-                      onKeyDown={e => { if (e.key === "Enter") mobileCreateNote(); if (e.key === "Escape") { setMobileAddMode(null); setMobileAddTitle(""); setMobileAddColorIdx(undefined); setMobileAddRemindIn(null); } }}
+                      onChange={e => { setMobileAddTitle(e.target.value); e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }}
+                      onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); mobileCreateNote(); } if (e.key === "Escape") { setMobileAddMode(null); setMobileAddTitle(""); setMobileAddColorIdx(undefined); setMobileAddRemindIn(null); } }}
                       placeholder={mobileAddMode === "task" ? "What needs to be done?" : "What's your idea?"}
-                      style={{ fontSize: 16, fontWeight: 600, color: pageText(theme), backgroundColor: paper(theme), border: `1.5px solid ${border(theme)}`, borderRadius: 12, padding: "13px 14px", outline: "none", width: "100%", boxSizing: "border-box" }}
+                      style={{ fontSize: 16, fontWeight: 600, color: pageText(theme), backgroundColor: paper(theme), border: `1.5px solid ${border(theme)}`, borderRadius: 12, padding: "13px 14px", outline: "none", width: "100%", boxSizing: "border-box", resize: "none", overflow: "hidden", lineHeight: 1.4 }}
                     />
                     {mobileAddMode === "task" && (
                       <div style={{ display: "flex", gap: 6 }}>
@@ -2627,11 +2790,12 @@ export function HomeShell() {
                   <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,.4)" }} onClick={() => { setMobileActionNoteId(null); setMobileDeleteConfirm(false); }} />
                   <div style={{ position: "relative", backgroundColor: surface(theme), borderRadius: "20px 20px 0 0", padding: "20px 20px 36px", display: "flex", flexDirection: "column", gap: 12 }}>
                     <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: muted(theme), opacity: .5, marginBottom: 2 }}>Edit</div>
-                    <input
+                    <textarea
+                      rows={1}
                       value={mobileEditTitle}
-                      onChange={e => setMobileEditTitle(e.target.value)}
+                      onChange={e => { setMobileEditTitle(e.target.value); e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }}
                       placeholder="Title"
-                      style={{ fontSize: 16, fontWeight: 600, color: pageText(theme), backgroundColor: paper(theme), border: `1.5px solid ${border(theme)}`, borderRadius: 12, padding: "13px 14px", outline: "none", width: "100%", boxSizing: "border-box" }}
+                      style={{ fontSize: 16, fontWeight: 600, color: pageText(theme), backgroundColor: paper(theme), border: `1.5px solid ${border(theme)}`, borderRadius: 12, padding: "13px 14px", outline: "none", width: "100%", boxSizing: "border-box", resize: "none", overflow: "hidden", lineHeight: 1.4 }}
                     />
                     {actionNote.type === "thought" && (
                       <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
