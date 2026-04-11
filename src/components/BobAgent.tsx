@@ -206,9 +206,12 @@ export default function BobAgent({
     setMode(loadMode());
   }, []);
 
-  // Auto-scroll to bottom of conversation
+  // Auto-scroll only when user is already near the bottom
   useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    const el = scrollRef.current;
+    if (!el) return;
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (distFromBottom < 80) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
   useEffect(() => {
