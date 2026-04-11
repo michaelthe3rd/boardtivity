@@ -494,7 +494,9 @@ export default function BobAgent({
   const DI  = "cubic-bezier(0.22, 1, 0.36, 1)";  // spring-like ease-out
   const DI2 = "cubic-bezier(0.4, 0, 0.2, 1)";    // material ease for collapse
   const transition = mobile
-    ? (isExpanded ? "max-height 0.5s ease-out" : "max-height 0.28s ease-in")
+    ? (isExpanded
+        ? "max-height 0.5s ease-out"  // open: no border-radius transition (avoids circle artifact)
+        : "max-height 0.28s ease-in, border-radius 0.28s ease-in")  // close: reverse the pill shape
     : (isExpanded
         ? [`width 0.42s ${DI}`, `max-height 0.44s ${DI} 0.02s`, `border-radius 0.38s ${DI}`].join(", ")
         : [`max-height 0.28s ${DI2}`, `width 0.30s ${DI2} 0.02s`, `border-radius 0.28s ${DI2}`].join(", "));
