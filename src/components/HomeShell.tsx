@@ -20,6 +20,14 @@ const NOTE_PALETTE = [
   { light: "#f1f1fb", dark: "#1e1e30", halo: "rgba(120,120,220,.20)",  swatch: "#6060d8" },  // periwinkle
 ];
 
+// Task color palette: first 3 are priority defaults (red/orange/yellow), then NOTE_PALETTE
+const TASK_PALETTE = [
+  { light: "#fde8e8", dark: "#3d1515", halo: "rgba(215,60,60,.22)",   swatch: "#c03030" },  // red   (High default)
+  { light: "#fdeede", dark: "#3a2210", halo: "rgba(220,130,40,.22)",  swatch: "#d07030" },  // orange (Med default)
+  { light: "#fdfae0", dark: "#352c12", halo: "rgba(210,190,40,.22)",  swatch: "#c8960a" },  // yellow (Low default)
+  ...NOTE_PALETTE,
+];
+
 function hexToRgba(hex: string, alpha: number): string {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -584,7 +592,7 @@ export function HomeShell() {
 
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [draftPromptOpen, setDraftPromptOpen] = useState(false);
-  const [composerColorIdx, setComposerColorIdx] = useState(0);
+  const [composerColorIdx, setComposerColorIdx] = useState<number | undefined>(0);
   const [thoughtUnlinkTarget, setThoughtUnlinkTarget] = useState<number | null>(null);
   const thoughtUnlinkTargetRef = useRef<number | null>(null);
   const thoughtHoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -732,6 +740,12 @@ export function HomeShell() {
   const [boardGrid, setBoardGrid] = useState<"grid" | "dots" | "blank">(() => readLocal("boardGrid", "grid"));
   const [thoughtColorMode, setThoughtColorMode] = useState<"random" | "fixed">(() => readLocal("thoughtColorMode", "random"));
   const [thoughtFixedColorIdx, setThoughtFixedColorIdx] = useState<number>(() => readLocal("thoughtFixedColorIdx", 0));
+  const [taskColorMode, setTaskColorMode] = useState<"priority" | "single">(() => readLocal("taskColorMode", "priority"));
+  const [taskHighColorIdx, setTaskHighColorIdx] = useState<number>(() => readLocal("taskHighColorIdx", 0));
+  const [taskMedColorIdx, setTaskMedColorIdx] = useState<number>(() => readLocal("taskMedColorIdx", 1));
+  const [taskLowColorIdx, setTaskLowColorIdx] = useState<number>(() => readLocal("taskLowColorIdx", 2));
+  const [taskSingleColorIdx, setTaskSingleColorIdx] = useState<number>(() => readLocal("taskSingleColorIdx", 0));
+  const [ideaColorPickerId, setIdeaColorPickerId] = useState<number | null>(null);
   const settingsRef = useRef<HTMLDivElement | null>(null);
   const [cloudSyncState, setCloudSyncState] = useState<"loading" | "synced" | "saving" | "error">("loading");
 
@@ -751,22 +765,35 @@ export function HomeShell() {
   const activeBoard = boards.find((b) => b.id === activeBoardId) ?? boards[0];
   const activeNotes = notes.filter((n) => n.boardId === activeBoardId);
 
+  // Resolve effective task color for a given priority level
+  const taskPaletteEntry = (importance: "High" | "Medium" | "Low") => {
+    if (!isPlus) return null; // use hardcoded PRIORITY_COLORS for free users
+    if (taskColorMode === "single") return TASK_PALETTE[taskSingleColorIdx % TASK_PALETTE.length];
+    const idx = importance === "High" ? taskHighColorIdx : importance === "Medium" ? taskMedColorIdx : taskLowColorIdx;
+    return TASK_PALETTE[idx % TASK_PALETTE.length];
+  };
   const getBg = (importance: Importance | undefined) => {
     if (!importance || importance === "none") return boardTheme === "dark" ? "#2a2d32" : "#ebebeb";
-    const c = PRIORITY_COLORS[importance as "High"|"Medium"|"Low"];
+    const custom = taskPaletteEntry(importance as "High"|"Medium"|"Low");
+    const c = custom ? custom.swatch : PRIORITY_COLORS[importance as "High"|"Medium"|"Low"];
     return blendHex(c, boardTheme === "dark" ? "#17191d" : "#ffffff", boardTheme === "dark" ? 0.28 : 0.32);
   };
   const getHalo = (importance: Importance | undefined) => {
     if (!importance || importance === "none") return boardTheme === "dark" ? "rgba(140,140,140,.18)" : "rgba(0,0,0,.10)";
+    const custom = taskPaletteEntry(importance as "High"|"Medium"|"Low");
+    if (custom) return custom.halo;
     return hexToRgba(PRIORITY_COLORS[importance as "High"|"Medium"|"Low"], boardTheme === "dark" ? 0.30 : 0.48);
   };
   const getNoteBorder = (importance: Importance | undefined) => {
     if (!importance || importance === "none") return `1px solid ${boardTheme === "dark" ? "rgba(255,255,255,.08)" : "rgba(0,0,0,.10)"}`;
-    return `1.5px solid ${hexToRgba(PRIORITY_COLORS[importance as "High"|"Medium"|"Low"], boardTheme === "dark" ? 0.28 : 0.42)}`;
+    const custom = taskPaletteEntry(importance as "High"|"Medium"|"Low");
+    const c = custom ? custom.swatch : PRIORITY_COLORS[importance as "High"|"Medium"|"Low"];
+    return `1.5px solid ${hexToRgba(c, boardTheme === "dark" ? 0.28 : 0.42)}`;
   };
   const getAccent = (importance: Importance | undefined) => {
     if (!importance || importance === "none") return muted(boardTheme);
-    return PRIORITY_COLORS[importance as "High"|"Medium"|"Low"];
+    const custom = taskPaletteEntry(importance as "High"|"Medium"|"Low");
+    return custom ? custom.swatch : PRIORITY_COLORS[importance as "High"|"Medium"|"Low"];
   };
   const detailNote = notes.find((n) => n.id === detailNoteId) ?? null;
   const stepModal = activeStep
@@ -958,6 +985,8 @@ export function HomeShell() {
           boards?: Board[]; notes?: Note[]; activeBoardId?: string;
           drafts?: Draft[]; thoughtColorMode?: "random" | "fixed";
           thoughtFixedColorIdx?: number; boardGrid?: "grid" | "dots" | "blank";
+          taskColorMode?: "priority" | "single"; taskHighColorIdx?: number;
+          taskMedColorIdx?: number; taskLowColorIdx?: number; taskSingleColorIdx?: number;
         };
         if (data.theme) setTheme(data.theme);
         if (data.boardTheme) setBoardTheme(data.boardTheme);
@@ -969,6 +998,11 @@ export function HomeShell() {
           if (data.thoughtColorMode) setThoughtColorMode(data.thoughtColorMode);
           if (typeof data.thoughtFixedColorIdx === "number") setThoughtFixedColorIdx(data.thoughtFixedColorIdx);
           if (data.boardGrid) setBoardGrid(data.boardGrid);
+          if (data.taskColorMode) setTaskColorMode(data.taskColorMode);
+          if (typeof data.taskHighColorIdx === "number") setTaskHighColorIdx(data.taskHighColorIdx);
+          if (typeof data.taskMedColorIdx === "number") setTaskMedColorIdx(data.taskMedColorIdx);
+          if (typeof data.taskLowColorIdx === "number") setTaskLowColorIdx(data.taskLowColorIdx);
+          if (typeof data.taskSingleColorIdx === "number") setTaskSingleColorIdx(data.taskSingleColorIdx);
         }
       }
     } catch {}
@@ -1060,7 +1094,7 @@ export function HomeShell() {
   }
 
   function currentBoardState() {
-    return JSON.stringify({ boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid });
+    return JSON.stringify({ boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx });
   }
 
   async function pushToCloud(retries = 3) {
@@ -1157,6 +1191,8 @@ export function HomeShell() {
         boards?: Board[]; notes?: Note[]; activeBoardId?: string;
         drafts?: Draft[]; thoughtColorMode?: "random" | "fixed";
         thoughtFixedColorIdx?: number; boardGrid?: "grid" | "dots" | "blank";
+        taskColorMode?: "priority" | "single"; taskHighColorIdx?: number;
+        taskMedColorIdx?: number; taskLowColorIdx?: number; taskSingleColorIdx?: number;
       };
       if (Array.isArray(data.boards) && data.boards.length > 0) setBoards(data.boards);
       if (Array.isArray(data.notes)) setNotes(data.notes);
@@ -1165,6 +1201,11 @@ export function HomeShell() {
       if (data.thoughtColorMode) setThoughtColorMode(data.thoughtColorMode);
       if (typeof data.thoughtFixedColorIdx === "number") setThoughtFixedColorIdx(data.thoughtFixedColorIdx);
       if (data.boardGrid) setBoardGrid(data.boardGrid);
+      if (data.taskColorMode) setTaskColorMode(data.taskColorMode);
+      if (typeof data.taskHighColorIdx === "number") setTaskHighColorIdx(data.taskHighColorIdx);
+      if (typeof data.taskMedColorIdx === "number") setTaskMedColorIdx(data.taskMedColorIdx);
+      if (typeof data.taskLowColorIdx === "number") setTaskLowColorIdx(data.taskLowColorIdx);
+      if (typeof data.taskSingleColorIdx === "number") setTaskSingleColorIdx(data.taskSingleColorIdx);
       setCloudSyncState("synced");
     } catch { setCloudSyncState("error"); }
   }, [isSignedIn, savedBoard]);
@@ -1176,7 +1217,7 @@ export function HomeShell() {
     if (isSignedIn) {
       // Save full state to localStorage as a fast-load cache for same-browser visits.
       // Convex is authoritative — it always overwrites this on load.
-      try { localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid })); } catch {}
+      try { localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx })); } catch {}
 
       if (!convexReadyRef.current) return;
 
@@ -1192,7 +1233,7 @@ export function HomeShell() {
     } else {
       try { localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme })); } catch {}
     }
-  }, [isHydrated, isSignedIn, theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid]);
+  }, [isHydrated, isSignedIn, theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx]);
 
   // ── Flush any pending debounced save when tab hides or closes ────────────────
   useEffect(() => {
@@ -1845,7 +1886,9 @@ export function HomeShell() {
       showFlow: false,
       flowMode: "web",
       linkedNoteIds: [],
-      colorIdx: Math.floor(Math.random() * 8),
+      colorIdx: note.type === "thought"
+        ? (isPlus ? (thoughtColorMode === "fixed" ? thoughtFixedColorIdx : undefined) : Math.floor(Math.random() * 8))
+        : undefined,
     };
     setNotes(prev => [...prev, newNote]);
   }
@@ -2986,14 +3029,18 @@ export function HomeShell() {
                           ? `1.5px solid ${boardTheme === "dark" ? "rgba(60,180,90,.30)" : "rgba(60,180,90,.45)"}`
                           : note.type === "task"
                             ? getNoteBorder(note.importance)
-                            : `1.5px solid ${NOTE_PALETTE[(thoughtColorMode === "fixed" ? thoughtFixedColorIdx : (note.colorIdx ?? 0)) % NOTE_PALETTE.length].halo.replace(/[\d.]+\)$/, boardTheme === "dark" ? "0.32)" : "0.48)")}`,
+                            : note.colorIdx !== undefined
+                              ? `1.5px solid ${NOTE_PALETTE[note.colorIdx % NOTE_PALETTE.length].halo.replace(/[\d.]+\)$/, boardTheme === "dark" ? "0.32)" : "0.48)")}`
+                              : `1px solid ${boardTheme === "dark" ? "rgba(255,255,255,.08)" : "rgba(0,0,0,.10)"}`,
                     display: "flex",
                     flexDirection: "column",
                     backgroundColor: note.completed
                       ? (boardTheme === "dark" ? "#0e2e18" : "#e6f9ee")
                       : note.type === "task"
                         ? getBg(note.importance)
-                        : paletteBg(thoughtColorMode === "fixed" ? thoughtFixedColorIdx : (note.colorIdx ?? 0), boardTheme),
+                        : note.colorIdx !== undefined
+                          ? paletteBg(note.colorIdx, boardTheme)
+                          : (boardTheme === "dark" ? "#2a2d32" : "#ebebeb"),
                     boxShadow: highlightedNoteIds.has(note.id)
                       ? `0 0 0 3px rgba(99,160,255,.7), 0 0 28px rgba(99,160,255,.45), 0 10px 18px rgba(0,0,0,.1)`
                       : thoughtDropTarget === note.id
@@ -3004,7 +3051,9 @@ export function HomeShell() {
                             ? `0 0 0 3px rgba(60,180,90,.25), 0 10px 18px rgba(0,0,0,.06)`
                             : note.type === "task"
                               ? `0 0 0 3px ${getHalo(note.importance)}, 0 10px 18px rgba(59,43,16,.06)`
-                              : `0 0 0 3px ${paletteHalo(thoughtColorMode === "fixed" ? thoughtFixedColorIdx : (note.colorIdx ?? 0))}, 0 10px 18px rgba(59,43,16,.06)`,
+                              : note.colorIdx !== undefined
+                                ? `0 0 0 3px ${paletteHalo(note.colorIdx)}, 0 10px 18px rgba(59,43,16,.06)`
+                                : `0 0 0 3px ${boardTheme === "dark" ? "rgba(140,140,140,.18)" : "rgba(0,0,0,.10)"}, 0 10px 18px rgba(59,43,16,.06)`,
                     textAlign: "left",
                     cursor: "pointer",
                     transition: "box-shadow .22s ease, border-color .22s ease",
@@ -3018,6 +3067,64 @@ export function HomeShell() {
                         : (note.minutes ?? estimateTime(note.title));
                       return mins >= 60 ? `${Math.floor(mins/60)}h${mins%60 ? ` ${mins%60}m` : ""}` : `${mins}m`;
                     })() : "Idea"}</div>
+
+                    {/* Idea color circle (top-right) */}
+                    {note.type === "thought" && (
+                      <div style={{ position: "relative" }}>
+                        <div
+                          role="button"
+                          onClick={e => {
+                            e.stopPropagation();
+                            if (!isPlus) { setUpgradeOpen(true); return; }
+                            setIdeaColorPickerId(ideaColorPickerId === note.id ? null : note.id);
+                          }}
+                          style={{
+                            width: 14, height: 14, borderRadius: "50%", cursor: "pointer", flexShrink: 0,
+                            backgroundColor: note.colorIdx !== undefined ? NOTE_PALETTE[note.colorIdx % NOTE_PALETTE.length].swatch : (boardTheme === "dark" ? "rgba(255,255,255,.22)" : "rgba(0,0,0,.18)"),
+                            border: `1.5px solid ${boardTheme === "dark" ? "rgba(255,255,255,.18)" : "rgba(0,0,0,.14)"}`,
+                            boxSizing: "border-box",
+                          }}
+                        />
+                        {ideaColorPickerId === note.id && (
+                          <div
+                            onClick={e => e.stopPropagation()}
+                            style={{
+                              position: "absolute", top: 20, right: 0, zIndex: 200,
+                              background: boardTheme === "dark" ? "rgba(28,30,35,.97)" : "rgba(255,255,255,.98)",
+                              border: `1px solid ${boardTheme === "dark" ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.12)"}`,
+                              borderRadius: 10, padding: "8px 8px 6px",
+                              boxShadow: "0 8px 24px rgba(0,0,0,.22)",
+                              display: "grid", gridTemplateColumns: "repeat(3, 18px)", gap: 6,
+                            }}
+                          >
+                            {/* Grey / no-color option */}
+                            <div
+                              role="button"
+                              onClick={() => { setNotes(prev => prev.map(n => n.id === note.id ? { ...n, colorIdx: undefined } : n)); setIdeaColorPickerId(null); }}
+                              style={{
+                                width: 18, height: 18, borderRadius: "50%", cursor: "pointer",
+                                background: boardTheme === "dark" ? "#2a2d32" : "#d8d8d8",
+                                border: note.colorIdx === undefined ? `2px solid ${boardTheme === "dark" ? "#fff" : "#333"}` : `1.5px solid ${boardTheme === "dark" ? "rgba(255,255,255,.2)" : "rgba(0,0,0,.15)"}`,
+                                boxSizing: "border-box",
+                              }}
+                            />
+                            {NOTE_PALETTE.map((p, i) => (
+                              <div
+                                key={i}
+                                role="button"
+                                onClick={() => { setNotes(prev => prev.map(n => n.id === note.id ? { ...n, colorIdx: i } : n)); setIdeaColorPickerId(null); }}
+                                style={{
+                                  width: 18, height: 18, borderRadius: "50%", cursor: "pointer",
+                                  backgroundColor: p.swatch,
+                                  border: note.colorIdx === i ? `2px solid ${boardTheme === "dark" ? "#fff" : "#333"}` : "1.5px solid transparent",
+                                  boxSizing: "border-box",
+                                }}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                     {note.type === "task" && (note.dueDate || note.completed || note.steps.every(s => s.done && s.id)) && (() => {
                       const done = note.completed || (note.steps.length > 0 && note.steps.every(s => s.done));
                       if (done) return (
@@ -3314,43 +3421,113 @@ export function HomeShell() {
               </div>
 
               {/* Idea Colors */}
-              <div>
-                <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), fontWeight: 700, marginBottom: 10 }}>Idea Colors</div>
-                <div style={{ display: "flex", gap: 6, marginBottom: 12, padding: 3, backgroundColor: boardTheme === "dark" ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", borderRadius: 10, border: `1px solid ${border(boardTheme)}` }}>
-                  {(["random","select"] as const).map(mode => (
-                    <button key={mode} onClick={() => {
-                      if (mode === "select" && !isPlus) { setUpgradeOpen(true); return; }
-                      setThoughtColorMode(mode === "select" ? "fixed" : "random");
-                    }} style={{
-                      flex: 1, height: 32, borderRadius: 8,
-                      border: "none",
-                      backgroundColor: (mode === "select" ? thoughtColorMode === "fixed" : thoughtColorMode === "random") ? (boardTheme === "dark" ? "rgba(255,255,255,.12)" : "#ffffff") : "transparent",
-                      boxShadow: (mode === "select" ? thoughtColorMode === "fixed" : thoughtColorMode === "random") ? (boardTheme === "dark" ? "0 1px 4px rgba(0,0,0,.3)" : "0 1px 4px rgba(0,0,0,.1)") : "none",
-                      color: (mode === "select" ? thoughtColorMode === "fixed" : thoughtColorMode === "random") ? pageText(boardTheme) : muted(boardTheme),
-                      fontSize: 13, fontWeight: (mode === "select" ? thoughtColorMode === "fixed" : thoughtColorMode === "random") ? 700 : 500, cursor: "pointer", textTransform: "capitalize",
-                      transition: "background-color .12s, box-shadow .12s",
-                      display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-                    }}>
-                      {mode}
-                      {mode === "select" && !isPlus && (
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: .5 }}>
-                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                        </svg>
-                      )}
-                    </button>
-                  ))}
+              <div style={{ display: "grid", gap: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), fontWeight: 700 }}>Idea Colors</div>
+                  {!isPlus && <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", color: muted(boardTheme), opacity: .6, display: "flex", alignItems: "center", gap: 3 }}><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Plus</span>}
                 </div>
-                {thoughtColorMode === "fixed" && (
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {NOTE_PALETTE.map((p, i) => (
-                      <button key={i} onClick={() => setThoughtFixedColorIdx(i)} style={{
-                        width: 26, height: 26, borderRadius: "50%",
-                        border: thoughtFixedColorIdx === i ? `2.5px solid ${pageText(boardTheme)}` : "2.5px solid transparent",
-                        outline: thoughtFixedColorIdx === i ? `2px solid ${p.swatch}` : "none",
+                {isPlus ? (
+                  <div style={{ display: "grid", gap: 10 }}>
+                    <div style={{ fontSize: 12, color: muted(boardTheme), lineHeight: 1.5 }}>
+                      Default color for new ideas. Pick one below, or leave unset for grey. You can always change color per-card using the circle in the corner.
+                    </div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                      {/* Grey / no default */}
+                      <button onClick={() => setThoughtColorMode("random")} style={{
+                        width: 26, height: 26, borderRadius: "50%", cursor: "pointer", padding: 0,
+                        background: boardTheme === "dark" ? "#2a2d32" : "#d8d8d8",
+                        border: thoughtColorMode === "random" ? `2.5px solid ${pageText(boardTheme)}` : "2.5px solid transparent",
+                        outline: thoughtColorMode === "random" ? `2px solid ${boardTheme === "dark" ? "#888" : "#aaa"}` : "none",
                         outlineOffset: 2,
-                        backgroundColor: p.swatch, cursor: "pointer", padding: 0,
-                      }} />
-                    ))}
+                      }} title="No default (grey)" />
+                      {NOTE_PALETTE.map((p, i) => (
+                        <button key={i} onClick={() => { setThoughtColorMode("fixed"); setThoughtFixedColorIdx(i); }} style={{
+                          width: 26, height: 26, borderRadius: "50%",
+                          border: (thoughtColorMode === "fixed" && thoughtFixedColorIdx === i) ? `2.5px solid ${pageText(boardTheme)}` : "2.5px solid transparent",
+                          outline: (thoughtColorMode === "fixed" && thoughtFixedColorIdx === i) ? `2px solid ${p.swatch}` : "none",
+                          outlineOffset: 2,
+                          backgroundColor: p.swatch, cursor: "pointer", padding: 0,
+                        }} />
+                      ))}
+                    </div>
+                    <p style={{ margin: 0, fontSize: 11, color: muted(boardTheme), lineHeight: 1.5 }}>
+                      Free users get randomized idea colors. {thoughtColorMode === "random" ? "Currently using grey (no default set)." : `Currently defaulting to ${NOTE_PALETTE[thoughtFixedColorIdx]?.swatch}.`}
+                    </p>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 12, color: muted(boardTheme), lineHeight: 1.5 }}>
+                    Ideas are assigned a random color. Upgrade to Plus to set a default and change colors per-card.
+                  </div>
+                )}
+              </div>
+
+              {/* Task Colors */}
+              <div style={{ display: "grid", gap: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), fontWeight: 700 }}>Task Colors</div>
+                  {!isPlus && <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", color: muted(boardTheme), opacity: .6, display: "flex", alignItems: "center", gap: 3 }}><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Plus</span>}
+                </div>
+                {isPlus ? (
+                  <div style={{ display: "grid", gap: 14 }}>
+                    {/* Mode toggle */}
+                    <div style={{ display: "flex", gap: 6, padding: 3, backgroundColor: boardTheme === "dark" ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", borderRadius: 10, border: `1px solid ${border(boardTheme)}` }}>
+                      {(["priority", "single"] as const).map(m => (
+                        <button key={m} onClick={() => setTaskColorMode(m)} style={{
+                          flex: 1, height: 32, borderRadius: 8, border: "none",
+                          backgroundColor: taskColorMode === m ? (boardTheme === "dark" ? "rgba(255,255,255,.12)" : "#ffffff") : "transparent",
+                          boxShadow: taskColorMode === m ? (boardTheme === "dark" ? "0 1px 4px rgba(0,0,0,.3)" : "0 1px 4px rgba(0,0,0,.1)") : "none",
+                          color: taskColorMode === m ? pageText(boardTheme) : muted(boardTheme),
+                          fontSize: 13, fontWeight: taskColorMode === m ? 700 : 500, cursor: "pointer",
+                          transition: "background-color .12s, box-shadow .12s",
+                        }}>
+                          {m === "priority" ? "By Priority" : "One Color"}
+                        </button>
+                      ))}
+                    </div>
+
+                    {taskColorMode === "priority" ? (
+                      <div style={{ display: "grid", gap: 10 }}>
+                        {(["High", "Medium", "Low"] as const).map((lvl, li) => {
+                          const currentIdx = lvl === "High" ? taskHighColorIdx : lvl === "Medium" ? taskMedColorIdx : taskLowColorIdx;
+                          const setter = lvl === "High" ? setTaskHighColorIdx : lvl === "Medium" ? setTaskMedColorIdx : setTaskLowColorIdx;
+                          return (
+                            <div key={lvl}>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: pageText(boardTheme), marginBottom: 6 }}>{lvl} priority</div>
+                              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                                {TASK_PALETTE.map((p, i) => (
+                                  <button key={i} onClick={() => setter(i)} style={{
+                                    width: 22, height: 22, borderRadius: "50%",
+                                    border: currentIdx === i ? `2.5px solid ${pageText(boardTheme)}` : "2.5px solid transparent",
+                                    outline: currentIdx === i ? `2px solid ${p.swatch}` : "none",
+                                    outlineOffset: 2,
+                                    backgroundColor: p.swatch, cursor: "pointer", padding: 0,
+                                  }} />
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div>
+                        <div style={{ fontSize: 12, color: muted(boardTheme), marginBottom: 8 }}>Apply one color to all tasks regardless of priority.</div>
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                          {TASK_PALETTE.map((p, i) => (
+                            <button key={i} onClick={() => setTaskSingleColorIdx(i)} style={{
+                              width: 22, height: 22, borderRadius: "50%",
+                              border: taskSingleColorIdx === i ? `2.5px solid ${pageText(boardTheme)}` : "2.5px solid transparent",
+                              outline: taskSingleColorIdx === i ? `2px solid ${p.swatch}` : "none",
+                              outlineOffset: 2,
+                              backgroundColor: p.swatch, cursor: "pointer", padding: 0,
+                            }} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 12, color: muted(boardTheme), lineHeight: 1.5 }}>
+                    Tasks use priority-based colors (red/orange/yellow). Upgrade to Plus to customize colors per priority or set a single color.
                   </div>
                 )}
               </div>
@@ -3617,7 +3794,11 @@ export function HomeShell() {
 
           {/* Add note button — bottom right */}
           <button
-            onClick={() => { setComposerColorIdx(isPlus && thoughtColorMode === "fixed" ? thoughtFixedColorIdx : Math.floor(Math.random() * NOTE_PALETTE.length)); setComposerOpen(true); }}
+            onClick={() => {
+              // Plus: use their default color (fixed mode) or grey (undefined); Free: random
+              setComposerColorIdx(isPlus ? (thoughtColorMode === "fixed" ? thoughtFixedColorIdx : undefined) : Math.floor(Math.random() * NOTE_PALETTE.length));
+              setComposerOpen(true);
+            }}
             style={{
               position: "absolute", right: 18, bottom: 18, zIndex: 3,
               display: "flex", alignItems: "center", gap: 6,
@@ -3751,7 +3932,9 @@ export function HomeShell() {
                 <div
                   style={{
                     borderRadius: 14,
-                    backgroundColor: thoughtMode ? paletteBg(composerColorIdx, boardTheme) : getBg(importance === "none" ? undefined : importance),
+                    backgroundColor: thoughtMode
+                      ? (composerColorIdx !== undefined ? paletteBg(composerColorIdx, boardTheme) : (boardTheme === "dark" ? "#2a2d32" : "#ebebeb"))
+                      : getBg(importance === "none" ? undefined : importance),
                     border: composerError.title ? "1px solid rgba(200,40,40,.5)" : "1px solid rgba(0,0,0,.05)",
                     padding: 18,
                     minHeight: thoughtMode ? 220 : 250,
@@ -4082,7 +4265,7 @@ export function HomeShell() {
                 }
                 return null;
               })()}
-              <div style={{ borderRadius: 13, backgroundColor: (detailNote.completed || (detailNote.steps.length > 0 && detailNote.steps.every(s => s.done))) ? (boardTheme === "dark" ? "#0e2e18" : "#e6f9ee") : detailNote.type === "task" ? getBg(detailNote.importance === "none" ? undefined : detailNote.importance) : paletteBg(thoughtColorMode === "fixed" ? thoughtFixedColorIdx : (detailNote.colorIdx ?? 0), boardTheme), border: (detailNote.completed || (detailNote.steps.length > 0 && detailNote.steps.every(s => s.done))) ? `1px solid ${boardTheme === "dark" ? "rgba(60,180,90,.2)" : "rgba(60,180,90,.15)"}` : "1px solid rgba(0,0,0,.05)", padding: 20, display: "flex", flexDirection: "column", gap: 0, overflowY: "auto" }}>
+              <div style={{ borderRadius: 13, backgroundColor: (detailNote.completed || (detailNote.steps.length > 0 && detailNote.steps.every(s => s.done))) ? (boardTheme === "dark" ? "#0e2e18" : "#e6f9ee") : detailNote.type === "task" ? getBg(detailNote.importance === "none" ? undefined : detailNote.importance) : detailNote.colorIdx !== undefined ? paletteBg(detailNote.colorIdx, boardTheme) : (boardTheme === "dark" ? "#2a2d32" : "#ebebeb"), border: (detailNote.completed || (detailNote.steps.length > 0 && detailNote.steps.every(s => s.done))) ? `1px solid ${boardTheme === "dark" ? "rgba(60,180,90,.2)" : "rgba(60,180,90,.15)"}` : "1px solid rgba(0,0,0,.05)", padding: 20, display: "flex", flexDirection: "column", gap: 0, overflowY: "auto" }}>
                 {/* Focus header */}
                 <div style={{ paddingBottom: 16, borderBottom: `1px solid ${border(boardTheme)}`, marginBottom: 16 }}>
                   {detailNote.type === "task" && detailEditing ? (
