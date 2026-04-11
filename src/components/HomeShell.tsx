@@ -1941,6 +1941,7 @@ export function HomeShell() {
         title: note.title,
         body: note.body ?? "",
         importance: note.importance ?? "none",
+        dueDate: note.dueDate,
         createdAt: now,
         completed: false,
         x, y,
@@ -2347,7 +2348,7 @@ export function HomeShell() {
                   isAdmin={!!isAdmin}
                   userInfo={bobUserInfo}
                   autoSend={bobAutoSend}
-                  settings={{ taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, thoughtColorMode, thoughtFixedColorIdx, boardTheme: theme, boardGrid }}
+                  settings={{ taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, thoughtColorMode, thoughtFixedColorIdx, boardTheme: theme, boardGrid, activeBoardType: activeBoard?.type as "task" | "thought" | undefined, activeBoardName: activeBoard?.name, boards: boards.map(b => ({ id: b.id, name: b.name, type: b.type as "task" | "thought" })) }}
                   mobile
                 />
               </div>
@@ -3501,7 +3502,7 @@ export function HomeShell() {
                 isAdmin={!!isAdmin}
                 userInfo={bobUserInfo}
                 autoSend={bobAutoSend}
-                settings={{ taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, thoughtColorMode, thoughtFixedColorIdx, boardTheme, boardGrid }}
+                settings={{ taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, thoughtColorMode, thoughtFixedColorIdx, boardTheme, boardGrid, activeBoardType: activeBoard?.type as "task" | "thought" | undefined, activeBoardName: activeBoard?.name, boards: boards.map(b => ({ id: b.id, name: b.name, type: b.type as "task" | "thought" })) }}
               />
             </div>
             <div style={{

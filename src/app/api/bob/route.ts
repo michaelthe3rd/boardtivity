@@ -9,11 +9,15 @@ type NoteSnap = {
 };
 type Mode = "advisor" | "assistant" | "autopilot";
 type HistoryMsg = { role: "user" | "assistant"; content: string };
+type BoardInfo = { id: string; name: string; type: "task" | "thought" };
 type Settings = {
   taskColorMode?: "priority" | "single";
   taskHighColorIdx?: number; taskMedColorIdx?: number; taskLowColorIdx?: number;
   taskSingleColorIdx?: number; thoughtColorMode?: "random" | "fixed";
   thoughtFixedColorIdx?: number; boardTheme?: string; boardGrid?: string;
+  activeBoardType?: "task" | "thought";
+  activeBoardName?: string;
+  boards?: BoardInfo[];
 };
 
 // Color names for idea notes (NOTE_PALETTE indices 0-7)
@@ -173,6 +177,10 @@ function buildSystem(notes: NoteSnap[], mode: Mode, userInfo?: string, settings?
   const active    = notes.filter(n => !n.completed);
   const completed = notes.filter(n => n.completed);
   const today  = new Date().toISOString().split("T")[0];
+  const activeBoardType = settings?.activeBoardType ?? "task";
+  const boards = settings?.boards ?? [];
+  const taskBoards    = boards.filter(b => b.type === "task");
+  const thoughtBoards = boards.filter(b => b.type === "thought");
 
   const modeText = {
     advisor:
@@ -184,28 +192,31 @@ function buildSystem(notes: NoteSnap[], mode: Mode, userInfo?: string, settings?
   }[mode];
 
   function formatNote(n: NoteSnap, done = false) {
-    const p = [`[id:${n.id}] [${done ? "DONE" : n.type.toUpperCase()}] "${n.title}"`];
-    if (n.importance && n.importance !== "none") p.push(`priority:${n.importance}`);
-    if (n.dueDate) p.push(`due:${n.dueDate}`);
-    if (n.minutes) p.push(`~${n.minutes}min`);
-    if (n.steps?.length) p.push(`${n.steps.filter(s => !s.done).length}/${n.steps.length} steps left`);
-    if (n.body) p.push(`note:"${n.body.slice(0, 80)}"`);
-    p.push(`pos:(${Math.round(n.x)},${Math.round(n.y)})`);
-    return p.join(" | ");
+    const parts: string[] = [];
+    parts.push(`ID:${n.id}`);
+    parts.push(done ? "COMPLETED" : n.type === "task" ? "TASK" : "IDEA");
+    parts.push(`"${n.title}"`);
+    if (n.importance && n.importance !== "none") parts.push(`priority:${n.importance}`);
+    if (n.dueDate) parts.push(`due:${n.dueDate}`);
+    if (n.minutes) parts.push(`${n.minutes}min`);
+    if (n.steps?.length) parts.push(`steps:${n.steps.filter(s => !s.done).length}/${n.steps.length} remaining`);
+    if (n.body) parts.push(`note:"${n.body.slice(0, 60)}"`);
+    parts.push(`pos:(${Math.round(n.x)},${Math.round(n.y)})`);
+    return parts.join(", ");
   }
 
+  const activeTasks   = active.filter(n => n.type === "task");
+  const activeIdeas   = active.filter(n => n.type === "thought");
   const boardText = active.length || completed.length
     ? [
-        ...active.map(n => formatNote(n, false)),
-        ...completed.slice(0, 20).map(n => formatNote(n, true)),
-      ].join("\n")
+        activeTasks.length   ? `TASKS (${activeTasks.length}):\n${activeTasks.map(n => "  • " + formatNote(n)).join("\n")}` : "TASKS: none",
+        activeIdeas.length   ? `IDEAS (${activeIdeas.length}):\n${activeIdeas.map(n => "  • " + formatNote(n)).join("\n")}` : "IDEAS: none",
+        completed.length     ? `COMPLETED (${Math.min(completed.length, 10)}):\n${completed.slice(0, 10).map(n => "  • " + formatNote(n, true)).join("\n")}` : "",
+      ].filter(Boolean).join("\n")
     : "Board is empty.";
 
-  const userSection = userInfo?.trim()
-    ? `\nAbout the user: ${userInfo.trim()}\n`
-    : "";
+  const userSection = userInfo?.trim() ? `\nAbout the user: ${userInfo.trim()}\n` : "";
 
-  // Describe current color settings so BOB can reference/change them
   const taskColorNames = TASK_COLOR_NAMES;
   const ideaColorStr = settings?.thoughtColorMode === "fixed" && settings.thoughtFixedColorIdx !== undefined
     ? `default idea color: ${IDEA_COLOR_NAMES[settings.thoughtFixedColorIdx] ?? "unknown"}`
@@ -213,47 +224,40 @@ function buildSystem(notes: NoteSnap[], mode: Mode, userInfo?: string, settings?
   const taskColorStr = settings?.taskColorMode === "single"
     ? `task color mode: single (${taskColorNames[settings.taskSingleColorIdx ?? 0]})`
     : `task color mode: priority — High:${taskColorNames[settings?.taskHighColorIdx ?? 0]}, Medium:${taskColorNames[settings?.taskMedColorIdx ?? 1]}, Low:${taskColorNames[settings?.taskLowColorIdx ?? 2]}`;
-  const boardSettingsStr = `board theme: ${settings?.boardTheme ?? "light"}, grid: ${settings?.boardGrid ?? "grid"}`;
 
-  // Per-note color info for idea notes
   const ideaColorNoteInfo = active
     .filter(n => n.type === "thought" && n.colorIdx !== undefined)
-    .map(n => `[id:${n.id}] color:${IDEA_COLOR_NAMES[n.colorIdx!] ?? "unknown"}`)
+    .map(n => `ID:${n.id} color:${IDEA_COLOR_NAMES[n.colorIdx!] ?? "unknown"}`)
     .join(", ");
 
-  return `You are BOB (Boardtivity Operating Brain) — a sharp, capable AI assistant embedded in a visual task and idea board. Think Jarvis: confident, efficient, direct. Never verbose.
+  const crossBoardRule = activeBoardType === "task"
+    ? `— This is a TASK board. If the user asks to create an idea/thought, do NOT create it here. Instead say: "This is a task board — should I add that to your idea board${thoughtBoards.length === 1 ? ` (${thoughtBoards[0].name})` : thoughtBoards.length > 1 ? ` (${thoughtBoards.map(b => b.name).join(" or ")})` : ""}?" and wait for confirmation before acting.`
+    : `— This is an IDEA board. If the user asks to create a task, do NOT create it here. Instead say: "This is an idea board — should I add that to your task board${taskBoards.length === 1 ? ` (${taskBoards[0].name})` : taskBoards.length > 1 ? ` (${taskBoards.map(b => b.name).join(" or ")})` : ""}?" and wait for confirmation before acting.`;
+
+  return `You are BOB (Boardtivity Operating Brain) — a sharp AI assistant inside a visual task and idea board app. Be concise, confident, direct.
 
 ${modeText}
 ${userSection}
 Today: ${today}
-Canvas: 6800×4200px. Origin top-left. Tasks ~252×162px, thoughts ~160–280×80px.
-Board center: (3400, 2100).
+Active board: "${settings?.activeBoardName ?? "Current Board"}" (${activeBoardType} board)
+All boards: ${boards.map(b => `${b.name} [${b.type}]`).join(", ") || "none"}
 
-════ BOARD STATE (ground truth — trust this exactly) ════
-Active items: ${active.length} | Completed items: ${completed.length}
+════ CURRENT BOARD CONTENTS ════
 ${boardText}
-═══════════════════════════════════════════════════════
+════════════════════════════════
+The data above is the user's LIVE board. It is always accurate and up to date. Use it to answer any questions about their tasks or ideas.
 
-IMPORTANT: The board state above is injected directly from the user's live data. It is always accurate. NEVER say the board is empty or that tasks don't exist if items are listed above.
-
-Current settings:
-${ideaColorStr}
-${taskColorStr}
-${boardSettingsStr}
-${ideaColorNoteInfo ? `Idea card colors: ${ideaColorNoteInfo}` : ""}
-
-Idea color names: none (grey), pink, orchid, coral, peach, butter, lilac, blue, mint
-Task color names: red, orange, yellow, pink, orchid, coral, peach, butter, lilac, blue, mint
+Settings: ${ideaColorStr} | ${taskColorStr} | theme:${settings?.boardTheme ?? "light"}
+${ideaColorNoteInfo ? `Idea colors: ${ideaColorNoteInfo}` : ""}
 
 Rules:
-— ${mode === "advisor" ? "You have Google Search available. Use it freely for real-world info: places, hours, events, recommendations, current news, local spots, travel, or anything requiring up-to-date knowledge. Search first, then answer." : "You do NOT have web search in this mode. For real-world/location questions, suggest the user switch to Advisor mode."}
-— Stream your thinking naturally, then call tools.
-— After acting, narrate what you did in 1-2 sentences max.
-— Reference actual note titles and IDs.
-— Only ask for clarification if genuinely impossible to interpret.
-— Never verbose. Be terse.
-— NO OVERLAPS: when calling organize_board or placing multiple notes, space them at least 252px apart horizontally and 162px apart vertically. Arrange in a grid or row — never stack two notes at the same or near-same coordinates.
-— When centering items, anchor the group around (3400, 2100). For N items, lay them out in a grid centered on that point: start from (3400 - cols/2 * 276, 2100 - rows/2 * 186) with 276px col stride and 186px row stride.`;
+${crossBoardRule}
+— ${mode === "advisor" ? "You have Google Search. Use it for real-world info: places, hours, events, recommendations, news." : "No web search in this mode. For web questions, suggest switching to Advisor mode."}
+— After acting, say what you did in 1–2 sentences.
+— NEVER overlap notes: space at least 252px horizontally, 162px vertically.
+— When centering, use board center (3400, 2100). Layout grid: 276px col stride, 186px row stride.
+— Reference notes by their title and ID.
+— Never claim the board is empty if items are listed above.`;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -351,7 +355,7 @@ export async function POST(req: NextRequest) {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
   const model = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash-preview-04-17",
+    model: "gemini-3.1-flash-lite-preview",
     systemInstruction: buildSystem(notes, mode, userInfo, settings),
     // Gemini does not support mixing googleSearch + functionDeclarations.
     // Advisor mode: grounding only (no function calls). Action modes: function calls only.

@@ -27,6 +27,9 @@ export type BobSettings = {
   taskLowColorIdx?: number; taskSingleColorIdx?: number;
   thoughtColorMode?: "random" | "fixed"; thoughtFixedColorIdx?: number;
   boardTheme?: string; boardGrid?: string;
+  activeBoardType?: "task" | "thought";
+  activeBoardName?: string;
+  boards?: { id: string; name: string; type: "task" | "thought" }[];
 };
 
 interface Props {
