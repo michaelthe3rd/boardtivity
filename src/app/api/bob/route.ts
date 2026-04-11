@@ -172,6 +172,46 @@ const FUNCTION_DECLARATIONS = [
   },
 ];
 
+// ── Compact board context injected into every user message ───────────────────
+// Gemini's systemInstruction is not always reliably read in chat mode.
+// Embedding the board state directly in the user turn guarantees the model sees it.
+function buildBoardContext(notes: NoteSnap[]): string {
+  const active    = notes.filter(n => !n.completed);
+  const completed = notes.filter(n => n.completed);
+  if (active.length === 0 && completed.length === 0) return "<board>empty</board>";
+
+  const tasks = active.filter(n => n.type === "task");
+  const ideas = active.filter(n => n.type === "thought");
+
+  function noteLine(n: NoteSnap) {
+    let s = `  ID:${n.id} | "${n.title}"`;
+    if (n.importance && n.importance !== "none") s += ` | ${n.importance}`;
+    if (n.dueDate) s += ` | due:${n.dueDate}`;
+    if (n.steps?.length) s += ` | steps:${n.steps.filter(s => !s.done).length}/${n.steps.length}`;
+    return s;
+  }
+
+  const lines: string[] = ["<board>"];
+  if (tasks.length) {
+    lines.push(`TASKS (${tasks.length}):`);
+    tasks.forEach(n => lines.push(noteLine(n)));
+  } else {
+    lines.push("TASKS: none");
+  }
+  if (ideas.length) {
+    lines.push(`IDEAS (${ideas.length}):`);
+    ideas.forEach(n => lines.push(noteLine(n)));
+  } else {
+    lines.push("IDEAS: none");
+  }
+  if (completed.length) {
+    lines.push(`COMPLETED (${completed.length} total, showing up to 5):`);
+    completed.slice(0, 5).forEach(n => lines.push(`  ID:${n.id} | "${n.title}"`));
+  }
+  lines.push("</board>");
+  return lines.join("\n");
+}
+
 // ── System prompt ─────────────────────────────────────────────────────────────
 function buildSystem(notes: NoteSnap[], mode: Mode, userInfo?: string, settings?: Settings): string {
   const active    = notes.filter(n => !n.completed);
@@ -378,7 +418,11 @@ export async function POST(req: NextRequest) {
   const stream = makeSSE(async (push, signal) => {
     push({ type: "debug", rawNotes: rawNotes.length, filteredNotes: notes.length, tasks: activeTasks.length, ideas: activeIdeas.length, activeBoardId: rawActiveBoardId, noteTitles: notes.slice(0,5).map(n => n.title) });
     const chat = model.startChat({ history: geminiHistory });
-    const result = await chat.sendMessageStream(message);
+    // Inject board context directly into the user message — systemInstruction alone
+    // is not reliably surfaced on every chat turn in the Gemini API.
+    const boardContext = buildBoardContext(notes);
+    const fullMessage = `${boardContext}\n\nUser: ${message}`;
+    const result = await chat.sendMessageStream(fullMessage);
 
     // Stream text tokens as they arrive
     for await (const chunk of result.stream) {
