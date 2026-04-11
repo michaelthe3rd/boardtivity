@@ -6,8 +6,6 @@ import { api } from "../../convex/_generated/api";
 import type { ThemeMode, Note, Importance } from "@/lib/board";
 
 // ── Types ────────────────────────────────────────────────────────────────────
-type BrainQuery = "whatFirst" | "summary" | "overdue";
-type SweepMode  = "priority" | "dueDate" | "type" | "smart";
 type Mode       = "advisor" | "assistant" | "autopilot";
 
 export type BobSweepResult = { id: number; x: number; y: number }[];
@@ -19,11 +17,6 @@ export type BobNewNote = {
   dueDate?: string;
   steps?: { title: string; minutes: number }[];
 };
-
-type QuickAction =
-  | { id: string; label: string; type: "brain"; query: BrainQuery }
-  | { id: string; label: string; type: "sweep"; mode: SweepMode }
-  | { id: string; label: string; type: "chat" };
 
 type ChatMessage = { role: "user" | "bob"; content: string; streaming?: boolean };
 type HistoryMsg  = { role: "user" | "assistant"; content: string };
@@ -42,18 +35,8 @@ interface Props {
   isAdmin?: boolean;
 }
 
-// ── Quick actions ─────────────────────────────────────────────────────────────
-const DEFAULT_ACTIONS: QuickAction[] = [];
-const ACTIONS_KEY = "bob_quick_actions";
 const MODE_KEY    = "bob_mode";
 
-function loadActions(): QuickAction[] {
-  try { const r = localStorage.getItem(ACTIONS_KEY); if (r) return JSON.parse(r); } catch {}
-  return DEFAULT_ACTIONS;
-}
-function saveActions(a: QuickAction[]) {
-  try { localStorage.setItem(ACTIONS_KEY, JSON.stringify(a)); } catch {}
-}
 function loadMode(): Mode {
   try { const m = localStorage.getItem(MODE_KEY); if (m === "advisor" || m === "assistant" || m === "autopilot") return m; } catch {}
   return "assistant";
@@ -66,32 +49,6 @@ const AUTO_SEND_KEY = "bob_auto_send";
 function loadUserInfo() { try { return localStorage.getItem(USER_INFO_KEY) || ""; } catch { return ""; } }
 function saveUserInfo(v: string) { try { localStorage.setItem(USER_INFO_KEY, v); } catch {} }
 function loadAutoSend() { try { return localStorage.getItem(AUTO_SEND_KEY) === "true"; } catch { return false; } }
-
-// ── Compute sweep (client-side fallback) ──────────────────────────────────────
-function computeSweep(notes: Note[], mode: SweepMode): BobSweepResult {
-  const CARD_W = 252, ROW_H = 168, COL_GAP = 22, ROW_GAP = 18, COLS = 5, SX = 60, SY = 72;
-  const sorted = notes.filter(n => !n.completed);
-  if (mode === "priority") {
-    const r: Record<string, number> = { High: 0, Medium: 1, Low: 2, none: 3 };
-    sorted.sort((a, b) => (r[a.importance ?? "none"] ?? 3) - (r[b.importance ?? "none"] ?? 3));
-  } else if (mode === "dueDate") {
-    sorted.sort((a, b) => {
-      if (!a.dueDate && !b.dueDate) return 0;
-      if (!a.dueDate) return 1; if (!b.dueDate) return -1;
-      return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-    });
-  } else if (mode === "type") {
-    const r: Record<string, number> = { task: 0, thought: 1 };
-    sorted.sort((a, b) => (r[a.type] ?? 1) - (r[b.type] ?? 1));
-  } else {
-    sorted.sort((a, b) => a.title.toLowerCase().localeCompare(b.title.toLowerCase()));
-  }
-  return sorted.map((n, i) => ({
-    id: n.id,
-    x: SX + (i % COLS) * (CARD_W + COL_GAP),
-    y: SY + Math.floor(i / COLS) * (ROW_H + ROW_GAP),
-  }));
-}
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
 const T = {
@@ -421,36 +378,6 @@ export default function BobAgent({
         { role: "assistant" as const, content: bobText },
       ]).slice(-6)));
     }
-  }
-
-  // ── Quick actions ────────────────────────────────────────────────────────
-  function handleQuickAction(action: QuickAction) {
-    if (action.type === "brain") {
-      const prompts: Record<string, string> = {
-        whatFirst: "What should I work on first?",
-        summary:   "Summarize my board.",
-        overdue:   "What's overdue or coming up soon?",
-      };
-      send(prompts[action.query] ?? action.label);
-    } else if (action.type === "sweep") {
-      onSaveUndo();
-      onSweep(computeSweep(notes, action.mode));
-      setMessages(prev => [...prev, { role: "bob", content: `Organized your board by ${action.mode}.` }]);
-    } else {
-      send(action.label);
-    }
-  }
-
-  function addAction() {
-    const label = newActionLabel.trim();
-    if (!label) return;
-    const updated = [...quickActions, { id: Date.now().toString(), label, type: "chat" as const }];
-    setQuickActions(updated); saveActions(updated);
-    setAddingAction(false); setNewActionLabel("");
-  }
-  function deleteAction(id: string) {
-    const updated = quickActions.filter(a => a.id !== id);
-    setQuickActions(updated); saveActions(updated);
   }
 
   // ── Voice ────────────────────────────────────────────────────────────────
