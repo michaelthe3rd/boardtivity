@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import type { ThemeMode, BoardType, Importance, FlowMode, Board, Step, Note, Draft } from "@/lib/board";
-import BobAgent, { type BobNewNote } from "@/components/BobAgent";
+import BobAgent, { type BobNewNote, type BobSettings } from "@/components/BobAgent";
 import { useMutation, useQuery } from "convex/react";
 import { useUser, useClerk } from "@clerk/nextjs";
 import { api } from "../../convex/_generated/api";
@@ -1874,6 +1874,37 @@ export function HomeShell() {
     if (undoSnapshot) { setNotes(undoSnapshot); setUndoSnapshot(null); }
   }
 
+  function handleBobSetIdeaColor(ids: number[], colorIdx: number | undefined) {
+    setNotes(prev => prev.map(n =>
+      ids.includes(n.id) && n.type === "thought" ? { ...n, colorIdx } : n
+    ));
+  }
+
+  function handleBobConfigureTaskColors(patch: Partial<BobSettings>) {
+    if (patch.taskColorMode !== undefined) setTaskColorMode(patch.taskColorMode);
+    if (typeof patch.taskHighColorIdx   === "number") setTaskHighColorIdx(patch.taskHighColorIdx);
+    if (typeof patch.taskMedColorIdx    === "number") setTaskMedColorIdx(patch.taskMedColorIdx);
+    if (typeof patch.taskLowColorIdx    === "number") setTaskLowColorIdx(patch.taskLowColorIdx);
+    if (typeof patch.taskSingleColorIdx === "number") setTaskSingleColorIdx(patch.taskSingleColorIdx);
+  }
+
+  const IDEA_COLOR_NAMES_HOMESHELL = ["sky-blue","peach","sage","lavender","butter","teal","rose","periwinkle"] as const;
+  function handleBobConfigureBoard(patch: { boardTheme?: string; boardGrid?: string; defaultIdeaColor?: string }) {
+    if (patch.boardTheme === "light" || patch.boardTheme === "dark") setBoardTheme(patch.boardTheme);
+    if (patch.boardGrid === "grid" || patch.boardGrid === "dots" || patch.boardGrid === "blank") setBoardGrid(patch.boardGrid);
+    if (typeof patch.defaultIdeaColor === "string") {
+      if (patch.defaultIdeaColor === "none") {
+        setThoughtColorMode("random");
+      } else {
+        const idx = (IDEA_COLOR_NAMES_HOMESHELL as readonly string[]).indexOf(patch.defaultIdeaColor);
+        if (idx !== -1) {
+          setThoughtColorMode("fixed");
+          setThoughtFixedColorIdx(idx);
+        }
+      }
+    }
+  }
+
   function handleBobAddNote(note: BobNewNote) {
     const id = Date.now();
     const now = new Date().toISOString();
@@ -3141,17 +3172,26 @@ export function HomeShell() {
                         <div style={{ ...pill(boardTheme), fontWeight: 800, color: boardTheme === "dark" ? "rgba(100,220,120,.9)" : "rgba(30,120,60,.85)", border: "1px solid rgba(60,180,90,.3)", backgroundColor: "rgba(60,180,90,.1)" }}>Completed</div>
                       );
                       if (!note.dueDate) return null;
+                      const today = todayStr();
+                      const overdue = note.dueDate < today;
+                      const dueToday = note.dueDate === today;
                       return (
                         <div style={{
                           ...pill(boardTheme),
                           fontWeight: 800,
-                          ...(isDueToday(note.dueDate) ? {
+                          ...(overdue ? {
+                            color: "#ff3333",
+                            border: "1px solid rgba(255,50,50,.5)",
+                            backgroundColor: "rgba(255,50,50,.15)",
+                            boxShadow: "0 0 10px rgba(255,50,50,.4)",
+                            animation: "overduePulse 1.6s ease-in-out infinite",
+                          } : dueToday ? {
                             color: "#ff4444",
                             border: "1px solid rgba(255,60,60,.45)",
                             backgroundColor: "rgba(255,60,60,.12)",
                             boxShadow: "0 0 8px rgba(255,60,60,.35)",
                           } : {}),
-                        }}>Due {formatDateShort(note.dueDate)}</div>
+                        }}>{overdue ? "Overdue" : `Due ${formatDateShort(note.dueDate)}`}</div>
                       );
                     })()}
                   </div>
@@ -3250,9 +3290,13 @@ export function HomeShell() {
                 onLaunchFocus={handleBobLaunchFocus}
                 onSaveUndo={handleBobSaveUndo}
                 onUndo={handleBobUndo}
+                onSetIdeaColor={handleBobSetIdeaColor}
+                onConfigureTaskColors={handleBobConfigureTaskColors}
+                onConfigureBoard={handleBobConfigureBoard}
                 isAdmin={!!isAdmin}
                 userInfo={bobUserInfo}
                 autoSend={bobAutoSend}
+                settings={{ taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, thoughtColorMode, thoughtFixedColorIdx, boardTheme, boardGrid }}
               />
             </div>
             <div style={{

@@ -4,11 +4,22 @@ import { NextRequest } from "next/server";
 type NoteSnap = {
   id: number; type: string; title: string; body?: string;
   importance?: string; dueDate?: string; minutes?: number;
-  completed: boolean; x: number; y: number;
+  completed: boolean; x: number; y: number; colorIdx?: number;
   steps?: { title: string; minutes: number; done: boolean }[];
 };
 type Mode = "advisor" | "assistant" | "autopilot";
 type HistoryMsg = { role: "user" | "assistant"; content: string };
+type Settings = {
+  taskColorMode?: "priority" | "single";
+  taskHighColorIdx?: number; taskMedColorIdx?: number; taskLowColorIdx?: number;
+  taskSingleColorIdx?: number; thoughtColorMode?: "random" | "fixed";
+  thoughtFixedColorIdx?: number; boardTheme?: string; boardGrid?: string;
+};
+
+// Color names for idea notes (NOTE_PALETTE indices 0-7)
+const IDEA_COLOR_NAMES = ["sky-blue","peach","sage","lavender","butter","teal","rose","periwinkle"] as const;
+// Color names for task palette (first 3 = priority defaults, then idea colors)
+const TASK_COLOR_NAMES = ["red","orange","yellow","sky-blue","peach","sage","lavender","butter","teal","rose","periwinkle"] as const;
 
 // ── Function declarations (Gemini format) ────────────────────────────────────
 const FUNCTION_DECLARATIONS = [
@@ -117,10 +128,48 @@ const FUNCTION_DECLARATIONS = [
       required: ["noteId"],
     },
   },
+  {
+    name: "set_idea_color",
+    description: "Change the color of one or more idea cards. Use 'none' for grey/no color.",
+    parameters: {
+      type: "object",
+      properties: {
+        ids:   { type: "array", items: { type: "number" }, description: "Idea note IDs to recolor" },
+        color: { type: "string", enum: ["none","sky-blue","peach","sage","lavender","butter","teal","rose","periwinkle"], description: "Color name" },
+      },
+      required: ["ids", "color"],
+    },
+  },
+  {
+    name: "configure_task_colors",
+    description: "Change how task colors work — switch mode or set colors per priority level.",
+    parameters: {
+      type: "object",
+      properties: {
+        mode:   { type: "string", enum: ["priority","single"], description: "priority = color per priority level; single = one color for all tasks" },
+        high:   { type: "string", enum: ["red","orange","yellow","sky-blue","peach","sage","lavender","butter","teal","rose","periwinkle"] },
+        medium: { type: "string", enum: ["red","orange","yellow","sky-blue","peach","sage","lavender","butter","teal","rose","periwinkle"] },
+        low:    { type: "string", enum: ["red","orange","yellow","sky-blue","peach","sage","lavender","butter","teal","rose","periwinkle"] },
+        single: { type: "string", enum: ["red","orange","yellow","sky-blue","peach","sage","lavender","butter","teal","rose","periwinkle"], description: "Used when mode=single" },
+      },
+    },
+  },
+  {
+    name: "configure_board",
+    description: "Change board visual settings: theme, grid style, or default idea color.",
+    parameters: {
+      type: "object",
+      properties: {
+        board_theme:        { type: "string", enum: ["light","dark"] },
+        board_grid:         { type: "string", enum: ["grid","dots","blank"] },
+        default_idea_color: { type: "string", enum: ["none","sky-blue","peach","sage","lavender","butter","teal","rose","periwinkle"], description: "Default color for new ideas. 'none' = grey." },
+      },
+    },
+  },
 ];
 
 // ── System prompt ─────────────────────────────────────────────────────────────
-function buildSystem(notes: NoteSnap[], mode: Mode, userInfo?: string): string {
+function buildSystem(notes: NoteSnap[], mode: Mode, userInfo?: string, settings?: Settings): string {
   const active = notes.filter(n => !n.completed);
   const today  = new Date().toISOString().split("T")[0];
 
@@ -150,6 +199,22 @@ function buildSystem(notes: NoteSnap[], mode: Mode, userInfo?: string): string {
     ? `\nAbout the user: ${userInfo.trim()}\n`
     : "";
 
+  // Describe current color settings so BOB can reference/change them
+  const taskColorNames = TASK_COLOR_NAMES;
+  const ideaColorStr = settings?.thoughtColorMode === "fixed" && settings.thoughtFixedColorIdx !== undefined
+    ? `default idea color: ${IDEA_COLOR_NAMES[settings.thoughtFixedColorIdx] ?? "unknown"}`
+    : "default idea color: none (grey)";
+  const taskColorStr = settings?.taskColorMode === "single"
+    ? `task color mode: single (${taskColorNames[settings.taskSingleColorIdx ?? 0]})`
+    : `task color mode: priority — High:${taskColorNames[settings?.taskHighColorIdx ?? 0]}, Medium:${taskColorNames[settings?.taskMedColorIdx ?? 1]}, Low:${taskColorNames[settings?.taskLowColorIdx ?? 2]}`;
+  const boardSettingsStr = `board theme: ${settings?.boardTheme ?? "light"}, grid: ${settings?.boardGrid ?? "grid"}`;
+
+  // Per-note color info for idea notes
+  const ideaColorNoteInfo = active
+    .filter(n => n.type === "thought" && n.colorIdx !== undefined)
+    .map(n => `[id:${n.id}] color:${IDEA_COLOR_NAMES[n.colorIdx!] ?? "unknown"}`)
+    .join(", ");
+
   return `You are BOB (Boardtivity Operating Brain) — a sharp, capable AI assistant embedded in a visual task and idea board. Think Jarvis: confident, efficient, direct. Never verbose.
 
 ${modeText}
@@ -160,6 +225,15 @@ Board center: (3400, 2100) — this is where the "center" button returns the vie
 Active board items: ${active.length}
 
 ${boardText}
+
+Current settings:
+${ideaColorStr}
+${taskColorStr}
+${boardSettingsStr}
+${ideaColorNoteInfo ? `Idea card colors: ${ideaColorNoteInfo}` : ""}
+
+Idea color names: none (grey), sky-blue, peach, sage, lavender, butter, teal, rose, periwinkle
+Task color names: red, orange, yellow, sky-blue, peach, sage, lavender, butter, teal, rose, periwinkle
 
 Rules:
 — Stream your thinking naturally, then call tools.
@@ -214,11 +288,11 @@ export async function POST(req: NextRequest) {
     return new Response("Rate limit exceeded — try again in a minute", { status: 429 });
   }
 
-  let body: { message?: string; notes?: NoteSnap[]; mode?: Mode; history?: HistoryMsg[]; userInfo?: string };
+  let body: { message?: string; notes?: NoteSnap[]; mode?: Mode; history?: HistoryMsg[]; userInfo?: string; settings?: Settings };
   try { body = await req.json(); }
   catch { return new Response("Invalid JSON", { status: 400 }); }
 
-  const { message = "", notes = [], mode = "assistant", history = [], userInfo = "" } = body;
+  const { message = "", notes = [], mode = "assistant", history = [], userInfo = "", settings } = body;
   if (!message.trim()) return new Response("No message", { status: 400 });
 
   // ── Mock mode ─────────────────────────────────────────────────────────────
@@ -239,7 +313,7 @@ export async function POST(req: NextRequest) {
 
   const model = genAI.getGenerativeModel({
     model: "gemini-2.5-flash",
-    systemInstruction: buildSystem(notes, mode, userInfo),
+    systemInstruction: buildSystem(notes, mode, userInfo, settings),
     tools: mode === "advisor" ? [] : [{ functionDeclarations: FUNCTION_DECLARATIONS as unknown as FunctionDeclaration[] }],
   });
 

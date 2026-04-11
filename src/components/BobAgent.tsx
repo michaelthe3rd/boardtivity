@@ -21,6 +21,14 @@ export type BobNewNote = {
 type ChatMessage = { role: "user" | "bob"; content: string; streaming?: boolean };
 type HistoryMsg  = { role: "user" | "assistant"; content: string };
 
+export type BobSettings = {
+  taskColorMode?: "priority" | "single";
+  taskHighColorIdx?: number; taskMedColorIdx?: number;
+  taskLowColorIdx?: number; taskSingleColorIdx?: number;
+  thoughtColorMode?: "random" | "fixed"; thoughtFixedColorIdx?: number;
+  boardTheme?: string; boardGrid?: string;
+};
+
 interface Props {
   theme: ThemeMode;
   notes: Note[];
@@ -32,9 +40,13 @@ interface Props {
   onLaunchFocus: (noteId: number, chain?: boolean) => void;
   onSaveUndo: () => void;
   onUndo: () => void;
+  onSetIdeaColor: (ids: number[], colorIdx: number | undefined) => void;
+  onConfigureTaskColors: (patch: Partial<BobSettings>) => void;
+  onConfigureBoard: (patch: { boardTheme?: string; boardGrid?: string; defaultIdeaColor?: string }) => void;
   isAdmin?: boolean;
   userInfo?: string;
   autoSend?: boolean;
+  settings?: BobSettings;
 }
 
 const MODE_KEY = "bob_mode";
@@ -122,10 +134,14 @@ function BobIcon({ size = 20, color }: { size?: number; color: string }) {
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
+const IDEA_COLOR_NAMES = ["sky-blue","peach","sage","lavender","butter","teal","rose","periwinkle"] as const;
+const TASK_COLOR_NAMES = ["red","orange","yellow","sky-blue","peach","sage","lavender","butter","teal","rose","periwinkle"] as const;
+
 export default function BobAgent({
   theme: t, notes, onSweep, onAddNote, onEditNote, onDeleteNotes,
   onHighlightNotes, onLaunchFocus, onSaveUndo, onUndo, isAdmin = true,
   userInfo = "", autoSend = false,
+  onSetIdeaColor, onConfigureTaskColors, onConfigureBoard, settings,
 }: Props) {
   const [open,    setOpen]    = useState(false);
   const [closing, setClosing] = useState(false);
@@ -194,6 +210,7 @@ export default function BobAgent({
     id: n.id, type: n.type, title: n.title, body: n.body,
     importance: n.importance, dueDate: n.dueDate, minutes: n.minutes,
     completed: n.completed, x: n.x, y: n.y,
+    colorIdx: n.colorIdx,
     steps: n.steps.map(s => ({ title: s.title, minutes: s.minutes, done: s.done })),
   }));
 
@@ -231,6 +248,33 @@ export default function BobAgent({
         if (typeof input.noteId === "number")
           onLaunchFocus(input.noteId, input.chain ?? false);
         break;
+      case "set_idea_color": {
+        if (Array.isArray(input.ids) && typeof input.color === "string") {
+          const colorIdx = input.color === "none"
+            ? undefined
+            : (IDEA_COLOR_NAMES as readonly string[]).indexOf(input.color);
+          onSetIdeaColor(input.ids, colorIdx === -1 ? undefined : colorIdx as number | undefined);
+        }
+        break;
+      }
+      case "configure_task_colors": {
+        const patch: Partial<BobSettings> = {};
+        if (input.mode === "priority" || input.mode === "single") patch.taskColorMode = input.mode;
+        if (typeof input.high   === "string") { const i = (TASK_COLOR_NAMES as readonly string[]).indexOf(input.high);   if (i !== -1) patch.taskHighColorIdx   = i; }
+        if (typeof input.medium === "string") { const i = (TASK_COLOR_NAMES as readonly string[]).indexOf(input.medium); if (i !== -1) patch.taskMedColorIdx    = i; }
+        if (typeof input.low    === "string") { const i = (TASK_COLOR_NAMES as readonly string[]).indexOf(input.low);    if (i !== -1) patch.taskLowColorIdx    = i; }
+        if (typeof input.single === "string") { const i = (TASK_COLOR_NAMES as readonly string[]).indexOf(input.single); if (i !== -1) patch.taskSingleColorIdx = i; }
+        if (Object.keys(patch).length) onConfigureTaskColors(patch);
+        break;
+      }
+      case "configure_board": {
+        const patch: { boardTheme?: string; boardGrid?: string; defaultIdeaColor?: string } = {};
+        if (input.board_theme) patch.boardTheme = input.board_theme;
+        if (input.board_grid)  patch.boardGrid  = input.board_grid;
+        if (typeof input.default_idea_color === "string") patch.defaultIdeaColor = input.default_idea_color;
+        if (Object.keys(patch).length) onConfigureBoard(patch);
+        break;
+      }
     }
   }
 
@@ -281,7 +325,7 @@ export default function BobAgent({
       const res = await fetch("/api/bob", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ message: msg, notes: noteSnaps, mode, history, userInfo }),
+        body: JSON.stringify({ message: msg, notes: noteSnaps, mode, history, userInfo, settings }),
       });
 
       if (!res.body) throw new Error("No stream");

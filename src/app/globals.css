@@ -62,6 +62,7 @@ textarea{resize:none}
 }
 .bulb-flicker{animation:bulbFlicker .42s ease forwards}
 @keyframes ping{0%{transform:scale(1);opacity:.6}70%{transform:scale(2.2);opacity:0}100%{transform:scale(2.2);opacity:0}}
+@keyframes overduePulse{0%,100%{opacity:1;box-shadow:0 0 8px rgba(255,50,50,.35)}50%{opacity:.75;box-shadow:0 0 16px rgba(255,50,50,.65)}}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0}}
 @keyframes bobToastIn{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
