@@ -175,8 +175,9 @@ const FUNCTION_DECLARATIONS = [
 // ── Compact board context injected into every user message ───────────────────
 // Gemini's systemInstruction is not always reliably read in chat mode.
 // Embedding the board state directly in the user turn guarantees the model sees it.
-function buildBoardContext(notes: NoteSnap[]): string {
-  const active    = notes.filter(n => !n.completed);
+function buildBoardContext(notes: NoteSnap[], activeBoardId?: string): string {
+  const boardNotes = activeBoardId ? notes.filter(n => !n.boardId || n.boardId === activeBoardId) : notes;
+  const active    = boardNotes.filter(n => !n.completed);
   const completed = notes.filter(n => n.completed);
   if (active.length === 0 && completed.length === 0) return "<board>empty</board>";
 
@@ -213,9 +214,10 @@ function buildBoardContext(notes: NoteSnap[]): string {
 }
 
 // ── System prompt ─────────────────────────────────────────────────────────────
-function buildSystem(notes: NoteSnap[], mode: Mode, userInfo?: string, settings?: Settings): string {
-  const active    = notes.filter(n => !n.completed);
-  const completed = notes.filter(n => n.completed);
+function buildSystem(notes: NoteSnap[], mode: Mode, userInfo?: string, settings?: Settings, activeBoardId?: string): string {
+  const boardNotes = activeBoardId ? notes.filter(n => !n.boardId || n.boardId === activeBoardId) : notes;
+  const active    = boardNotes.filter(n => !n.completed);
+  const completed = boardNotes.filter(n => n.completed);
   const today  = new Date().toISOString().split("T")[0];
   const activeBoardType = settings?.activeBoardType ?? "task";
   const boards = settings?.boards ?? [];
@@ -366,10 +368,8 @@ export async function POST(req: NextRequest) {
   const message  = rawMessage.trim().slice(0, 4000);
   const mode: Mode = rawMode === "advisor" || rawMode === "autopilot" ? rawMode : "assistant";
   const userInfo = rawUserInfo.slice(0, 1000);
-  // Filter to active board server-side — eliminates any client-side activeBoardId mismatch
-  const notes = rawActiveBoardId
-    ? rawNotes.filter(n => !n.boardId || n.boardId === rawActiveBoardId)
-    : rawNotes;
+  // Send all notes unfiltered — boardId filter was silently wiping notes on ID mismatch.
+  const notes = rawNotes;
   const history  = rawHistory.filter(
     h => h && (h.role === "user" || h.role === "assistant") && typeof h.content === "string"
   ).map(h => ({ role: h.role as "user" | "assistant", content: h.content.slice(0, 2000) }));
@@ -396,7 +396,7 @@ export async function POST(req: NextRequest) {
 
   const model = genAI.getGenerativeModel({
     model: "gemini-3-flash-preview",
-    systemInstruction: buildSystem(notes, mode, userInfo, settings),
+    systemInstruction: buildSystem(notes, mode, userInfo, settings, rawActiveBoardId),
     // Gemini does not support mixing googleSearch + functionDeclarations.
     // Advisor mode: grounding only (no function calls). Action modes: function calls only.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -420,7 +420,7 @@ export async function POST(req: NextRequest) {
     const chat = model.startChat({ history: geminiHistory });
     // Inject board context directly into the user message — systemInstruction alone
     // is not reliably surfaced on every chat turn in the Gemini API.
-    const boardContext = buildBoardContext(notes);
+    const boardContext = buildBoardContext(notes, rawActiveBoardId);
     const fullMessage = `${boardContext}\n\nUser: ${message}`;
     const result = await chat.sendMessageStream(fullMessage);
 
