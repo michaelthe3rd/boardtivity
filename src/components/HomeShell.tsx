@@ -1920,29 +1920,40 @@ export function HomeShell() {
     const id = genId();
     const now = new Date().toISOString();
     const viewport = viewportRef.current;
-    const prefX = viewport ? (viewport.clientWidth / 2 - pan.x) / scale - NOTE_W / 2 : 200;
-    const prefY = viewport ? (viewport.clientHeight / 2 - pan.y) / scale - NOTE_H / 2 : 200;
-    const boardNotes = notes.filter(n => n.boardId === activeBoardId);
-    const { x, y } = findFreeSpot(boardNotes, prefX, prefY);
-    const newNote: Note = {
-      id,
-      boardId: activeBoardId,
-      type: note.type === "task" ? "task" : "thought",
-      title: note.title,
-      body: note.body ?? "",
-      importance: note.importance ?? "none",
-      createdAt: now,
-      completed: false,
-      x, y,
-      steps: (note.steps ?? []).map((s, i) => ({ id: id + i + 1, title: s.title, minutes: s.minutes, done: false, x: 0, y: 0 })),
-      showFlow: false,
-      flowMode: "web",
-      linkedNoteIds: [],
-      colorIdx: note.type === "thought"
-        ? (isPlus ? (thoughtColorMode === "fixed" ? thoughtFixedColorIdx : undefined) : Math.floor(Math.random() * 8))
-        : undefined,
-    };
-    setNotes(prev => [...prev, newNote]);
+    // Prefer viewport center, but clamp to a sane area around the board center
+    // so notes never appear off-screen far from the action.
+    const vpCx = viewport ? (viewport.clientWidth  / 2 - pan.x) / scale - NOTE_W / 2 : BOARD_W / 2;
+    const vpCy = viewport ? (viewport.clientHeight / 2 - pan.y) / scale - NOTE_H / 2 : BOARD_H / 2;
+    const BOARD_CX = BOARD_W / 2, BOARD_CY = BOARD_H / 2;
+    const RANGE = 1800; // stay within 1800px of board center
+    const prefX = Math.max(BOARD_CX - RANGE, Math.min(BOARD_CX + RANGE, vpCx));
+    const prefY = Math.max(BOARD_CY - RANGE, Math.min(BOARD_CY + RANGE, vpCy));
+
+    // Use functional setNotes so each BOB note sees the previously added notes
+    // (prevents overlap when BOB creates multiple notes in one request).
+    setNotes(prev => {
+      const boardNotes = prev.filter(n => n.boardId === activeBoardId);
+      const { x, y } = findFreeSpot(boardNotes, prefX, prefY);
+      const newNote: Note = {
+        id,
+        boardId: activeBoardId,
+        type: note.type === "task" ? "task" : "thought",
+        title: note.title,
+        body: note.body ?? "",
+        importance: note.importance ?? "none",
+        createdAt: now,
+        completed: false,
+        x, y,
+        steps: (note.steps ?? []).map((s, i) => ({ id: id + i + 1, title: s.title, minutes: s.minutes, done: false, x: 0, y: 0 })),
+        showFlow: false,
+        flowMode: "web",
+        linkedNoteIds: [],
+        colorIdx: note.type === "thought"
+          ? (isPlus ? (thoughtColorMode === "fixed" ? thoughtFixedColorIdx : undefined) : Math.floor(Math.random() * 8))
+          : undefined,
+      };
+      return [...prev, newNote];
+    });
   }
 
   function startFocus(noteId: number, chain = false) {
