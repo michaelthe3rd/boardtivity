@@ -1774,12 +1774,7 @@ export function HomeShell() {
       const pos = positions.find(p => p.id === n.id);
       return pos ? { ...n, x: pos.x, y: pos.y } : n;
     }));
-    // Reset viewport so the swept grid (starting at ~x:60, y:72) is visible.
-    // Without this, notes appear to vanish because the pan offset keeps the viewport
-    // aimed at the old card positions, not the new grid.
-    const s = 0.82;
-    setScale(s);
-    setPan(clampPan(0, 0, s));
+    // Don't reset the viewport — leave the user where they are.
   }
 
   function handleBobEditNote(id: number, fields: Partial<Note>) {

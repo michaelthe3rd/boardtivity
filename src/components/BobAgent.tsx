@@ -61,6 +61,11 @@ function loadMode(): Mode {
 function saveMode(m: Mode) {
   try { localStorage.setItem(MODE_KEY, m); } catch {}
 }
+const USER_INFO_KEY = "bob_user_info";
+const AUTO_SEND_KEY = "bob_auto_send";
+function loadUserInfo() { try { return localStorage.getItem(USER_INFO_KEY) || ""; } catch { return ""; } }
+function saveUserInfo(v: string) { try { localStorage.setItem(USER_INFO_KEY, v); } catch {} }
+function loadAutoSend() { try { return localStorage.getItem(AUTO_SEND_KEY) === "true"; } catch { return false; } }
 
 // ── Compute sweep (client-side fallback) ──────────────────────────────────────
 function computeSweep(notes: Note[], mode: SweepMode): BobSweepResult {
@@ -178,14 +183,15 @@ export default function BobAgent({
   const [streaming,  setStreaming]  = useState(false);
   const [history,    setHistory]    = useState<HistoryMsg[]>([]);
 
-  // Quick actions
-  const [quickActions,   setQuickActions]   = useState<QuickAction[]>(DEFAULT_ACTIONS);
-  const [addingAction,   setAddingAction]   = useState(false);
-  const [newActionLabel, setNewActionLabel] = useState("");
-  const [hoveredChip,    setHoveredChip]    = useState<string | null>(null);
-
   // Mode
   const [mode, setMode] = useState<Mode>("assistant");
+  const [modeToast, setModeToast] = useState<string | null>(null);
+
+  // Settings
+  const [showSettings, setShowSettings] = useState(false);
+  const [userInfo,     setUserInfo]     = useState("");
+  const [autoSend,     setAutoSend]     = useState(false);
+  const autoSendRef    = useRef(false);
 
   // Usage tracking
   const usage       = useQuery(api.bob.getUsage);
@@ -195,6 +201,7 @@ export default function BobAgent({
   const [listening, setListening] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
+  const transcriptRef  = useRef("");
 
   const inputRef     = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -202,9 +209,12 @@ export default function BobAgent({
 
   useEffect(() => {
     setMounted(true);
-    setQuickActions(loadActions());
     setMode(loadMode());
+    setUserInfo(loadUserInfo());
+    setAutoSend(loadAutoSend());
   }, []);
+
+  useEffect(() => { autoSendRef.current = autoSend; }, [autoSend]);
 
   // Auto-scroll only when user is already near the bottom
   useEffect(() => {
@@ -234,7 +244,11 @@ export default function BobAgent({
     }, 380);
   }
 
-  function changeMode(m: Mode) { setMode(m); saveMode(m); }
+  function changeMode(m: Mode) {
+    setMode(m); saveMode(m);
+    setModeToast(m);
+    setTimeout(() => setModeToast(null), 1800);
+  }
 
   // ── Note snaps for API ───────────────────────────────────────────────────
   const noteSnaps = notes.map(n => ({
@@ -286,6 +300,14 @@ export default function BobAgent({
     const msg = (message ?? inputText).trim();
     if (!msg || streaming) return;
 
+    // Slash command: /autopilot /assistant /advisor
+    const slashMode = /^\/(autopilot|assistant|advisor)$/i.exec(msg);
+    if (slashMode) {
+      changeMode(slashMode[1].toLowerCase() as Mode);
+      setInputText("");
+      return;
+    }
+
     // Quota check — block if Plus monthly limit is exhausted
     if (usage !== undefined && usage !== null && usage.isPlus && usage.remaining <= 0) {
       setMessages(prev => [
@@ -327,7 +349,7 @@ export default function BobAgent({
       const res = await fetch("/api/bob", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ message: msg, notes: noteSnaps, mode, history }),
+        body: JSON.stringify({ message: msg, notes: noteSnaps, mode, history, userInfo }),
       });
 
       if (!res.body) throw new Error("No stream");
@@ -451,6 +473,7 @@ export default function BobAgent({
     r.onresult = (e: any) => {
       const txt = Array.from(e.results as ArrayLike<{ 0: { transcript: string } }>)
         .map(x => x[0].transcript).join(" ");
+      transcriptRef.current = txt;
       setInputText(txt);
     };
     r.onend = () => setListening(false);
@@ -470,8 +493,14 @@ export default function BobAgent({
   }, []);
 
   function stopListening() {
+    const txt = transcriptRef.current;
+    transcriptRef.current = "";
     recognitionRef.current?.stop();
     setListening(false);
+    if (autoSendRef.current && txt.trim()) {
+      setInputText("");
+      send(txt);
+    }
   }
 
   // ── Derived ───────────────────────────────────────────────────────────────
@@ -524,11 +553,16 @@ export default function BobAgent({
           <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: "-.015em", color: ic, lineHeight: 1, fontFamily: "'Satoshi', Arial, sans-serif" }}>BOB</span>
         </div>
         {open && (
-          <button onClick={(e) => { e.stopPropagation(); doClose(); }} style={{
-            position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
-            background: "none", border: "none", cursor: "pointer",
-            color: mu, fontSize: 18, lineHeight: 1, padding: "2px 4px", opacity: .65,
-          }}>×</button>
+          <div style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", display: "flex", gap: 2 }}>
+            <button onClick={(e) => { e.stopPropagation(); setShowSettings(s => !s); }} style={{
+              background: "none", border: "none", cursor: "pointer",
+              color: mu, fontSize: 15, lineHeight: 1, padding: "4px 5px", opacity: showSettings ? 1 : .55,
+            }}>⚙</button>
+            <button onClick={(e) => { e.stopPropagation(); doClose(); }} style={{
+              background: "none", border: "none", cursor: "pointer",
+              color: mu, fontSize: 18, lineHeight: 1, padding: "2px 4px", opacity: .65,
+            }}>×</button>
+          </div>
         )}
       </div>
 
@@ -562,8 +596,55 @@ export default function BobAgent({
             </div>
           ) : (
             <>
+              {/* ── Settings panel (overlay) ── */}
+              {showSettings && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                  <div style={{ padding: "14px 14px 10px", borderBottom: `1px solid ${T.border(t)}` }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase", color: mu, fontFamily: "'Satoshi', Arial, sans-serif", marginBottom: 10 }}>About You</div>
+                    <textarea
+                      value={userInfo}
+                      onChange={e => { setUserInfo(e.target.value); saveUserInfo(e.target.value); }}
+                      placeholder="Tell BOB about yourself — your name, role, goals, or anything helpful…"
+                      rows={4}
+                      style={{
+                        width: "100%", boxSizing: "border-box", resize: "none",
+                        background: t === "dark" ? "rgba(255,255,255,.05)" : "rgba(17,19,21,.04)",
+                        border: `1px solid ${T.border(t)}`, borderRadius: 10,
+                        padding: "8px 10px", fontSize: 12.5, color: T.text(t),
+                        fontFamily: "'Satoshi', Arial, sans-serif", outline: "none", lineHeight: 1.6,
+                      }}
+                    />
+                  </div>
+                  <div style={{ padding: "12px 14px", borderBottom: `1px solid ${T.border(t)}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div>
+                      <div style={{ fontSize: 12.5, fontWeight: 600, color: T.text(t), fontFamily: "'Satoshi', Arial, sans-serif" }}>Auto-send after recording</div>
+                      <div style={{ fontSize: 11, color: mu, fontFamily: "'Satoshi', Arial, sans-serif", marginTop: 1 }}>Send message automatically when you stop the mic</div>
+                    </div>
+                    <button
+                      onClick={() => { const v = !autoSend; setAutoSend(v); try { localStorage.setItem(AUTO_SEND_KEY, String(v)); } catch {} }}
+                      style={{
+                        flexShrink: 0, width: 38, height: 22, borderRadius: 99, border: "none", cursor: "pointer",
+                        background: autoSend ? "#6c63ff" : (t === "dark" ? "rgba(255,255,255,.15)" : "rgba(17,19,21,.15)"),
+                        position: "relative", transition: "background .2s",
+                      }}
+                    >
+                      <div style={{
+                        position: "absolute", top: 3, left: autoSend ? 19 : 3,
+                        width: 16, height: 16, borderRadius: "50%", background: "#fff",
+                        transition: "left .2s", boxShadow: "0 1px 3px rgba(0,0,0,.3)",
+                      }} />
+                    </button>
+                  </div>
+                  <div style={{ padding: "10px 14px" }}>
+                    <div style={{ fontSize: 10.5, color: mu, fontFamily: "'Satoshi', Arial, sans-serif", lineHeight: 1.5 }}>
+                      Use <code style={{ fontFamily: "monospace", opacity: .8 }}>/advisor</code>, <code style={{ fontFamily: "monospace", opacity: .8 }}>/assistant</code>, or <code style={{ fontFamily: "monospace", opacity: .8 }}>/autopilot</code> in the chat to switch modes.
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* ── Conversation area ── */}
-              {messages.length > 0 && (
+              {!showSettings && messages.length > 0 && (
                 <div
                   ref={scrollRef}
                   style={{
@@ -576,10 +657,10 @@ export default function BobAgent({
                     <div key={i} style={{
                       display: "flex",
                       flexDirection: msg.role === "user" ? "row-reverse" : "row",
-                      alignItems: "flex-start", gap: 6,
+                      alignItems: "center", gap: 6,
                     }}>
                       {msg.role === "bob" && (
-                        <div style={{ flexShrink: 0, marginTop: 2 }}>
+                        <div style={{ flexShrink: 0 }}>
                           <BobIcon size={14} color={mu} />
                         </div>
                       )}
@@ -604,7 +685,7 @@ export default function BobAgent({
               )}
 
               {/* ── Input row ── */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", borderBottom: `1px solid ${T.border(t)}` }}>
+              {!showSettings && <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", borderBottom: `1px solid ${T.border(t)}` }}>
                 {hasSpeech && (
                   <button
                     onClick={listening ? stopListening : startListening}
@@ -647,62 +728,26 @@ export default function BobAgent({
                 >
                   <Send c={inputText.trim() && !streaming ? T.text(t) : mu} />
                 </button>
-              </div>
+              </div>}
 
-              {/* ── Quick actions ── */}
-              {quickActions.length > 0 || !addingAction ? (
-                <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, padding: "8px 10px 6px" }}>
-                  {quickActions.map(action => (
-                    <div key={action.id} style={{ position: "relative", display: "inline-flex" }}
-                      onMouseEnter={() => setHoveredChip(action.id)}
-                      onMouseLeave={() => setHoveredChip(null)}
-                    >
-                      <button
-                        onClick={() => handleQuickAction(action)}
-                        disabled={streaming}
-                        style={{
-                          padding: "4px 10px", borderRadius: 99,
-                          border: `1px solid ${T.chipBdr(t)}`, background: T.chip(t),
-                          color: T.text(t), fontSize: 11.5, fontWeight: 500,
-                          cursor: streaming ? "default" : "pointer",
-                          fontFamily: "'Satoshi', Arial, sans-serif",
-                          opacity: streaming ? .5 : 1, transition: "all .12s",
-                          paddingRight: hoveredChip === action.id ? 22 : 10,
-                        }}
-                      >{action.label}</button>
-                      {hoveredChip === action.id && (
-                        <button onClick={(e) => { e.stopPropagation(); deleteAction(action.id); }} style={{
-                          position: "absolute", right: 4, top: "50%", transform: "translateY(-50%)",
-                          background: "none", border: "none", cursor: "pointer",
-                          color: mu, fontSize: 12, lineHeight: 1, padding: 0, display: "flex", alignItems: "center",
-                        }}>×</button>
-                      )}
-                    </div>
-                  ))}
-                  {addingAction ? (
-                    <input
-                      autoFocus value={newActionLabel}
-                      onChange={e => setNewActionLabel(e.target.value)}
-                      onKeyDown={e => { if (e.key === "Enter") addAction(); if (e.key === "Escape") { setAddingAction(false); setNewActionLabel(""); } }}
-                      onBlur={() => { if (!newActionLabel.trim()) setAddingAction(false); }}
-                      placeholder="Name this action…"
-                      style={{
-                        padding: "4px 12px", borderRadius: 99,
-                        border: `1px solid ${T.chipBdr(t)}`, background: T.chip(t),
-                        color: T.text(t), fontSize: 11.5, fontFamily: "'Satoshi', Arial, sans-serif",
-                        outline: "none", flex: 1, minWidth: 0,
-                      }}
-                    />
-                  ) : (
-                    <button onClick={() => setAddingAction(true)} style={{
-                      padding: "4px 12px", borderRadius: 99,
-                      border: `1px dashed ${T.chipBdr(t)}`, background: "transparent",
-                      color: mu, fontSize: 11.5, cursor: "pointer",
-                      fontFamily: "'Satoshi', Arial, sans-serif", whiteSpace: "nowrap",
-                    }}>+ Add Quick Action</button>
-                  )}
+              {/* ── Mode toast ── */}
+              {modeToast && (
+                <div style={{
+                  position: "absolute", inset: 0, zIndex: 20, display: "flex", alignItems: "center", justifyContent: "center",
+                  pointerEvents: "none",
+                }}>
+                  <div style={{
+                    background: t === "dark" ? "rgba(22,24,28,.92)" : "rgba(255,255,255,.92)",
+                    border: `1px solid ${T.border(t)}`, borderRadius: 14,
+                    padding: "12px 28px", textAlign: "center",
+                    backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
+                    animation: "bobToastIn .2s ease",
+                  }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase", color: mu, fontFamily: "'Satoshi', Arial, sans-serif", marginBottom: 2 }}>Mode</div>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: ic, fontFamily: "'Satoshi', Arial, sans-serif" }}>{MODE_LABELS[modeToast as Mode]}</div>
+                  </div>
                 </div>
-              ) : null}
+              )}
 
               {/* ── Mode selector ── */}
               <div style={{

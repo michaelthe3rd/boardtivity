@@ -120,7 +120,7 @@ const FUNCTION_DECLARATIONS = [
 ];
 
 // ── System prompt ─────────────────────────────────────────────────────────────
-function buildSystem(notes: NoteSnap[], mode: Mode): string {
+function buildSystem(notes: NoteSnap[], mode: Mode, userInfo?: string): string {
   const active = notes.filter(n => !n.completed);
   const today  = new Date().toISOString().split("T")[0];
 
@@ -146,10 +146,14 @@ function buildSystem(notes: NoteSnap[], mode: Mode): string {
       }).join("\n")
     : "Board is empty.";
 
+  const userSection = userInfo?.trim()
+    ? `\nAbout the user: ${userInfo.trim()}\n`
+    : "";
+
   return `You are BOB (Boardtivity Operating Brain) — a sharp, capable AI assistant embedded in a visual task and idea board. Think Jarvis: confident, efficient, direct. Never verbose.
 
 ${modeText}
-
+${userSection}
 Today: ${today}
 Canvas: 6800×4200px. Origin top-left. Tasks ~252×162px, thoughts ~160–280×80px.
 Board center: (3400, 2100) — this is where the "center" button returns the viewport. When a user says "center", "bring to center", "center my tasks", etc., they mean near this point.
@@ -210,11 +214,11 @@ export async function POST(req: NextRequest) {
     return new Response("Rate limit exceeded — try again in a minute", { status: 429 });
   }
 
-  let body: { message?: string; notes?: NoteSnap[]; mode?: Mode; history?: HistoryMsg[] };
+  let body: { message?: string; notes?: NoteSnap[]; mode?: Mode; history?: HistoryMsg[]; userInfo?: string };
   try { body = await req.json(); }
   catch { return new Response("Invalid JSON", { status: 400 }); }
 
-  const { message = "", notes = [], mode = "assistant", history = [] } = body;
+  const { message = "", notes = [], mode = "assistant", history = [], userInfo = "" } = body;
   if (!message.trim()) return new Response("No message", { status: 400 });
 
   // ── Mock mode ─────────────────────────────────────────────────────────────
@@ -235,7 +239,7 @@ export async function POST(req: NextRequest) {
 
   const model = genAI.getGenerativeModel({
     model: "gemini-2.5-flash",
-    systemInstruction: buildSystem(notes, mode),
+    systemInstruction: buildSystem(notes, mode, userInfo),
     tools: mode === "advisor" ? [] : [{ functionDeclarations: FUNCTION_DECLARATIONS as unknown as FunctionDeclaration[] }],
   });
 
