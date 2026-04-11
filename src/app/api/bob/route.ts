@@ -351,7 +351,7 @@ export async function POST(req: NextRequest) {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
   const model = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash",
+    model: "gemini-3.1-flash-lite-preview",
     systemInstruction: buildSystem(notes, mode, userInfo, settings),
     // Gemini does not support mixing googleSearch + functionDeclarations.
     // Advisor mode: grounding only (no function calls). Action modes: function calls only.
