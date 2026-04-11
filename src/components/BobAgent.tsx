@@ -480,13 +480,14 @@ export default function BobAgent({
   const mu = T.muted(t);
 
   const PILL_W = mobile ? "100%" : 90, OPEN_W = mobile ? "100%" : 480, PILL_H = 44;
-  const DI = "cubic-bezier(0.32, 0.72, 0, 1)";
+  const DI  = "cubic-bezier(0.22, 1, 0.36, 1)";  // spring-like ease-out
+  const DI2 = "cubic-bezier(0.4, 0, 0.2, 1)";    // material ease for collapse
   const transition = isExpanded
-    ? [`width 0.38s ${DI}`, `max-height 0.36s ${DI} 0.03s`, `border-radius 0.34s ${DI}`].join(", ")
-    : [`max-height 0.24s ease-in`, `width 0.26s ease-in 0.02s`, `border-radius 0.24s ease-in`].join(", ");
+    ? [`width 0.42s ${DI}`, `max-height 0.44s ${DI} 0.02s`, `border-radius 0.38s ${DI}`].join(", ")
+    : [`max-height 0.28s ${DI2}`, `width 0.30s ${DI2} 0.02s`, `border-radius 0.28s ${DI2}`].join(", ");
 
   const contentOpacity    = isExpanded ? 1 : 0;
-  const contentTransition = isExpanded ? "opacity 0.15s ease 0.2s" : "opacity 0.07s ease";
+  const contentTransition = isExpanded ? "opacity 0.18s ease 0.22s" : "opacity 0.08s ease";
 
   const pillBg  = t === "dark" ? "rgba(22,24,28,.72)"   : "rgba(255,255,255,.72)";
   const openBg  = t === "dark" ? "rgba(22,24,28,.94)"   : "rgba(255,255,255,.94)";

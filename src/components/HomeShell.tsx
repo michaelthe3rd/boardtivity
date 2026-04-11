@@ -10,7 +10,7 @@ import { useUser, useClerk } from "@clerk/nextjs";
 import { api } from "../../convex/_generated/api";
 
 const NOTE_PALETTE = [
-  { light: "#fde8f4", dark: "#2a0e22", halo: "rgba(230,60,170,.24)",  swatch: "#df3eaa" },  // pink
+  { light: "#f5c1e4", dark: "#4f2344", halo: "rgba(220,60,155,.24)",  swatch: "#df3eaa" },  // pink
   { light: "#f8e8fd", dark: "#1e0e2e", halo: "rgba(175,70,225,.22)",  swatch: "#aa44dd" },  // orchid
   { light: "#fde8ed", dark: "#2e0e18", halo: "rgba(240,70,100,.22)",  swatch: "#f03c64" },  // coral
   { light: "#fdf0e8", dark: "#2e1a0e", halo: "rgba(240,155,80,.20)",  swatch: "#f0854a" },  // peach
@@ -2316,6 +2316,30 @@ export function HomeShell() {
 
           return (
             <div style={{ padding: "0 0 100px" }}>
+              {/* BOB — above board switcher */}
+              <div style={{ padding: "8px 16px 4px" }}>
+                <BobAgent
+                  theme={theme}
+                  notes={activeNotes}
+                  onSweep={handleBobSweep}
+                  onAddNote={handleBobAddNote}
+                  onEditNote={handleBobEditNote}
+                  onDeleteNotes={handleBobDeleteNotes}
+                  onHighlightNotes={handleBobHighlightNotes}
+                  onLaunchFocus={handleBobLaunchFocus}
+                  onSaveUndo={handleBobSaveUndo}
+                  onUndo={handleBobUndo}
+                  onSetIdeaColor={handleBobSetIdeaColor}
+                  onConfigureTaskColors={handleBobConfigureTaskColors}
+                  onConfigureBoard={handleBobConfigureBoard}
+                  isAdmin={!!isAdmin}
+                  userInfo={bobUserInfo}
+                  autoSend={bobAutoSend}
+                  settings={{ taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, thoughtColorMode, thoughtFixedColorIdx, boardTheme: theme, boardGrid }}
+                  mobile
+                />
+              </div>
+
               {/* Board switcher */}
               <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 10, paddingTop: 8, paddingLeft: 16, paddingRight: 16, scrollbarWidth: "none" }}>
                 {boards.map(b => {
@@ -2349,30 +2373,6 @@ export function HomeShell() {
                     </svg>
                   </button>
                 )}
-              </div>
-
-              {/* BOB — inline below board switcher */}
-              <div style={{ padding: "0 16px 8px" }}>
-                <BobAgent
-                  theme={theme}
-                  notes={activeNotes}
-                  onSweep={handleBobSweep}
-                  onAddNote={handleBobAddNote}
-                  onEditNote={handleBobEditNote}
-                  onDeleteNotes={handleBobDeleteNotes}
-                  onHighlightNotes={handleBobHighlightNotes}
-                  onLaunchFocus={handleBobLaunchFocus}
-                  onSaveUndo={handleBobSaveUndo}
-                  onUndo={handleBobUndo}
-                  onSetIdeaColor={handleBobSetIdeaColor}
-                  onConfigureTaskColors={handleBobConfigureTaskColors}
-                  onConfigureBoard={handleBobConfigureBoard}
-                  isAdmin={!!isAdmin}
-                  userInfo={bobUserInfo}
-                  autoSend={bobAutoSend}
-                  settings={{ taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, thoughtColorMode, thoughtFixedColorIdx, boardTheme: theme, boardGrid }}
-                  mobile
-                />
               </div>
 
               {/* Board type picker sheet */}
