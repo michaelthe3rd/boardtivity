@@ -389,7 +389,7 @@ export default function BobAgent({
                 return next;
               });
             } else if (data.type === "error") {
-              bobText = "Something went wrong. Try again.";
+              bobText = `Error: ${data.message ?? "unknown"}`;
               setMessages(prev => {
                 const next = [...prev];
                 next[next.length - 1] = { role: "bob", content: bobText, streaming: false };
