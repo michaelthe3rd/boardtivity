@@ -33,10 +33,11 @@ interface Props {
   onSaveUndo: () => void;
   onUndo: () => void;
   isAdmin?: boolean;
+  userInfo?: string;
+  autoSend?: boolean;
 }
 
-const MODE_KEY    = "bob_mode";
-
+const MODE_KEY = "bob_mode";
 function loadMode(): Mode {
   try { const m = localStorage.getItem(MODE_KEY); if (m === "advisor" || m === "assistant" || m === "autopilot") return m; } catch {}
   return "assistant";
@@ -44,11 +45,6 @@ function loadMode(): Mode {
 function saveMode(m: Mode) {
   try { localStorage.setItem(MODE_KEY, m); } catch {}
 }
-const USER_INFO_KEY = "bob_user_info";
-const AUTO_SEND_KEY = "bob_auto_send";
-function loadUserInfo() { try { return localStorage.getItem(USER_INFO_KEY) || ""; } catch { return ""; } }
-function saveUserInfo(v: string) { try { localStorage.setItem(USER_INFO_KEY, v); } catch {} }
-function loadAutoSend() { try { return localStorage.getItem(AUTO_SEND_KEY) === "true"; } catch { return false; } }
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
 const T = {
@@ -129,6 +125,7 @@ function BobIcon({ size = 20, color }: { size?: number; color: string }) {
 export default function BobAgent({
   theme: t, notes, onSweep, onAddNote, onEditNote, onDeleteNotes,
   onHighlightNotes, onLaunchFocus, onSaveUndo, onUndo, isAdmin = true,
+  userInfo = "", autoSend = false,
 }: Props) {
   const [open,    setOpen]    = useState(false);
   const [closing, setClosing] = useState(false);
@@ -142,13 +139,6 @@ export default function BobAgent({
 
   // Mode
   const [mode, setMode] = useState<Mode>("assistant");
-  const [modeToast, setModeToast] = useState<string | null>(null);
-
-  // Settings
-  const [showSettings, setShowSettings] = useState(false);
-  const [userInfo,     setUserInfo]     = useState("");
-  const [autoSend,     setAutoSend]     = useState(false);
-  const autoSendRef    = useRef(false);
 
   // Usage tracking
   const usage       = useQuery(api.bob.getUsage);
@@ -159,18 +149,13 @@ export default function BobAgent({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
   const transcriptRef  = useRef("");
+  const autoSendRef    = useRef(autoSend);
 
   const inputRef     = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollRef    = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    setMounted(true);
-    setMode(loadMode());
-    setUserInfo(loadUserInfo());
-    setAutoSend(loadAutoSend());
-  }, []);
-
+  useEffect(() => { setMounted(true); setMode(loadMode()); }, []);
   useEffect(() => { autoSendRef.current = autoSend; }, [autoSend]);
 
   // Auto-scroll only when user is already near the bottom
@@ -201,11 +186,7 @@ export default function BobAgent({
     }, 380);
   }
 
-  function changeMode(m: Mode) {
-    setMode(m); saveMode(m);
-    setModeToast(m);
-    setTimeout(() => setModeToast(null), 1800);
-  }
+  function changeMode(m: Mode) { setMode(m); saveMode(m); }
 
   // ── Note snaps for API ───────────────────────────────────────────────────
   const noteSnaps = notes.map(n => ({
@@ -257,13 +238,6 @@ export default function BobAgent({
     const msg = (message ?? inputText).trim();
     if (!msg || streaming) return;
 
-    // Slash command: /autopilot /assistant /advisor
-    const slashMode = /^\/(autopilot|assistant|advisor)$/i.exec(msg);
-    if (slashMode) {
-      changeMode(slashMode[1].toLowerCase() as Mode);
-      setInputText("");
-      return;
-    }
 
     // Quota check — block if Plus monthly limit is exhausted
     if (usage !== undefined && usage !== null && usage.isPlus && usage.remaining <= 0) {
@@ -480,16 +454,11 @@ export default function BobAgent({
           <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: "-.015em", color: ic, lineHeight: 1, fontFamily: "'Satoshi', Arial, sans-serif" }}>BOB</span>
         </div>
         {open && (
-          <div style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", display: "flex", gap: 2 }}>
-            <button onClick={(e) => { e.stopPropagation(); setShowSettings(s => !s); }} style={{
-              background: "none", border: "none", cursor: "pointer",
-              color: mu, fontSize: 15, lineHeight: 1, padding: "4px 5px", opacity: showSettings ? 1 : .55,
-            }}>⚙</button>
-            <button onClick={(e) => { e.stopPropagation(); doClose(); }} style={{
-              background: "none", border: "none", cursor: "pointer",
-              color: mu, fontSize: 18, lineHeight: 1, padding: "2px 4px", opacity: .65,
-            }}>×</button>
-          </div>
+          <button onClick={(e) => { e.stopPropagation(); doClose(); }} style={{
+            position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
+            background: "none", border: "none", cursor: "pointer",
+            color: mu, fontSize: 18, lineHeight: 1, padding: "2px 4px", opacity: .65,
+          }}>×</button>
         )}
       </div>
 
@@ -523,55 +492,8 @@ export default function BobAgent({
             </div>
           ) : (
             <>
-              {/* ── Settings panel (overlay) ── */}
-              {showSettings && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-                  <div style={{ padding: "14px 14px 10px", borderBottom: `1px solid ${T.border(t)}` }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase", color: mu, fontFamily: "'Satoshi', Arial, sans-serif", marginBottom: 10 }}>About You</div>
-                    <textarea
-                      value={userInfo}
-                      onChange={e => { setUserInfo(e.target.value); saveUserInfo(e.target.value); }}
-                      placeholder="Tell BOB about yourself — your name, role, goals, or anything helpful…"
-                      rows={4}
-                      style={{
-                        width: "100%", boxSizing: "border-box", resize: "none",
-                        background: t === "dark" ? "rgba(255,255,255,.05)" : "rgba(17,19,21,.04)",
-                        border: `1px solid ${T.border(t)}`, borderRadius: 10,
-                        padding: "8px 10px", fontSize: 12.5, color: T.text(t),
-                        fontFamily: "'Satoshi', Arial, sans-serif", outline: "none", lineHeight: 1.6,
-                      }}
-                    />
-                  </div>
-                  <div style={{ padding: "12px 14px", borderBottom: `1px solid ${T.border(t)}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <div>
-                      <div style={{ fontSize: 12.5, fontWeight: 600, color: T.text(t), fontFamily: "'Satoshi', Arial, sans-serif" }}>Auto-send after recording</div>
-                      <div style={{ fontSize: 11, color: mu, fontFamily: "'Satoshi', Arial, sans-serif", marginTop: 1 }}>Send message automatically when you stop the mic</div>
-                    </div>
-                    <button
-                      onClick={() => { const v = !autoSend; setAutoSend(v); try { localStorage.setItem(AUTO_SEND_KEY, String(v)); } catch {} }}
-                      style={{
-                        flexShrink: 0, width: 38, height: 22, borderRadius: 99, border: "none", cursor: "pointer",
-                        background: autoSend ? "#6c63ff" : (t === "dark" ? "rgba(255,255,255,.15)" : "rgba(17,19,21,.15)"),
-                        position: "relative", transition: "background .2s",
-                      }}
-                    >
-                      <div style={{
-                        position: "absolute", top: 3, left: autoSend ? 19 : 3,
-                        width: 16, height: 16, borderRadius: "50%", background: "#fff",
-                        transition: "left .2s", boxShadow: "0 1px 3px rgba(0,0,0,.3)",
-                      }} />
-                    </button>
-                  </div>
-                  <div style={{ padding: "10px 14px" }}>
-                    <div style={{ fontSize: 10.5, color: mu, fontFamily: "'Satoshi', Arial, sans-serif", lineHeight: 1.5 }}>
-                      Use <code style={{ fontFamily: "monospace", opacity: .8 }}>/advisor</code>, <code style={{ fontFamily: "monospace", opacity: .8 }}>/assistant</code>, or <code style={{ fontFamily: "monospace", opacity: .8 }}>/autopilot</code> in the chat to switch modes.
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {/* ── Conversation area ── */}
-              {!showSettings && messages.length > 0 && (
+              {messages.length > 0 && (
                 <div
                   ref={scrollRef}
                   style={{
@@ -612,7 +534,7 @@ export default function BobAgent({
               )}
 
               {/* ── Input row ── */}
-              {!showSettings && <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", borderBottom: `1px solid ${T.border(t)}` }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", borderBottom: `1px solid ${T.border(t)}` }}>
                 {hasSpeech && (
                   <button
                     onClick={listening ? stopListening : startListening}
@@ -655,13 +577,13 @@ export default function BobAgent({
                 >
                   <Send c={inputText.trim() && !streaming ? T.text(t) : mu} />
                 </button>
-              </div>}
+              </div>
 
               {/* ── Mode selector ── */}
               <div style={{
                 display: "flex", alignItems: "center", justifyContent: "center",
                 gap: 4, padding: "8px 10px",
-                borderTop: `1px solid ${T.border(t)}`, position: "relative",
+                borderTop: `1px solid ${T.border(t)}`,
               }}>
                 {(["advisor", "assistant", "autopilot"] as Mode[]).map(m => (
                   <button
@@ -677,19 +599,6 @@ export default function BobAgent({
                     }}
                   >{MODE_LABELS[m]}</button>
                 ))}
-                {/* Slash-command toast overlays the bar briefly */}
-                {modeToast && (
-                  <div style={{
-                    position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
-                    pointerEvents: "none", animation: "bobToastFade 1.8s ease forwards",
-                    background: t === "dark" ? "rgba(22,24,28,.85)" : "rgba(255,255,255,.85)",
-                    borderRadius: 4,
-                  }}>
-                    <span style={{ fontSize: 11.5, fontWeight: 700, color: ic, fontFamily: "'Satoshi', Arial, sans-serif" }}>
-                      {MODE_LABELS[modeToast as Mode]}
-                    </span>
-                  </div>
-                )}
               </div>
 
               {/* ── Usage meter ── */}

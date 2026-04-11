@@ -707,6 +707,8 @@ export function HomeShell() {
   const savedBoardIdRef = useRef<string | undefined>(undefined);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [bobUserInfo, setBobUserInfo] = useState(() => { try { return localStorage.getItem("bob_user_info") || ""; } catch { return ""; } });
+  const [bobAutoSend, setBobAutoSend] = useState(() => { try { return localStorage.getItem("bob_auto_send") === "true"; } catch { return false; } });
   const [mobileSettingsOpen, setMobileSettingsOpen] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false); // noteId (number) or boardId (string)
@@ -3115,6 +3117,8 @@ export function HomeShell() {
                 onSaveUndo={handleBobSaveUndo}
                 onUndo={handleBobUndo}
                 isAdmin={!!isAdmin}
+                userInfo={bobUserInfo}
+                autoSend={bobAutoSend}
               />
             </div>
             <div style={{
@@ -3377,6 +3381,48 @@ export function HomeShell() {
               )}
 
               {/* Calendar Export */}
+              {/* BOB */}
+              <div style={{ borderTop: `1px solid ${border(boardTheme)}`, paddingTop: 20, display: "grid", gap: 14 }}>
+                <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), fontWeight: 700 }}>BOB</div>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: pageText(boardTheme), marginBottom: 6 }}>About You</div>
+                  <textarea
+                    value={bobUserInfo}
+                    onChange={e => { setBobUserInfo(e.target.value); try { localStorage.setItem("bob_user_info", e.target.value); } catch {} }}
+                    placeholder="Tell BOB about yourself — your name, role, goals, or anything helpful…"
+                    rows={4}
+                    style={{
+                      width: "100%", boxSizing: "border-box",
+                      background: boardTheme === "dark" ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.03)",
+                      border: `1px solid ${border(boardTheme)}`, borderRadius: 10,
+                      padding: "8px 10px", fontSize: 13, color: pageText(boardTheme),
+                      outline: "none", lineHeight: 1.6, resize: "vertical",
+                    }}
+                  />
+                </div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: pageText(boardTheme) }}>Auto-send after recording</div>
+                    <div style={{ fontSize: 11.5, color: muted(boardTheme), marginTop: 2 }}>Send automatically when you stop the mic</div>
+                  </div>
+                  <button
+                    onClick={() => { const v = !bobAutoSend; setBobAutoSend(v); try { localStorage.setItem("bob_auto_send", String(v)); } catch {} }}
+                    style={{
+                      flexShrink: 0, width: 40, height: 24, borderRadius: 99, border: "none", cursor: "pointer",
+                      background: bobAutoSend ? "#6c63ff" : (boardTheme === "dark" ? "rgba(255,255,255,.15)" : "rgba(0,0,0,.15)"),
+                      position: "relative", transition: "background .2s",
+                    }}
+                  >
+                    <div style={{
+                      position: "absolute", top: 4, left: bobAutoSend ? 20 : 4,
+                      width: 16, height: 16, borderRadius: "50%", background: "#fff",
+                      transition: "left .2s", boxShadow: "0 1px 3px rgba(0,0,0,.3)",
+                    }} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Calendar */}
               <div style={{ borderTop: `1px solid ${border(boardTheme)}`, paddingTop: 20, display: "grid", gap: 10 }}>
                 <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), fontWeight: 700, marginBottom: 2 }}>Calendar</div>
                 <button
