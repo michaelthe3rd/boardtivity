@@ -1921,28 +1921,25 @@ export function HomeShell() {
     const now = new Date().toISOString();
     const viewport = viewportRef.current;
 
+    // Viewport center in board coordinates — always the anchor point so notes
+    // land where the user is currently looking.
+    const vpCx = viewport ? (viewport.clientWidth  / 2 - pan.x) / scale - NOTE_W / 2 : BOARD_W / 2;
+    const vpCy = viewport ? (viewport.clientHeight / 2 - pan.y) / scale - NOTE_H / 2 : BOARD_H / 2;
+
+    // Visible board rect so we can clamp the final position onto the screen.
+    const visMinX = viewport ? Math.max(40,               (        -pan.x) / scale)            : 40;
+    const visMinY = viewport ? Math.max(60,               (        -pan.y) / scale)            : 60;
+    const visMaxX = viewport ? Math.min(BOARD_W-NOTE_W-40, (viewport.clientWidth  - pan.x) / scale - NOTE_W) : BOARD_W - NOTE_W - 40;
+    const visMaxY = viewport ? Math.min(BOARD_H-NOTE_H-40, (viewport.clientHeight - pan.y) / scale - NOTE_H) : BOARD_H - NOTE_H - 40;
+
     // Use functional setNotes so each BOB note sees the previously added notes
     // (prevents overlap when BOB creates multiple notes in one request).
     setNotes(prev => {
       const boardNotes = prev.filter(n => n.boardId === activeBoardId);
-
-      // Placement priority:
-      // 1. Centroid of existing board notes (so BOB clusters near existing content)
-      // 2. Viewport center (if board is empty)
-      // 3. Board center fallback
-      let prefX: number, prefY: number;
-      if (boardNotes.length > 0) {
-        prefX = boardNotes.reduce((s, n) => s + n.x, 0) / boardNotes.length;
-        prefY = boardNotes.reduce((s, n) => s + n.y, 0) / boardNotes.length;
-      } else if (viewport) {
-        prefX = (viewport.clientWidth  / 2 - pan.x) / scale - NOTE_W / 2;
-        prefY = (viewport.clientHeight / 2 - pan.y) / scale - NOTE_H / 2;
-      } else {
-        prefX = BOARD_W / 2;
-        prefY = BOARD_H / 2;
-      }
-
-      const { x, y } = findFreeSpot(boardNotes, prefX, prefY);
+      const { x: rx, y: ry } = findFreeSpot(boardNotes, vpCx, vpCy);
+      // Clamp to visible area so findFreeSpot's spiral never lands off-screen.
+      const x = Math.max(visMinX, Math.min(visMaxX, rx));
+      const y = Math.max(visMinY, Math.min(visMaxY, ry));
       const newNote: Note = {
         id,
         boardId: activeBoardId,
