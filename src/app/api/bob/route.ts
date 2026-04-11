@@ -151,7 +151,8 @@ function buildSystem(notes: NoteSnap[], mode: Mode): string {
 ${modeText}
 
 Today: ${today}
-Canvas: tasks are ~252×168px, thoughts are ~160–280×80px. Origin is top-left. Typical layout spans 0–2000px on each axis.
+Canvas: 6800×4200px. Origin top-left. Tasks ~252×162px, thoughts ~160–280×80px.
+Board center: (3400, 2100) — this is where the "center" button returns the viewport. When a user says "center", "bring to center", "center my tasks", etc., they mean near this point.
 Active board items: ${active.length}
 
 ${boardText}
@@ -161,7 +162,9 @@ Rules:
 — After acting, narrate what you did in 1-2 sentences max.
 — Reference actual note titles and IDs.
 — Only ask for clarification if genuinely impossible to interpret.
-— Never verbose. Be terse.`;
+— Never verbose. Be terse.
+— NO OVERLAPS: when calling organize_board or placing multiple notes, space them at least 252px apart horizontally and 162px apart vertically. Arrange in a grid or row — never stack two notes at the same or near-same coordinates.
+— When centering items, anchor the group around (3400, 2100). For N items, lay them out in a grid centered on that point: start from (3400 - cols/2 * 276, 2100 - rows/2 * 186) with 276px col stride and 186px row stride.`;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
