@@ -56,7 +56,7 @@ const FUNCTION_DECLARATIONS = [
     parameters: {
       type: "object",
       properties: {
-        id: { type: "number", description: "The note ID to edit" },
+        id: { type: "string", description: "The note ID to edit" },
         fields: {
           type: "object",
           description: "Fields to update. Allowed: title, body, importance, dueDate, minutes",
@@ -78,7 +78,7 @@ const FUNCTION_DECLARATIONS = [
     parameters: {
       type: "object",
       properties: {
-        ids: { type: "array", items: { type: "number" }, description: "IDs of notes to delete" },
+        ids: { type: "array", items: { type: "string" }, description: "IDs of notes to delete" },
       },
       required: ["ids"],
     },
@@ -94,7 +94,7 @@ const FUNCTION_DECLARATIONS = [
           items: {
             type: "object",
             properties: {
-              id: { type: "number" },
+              id: { type: "string" },
               x:  { type: "number" },
               y:  { type: "number" },
             },
@@ -111,7 +111,7 @@ const FUNCTION_DECLARATIONS = [
     parameters: {
       type: "object",
       properties: {
-        ids: { type: "array", items: { type: "number" }, description: "IDs of notes to highlight" },
+        ids: { type: "array", items: { type: "string" }, description: "IDs of notes to highlight" },
       },
       required: ["ids"],
     },
@@ -122,7 +122,7 @@ const FUNCTION_DECLARATIONS = [
     parameters: {
       type: "object",
       properties: {
-        noteId: { type: "number", description: "ID of the note to focus on" },
+        noteId: { type: "string", description: "ID of the note to focus on" },
         chain:  { type: "boolean", description: "If true, auto-chain through subtasks when each timer ends" },
       },
       required: ["noteId"],
@@ -134,7 +134,7 @@ const FUNCTION_DECLARATIONS = [
     parameters: {
       type: "object",
       properties: {
-        ids:   { type: "array", items: { type: "number" }, description: "Idea note IDs to recolor" },
+        ids:   { type: "array", items: { type: "string" }, description: "Idea note IDs to recolor" },
         color: { type: "string", enum: ["none","pink","orchid","coral","peach","butter","lilac","blue","mint"], description: "Color name" },
       },
       required: ["ids", "color"],
@@ -236,7 +236,7 @@ Idea color names: none (grey), pink, orchid, coral, peach, butter, lilac, blue, 
 Task color names: red, orange, yellow, pink, orchid, coral, peach, butter, lilac, blue, mint
 
 Rules:
-— You have Google Search available. Use it freely whenever the user asks about real-world info: places, hours, events, recommendations, how-to guides, current news, local spots, travel, or anything requiring up-to-date or location-specific knowledge. Search first, then answer.
+— ${mode === "advisor" ? "You have Google Search available. Use it freely for real-world info: places, hours, events, recommendations, current news, local spots, travel, or anything requiring up-to-date knowledge. Search first, then answer." : "You do NOT have web search in this mode. For real-world/location questions, suggest the user switch to Advisor mode."}
 — Stream your thinking naturally, then call tools.
 — After acting, narrate what you did in 1-2 sentences max.
 — Reference actual note titles and IDs.
@@ -336,14 +336,15 @@ export async function POST(req: NextRequest) {
   // ── Real mode ─────────────────────────────────────────────────────────────
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const searchTool = { googleSearch: {} } as any;
   const model = genAI.getGenerativeModel({
     model: "gemini-2.5-flash",
     systemInstruction: buildSystem(notes, mode, userInfo, settings),
+    // Gemini does not support mixing googleSearch + functionDeclarations.
+    // Advisor mode: grounding only (no function calls). Action modes: function calls only.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     tools: mode === "advisor"
-      ? [searchTool]
-      : [{ functionDeclarations: FUNCTION_DECLARATIONS as unknown as FunctionDeclaration[] }, searchTool],
+      ? [{ googleSearch: {} } as any]
+      : [{ functionDeclarations: FUNCTION_DECLARATIONS as unknown as FunctionDeclaration[] }],
   });
 
   // Gemini uses "model" instead of "assistant" for role

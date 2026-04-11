@@ -234,36 +234,40 @@ export default function BobAgent({
           ).slice(0, 20) : [],
         });
         break;
-      case "edit_note":
-        if (typeof input.id === "number" && input.fields && typeof input.fields === "object")
-          onEditNote(input.id, input.fields);
+      case "edit_note": {
+        const eid = Number(input.id);
+        if (!isNaN(eid) && input.fields && typeof input.fields === "object")
+          onEditNote(eid, input.fields);
         break;
+      }
       case "delete_notes":
-        if (Array.isArray(input.ids) && input.ids.every((id: unknown) => typeof id === "number"))
-          onDeleteNotes(input.ids);
+        if (Array.isArray(input.ids))
+          onDeleteNotes(input.ids.map(Number).filter((id: number) => !isNaN(id)));
         break;
       case "organize_board":
-        if (Array.isArray(input.positions) && input.positions.every(
-          (p: unknown) => p && typeof p === "object" &&
-            typeof (p as {id:unknown}).id === "number" &&
-            typeof (p as {x:unknown}).x === "number" &&
-            typeof (p as {y:unknown}).y === "number"
-        )) onSweep(input.positions);
+        if (Array.isArray(input.positions)) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const positions = input.positions.map((p: any) => ({
+            id: Number(p.id), x: Number(p.x), y: Number(p.y),
+          })).filter((p: {id:number;x:number;y:number}) => !isNaN(p.id) && !isNaN(p.x) && !isNaN(p.y));
+          if (positions.length) onSweep(positions);
+        }
         break;
       case "highlight_notes":
-        if (Array.isArray(input.ids) && input.ids.every((id: unknown) => typeof id === "number"))
-          onHighlightNotes(input.ids);
+        if (Array.isArray(input.ids))
+          onHighlightNotes(input.ids.map(Number).filter((id: number) => !isNaN(id)));
         break;
-      case "launch_focus":
-        if (typeof input.noteId === "number")
-          onLaunchFocus(input.noteId, input.chain === true);
+      case "launch_focus": {
+        const nid = Number(input.noteId);
+        if (!isNaN(nid)) onLaunchFocus(nid, input.chain === true);
         break;
+      }
       case "set_idea_color": {
         if (Array.isArray(input.ids) && typeof input.color === "string") {
           const colorIdx = input.color === "none"
             ? undefined
             : (IDEA_COLOR_NAMES as readonly string[]).indexOf(input.color);
-          onSetIdeaColor(input.ids, colorIdx === -1 ? undefined : colorIdx as number | undefined);
+          onSetIdeaColor(input.ids.map(Number).filter((id: number) => !isNaN(id)), colorIdx === -1 ? undefined : colorIdx as number | undefined);
         }
         break;
       }
@@ -483,9 +487,7 @@ export default function BobAgent({
   const DI  = "cubic-bezier(0.22, 1, 0.36, 1)";  // spring-like ease-out
   const DI2 = "cubic-bezier(0.4, 0, 0.2, 1)";    // material ease for collapse
   const transition = mobile
-    ? (isExpanded
-        ? "max-height 0.5s ease-out, border-radius 0.4s ease-out"
-        : "max-height 0.28s ease-in, border-radius 0.22s ease-in")
+    ? (isExpanded ? "max-height 0.5s ease-out" : "max-height 0.28s ease-in")
     : (isExpanded
         ? [`width 0.42s ${DI}`, `max-height 0.44s ${DI} 0.02s`, `border-radius 0.38s ${DI}`].join(", ")
         : [`max-height 0.28s ${DI2}`, `width 0.30s ${DI2} 0.02s`, `border-radius 0.28s ${DI2}`].join(", "));
