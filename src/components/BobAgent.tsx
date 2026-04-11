@@ -359,6 +359,7 @@ export default function BobAgent({
     setStreaming(true);
 
     let bobText = "";
+    let toolsFired = 0;
 
     try {
       const res = await fetch("/api/bob", {
@@ -394,10 +395,19 @@ export default function BobAgent({
               recordUsage({ inputTokens: data.inputTokens, outputTokens: data.outputTokens }).catch(() => {});
             } else if (data.type === "tool") {
               executeTool(data.name, data.input);
+              toolsFired++;
             } else if (data.type === "done") {
+              const DONE_PHRASES = [
+                "Done ✓", "All set ✓", "Consider it done ✓",
+                "Handled ✓", "Done and dusted ✓", "Boom. Done ✓",
+              ];
+              const doneLine = toolsFired > 0 && bobText.trim().length < 8
+                ? DONE_PHRASES[Math.floor(Math.random() * DONE_PHRASES.length)]
+                : bobText;
+              bobText = doneLine;
               setMessages(prev => {
                 const next = [...prev];
-                next[next.length - 1] = { role: "bob", content: bobText, streaming: false };
+                next[next.length - 1] = { role: "bob", content: doneLine, streaming: false };
                 return next;
               });
             } else if (data.type === "error") {
