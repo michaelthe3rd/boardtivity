@@ -227,10 +227,14 @@ ${modeText}
 ${userSection}
 Today: ${today}
 Canvas: 6800×4200px. Origin top-left. Tasks ~252×162px, thoughts ~160–280×80px.
-Board center: (3400, 2100) — this is where the "center" button returns the viewport. When a user says "center", "bring to center", "center my tasks", etc., they mean near this point.
-Active board items: ${active.length}
+Board center: (3400, 2100).
 
+════ BOARD STATE (ground truth — trust this exactly) ════
+Active items: ${active.length} | Completed items: ${completed.length}
 ${boardText}
+═══════════════════════════════════════════════════════
+
+IMPORTANT: The board state above is injected directly from the user's live data. It is always accurate. NEVER say the board is empty or that tasks don't exist if items are listed above.
 
 Current settings:
 ${ideaColorStr}
