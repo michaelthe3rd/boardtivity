@@ -2320,7 +2320,8 @@ export function HomeShell() {
               <div style={{ padding: "8px 16px 4px" }}>
                 <BobAgent
                   theme={theme}
-                  notes={activeNotes}
+                  notes={notes}
+                  activeBoardId={activeBoardId}
                   onSweep={handleBobSweep}
                   onAddNote={handleBobAddNote}
                   onEditNote={handleBobEditNote}
@@ -3473,7 +3474,8 @@ export function HomeShell() {
             <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", top: 0 }}>
               <BobAgent
                 theme={boardTheme}
-                notes={activeNotes}
+                notes={notes}
+                activeBoardId={activeBoardId}
                 onSweep={handleBobSweep}
                 onAddNote={handleBobAddNote}
                 onEditNote={handleBobEditNote}

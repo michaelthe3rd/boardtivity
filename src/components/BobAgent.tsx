@@ -32,6 +32,7 @@ export type BobSettings = {
 interface Props {
   theme: ThemeMode;
   notes: Note[];
+  activeBoardId?: string;
   onSweep: (positions: BobSweepResult) => void;
   onAddNote: (note: BobNewNote) => void;
   onEditNote: (id: number, fields: Partial<Note>) => void;
@@ -139,7 +140,7 @@ const IDEA_COLOR_NAMES = ["pink","orchid","coral","peach","butter","lilac","blue
 const TASK_COLOR_NAMES = ["red","orange","yellow","pink","orchid","coral","peach","butter","lilac","blue","mint"] as const;
 
 export default function BobAgent({
-  theme: t, notes, onSweep, onAddNote, onEditNote, onDeleteNotes,
+  theme: t, notes, activeBoardId, onSweep, onAddNote, onEditNote, onDeleteNotes,
   onHighlightNotes, onLaunchFocus, onSaveUndo, onUndo, isAdmin = true,
   userInfo = "", autoSend = false,
   onSetIdeaColor, onConfigureTaskColors, onConfigureBoard, settings,
@@ -209,11 +210,11 @@ export default function BobAgent({
 
   // ── Note snaps for API ───────────────────────────────────────────────────
   const noteSnaps = notes.map(n => ({
-    id: n.id, type: n.type, title: n.title, body: n.body,
+    id: n.id, boardId: n.boardId, type: n.type, title: n.title, body: n.body,
     importance: n.importance, dueDate: n.dueDate, minutes: n.minutes,
     completed: n.completed, x: n.x, y: n.y,
     colorIdx: n.colorIdx,
-    steps: n.steps.map(s => ({ title: s.title, minutes: s.minutes, done: s.done })),
+    steps: (n.steps ?? []).map(s => ({ title: s.title, minutes: s.minutes, done: s.done })),
   }));
 
   // ── Execute tool calls from BOB ──────────────────────────────────────────
@@ -339,7 +340,7 @@ export default function BobAgent({
       const res = await fetch("/api/bob", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ message: msg, notes: noteSnaps, mode, history, userInfo, settings }),
+        body: JSON.stringify({ message: msg, notes: noteSnaps, activeBoardId, mode, history, userInfo, settings }),
       });
 
       if (!res.body) throw new Error("No stream");

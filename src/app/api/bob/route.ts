@@ -2,7 +2,7 @@ import { GoogleGenerativeAI, type FunctionDeclaration } from "@google/generative
 import { NextRequest } from "next/server";
 
 type NoteSnap = {
-  id: number; type: string; title: string; body?: string;
+  id: number; boardId?: string; type: string; title: string; body?: string;
   importance?: string; dueDate?: string; minutes?: number;
   completed: boolean; x: number; y: number; colorIdx?: number;
   steps?: { title: string; minutes: number; done: boolean }[];
@@ -176,7 +176,7 @@ function buildSystem(notes: NoteSnap[], mode: Mode, userInfo?: string, settings?
 
   const modeText = {
     advisor:
-      "ADVISOR MODE — analyze and suggest only. Do NOT call action tools unless the user explicitly tells you to make a change. Frame everything as recommendations.",
+      "ADVISOR MODE — analyze and suggest only. Do NOT call any action tools. If the user asks you to do something that requires a tool (create, edit, delete, organize, etc.), decline politely and say: \"Switch to Assistant or Autopilot mode to let me do that.\"",
     assistant:
       "ASSISTANT MODE — execute actions when clearly asked. For large or destructive changes, briefly say what you're about to do before calling tools.",
     autopilot:
@@ -307,21 +307,25 @@ export async function POST(req: NextRequest) {
     return new Response("Rate limit exceeded — try again in a minute", { status: 429 });
   }
 
-  let body: { message?: string; notes?: NoteSnap[]; mode?: Mode; history?: HistoryMsg[]; userInfo?: string; settings?: Settings };
+  let body: { message?: string; notes?: NoteSnap[]; activeBoardId?: string; mode?: Mode; history?: HistoryMsg[]; userInfo?: string; settings?: Settings };
   try { body = await req.json(); }
   catch { return new Response("Invalid JSON", { status: 400 }); }
 
   // ── Runtime input validation ──────────────────────────────────────────────
-  const rawMessage  = typeof body.message  === "string" ? body.message  : "";
-  const rawMode     = body.mode;
-  const rawUserInfo = typeof body.userInfo === "string" ? body.userInfo : "";
-  const rawNotes    = Array.isArray(body.notes)   ? body.notes.slice(0, 500)   : [];
-  const rawHistory  = Array.isArray(body.history) ? body.history.slice(0, 12)  : [];
+  const rawMessage     = typeof body.message       === "string" ? body.message       : "";
+  const rawMode        = body.mode;
+  const rawUserInfo    = typeof body.userInfo      === "string" ? body.userInfo      : "";
+  const rawActiveBoardId = typeof body.activeBoardId === "string" ? body.activeBoardId : "";
+  const rawNotes       = Array.isArray(body.notes)   ? body.notes.slice(0, 500)   : [];
+  const rawHistory     = Array.isArray(body.history) ? body.history.slice(0, 12)  : [];
 
   const message  = rawMessage.trim().slice(0, 4000);
   const mode: Mode = rawMode === "advisor" || rawMode === "autopilot" ? rawMode : "assistant";
   const userInfo = rawUserInfo.slice(0, 1000);
-  const notes    = rawNotes;
+  // Filter to active board server-side — eliminates any client-side activeBoardId mismatch
+  const notes = rawActiveBoardId
+    ? rawNotes.filter(n => !n.boardId || n.boardId === rawActiveBoardId)
+    : rawNotes;
   const history  = rawHistory.filter(
     h => h && (h.role === "user" || h.role === "assistant") && typeof h.content === "string"
   ).map(h => ({ role: h.role as "user" | "assistant", content: h.content.slice(0, 2000) }));
