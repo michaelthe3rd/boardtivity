@@ -231,7 +231,7 @@ export async function POST(req: NextRequest) {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
   const model = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash-preview",
+    model: "gemini-2.5-flash",
     systemInstruction: buildSystem(notes, mode),
     tools: mode === "advisor" ? [] : [{ functionDeclarations: FUNCTION_DECLARATIONS as unknown as FunctionDeclaration[] }],
   });
