@@ -1920,19 +1920,28 @@ export function HomeShell() {
     const id = genId();
     const now = new Date().toISOString();
     const viewport = viewportRef.current;
-    // Prefer viewport center, but clamp to a sane area around the board center
-    // so notes never appear off-screen far from the action.
-    const vpCx = viewport ? (viewport.clientWidth  / 2 - pan.x) / scale - NOTE_W / 2 : BOARD_W / 2;
-    const vpCy = viewport ? (viewport.clientHeight / 2 - pan.y) / scale - NOTE_H / 2 : BOARD_H / 2;
-    const BOARD_CX = BOARD_W / 2, BOARD_CY = BOARD_H / 2;
-    const RANGE = 1800; // stay within 1800px of board center
-    const prefX = Math.max(BOARD_CX - RANGE, Math.min(BOARD_CX + RANGE, vpCx));
-    const prefY = Math.max(BOARD_CY - RANGE, Math.min(BOARD_CY + RANGE, vpCy));
 
     // Use functional setNotes so each BOB note sees the previously added notes
     // (prevents overlap when BOB creates multiple notes in one request).
     setNotes(prev => {
       const boardNotes = prev.filter(n => n.boardId === activeBoardId);
+
+      // Placement priority:
+      // 1. Centroid of existing board notes (so BOB clusters near existing content)
+      // 2. Viewport center (if board is empty)
+      // 3. Board center fallback
+      let prefX: number, prefY: number;
+      if (boardNotes.length > 0) {
+        prefX = boardNotes.reduce((s, n) => s + n.x, 0) / boardNotes.length;
+        prefY = boardNotes.reduce((s, n) => s + n.y, 0) / boardNotes.length;
+      } else if (viewport) {
+        prefX = (viewport.clientWidth  / 2 - pan.x) / scale - NOTE_W / 2;
+        prefY = (viewport.clientHeight / 2 - pan.y) / scale - NOTE_H / 2;
+      } else {
+        prefX = BOARD_W / 2;
+        prefY = BOARD_H / 2;
+      }
+
       const { x, y } = findFreeSpot(boardNotes, prefX, prefY);
       const newNote: Note = {
         id,
