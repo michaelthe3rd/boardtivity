@@ -371,10 +371,12 @@ export async function POST(req: NextRequest) {
     parts: [{ text: h.content }],
   }));
 
-  console.log(`[BOB] userId=${userId} mode=${mode} rawNotes=${rawNotes.length} filteredNotes=${notes.length} activeBoardId=${rawActiveBoardId}`);
+  const activeTasks = notes.filter(n => !n.completed && n.type === "task");
+  const activeIdeas = notes.filter(n => !n.completed && n.type === "thought");
+  console.log(`[BOB] userId=${userId} mode=${mode} rawNotes=${rawNotes.length} filteredNotes=${notes.length} tasks=${activeTasks.length} ideas=${activeIdeas.length} activeBoardId=${rawActiveBoardId}`);
 
   const stream = makeSSE(async (push, signal) => {
-    push({ type: "debug", rawNotes: rawNotes.length, filteredNotes: notes.length, activeBoardId: rawActiveBoardId });
+    push({ type: "debug", rawNotes: rawNotes.length, filteredNotes: notes.length, tasks: activeTasks.length, ideas: activeIdeas.length, activeBoardId: rawActiveBoardId, noteTitles: notes.slice(0,5).map(n => n.title) });
     const chat = model.startChat({ history: geminiHistory });
     const result = await chat.sendMessageStream(message);
 
