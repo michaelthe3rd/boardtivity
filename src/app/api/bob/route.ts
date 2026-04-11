@@ -17,9 +17,9 @@ type Settings = {
 };
 
 // Color names for idea notes (NOTE_PALETTE indices 0-7)
-const IDEA_COLOR_NAMES = ["sky-blue","peach","sage","lavender","butter","teal","rose","periwinkle"] as const;
+const IDEA_COLOR_NAMES = ["pink","orchid","coral","peach","butter","lilac","blue","mint"] as const;
 // Color names for task palette (first 3 = priority defaults, then idea colors)
-const TASK_COLOR_NAMES = ["red","orange","yellow","sky-blue","peach","sage","lavender","butter","teal","rose","periwinkle"] as const;
+const TASK_COLOR_NAMES = ["red","orange","yellow","pink","orchid","coral","peach","butter","lilac","blue","mint"] as const;
 
 // ── Function declarations (Gemini format) ────────────────────────────────────
 const FUNCTION_DECLARATIONS = [
@@ -135,7 +135,7 @@ const FUNCTION_DECLARATIONS = [
       type: "object",
       properties: {
         ids:   { type: "array", items: { type: "number" }, description: "Idea note IDs to recolor" },
-        color: { type: "string", enum: ["none","sky-blue","peach","sage","lavender","butter","teal","rose","periwinkle"], description: "Color name" },
+        color: { type: "string", enum: ["none","pink","orchid","coral","peach","butter","lilac","blue","mint"], description: "Color name" },
       },
       required: ["ids", "color"],
     },
@@ -147,10 +147,10 @@ const FUNCTION_DECLARATIONS = [
       type: "object",
       properties: {
         mode:   { type: "string", enum: ["priority","single"], description: "priority = color per priority level; single = one color for all tasks" },
-        high:   { type: "string", enum: ["red","orange","yellow","sky-blue","peach","sage","lavender","butter","teal","rose","periwinkle"] },
-        medium: { type: "string", enum: ["red","orange","yellow","sky-blue","peach","sage","lavender","butter","teal","rose","periwinkle"] },
-        low:    { type: "string", enum: ["red","orange","yellow","sky-blue","peach","sage","lavender","butter","teal","rose","periwinkle"] },
-        single: { type: "string", enum: ["red","orange","yellow","sky-blue","peach","sage","lavender","butter","teal","rose","periwinkle"], description: "Used when mode=single" },
+        high:   { type: "string", enum: ["red","orange","yellow","pink","orchid","coral","peach","butter","lilac","blue","mint"] },
+        medium: { type: "string", enum: ["red","orange","yellow","pink","orchid","coral","peach","butter","lilac","blue","mint"] },
+        low:    { type: "string", enum: ["red","orange","yellow","pink","orchid","coral","peach","butter","lilac","blue","mint"] },
+        single: { type: "string", enum: ["red","orange","yellow","pink","orchid","coral","peach","butter","lilac","blue","mint"], description: "Used when mode=single" },
       },
     },
   },
@@ -232,8 +232,8 @@ ${taskColorStr}
 ${boardSettingsStr}
 ${ideaColorNoteInfo ? `Idea card colors: ${ideaColorNoteInfo}` : ""}
 
-Idea color names: none (grey), sky-blue, peach, sage, lavender, butter, teal, rose, periwinkle
-Task color names: red, orange, yellow, sky-blue, peach, sage, lavender, butter, teal, rose, periwinkle
+Idea color names: none (grey), pink, orchid, coral, peach, butter, lilac, blue, mint
+Task color names: red, orange, yellow, pink, orchid, coral, peach, butter, lilac, blue, mint
 
 Rules:
 — Stream your thinking naturally, then call tools.

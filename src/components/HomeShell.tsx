@@ -10,14 +10,14 @@ import { useUser, useClerk } from "@clerk/nextjs";
 import { api } from "../../convex/_generated/api";
 
 const NOTE_PALETTE = [
-  { light: "#fce8f3", dark: "#2e1229", halo: "rgba(230,90,180,.22)",  swatch: "#e055b0" },  // hot pink
-  { light: "#fdf0f8", dark: "#2a1525", halo: "rgba(210,120,195,.20)", swatch: "#c96bc0" },  // orchid
-  { light: "#fff0f4", dark: "#301420", halo: "rgba(240,110,140,.22)", swatch: "#f0607a" },  // coral rose
-  { light: "#fef3ec", dark: "#2c1a10", halo: "rgba(240,155,90,.20)",  swatch: "#f0854a" },  // peach
-  { light: "#fdf8ec", dark: "#2a2210", halo: "rgba(220,185,80,.20)",  swatch: "#c8980a" },  // butter
-  { light: "#f3effe", dark: "#1e1535", halo: "rgba(160,110,240,.22)", swatch: "#9966ee" },  // lilac
-  { light: "#e8f6fe", dark: "#0f2535", halo: "rgba(80,165,235,.20)",  swatch: "#3d9fe0" },  // periwinkle blue
-  { light: "#edfaf5", dark: "#0e2820", halo: "rgba(60,190,145,.20)",  swatch: "#28b885" },  // mint
+  { light: "#fde8f4", dark: "#2a0e22", halo: "rgba(230,60,170,.24)",  swatch: "#df3eaa" },  // pink
+  { light: "#f8e8fd", dark: "#1e0e2e", halo: "rgba(175,70,225,.22)",  swatch: "#aa44dd" },  // orchid
+  { light: "#fde8ed", dark: "#2e0e18", halo: "rgba(240,70,100,.22)",  swatch: "#f03c64" },  // coral
+  { light: "#fdf0e8", dark: "#2e1a0e", halo: "rgba(240,155,80,.20)",  swatch: "#f0854a" },  // peach
+  { light: "#fdf8e6", dark: "#2a2208", halo: "rgba(215,185,55,.20)",  swatch: "#c89808" },  // butter
+  { light: "#ede8fd", dark: "#160e30", halo: "rgba(130,90,240,.22)",  swatch: "#7c4eee" },  // lilac
+  { light: "#e8f2fd", dark: "#0e1e35", halo: "rgba(65,145,230,.20)",  swatch: "#3a8ee0" },  // blue
+  { light: "#e8fdf4", dark: "#0a2418", halo: "rgba(45,185,135,.20)",  swatch: "#22b880" },  // mint
 ];
 
 // Task color palette: first 3 are priority defaults (red/orange/yellow), then NOTE_PALETTE
@@ -2351,6 +2351,30 @@ export function HomeShell() {
                 )}
               </div>
 
+              {/* BOB — inline below board switcher */}
+              <div style={{ padding: "0 16px 8px" }}>
+                <BobAgent
+                  theme={theme}
+                  notes={activeNotes}
+                  onSweep={handleBobSweep}
+                  onAddNote={handleBobAddNote}
+                  onEditNote={handleBobEditNote}
+                  onDeleteNotes={handleBobDeleteNotes}
+                  onHighlightNotes={handleBobHighlightNotes}
+                  onLaunchFocus={handleBobLaunchFocus}
+                  onSaveUndo={handleBobSaveUndo}
+                  onUndo={handleBobUndo}
+                  onSetIdeaColor={handleBobSetIdeaColor}
+                  onConfigureTaskColors={handleBobConfigureTaskColors}
+                  onConfigureBoard={handleBobConfigureBoard}
+                  isAdmin={!!isAdmin}
+                  userInfo={bobUserInfo}
+                  autoSend={bobAutoSend}
+                  settings={{ taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, thoughtColorMode, thoughtFixedColorIdx, boardTheme: theme, boardGrid }}
+                  mobile
+                />
+              </div>
+
               {/* Board type picker sheet */}
               {mobileBoardTypePicker && (
                 <div style={{ position: "fixed", inset: 0, zIndex: 50, backgroundColor: "rgba(0,0,0,.4)", display: "flex", alignItems: "flex-end" }} onClick={() => setMobileBoardTypePicker(false)}>
@@ -2862,29 +2886,6 @@ export function HomeShell() {
                   </div>
                 );
               })()}
-
-              {/* BOB — bottom-left on mobile */}
-              <div style={{ position: "fixed", bottom: 20, left: 16, zIndex: 100 }}>
-                <BobAgent
-                  theme={theme}
-                  notes={activeNotes}
-                  onSweep={handleBobSweep}
-                  onAddNote={handleBobAddNote}
-                  onEditNote={handleBobEditNote}
-                  onDeleteNotes={handleBobDeleteNotes}
-                  onHighlightNotes={handleBobHighlightNotes}
-                  onLaunchFocus={handleBobLaunchFocus}
-                  onSaveUndo={handleBobSaveUndo}
-                  onUndo={handleBobUndo}
-                  onSetIdeaColor={handleBobSetIdeaColor}
-                  onConfigureTaskColors={handleBobConfigureTaskColors}
-                  onConfigureBoard={handleBobConfigureBoard}
-                  isAdmin={!!isAdmin}
-                  userInfo={bobUserInfo}
-                  autoSend={bobAutoSend}
-                  settings={{ taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, thoughtColorMode, thoughtFixedColorIdx, boardTheme: theme, boardGrid }}
-                />
-              </div>
 
               {/* FAB */}
               <button
@@ -4364,7 +4365,7 @@ export function HomeShell() {
                 }
                 return null;
               })()}
-              <div style={{ borderRadius: 13, backgroundColor: (detailNote.completed || (detailNote.steps.length > 0 && detailNote.steps.every(s => s.done))) ? (boardTheme === "dark" ? "#0e2e18" : "#e6f9ee") : detailNote.type === "task" ? getBg(detailNote.importance === "none" ? undefined : detailNote.importance) : detailNote.colorIdx !== undefined ? paletteBg(detailNote.colorIdx, boardTheme) : (boardTheme === "dark" ? "#2a2d32" : "#ebebeb"), border: (detailNote.completed || (detailNote.steps.length > 0 && detailNote.steps.every(s => s.done))) ? `1px solid ${boardTheme === "dark" ? "rgba(60,180,90,.2)" : "rgba(60,180,90,.15)"}` : "1px solid rgba(0,0,0,.05)", padding: 20, display: "flex", flexDirection: "column", gap: 0, overflowY: "auto" }}>
+              <div style={{ borderRadius: 13, backgroundColor: (detailNote.completed || (detailNote.steps.length > 0 && detailNote.steps.every(s => s.done))) ? (boardTheme === "dark" ? "#0e2e18" : "#e6f9ee") : detailNote.type === "task" ? getBg(detailEditing ? (detailEditImportance === "none" ? undefined : detailEditImportance) : (detailNote.importance === "none" ? undefined : detailNote.importance)) : (() => { const ci = detailEditing ? detailEditColorIdx : detailNote.colorIdx; return ci !== undefined ? paletteBg(ci, boardTheme) : (boardTheme === "dark" ? "#2a2d32" : "#ebebeb"); })(), border: (detailNote.completed || (detailNote.steps.length > 0 && detailNote.steps.every(s => s.done))) ? `1px solid ${boardTheme === "dark" ? "rgba(60,180,90,.2)" : "rgba(60,180,90,.15)"}` : "1px solid rgba(0,0,0,.05)", padding: 20, display: "flex", flexDirection: "column", gap: 0, overflowY: "auto" }}>
                 {/* Focus header */}
                 <div style={{ paddingBottom: 16, borderBottom: `1px solid ${border(boardTheme)}`, marginBottom: 16 }}>
                   {detailNote.type === "task" && detailEditing ? (

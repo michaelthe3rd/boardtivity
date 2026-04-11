@@ -47,6 +47,7 @@ interface Props {
   userInfo?: string;
   autoSend?: boolean;
   settings?: BobSettings;
+  mobile?: boolean;
 }
 
 const MODE_KEY = "bob_mode";
@@ -134,14 +135,15 @@ function BobIcon({ size = 20, color }: { size?: number; color: string }) {
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
-const IDEA_COLOR_NAMES = ["sky-blue","peach","sage","lavender","butter","teal","rose","periwinkle"] as const;
-const TASK_COLOR_NAMES = ["red","orange","yellow","sky-blue","peach","sage","lavender","butter","teal","rose","periwinkle"] as const;
+const IDEA_COLOR_NAMES = ["pink","orchid","coral","peach","butter","lilac","blue","mint"] as const;
+const TASK_COLOR_NAMES = ["red","orange","yellow","pink","orchid","coral","peach","butter","lilac","blue","mint"] as const;
 
 export default function BobAgent({
   theme: t, notes, onSweep, onAddNote, onEditNote, onDeleteNotes,
   onHighlightNotes, onLaunchFocus, onSaveUndo, onUndo, isAdmin = true,
   userInfo = "", autoSend = false,
   onSetIdeaColor, onConfigureTaskColors, onConfigureBoard, settings,
+  mobile = false,
 }: Props) {
   const [open,    setOpen]    = useState(false);
   const [closing, setClosing] = useState(false);
@@ -184,13 +186,13 @@ export default function BobAgent({
   }, [messages]);
 
   useEffect(() => {
-    if (!open || closing) return;
+    if (!open || closing || mobile) return;
     const onDown = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) doClose();
     };
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
-  }, [open, closing]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, closing, mobile]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function doOpen()  { setOpen(true); setClosing(false); }
   function doClose() {
@@ -477,7 +479,7 @@ export default function BobAgent({
   const ic = T.text(t);
   const mu = T.muted(t);
 
-  const PILL_W = 90, OPEN_W = 480, PILL_H = 44;
+  const PILL_W = mobile ? "100%" : 90, OPEN_W = mobile ? "100%" : 480, PILL_H = 44;
   const DI = "cubic-bezier(0.32, 0.72, 0, 1)";
   const transition = isExpanded
     ? [`width 0.38s ${DI}`, `max-height 0.36s ${DI} 0.03s`, `border-radius 0.34s ${DI}`].join(", ")
@@ -494,7 +496,7 @@ export default function BobAgent({
     <div
       ref={containerRef}
       style={{
-        width: open ? OPEN_W : PILL_W, maxHeight: open ? 560 : PILL_H,
+        width: open ? OPEN_W : PILL_W, maxHeight: open ? (mobile ? "calc(100svh - 140px)" : 560) : PILL_H,
         borderRadius: open ? 18 : 999, overflow: "hidden",
         willChange: "width, max-height, border-radius", transition,
         backgroundColor: open ? openBg : pillBg,
