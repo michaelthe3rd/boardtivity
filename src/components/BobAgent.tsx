@@ -473,26 +473,18 @@ export default function BobAgent({
   const hasSpeech = typeof window !== "undefined" &&
     ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
 
-  const startListening = useCallback(async () => {
+  const startListening = useCallback(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const SR: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) {
       setMessages(prev => [...prev, { role: "bob", content: "Voice input isn't supported in this browser. Try Chrome or Edge." }]);
       return;
     }
-
-    // Explicitly request mic permission — required on some browsers before SpeechRecognition works
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach(t => t.stop()); // release immediately, SR manages its own stream
-    } catch {
-      setMessages(prev => [...prev, { role: "bob", content: "Microphone permission denied. Allow mic access in your browser settings and try again." }]);
-      return;
-    }
-
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const r: any = new SR();
     r.continuous = true; r.interimResults = true; r.lang = "en-US";
+    // Only show the wave once recognition actually starts — avoids flash-of-red on permission failure
+    r.onstart = () => setListening(true);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     r.onresult = (e: any) => {
       const txt = Array.from(e.results as ArrayLike<{ 0: { transcript: string } }>)
@@ -503,19 +495,16 @@ export default function BobAgent({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     r.onerror = (e: any) => {
       setListening(false);
-      // "aborted" fires when we call r.stop() ourselves — ignore it
-      // "no-speech" is benign — ignore it
       if (e.error === "aborted" || e.error === "no-speech") return;
       const msg = e.error === "not-allowed"
-        ? "Microphone permission denied. Allow mic access in your browser settings."
+        ? "Mic access blocked — go to your browser's site settings and allow the microphone for this site."
         : e.error === "network"
         ? "Network error — voice recognition needs an internet connection."
-        : `Voice error: ${e.error}. Check mic permissions and try again.`;
+        : `Voice error: ${e.error}`;
       setMessages(prev => [...prev, { role: "bob", content: msg }]);
     };
     recognitionRef.current = r;
     r.start();
-    setListening(true);
   }, []);
 
   function stopListening() {
