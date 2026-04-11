@@ -95,6 +95,22 @@ const INITIAL_BOARDS: Board[] = [
   { id: "my-thoughts", name: "My Ideas", type: "thought" },
 ];
 
+// Convert yyyy-mm-dd ↔ mm-dd-yyyy for display
+function isoToMDY(iso: string) {
+  if (!iso || iso.length !== 10) return "";
+  const [y, m, d] = iso.split("-");
+  return `${m}-${d}-${y}`;
+}
+function mdyToISO(mdy: string) {
+  const clean = mdy.replace(/\//g, "-");
+  const parts = clean.split("-");
+  if (parts.length === 3 && parts[2].length === 4) {
+    const [m, d, y] = parts;
+    return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  }
+  return "";
+}
+
 function formatDate(date?: string) {
   if (!date) return "";
   return new Date(date + "T12:00:00").toLocaleDateString(undefined, {
@@ -2477,9 +2493,14 @@ export function HomeShell() {
                             <button type="button" onClick={() => setMobileEditDueDate("")} style={{ background: "none", border: "none", color: muted(theme), fontSize: 13, opacity: .5, cursor: "pointer", padding: "0 2px" }}>✕</button>
                           )}
                           <input
-                            type="date"
-                            value={mobileEditDueDate}
-                            onChange={e => setMobileEditDueDate(e.target.value)}
+                            type="text"
+                            placeholder="mm-dd-yyyy"
+                            value={isoToMDY(mobileEditDueDate)}
+                            onChange={e => {
+                              const iso = mdyToISO(e.target.value);
+                              if (iso) setMobileEditDueDate(iso);
+                              else if (!e.target.value) setMobileEditDueDate("");
+                            }}
                             style={{ border: "none", backgroundColor: "transparent", color: pageText(theme), fontSize: 14, fontWeight: 600, outline: "none", textAlign: "right", padding: 0, cursor: "pointer" }}
                           />
                         </div>
@@ -3933,9 +3954,14 @@ export function HomeShell() {
                         <div>
                           <div style={{ fontSize: 11, letterSpacing: ".1em", textTransform: "uppercase", color: muted(boardTheme), marginBottom: 5 }}>Due date</div>
                           <input
-                            type="date"
-                            value={detailEditDueDate}
-                            onChange={e => setDetailEditDueDate(e.target.value)}
+                            type="text"
+                            placeholder="mm-dd-yyyy"
+                            value={isoToMDY(detailEditDueDate)}
+                            onChange={e => {
+                              const iso = mdyToISO(e.target.value);
+                              if (iso) setDetailEditDueDate(iso);
+                              else if (!e.target.value) setDetailEditDueDate("");
+                            }}
                             style={{ width: "100%", background: "none", border: `1px solid ${border(boardTheme)}`, borderRadius: 8, padding: "6px 10px", fontSize: 13, color: pageText(boardTheme), fontFamily: "inherit", boxSizing: "border-box", outline: "none" }}
                           />
                         </div>
