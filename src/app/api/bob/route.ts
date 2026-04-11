@@ -367,7 +367,10 @@ export async function POST(req: NextRequest) {
     parts: [{ text: h.content }],
   }));
 
+  console.log(`[BOB] userId=${userId} mode=${mode} rawNotes=${rawNotes.length} filteredNotes=${notes.length} activeBoardId=${rawActiveBoardId}`);
+
   const stream = makeSSE(async (push, signal) => {
+    push({ type: "debug", rawNotes: rawNotes.length, filteredNotes: notes.length, activeBoardId: rawActiveBoardId });
     const chat = model.startChat({ history: geminiHistory });
     const result = await chat.sendMessageStream(message);
 

@@ -337,6 +337,7 @@ export default function BobAgent({
     let toolsFired = 0;
 
     try {
+      console.log(`[BOB send] noteSnaps=${noteSnaps.length} activeBoardId=${activeBoardId} boardIds=${[...new Set(noteSnaps.map(n => n.boardId))].join(",")}`);
       const res = await fetch("/api/bob", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -359,7 +360,9 @@ export default function BobAgent({
           if (!line.startsWith("data: ")) continue;
           try {
             const data = JSON.parse(line.slice(6));
-            if (data.type === "token") {
+            if (data.type === "debug") {
+              console.log("[BOB debug]", data);
+            } else if (data.type === "token") {
               bobText += data.text;
               setMessages(prev => {
                 const next = [...prev];
