@@ -10,14 +10,14 @@ import { useUser, useClerk } from "@clerk/nextjs";
 import { api } from "../../convex/_generated/api";
 
 const NOTE_PALETTE = [
-  { light: "#e8f1fb", dark: "#1b2d3e", halo: "rgba(90,150,230,.20)",  swatch: "#4a8fe0" },  // sky blue
-  { light: "#fbeee8", dark: "#3a2318", halo: "rgba(220,130,80,.20)",   swatch: "#e07a38" },  // peach
-  { light: "#eef7ee", dark: "#1c301c", halo: "rgba(80,180,80,.20)",    swatch: "#3db83d" },  // sage
-  { light: "#f6eeff", dark: "#291a3c", halo: "rgba(140,80,230,.20)",   swatch: "#8a40e8" },  // lavender
-  { light: "#fff8e6", dark: "#352c12", halo: "rgba(210,175,60,.20)",   swatch: "#c8980a" },  // butter
-  { light: "#eef8f8", dark: "#192e2e", halo: "rgba(70,190,190,.20)",   swatch: "#1ab8b8" },  // teal
-  { light: "#ffedf0", dark: "#36191c", halo: "rgba(220,90,105,.20)",   swatch: "#e0445a" },  // rose
-  { light: "#f1f1fb", dark: "#1e1e30", halo: "rgba(120,120,220,.20)",  swatch: "#6060d8" },  // periwinkle
+  { light: "#fce8f3", dark: "#2e1229", halo: "rgba(230,90,180,.22)",  swatch: "#e055b0" },  // hot pink
+  { light: "#fdf0f8", dark: "#2a1525", halo: "rgba(210,120,195,.20)", swatch: "#c96bc0" },  // orchid
+  { light: "#fff0f4", dark: "#301420", halo: "rgba(240,110,140,.22)", swatch: "#f0607a" },  // coral rose
+  { light: "#fef3ec", dark: "#2c1a10", halo: "rgba(240,155,90,.20)",  swatch: "#f0854a" },  // peach
+  { light: "#fdf8ec", dark: "#2a2210", halo: "rgba(220,185,80,.20)",  swatch: "#c8980a" },  // butter
+  { light: "#f3effe", dark: "#1e1535", halo: "rgba(160,110,240,.22)", swatch: "#9966ee" },  // lilac
+  { light: "#e8f6fe", dark: "#0f2535", halo: "rgba(80,165,235,.20)",  swatch: "#3d9fe0" },  // periwinkle blue
+  { light: "#edfaf5", dark: "#0e2820", halo: "rgba(60,190,145,.20)",  swatch: "#28b885" },  // mint
 ];
 
 // Task color palette: first 3 are priority defaults (red/orange/yellow), then NOTE_PALETTE
@@ -760,7 +760,6 @@ export function HomeShell() {
   const [taskMedColorIdx, setTaskMedColorIdx] = useState<number>(() => readLocal("taskMedColorIdx", 1));
   const [taskLowColorIdx, setTaskLowColorIdx] = useState<number>(() => readLocal("taskLowColorIdx", 2));
   const [taskSingleColorIdx, setTaskSingleColorIdx] = useState<number>(() => readLocal("taskSingleColorIdx", 0));
-  const [ideaColorPickerId, setIdeaColorPickerId] = useState<number | null>(null);
   const settingsRef = useRef<HTMLDivElement | null>(null);
   const [cloudSyncState, setCloudSyncState] = useState<"loading" | "synced" | "saving" | "error">("loading");
 
@@ -1724,7 +1723,7 @@ export function HomeShell() {
       showFlow: false,
       flowMode: "web",
       linkedNoteIds: [],
-      colorIdx: composerColorIdx,
+      colorIdx: composerColorIdx !== undefined ? composerColorIdx : (!isPlus ? Math.floor(Math.random() * NOTE_PALETTE.length) : undefined),
     };
 
     setNotes((prev) => [...prev, note]);
@@ -2182,7 +2181,9 @@ export function HomeShell() {
               createdAt: now, completed: false,
               x: 80 + Math.random() * 200, y: 80 + Math.random() * 200,
               steps: [], showFlow: false, flowMode: "web", linkedNoteIds: [],
-              colorIdx: mobileAddMode === "thought" ? mobileAddColorIdx : undefined,
+              colorIdx: mobileAddMode === "thought"
+                ? (mobileAddColorIdx !== undefined ? mobileAddColorIdx : (!isPlus ? Math.floor(Math.random() * NOTE_PALETTE.length) : undefined))
+                : undefined,
             }]);
             if (mobileAddMode === "thought" && mobileAddRemindIn !== null) {
               setReminderMut({ noteId: id, noteTitle: mobileAddTitle.trim(), delayMs: mobileAddRemindIn }).catch(() => {});
@@ -3192,63 +3193,6 @@ export function HomeShell() {
                       return mins >= 60 ? `${Math.floor(mins/60)}h${mins%60 ? ` ${mins%60}m` : ""}` : `${mins}m`;
                     })() : "Idea"}</div>
 
-                    {/* Idea color circle (top-right) */}
-                    {note.type === "thought" && (
-                      <div style={{ position: "relative" }}>
-                        <div
-                          role="button"
-                          onClick={e => {
-                            e.stopPropagation();
-                            if (!isPlus) { setUpgradeOpen(true); return; }
-                            setIdeaColorPickerId(ideaColorPickerId === note.id ? null : note.id);
-                          }}
-                          style={{
-                            width: 14, height: 14, borderRadius: "50%", cursor: "pointer", flexShrink: 0,
-                            backgroundColor: note.colorIdx !== undefined ? NOTE_PALETTE[note.colorIdx % NOTE_PALETTE.length].swatch : (boardTheme === "dark" ? "rgba(255,255,255,.22)" : "rgba(0,0,0,.18)"),
-                            border: `1.5px solid ${boardTheme === "dark" ? "rgba(255,255,255,.18)" : "rgba(0,0,0,.14)"}`,
-                            boxSizing: "border-box",
-                          }}
-                        />
-                        {ideaColorPickerId === note.id && (
-                          <div
-                            onClick={e => e.stopPropagation()}
-                            style={{
-                              position: "absolute", top: 20, right: 0, zIndex: 200,
-                              background: boardTheme === "dark" ? "rgba(28,30,35,.97)" : "rgba(255,255,255,.98)",
-                              border: `1px solid ${boardTheme === "dark" ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.12)"}`,
-                              borderRadius: 10, padding: "8px 8px 6px",
-                              boxShadow: "0 8px 24px rgba(0,0,0,.22)",
-                              display: "grid", gridTemplateColumns: "repeat(3, 18px)", gap: 6,
-                            }}
-                          >
-                            {/* Grey / no-color option */}
-                            <div
-                              role="button"
-                              onClick={() => { setNotes(prev => prev.map(n => n.id === note.id ? { ...n, colorIdx: undefined } : n)); setIdeaColorPickerId(null); }}
-                              style={{
-                                width: 18, height: 18, borderRadius: "50%", cursor: "pointer",
-                                background: boardTheme === "dark" ? "#2a2d32" : "#d8d8d8",
-                                border: note.colorIdx === undefined ? `2px solid ${boardTheme === "dark" ? "#fff" : "#333"}` : `1.5px solid ${boardTheme === "dark" ? "rgba(255,255,255,.2)" : "rgba(0,0,0,.15)"}`,
-                                boxSizing: "border-box",
-                              }}
-                            />
-                            {NOTE_PALETTE.map((p, i) => (
-                              <div
-                                key={i}
-                                role="button"
-                                onClick={() => { setNotes(prev => prev.map(n => n.id === note.id ? { ...n, colorIdx: i } : n)); setIdeaColorPickerId(null); }}
-                                style={{
-                                  width: 18, height: 18, borderRadius: "50%", cursor: "pointer",
-                                  backgroundColor: p.swatch,
-                                  border: note.colorIdx === i ? `2px solid ${boardTheme === "dark" ? "#fff" : "#333"}` : "1.5px solid transparent",
-                                  boxSizing: "border-box",
-                                }}
-                              />
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
                     {note.type === "task" && (note.dueDate || note.completed || note.steps.every(s => s.done && s.id)) && (() => {
                       const done = note.completed || (note.steps.length > 0 && note.steps.every(s => s.done));
                       if (done) return (
@@ -3933,7 +3877,7 @@ export function HomeShell() {
           <button
             onClick={() => {
               // Plus: use their default color (fixed mode) or grey (undefined); Free: random
-              setComposerColorIdx(isPlus ? (thoughtColorMode === "fixed" ? thoughtFixedColorIdx : undefined) : Math.floor(Math.random() * NOTE_PALETTE.length));
+              setComposerColorIdx(isPlus ? (thoughtColorMode === "fixed" ? thoughtFixedColorIdx : undefined) : undefined);
               setComposerOpen(true);
             }}
             style={{
