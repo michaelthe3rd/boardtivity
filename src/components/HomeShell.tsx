@@ -549,6 +549,7 @@ export function HomeShell() {
   const [detailEditImportance, setDetailEditImportance] = useState<Importance>("none");
   const [detailEditMinutes, setDetailEditMinutes] = useState(60);
   const [detailEditSteps, setDetailEditSteps] = useState<Step[]>([]);
+  const [detailEditColorIdx, setDetailEditColorIdx] = useState<number | undefined>(undefined);
   const [detailBreakdownVariant, setDetailBreakdownVariant] = useState(0);
   const [activeStep, setActiveStep] = useState<{ noteId: number; stepId: number } | null>(null);
 
@@ -637,6 +638,9 @@ export function HomeShell() {
   const [mobileEditDueDate, setMobileEditDueDate] = useState("");
   const [mobileEditImportance, setMobileEditImportance] = useState<Importance>("none");
   const [mobileEditMinutes, setMobileEditMinutes] = useState("");
+  const [mobileAddColorIdx, setMobileAddColorIdx] = useState<number | undefined>(undefined);
+  const [mobileEditColorIdx, setMobileEditColorIdx] = useState<number | undefined>(undefined);
+  const [mobileAddRemindIn, setMobileAddRemindIn] = useState<number | null>(null);
   const [mobileEditSteps, setMobileEditSteps] = useState<{ id: number; title: string; minutes: number }[]>([]);
   const [mobileDeleteConfirm, setMobileDeleteConfirm] = useState(false);
   const [mobileBoardTypePicker, setMobileBoardTypePicker] = useState(false);
@@ -717,6 +721,7 @@ export function HomeShell() {
   }, [isSignedIn]);
 
   const saveBoard = useMutation(api.boards.save);
+  const setReminderMut = useMutation(api.reminders.set);
   const emailPrefs = useQuery(api.emailPrefs.get);
   const updateEmailPrefs = useMutation(api.emailPrefs.update);
   const savedBoard = useQuery(api.boards.load);
@@ -2156,8 +2161,8 @@ export function HomeShell() {
             if (!dueDate) return ["", muted(theme)];
             const today = todayStr();
             const tomorrow = tomorrowStr();
-            if (dueDate < today) return ["Overdue", theme === "dark" ? "#ff8080" : "#c03030"];
-            if (dueDate === today) return ["Due Today", theme === "dark" ? "#ff5555" : "#cc1f1f"];
+            if (dueDate < today) return ["Overdue",  theme === "dark" ? "#ff6666" : "#c03030"];
+            if (dueDate === today) return ["Due Today", theme === "dark" ? "#ffb347" : "#b86800"];
             if (dueDate === tomorrow) return ["Tomorrow", muted(theme)];
             const [y, m, d] = dueDate.split("-").map(Number);
             const due = new Date(y, m - 1, d);
@@ -2177,9 +2182,13 @@ export function HomeShell() {
               createdAt: now, completed: false,
               x: 80 + Math.random() * 200, y: 80 + Math.random() * 200,
               steps: [], showFlow: false, flowMode: "web", linkedNoteIds: [],
-              colorIdx: Math.floor(Math.random() * NOTE_PALETTE.length),
+              colorIdx: mobileAddMode === "thought" ? mobileAddColorIdx : undefined,
             }]);
+            if (mobileAddMode === "thought" && mobileAddRemindIn !== null) {
+              setReminderMut({ noteId: id, noteTitle: mobileAddTitle.trim(), delayMs: mobileAddRemindIn }).catch(() => {});
+            }
             setMobileAddTitle(""); setMobileAddImportance("none"); setMobileAddDueDate(""); setMobileAddMode(null);
+            setMobileAddColorIdx(undefined); setMobileAddRemindIn(null);
           }
 
           // Plain render functions (not React components) so focus state updates work correctly
@@ -2192,14 +2201,21 @@ export function HomeShell() {
             setMobileEditImportance(note.importance ?? "none");
             setMobileEditMinutes(note.minutes != null ? String(note.minutes) : "");
             setMobileEditSteps(note.steps.map(s => ({ id: s.id, title: s.title, minutes: s.minutes ?? 25 })));
+            setMobileEditColorIdx(note.colorIdx);
           }
 
           function renderTaskCard(note: Note) {
             const isDone = note.completed || (note.steps.length > 0 && note.steps.every(s => s.done));
             const imp = note.importance === "none" ? undefined : note.importance;
             const bg = isDone ? (theme === "dark" ? "#0d2218" : "#eef9f2") : mobileGetBg(imp);
-            const dueToday = !isDone && isDueToday(note.dueDate);
-            const bord = dueToday ? "1.5px solid rgba(255,60,60,.7)" : mobileGetBorder(imp, isDone);
+            const today = todayStr();
+            const isOverdue = !isDone && !!note.dueDate && note.dueDate < today;
+            const dueToday = !isDone && note.dueDate === today;
+            const bord = isOverdue
+              ? "1.5px solid rgba(210,50,50,.65)"
+              : dueToday
+              ? "1.5px solid rgba(200,130,20,.6)"
+              : mobileGetBorder(imp, isDone);
             const [dueLabel, dueColor] = dueLabelAndColor(note.dueDate);
             const isExpanded = mobileExpandedIds.has(note.id);
             const impColor = priorityColor(imp, theme);
@@ -2211,7 +2227,7 @@ export function HomeShell() {
             const timeLabel = taskMins >= 60 ? `${Math.floor(taskMins/60)}h${taskMins%60 ? ` ${taskMins%60}m` : ""}` : `${taskMins}m`;
 
             return (
-              <div key={note.id} style={{ borderRadius: 14, backgroundColor: bg, border: bord, marginBottom: 9, ...(dueToday ? { boxShadow: "0 0 0 3px rgba(255,60,60,.12)" } : {}) }}>
+              <div key={note.id} style={{ borderRadius: 14, backgroundColor: bg, border: bord, marginBottom: 9, ...(isOverdue ? { boxShadow: "0 0 0 3px rgba(210,50,50,.13)", animation: "overduePulse 1.6s ease-in-out infinite" } : dueToday ? { boxShadow: "0 0 0 3px rgba(200,130,20,.12)" } : {}) }}>
                 {/* Top meta row */}
                 <div style={{ padding: "10px 12px 0", display: "flex", alignItems: "center", gap: 6 }}>
                   <span style={{ flex: 1, fontSize: 10, fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: isDone ? (theme === "dark" ? "rgba(100,220,120,.8)" : "rgba(30,120,60,.7)") : (imp ? impColor : muted(theme)), opacity: isDone ? 1 : 0.75 }}>
@@ -2517,7 +2533,7 @@ export function HomeShell() {
 
               {mobileAddMode && (
                 <div style={{ position: "fixed", inset: 0, zIndex: 800, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
-                  <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,.4)" }} onClick={() => { setMobileAddMode(null); setMobileAddTitle(""); }} />
+                  <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,.4)" }} onClick={() => { setMobileAddMode(null); setMobileAddTitle(""); setMobileAddColorIdx(undefined); setMobileAddRemindIn(null); }} />
                   <div style={{ position: "relative", backgroundColor: surface(theme), borderRadius: "20px 20px 0 0", padding: "20px 20px 36px", display: "flex", flexDirection: "column", gap: 12 }}>
                     <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: muted(theme), opacity: .6, marginBottom: 2 }}>
                       {mobileAddMode === "task" ? "New Task" : "New Idea"}
@@ -2526,26 +2542,47 @@ export function HomeShell() {
                       autoFocus
                       value={mobileAddTitle}
                       onChange={e => setMobileAddTitle(e.target.value)}
-                      onKeyDown={e => { if (e.key === "Enter") mobileCreateNote(); if (e.key === "Escape") { setMobileAddMode(null); setMobileAddTitle(""); } }}
+                      onKeyDown={e => { if (e.key === "Enter") mobileCreateNote(); if (e.key === "Escape") { setMobileAddMode(null); setMobileAddTitle(""); setMobileAddColorIdx(undefined); setMobileAddRemindIn(null); } }}
                       placeholder={mobileAddMode === "task" ? "What needs to be done?" : "What's your idea?"}
                       style={{ fontSize: 16, fontWeight: 600, color: pageText(theme), backgroundColor: paper(theme), border: `1.5px solid ${border(theme)}`, borderRadius: 12, padding: "13px 14px", outline: "none", width: "100%", boxSizing: "border-box" }}
                     />
                     {mobileAddMode === "task" && (
+                      <div style={{ display: "flex", gap: 6 }}>
+                        {(["none", "Low", "Medium", "High"] as Importance[]).map(imp => {
+                          const active = mobileAddImportance === imp;
+                          const col = imp === "none" ? muted(theme) : PRIORITY_COLORS[imp as "High"|"Medium"|"Low"];
+                          return (
+                            <button key={imp} onClick={() => setMobileAddImportance(imp)}
+                              style={{ flex: 1, height: 34, borderRadius: 999, border: active ? `1.5px solid ${col}` : `1px solid ${border(theme)}`, backgroundColor: (active && imp !== "none") ? hexToRgba(PRIORITY_COLORS[imp as "High"|"Medium"|"Low"], 0.12) : "transparent", color: active ? col : muted(theme), fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                              {imp === "none" ? "None" : imp}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {mobileAddMode === "thought" && (
                       <>
-                        <div style={{ display: "flex", gap: 6 }}>
-                          {(["none", "Low", "Medium", "High"] as Importance[]).map(imp => {
-                            const active = mobileAddImportance === imp;
-                            const col = imp === "none" ? muted(theme) : PRIORITY_COLORS[imp as "High"|"Medium"|"Low"];
-                            return (
-                              <button
-                                key={imp}
-                                onClick={() => setMobileAddImportance(imp)}
-                                style={{ flex: 1, height: 34, borderRadius: 999, border: active ? `1.5px solid ${col}` : `1px solid ${border(theme)}`, backgroundColor: (active && imp !== "none") ? hexToRgba(PRIORITY_COLORS[imp as "High"|"Medium"|"Low"], 0.12) : "transparent", color: active ? col : muted(theme), fontSize: 12, fontWeight: 700, cursor: "pointer" }}
-                              >
-                                {imp === "none" ? "None" : imp}
+                        {/* Color picker */}
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: muted(theme), letterSpacing: ".04em" }}>Color</span>
+                          <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
+                            <button onClick={() => setMobileAddColorIdx(undefined)} style={{ width: 26, height: 26, borderRadius: "50%", padding: 0, cursor: "pointer", backgroundColor: theme === "dark" ? "#555" : "#ccc", border: mobileAddColorIdx === undefined ? `2.5px solid ${pageText(theme)}` : "2.5px solid transparent", outline: mobileAddColorIdx === undefined ? `2px solid ${theme === "dark" ? "rgba(255,255,255,.35)" : "rgba(0,0,0,.25)"}` : "none", outlineOffset: 2 }} title="Grey" />
+                            {NOTE_PALETTE.map((p, i) => (
+                              <button key={i} onClick={() => setMobileAddColorIdx(i)} style={{ width: 26, height: 26, borderRadius: "50%", padding: 0, cursor: "pointer", backgroundColor: p.swatch, border: mobileAddColorIdx === i ? `2.5px solid ${pageText(theme)}` : "2.5px solid transparent", outline: mobileAddColorIdx === i ? `2px solid ${p.swatch}` : "none", outlineOffset: 2 }} />
+                            ))}
+                          </div>
+                        </div>
+                        {/* Remind me */}
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: muted(theme), letterSpacing: ".04em", whiteSpace: "nowrap" }}>Remind me</span>
+                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                            {([{ label: "1h", ms: 3_600_000 }, { label: "12h", ms: 43_200_000 }, { label: "1 day", ms: 86_400_000 }, { label: "1 week", ms: 604_800_000 }]).map(opt => (
+                              <button key={opt.label} onClick={() => setMobileAddRemindIn(mobileAddRemindIn === opt.ms ? null : opt.ms)}
+                                style={{ padding: "5px 12px", borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: "pointer", border: mobileAddRemindIn === opt.ms ? `1.5px solid ${pageText(theme)}` : `1px solid ${border(theme)}`, backgroundColor: mobileAddRemindIn === opt.ms ? (theme === "dark" ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.08)") : "transparent", color: mobileAddRemindIn === opt.ms ? pageText(theme) : muted(theme) }}>
+                                {opt.label}
                               </button>
-                            );
-                          })}
+                            ))}
+                          </div>
                         </div>
                       </>
                     )}
@@ -2571,6 +2608,21 @@ export function HomeShell() {
                       placeholder="Title"
                       style={{ fontSize: 16, fontWeight: 600, color: pageText(theme), backgroundColor: paper(theme), border: `1.5px solid ${border(theme)}`, borderRadius: 12, padding: "13px 14px", outline: "none", width: "100%", boxSizing: "border-box" }}
                     />
+                    {actionNote.type === "thought" && (
+                      <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
+                        <button
+                          onClick={() => setMobileEditColorIdx(undefined)}
+                          style={{ width: 30, height: 30, borderRadius: 999, backgroundColor: theme === "dark" ? "#3a3a3a" : "#d0d0cc", border: mobileEditColorIdx === undefined ? `2.5px solid ${pageText(theme)}` : `1.5px solid transparent`, cursor: "pointer", flexShrink: 0 }}
+                        />
+                        {NOTE_PALETTE.map((col, i) => (
+                          <button
+                            key={i}
+                            onClick={() => setMobileEditColorIdx(i)}
+                            style={{ width: 30, height: 30, borderRadius: 999, backgroundColor: col.swatch, border: mobileEditColorIdx === i ? `2.5px solid ${pageText(theme)}` : `1.5px solid transparent`, cursor: "pointer", flexShrink: 0 }}
+                          />
+                        ))}
+                      </div>
+                    )}
                     {actionNote.type === "task" && (
                       <>
                         <div style={{ display: "flex", gap: 6 }}>
@@ -2648,6 +2700,7 @@ export function HomeShell() {
                             importance: mobileEditImportance,
                             dueDate: mobileEditDueDate || undefined,
                             minutes: parsedMins && parsedMins > 0 ? parsedMins : undefined,
+                            ...(actionNote.type === "thought" ? { colorIdx: mobileEditColorIdx } : {}),
                             steps: n.steps.map(s => {
                               const edited = mobileEditSteps.find(e => e.id === s.id);
                               return edited ? { ...s, minutes: edited.minutes } : s;
@@ -2808,6 +2861,29 @@ export function HomeShell() {
                   </div>
                 );
               })()}
+
+              {/* BOB — bottom-left on mobile */}
+              <div style={{ position: "fixed", bottom: 20, left: 16, zIndex: 100 }}>
+                <BobAgent
+                  theme={theme}
+                  notes={activeNotes}
+                  onSweep={handleBobSweep}
+                  onAddNote={handleBobAddNote}
+                  onEditNote={handleBobEditNote}
+                  onDeleteNotes={handleBobDeleteNotes}
+                  onHighlightNotes={handleBobHighlightNotes}
+                  onLaunchFocus={handleBobLaunchFocus}
+                  onSaveUndo={handleBobSaveUndo}
+                  onUndo={handleBobUndo}
+                  onSetIdeaColor={handleBobSetIdeaColor}
+                  onConfigureTaskColors={handleBobConfigureTaskColors}
+                  onConfigureBoard={handleBobConfigureBoard}
+                  isAdmin={!!isAdmin}
+                  userInfo={bobUserInfo}
+                  autoSend={bobAutoSend}
+                  settings={{ taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, thoughtColorMode, thoughtFixedColorIdx, boardTheme: theme, boardGrid }}
+                />
+              </div>
 
               {/* FAB */}
               <button
@@ -3193,12 +3269,12 @@ export function HomeShell() {
                             boxShadow: "0 0 10px rgba(255,50,50,.4)",
                             animation: "overduePulse 1.6s ease-in-out infinite",
                           } : dueToday ? {
-                            color: "#ff4444",
-                            border: "1px solid rgba(255,60,60,.45)",
-                            backgroundColor: "rgba(255,60,60,.12)",
-                            boxShadow: "0 0 8px rgba(255,60,60,.35)",
+                            color: boardTheme === "dark" ? "#ffb347" : "#b86800",
+                            border: "1px solid rgba(200,130,20,.4)",
+                            backgroundColor: "rgba(200,130,20,.1)",
+                            boxShadow: "0 0 6px rgba(200,130,20,.3)",
                           } : {}),
-                        }}>{overdue ? "Overdue" : `Due ${formatDateShort(note.dueDate)}`}</div>
+                        }}>{overdue ? "Overdue" : dueToday ? "Due Today" : `Due ${formatDateShort(note.dueDate)}`}</div>
                       );
                     })()}
                   </div>
@@ -4049,6 +4125,23 @@ export function HomeShell() {
                   />
                 </div>
 
+                {thoughtMode && (
+                  <div style={{ display: "flex", gap: 7, flexWrap: "wrap", alignItems: "center", padding: "4px 0" }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", color: muted(boardTheme), opacity: .6, marginRight: 2 }}>Color</span>
+                    <button
+                      onClick={() => setComposerColorIdx(undefined)}
+                      style={{ width: 24, height: 24, borderRadius: "50%", padding: 0, cursor: "pointer", backgroundColor: boardTheme === "dark" ? "#555" : "#ccc", border: composerColorIdx === undefined ? `2.5px solid ${pageText(boardTheme)}` : "2.5px solid transparent", outline: composerColorIdx === undefined ? `2px solid ${boardTheme === "dark" ? "rgba(255,255,255,.35)" : "rgba(0,0,0,.25)"}` : "none", outlineOffset: 2 }}
+                      title="Grey"
+                    />
+                    {NOTE_PALETTE.map((col, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setComposerColorIdx(i)}
+                        style={{ width: 24, height: 24, borderRadius: "50%", padding: 0, cursor: "pointer", backgroundColor: col.swatch, border: composerColorIdx === i ? `2.5px solid ${pageText(boardTheme)}` : "2.5px solid transparent", outline: composerColorIdx === i ? `2px solid ${col.swatch}` : "none", outlineOffset: 2 }}
+                      />
+                    ))}
+                  </div>
+                )}
                 {!thoughtMode && (
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                     <div
@@ -4305,6 +4398,7 @@ export function HomeShell() {
                       setDetailEditImportance(detailNote.importance ?? "none");
                       setDetailEditMinutes(detailNote.minutes ?? 60);
                       setDetailEditSteps(detailNote.steps.map(s => ({ ...s })));
+                      setDetailEditColorIdx(detailNote.colorIdx);
                       setDetailEditing(true);
                     }}
                     style={{ ...circleButton(boardTheme, 36), fontSize: 14 }}
@@ -4385,8 +4479,7 @@ export function HomeShell() {
                           fontSize: 15,
                           fontWeight: 600,
                           marginBottom: 6,
-                          color: (isDueToday(detailNote.dueDate) && !detailNote.completed && !detailNote.steps.every(s => s.done)) ? "#ff4444" : pageText(boardTheme),
-                          ...((isDueToday(detailNote.dueDate) && !detailNote.completed && !detailNote.steps.every(s => s.done)) ? { textShadow: "0 0 10px rgba(255,60,60,.5)" } : {}),
+                          color: (() => { const d = detailNote.dueDate; const done = detailNote.completed || detailNote.steps.every(s => s.done); if (!d || done) return pageText(boardTheme); if (d < todayStr()) return boardTheme === "dark" ? "#ff6666" : "#c03030"; if (d === todayStr()) return boardTheme === "dark" ? "#ffb347" : "#b86800"; return pageText(boardTheme); })(),
                         }}>
                           Due {formatDate(detailNote.dueDate)}
                         </div>
@@ -4407,6 +4500,20 @@ export function HomeShell() {
                             rows={4}
                             style={{ width: "100%", background: "none", border: "none", outline: "none", resize: "none", fontSize: 14, color: pageText(boardTheme), fontFamily: "inherit", lineHeight: 1.7, boxSizing: "border-box", padding: 0 }}
                           />
+                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginTop: 8 }}>
+                            <button
+                              onClick={() => setDetailEditColorIdx(undefined)}
+                              style={{ width: 20, height: 20, borderRadius: "50%", padding: 0, cursor: "pointer", backgroundColor: boardTheme === "dark" ? "#555" : "#ccc", border: detailEditColorIdx === undefined ? `2.5px solid ${pageText(boardTheme)}` : "2.5px solid transparent", outline: detailEditColorIdx === undefined ? `2px solid ${boardTheme === "dark" ? "rgba(255,255,255,.35)" : "rgba(0,0,0,.25)"}` : "none", outlineOffset: 2 }}
+                              title="Grey"
+                            />
+                            {NOTE_PALETTE.map((col, i) => (
+                              <button
+                                key={i}
+                                onClick={() => setDetailEditColorIdx(i)}
+                                style={{ width: 20, height: 20, borderRadius: "50%", padding: 0, cursor: "pointer", backgroundColor: col.swatch, border: detailEditColorIdx === i ? `2.5px solid ${pageText(boardTheme)}` : "2.5px solid transparent", outline: detailEditColorIdx === i ? `2px solid ${col.swatch}` : "none", outlineOffset: 2 }}
+                              />
+                            ))}
+                          </div>
                         </>
                       ) : detailNote.body ? (
                         <div style={{ fontSize: 14, color: muted(boardTheme), lineHeight: 1.7 }}>
@@ -4585,7 +4692,7 @@ export function HomeShell() {
                         <button
                           onClick={() => {
                             if (!detailEditTitle.trim()) return;
-                            setNotes(ns => ns.map(n => n.id === detailNote.id ? { ...n, title: detailEditTitle.trim(), body: detailEditBody.trim() } : n));
+                            setNotes(ns => ns.map(n => n.id === detailNote.id ? { ...n, title: detailEditTitle.trim(), body: detailEditBody.trim(), colorIdx: detailEditColorIdx } : n));
                             setDetailEditing(false);
                           }}
                           style={buttonStyle(boardTheme, true)}

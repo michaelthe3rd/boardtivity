@@ -65,6 +65,17 @@ export default defineSchema({
     purchasedTokens: v.number(),
   }).index("by_token_and_month", ["tokenIdentifier", "month"]),
 
+  reminders: defineTable({
+    tokenIdentifier: v.string(),
+    email: v.string(),
+    noteId: v.number(),
+    noteTitle: v.string(),
+    remindAt: v.number(),       // unix ms when to fire
+    schedulerJobId: v.string(), // Convex scheduler job ID (stored as string)
+    sent: v.boolean(),
+  }).index("by_token", ["tokenIdentifier"])
+    .index("by_note_and_token", ["tokenIdentifier", "noteId"]),
+
   subscriptions: defineTable({
     tokenIdentifier: v.string(),
     stripeCustomerId: v.string(),
