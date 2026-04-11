@@ -134,47 +134,6 @@ function SpeechWave({ c, listening, s = 16 }: { c: string; listening: boolean; s
   );
 }
 
-function BigSpeechWave({ c }: { c: string }) {
-  // 18 bars across ~260px width
-  const bars = [
-    { h: 4,  aH: 10, delay: "0s"     },
-    { h: 7,  aH: 18, delay: "0.08s"  },
-    { h: 10, aH: 26, delay: "0.16s"  },
-    { h: 14, aH: 30, delay: "0.24s"  },
-    { h: 18, aH: 32, delay: "0.32s"  },
-    { h: 22, aH: 36, delay: "0.40s"  },
-    { h: 26, aH: 38, delay: "0.48s"  },
-    { h: 28, aH: 40, delay: "0.56s"  },
-    { h: 30, aH: 42, delay: "0.64s"  },
-    { h: 28, aH: 40, delay: "0.56s"  },
-    { h: 26, aH: 38, delay: "0.48s"  },
-    { h: 22, aH: 36, delay: "0.40s"  },
-    { h: 18, aH: 32, delay: "0.32s"  },
-    { h: 14, aH: 30, delay: "0.24s"  },
-    { h: 10, aH: 26, delay: "0.16s"  },
-    { h: 7,  aH: 18, delay: "0.08s"  },
-    { h: 4,  aH: 10, delay: "0s"     },
-  ];
-  const VH = 44;
-  const barW = 3;
-  const gap = 11;
-  const totalW = bars.length * (barW + gap) - gap;
-  return (
-    <svg width={totalW} height={VH} viewBox={`0 0 ${totalW} ${VH}`} fill="none" style={{ display: "block" }}>
-      {bars.map((b, i) => {
-        const x = i * (barW + gap);
-        const sy = (VH - b.h) / 2;
-        const ay = (VH - b.aH) / 2;
-        return (
-          <rect key={i} x={x} width={barW} rx={1.5} fill={c} y={sy} height={b.h}>
-            <animate attributeName="height" values={`${b.h};${b.aH};${b.h}`} dur="0.7s" begin={b.delay} repeatCount="indefinite"/>
-            <animate attributeName="y"      values={`${sy};${ay};${sy}`}     dur="0.7s" begin={b.delay} repeatCount="indefinite"/>
-          </rect>
-        );
-      })}
-    </svg>
-  );
-}
 
 function Send({ c, s = 14 }: { c: string; s?: number }) {
   return (
@@ -642,7 +601,7 @@ export default function BobAgent({
               )}
 
               {/* ── Input row ── */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: listening ? "4px 10px" : "9px 10px", borderBottom: `1px solid ${T.border(t)}`, transition: "padding .2s ease", minHeight: 48 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", borderBottom: `1px solid ${T.border(t)}` }}>
                 {hasSpeech && (
                   <button
                     onClick={listening ? stopListening : startListening}
@@ -658,41 +617,33 @@ export default function BobAgent({
                       c={listening ? "#e05555" : t === "dark" ? "rgba(237,237,235,.55)" : "rgba(17,19,21,.4)"} />
                   </button>
                 )}
-                {listening ? (
-                  <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
-                    <BigSpeechWave c={t === "dark" ? "rgba(224,85,85,.85)" : "rgba(192,48,48,.75)"} />
-                  </div>
-                ) : (
-                  <>
-                    <input
-                      ref={inputRef}
-                      value={inputText}
-                      onChange={e => setInputText(e.target.value)}
-                      onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-                      placeholder={mode === "autopilot" ? "Tell BOB what to do…" : mode === "advisor" ? "Ask BOB anything…" : "Ask or tell BOB…"}
-                      style={{
-                        flex: 1, border: "none", outline: "none", background: "transparent",
-                        fontSize: 13, color: T.text(t), fontFamily: "'Satoshi', Arial, sans-serif",
-                        caretColor: T.text(t),
-                      }}
-                    />
-                    <button
-                      onClick={() => send()}
-                      disabled={!inputText.trim() || streaming}
-                      style={{
-                        width: 28, height: 28, borderRadius: 8, border: "none", flexShrink: 0,
-                        background: inputText.trim() && !streaming
-                          ? t === "dark" ? "rgba(255,255,255,.18)" : "rgba(17,19,21,.14)"
-                          : "transparent",
-                        cursor: inputText.trim() && !streaming ? "pointer" : "default",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        transition: "background .15s",
-                      }}
-                    >
-                      <Send c={inputText.trim() && !streaming ? T.text(t) : mu} />
-                    </button>
-                  </>
-                )}
+                <input
+                  ref={inputRef}
+                  value={inputText}
+                  onChange={e => setInputText(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+                  placeholder={listening ? "Listening…" : mode === "autopilot" ? "Tell BOB what to do…" : mode === "advisor" ? "Ask BOB anything…" : "Ask or tell BOB…"}
+                  style={{
+                    flex: 1, border: "none", outline: "none", background: "transparent",
+                    fontSize: 13, color: T.text(t), fontFamily: "'Satoshi', Arial, sans-serif",
+                    caretColor: T.text(t),
+                  }}
+                />
+                <button
+                  onClick={() => send()}
+                  disabled={!inputText.trim() || streaming}
+                  style={{
+                    width: 28, height: 28, borderRadius: 8, border: "none", flexShrink: 0,
+                    background: inputText.trim() && !streaming
+                      ? t === "dark" ? "rgba(255,255,255,.18)" : "rgba(17,19,21,.14)"
+                      : "transparent",
+                    cursor: inputText.trim() && !streaming ? "pointer" : "default",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    transition: "background .15s",
+                  }}
+                >
+                  <Send c={inputText.trim() && !streaming ? T.text(t) : mu} />
+                </button>
               </div>
 
               {/* ── Quick actions ── */}
