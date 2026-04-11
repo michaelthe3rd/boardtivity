@@ -81,8 +81,10 @@ function formatDate(date: string) {
 function pendingTasks(boardState: string): Task[] {
   try {
     const { notes } = JSON.parse(boardState) as BoardState;
+    if (!Array.isArray(notes)) return [];
     return notes.filter(
-      (n) => n.type === "task" && !n.completed && !(n.steps.length > 0 && n.steps.every((s) => s.done))
+      (n) => n.type === "task" && !n.completed &&
+        !(Array.isArray(n.steps) && n.steps.length > 0 && n.steps.every((s) => s.done))
     );
   } catch {
     return [];

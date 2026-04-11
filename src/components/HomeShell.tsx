@@ -128,6 +128,12 @@ function formatDate(date?: string) {
   });
 }
 
+// Collision-resistant integer ID: millisecond timestamp × 1000 + random 0–999.
+// Safe up to year ~2255 within Number.MAX_SAFE_INTEGER.
+function genId(): number {
+  return Date.now() * 1000 + Math.floor(Math.random() * 1000);
+}
+
 function todayStr() {
   const t = new Date();
   return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
@@ -292,7 +298,7 @@ function buildBreakdown(title: string, body: string, total: number, variant = 0)
   }
 
   const steps = labels.map((label, i) => ({
-    id: Date.now() + i,
+    id: genId(),
     title: label,
     minutes: Math.max(5, Math.round((total * weights[i]) / 5) * 5),
     done: false,
@@ -673,12 +679,12 @@ export function HomeShell() {
   }
 
   async function startPortal() {
-    if (!subscription?.stripeCustomerId) return;
+    if (!subscription) return;
     try {
       const res = await fetch("/api/portal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customerId: subscription.stripeCustomerId }),
+        body: JSON.stringify({}),
       });
       const data = await res.json();
       if (data.url) window.location.href = data.url;
@@ -1034,8 +1040,9 @@ export function HomeShell() {
   function isCloudDefaultOnly(boardState: string): boolean {
     try {
       const d = JSON.parse(boardState) as { boards?: Board[]; notes?: Note[] };
-      const b = d.boards ?? [], n = d.notes ?? [];
-      return n.length === 0 && b.length === 2 && b[0]?.id === "my-board" && b[1]?.id === "my-thoughts";
+      // Only check that there are no notes — don't rely on board count or order,
+      // as users may have renamed or reordered the default boards.
+      return (d.notes ?? []).length === 0;
     } catch { return false; }
   }
 
@@ -1696,7 +1703,7 @@ export function HomeShell() {
     const laidOutSteps = rawSteps.length > 0 ? layoutWeb(noteX, noteY, rawSteps) : [];
 
     const note: Note = {
-      id: Date.now(),
+      id: genId(),
       boardId: activeBoardId,
       type: activeBoard.type,
       title: title.trim(),
@@ -1746,7 +1753,7 @@ export function HomeShell() {
 
   function saveDraft() {
     const draft: Draft = {
-      id: Date.now(),
+      id: genId(),
       title: title.trim(),
       body: body.trim(),
       dueDate,
@@ -1906,7 +1913,7 @@ export function HomeShell() {
   }
 
   function handleBobAddNote(note: BobNewNote) {
-    const id = Date.now();
+    const id = genId();
     const now = new Date().toISOString();
     const viewport = viewportRef.current;
     const prefX = viewport ? (viewport.clientWidth / 2 - pan.x) / scale - NOTE_W / 2 : 200;
@@ -2159,7 +2166,7 @@ export function HomeShell() {
 
           function mobileCreateNote() {
             if (!mobileAddTitle.trim()) return;
-            const id = Date.now();
+            const id = genId();
             const now = new Date().toISOString();
             setNotes(prev => [...prev, {
               id, boardId: activeBoardId,
@@ -4488,7 +4495,7 @@ export function HomeShell() {
                           >BOB Breakdown again</button>
                         )}
                         <button
-                          onClick={() => setDetailEditSteps(prev => [...prev, { id: Date.now(), title: "", minutes: 15, done: false, x: 0, y: 0 }])}
+                          onClick={() => setDetailEditSteps(prev => [...prev, { id: genId(), title: "", minutes: 15, done: false, x: 0, y: 0 }])}
                           style={{ height: 36, borderRadius: 8, border: `1.5px dashed ${boardTheme === "dark" ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.22)"}`, background: boardTheme === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)", color: muted(boardTheme), fontSize: 13, cursor: "pointer", fontFamily: "inherit", width: "100%", textAlign: "left", paddingLeft: 12, display: "flex", alignItems: "center", gap: 6 }}
                         ><span style={{ fontSize: 16, lineHeight: 1, opacity: 0.7 }}>+</span> Type a subtask…</button>
                       </div>

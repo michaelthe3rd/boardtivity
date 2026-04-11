@@ -217,36 +217,44 @@ export default function BobAgent({
   // ── Execute tool calls from BOB ──────────────────────────────────────────
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function executeTool(name: string, input: any) {
+    if (!input || typeof input !== "object") return;
     switch (name) {
       case "create_note":
+        if (typeof input.title !== "string") break;
         onAddNote({
           type: input.type === "task" ? "task" : "thought",
-          title: input.title ?? "Untitled",
-          body: input.body,
-          importance: input.importance ?? "none",
-          dueDate: input.dueDate,
-          steps: input.steps ?? [],
+          title: String(input.title).slice(0, 200),
+          body: typeof input.body === "string" ? input.body.slice(0, 2000) : undefined,
+          importance: (["High","Medium","Low","none"] as const).includes(input.importance) ? input.importance : "none",
+          dueDate: typeof input.dueDate === "string" ? input.dueDate : undefined,
+          steps: Array.isArray(input.steps) ? input.steps.filter(
+            (s: unknown) => s && typeof s === "object" && typeof (s as {title:unknown}).title === "string"
+          ).slice(0, 20) : [],
         });
         break;
       case "edit_note":
-        if (typeof input.id === "number" && input.fields)
+        if (typeof input.id === "number" && input.fields && typeof input.fields === "object")
           onEditNote(input.id, input.fields);
         break;
       case "delete_notes":
-        if (Array.isArray(input.ids))
+        if (Array.isArray(input.ids) && input.ids.every((id: unknown) => typeof id === "number"))
           onDeleteNotes(input.ids);
         break;
       case "organize_board":
-        if (Array.isArray(input.positions))
-          onSweep(input.positions);
+        if (Array.isArray(input.positions) && input.positions.every(
+          (p: unknown) => p && typeof p === "object" &&
+            typeof (p as {id:unknown}).id === "number" &&
+            typeof (p as {x:unknown}).x === "number" &&
+            typeof (p as {y:unknown}).y === "number"
+        )) onSweep(input.positions);
         break;
       case "highlight_notes":
-        if (Array.isArray(input.ids))
+        if (Array.isArray(input.ids) && input.ids.every((id: unknown) => typeof id === "number"))
           onHighlightNotes(input.ids);
         break;
       case "launch_focus":
         if (typeof input.noteId === "number")
-          onLaunchFocus(input.noteId, input.chain ?? false);
+          onLaunchFocus(input.noteId, input.chain === true);
         break;
       case "set_idea_color": {
         if (Array.isArray(input.ids) && typeof input.color === "string") {

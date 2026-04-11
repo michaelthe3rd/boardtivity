@@ -247,15 +247,23 @@ Rules:
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const enc = new TextEncoder();
-function makeSSE(fn: (push: (obj: object) => void) => Promise<void>) {
-  return new ReadableStream({
+function makeSSE(fn: (push: (obj: object) => void, signal: AbortSignal) => Promise<void>) {
+  const ac = new AbortController();
+  const stream = new ReadableStream({
     async start(ctrl) {
-      const push = (obj: object) => ctrl.enqueue(enc.encode(`data: ${JSON.stringify(obj)}\n\n`));
-      try { await fn(push); }
-      catch (e) { push({ type: "error", message: String(e) }); }
-      finally { ctrl.close(); }
+      const push = (obj: object) => {
+        if (ac.signal.aborted) return;
+        ctrl.enqueue(enc.encode(`data: ${JSON.stringify(obj)}\n\n`));
+      };
+      try { await fn(push, ac.signal); }
+      catch (e) {
+        if (!ac.signal.aborted) push({ type: "error", message: String(e) });
+      }
+      finally { if (!ac.signal.aborted) ctrl.close(); }
     },
+    cancel() { ac.abort(); },
   });
+  return stream;
 }
 
 const SSE_HEADERS = {
@@ -292,14 +300,30 @@ export async function POST(req: NextRequest) {
   try { body = await req.json(); }
   catch { return new Response("Invalid JSON", { status: 400 }); }
 
-  const { message = "", notes = [], mode = "assistant", history = [], userInfo = "", settings } = body;
-  if (!message.trim()) return new Response("No message", { status: 400 });
+  // ── Runtime input validation ──────────────────────────────────────────────
+  const rawMessage  = typeof body.message  === "string" ? body.message  : "";
+  const rawMode     = body.mode;
+  const rawUserInfo = typeof body.userInfo === "string" ? body.userInfo : "";
+  const rawNotes    = Array.isArray(body.notes)   ? body.notes.slice(0, 500)   : [];
+  const rawHistory  = Array.isArray(body.history) ? body.history.slice(0, 12)  : [];
+
+  const message  = rawMessage.trim().slice(0, 4000);
+  const mode: Mode = rawMode === "advisor" || rawMode === "autopilot" ? rawMode : "assistant";
+  const userInfo = rawUserInfo.slice(0, 1000);
+  const notes    = rawNotes;
+  const history  = rawHistory.filter(
+    h => h && (h.role === "user" || h.role === "assistant") && typeof h.content === "string"
+  ).map(h => ({ role: h.role as "user" | "assistant", content: h.content.slice(0, 2000) }));
+  const settings = body.settings;
+
+  if (!message) return new Response("No message", { status: 400 });
 
   // ── Mock mode ─────────────────────────────────────────────────────────────
   if (!process.env.GEMINI_API_KEY) {
-    const stream = makeSSE(async (push) => {
+    const stream = makeSSE(async (push, signal) => {
       const words = `Running in mock mode — no API key set. In ${mode} mode I'd handle that request fully. Connect a Gemini API key to unlock the real BOB.`.split(" ");
       for (const w of words) {
+        if (signal.aborted) return;
         await new Promise(r => setTimeout(r, 55));
         push({ type: "token", text: w + " " });
       }
@@ -323,12 +347,13 @@ export async function POST(req: NextRequest) {
     parts: [{ text: h.content }],
   }));
 
-  const stream = makeSSE(async (push) => {
+  const stream = makeSSE(async (push, signal) => {
     const chat = model.startChat({ history: geminiHistory });
     const result = await chat.sendMessageStream(message);
 
     // Stream text tokens as they arrive
     for await (const chunk of result.stream) {
+      if (signal.aborted) return;
       try {
         const text = chunk.text();
         if (text) push({ type: "token", text });

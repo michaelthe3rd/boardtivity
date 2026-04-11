@@ -24,33 +24,42 @@ http.route({
       return new Response("Invalid signature", { status: 400 });
     }
 
-    if (event.type === "checkout.session.completed") {
-      const session = event.data.object as Stripe.Checkout.Session;
-      if (session.mode === "subscription" && session.metadata?.tokenIdentifier) {
-        const subscription = await stripe.subscriptions.retrieve(
-          session.subscription as string
-        );
-        const item = subscription.items.data[0];
-        await ctx.runMutation(internal.subscriptions.upsert, {
-          tokenIdentifier: session.metadata.tokenIdentifier,
-          stripeCustomerId: session.customer as string,
+    try {
+      if (event.type === "checkout.session.completed") {
+        const session = event.data.object as Stripe.Checkout.Session;
+        if (session.mode === "subscription" && session.metadata?.tokenIdentifier) {
+          const subscription = await stripe.subscriptions.retrieve(
+            session.subscription as string
+          );
+          const item = subscription.items.data[0];
+          await ctx.runMutation(internal.subscriptions.upsert, {
+            tokenIdentifier: session.metadata.tokenIdentifier,
+            stripeCustomerId: session.customer as string,
+            stripeSubscriptionId: subscription.id,
+            stripePriceId: item.price.id,
+            status: subscription.status,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            currentPeriodEnd: typeof (subscription as any).current_period_end === "number" ? (subscription as any).current_period_end * 1000 : undefined,
+          });
+        }
+      }
+
+      if (
+        event.type === "customer.subscription.updated" ||
+        event.type === "customer.subscription.deleted"
+      ) {
+        const subscription = event.data.object as Stripe.Subscription;
+        await ctx.runMutation(internal.subscriptions.updateBySubscriptionId, {
           stripeSubscriptionId: subscription.id,
-          stripePriceId: item.price.id,
           status: subscription.status,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          currentPeriodEnd: typeof (subscription as any).current_period_end === "number" ? (subscription as any).current_period_end * 1000 : undefined,
+          stripePriceId: subscription.items.data[0]?.price.id,
         });
       }
-    }
-
-    if (
-      event.type === "customer.subscription.updated" ||
-      event.type === "customer.subscription.deleted"
-    ) {
-      const subscription = event.data.object as Stripe.Subscription;
-      await ctx.runMutation(internal.subscriptions.updateBySubscriptionId, {
-        stripeSubscriptionId: subscription.id,
-        status: subscription.status,
-        stripePriceId: subscription.items.data[0]?.price.id,
-      });
+    } catch (err) {
+      console.error("Webhook handler error:", err);
+      return new Response("Internal error", { status: 500 });
     }
 
     return new Response(null, { status: 200 });

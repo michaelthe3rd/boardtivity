@@ -1,4 +1,4 @@
-import { internalMutation, query } from "./_generated/server";
+import { internalMutation, internalQuery, query } from "./_generated/server";
 import { v } from "convex/values";
 
 // Called by the Stripe webhook HTTP action — not exposed to the client.
@@ -53,6 +53,33 @@ export const updateBySubscriptionId = internalMutation({
         ...(args.stripePriceId ? { stripePriceId: args.stripePriceId } : {}),
       });
     }
+  },
+});
+
+// Returns the raw Stripe customer ID for the authenticated user (any status).
+// Used server-side in the portal API route — never exposed to client as customer ID.
+export const getStripeCustomerId = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return null;
+    const sub = await ctx.db
+      .query("subscriptions")
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+      .first();
+    return sub?.stripeCustomerId ?? null;
+  },
+});
+
+// Internal version for use by Convex actions/mutations.
+export const getStripeCustomerIdInternal = internalQuery({
+  args: { tokenIdentifier: v.string() },
+  handler: async (ctx, { tokenIdentifier }) => {
+    const sub = await ctx.db
+      .query("subscriptions")
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", tokenIdentifier))
+      .first();
+    return sub?.stripeCustomerId ?? null;
   },
 });
 
