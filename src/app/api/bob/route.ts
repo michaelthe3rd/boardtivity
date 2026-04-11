@@ -170,7 +170,8 @@ const FUNCTION_DECLARATIONS = [
 
 // ── System prompt ─────────────────────────────────────────────────────────────
 function buildSystem(notes: NoteSnap[], mode: Mode, userInfo?: string, settings?: Settings): string {
-  const active = notes.filter(n => !n.completed);
+  const active    = notes.filter(n => !n.completed);
+  const completed = notes.filter(n => n.completed);
   const today  = new Date().toISOString().split("T")[0];
 
   const modeText = {
@@ -182,17 +183,22 @@ function buildSystem(notes: NoteSnap[], mode: Mode, userInfo?: string, settings?
       "AUTOPILOT MODE — act immediately, optimize on your own judgment, chain multiple tools if needed. Don't ask — just do. Narrate what you did afterwards in 1-2 sentences.",
   }[mode];
 
-  const boardText = active.length
-    ? active.map(n => {
-        const p = [`[id:${n.id}] [${n.type.toUpperCase()}] "${n.title}"`];
-        if (n.importance && n.importance !== "none") p.push(`priority:${n.importance}`);
-        if (n.dueDate) p.push(`due:${n.dueDate}`);
-        if (n.minutes) p.push(`~${n.minutes}min`);
-        if (n.steps?.length) p.push(`${n.steps.filter(s => !s.done).length}/${n.steps.length} steps left`);
-        if (n.body) p.push(`note:"${n.body.slice(0, 80)}"`);
-        p.push(`pos:(${Math.round(n.x)},${Math.round(n.y)})`);
-        return p.join(" | ");
-      }).join("\n")
+  function formatNote(n: NoteSnap, done = false) {
+    const p = [`[id:${n.id}] [${done ? "DONE" : n.type.toUpperCase()}] "${n.title}"`];
+    if (n.importance && n.importance !== "none") p.push(`priority:${n.importance}`);
+    if (n.dueDate) p.push(`due:${n.dueDate}`);
+    if (n.minutes) p.push(`~${n.minutes}min`);
+    if (n.steps?.length) p.push(`${n.steps.filter(s => !s.done).length}/${n.steps.length} steps left`);
+    if (n.body) p.push(`note:"${n.body.slice(0, 80)}"`);
+    p.push(`pos:(${Math.round(n.x)},${Math.round(n.y)})`);
+    return p.join(" | ");
+  }
+
+  const boardText = active.length || completed.length
+    ? [
+        ...active.map(n => formatNote(n, false)),
+        ...completed.slice(0, 20).map(n => formatNote(n, true)),
+      ].join("\n")
     : "Board is empty.";
 
   const userSection = userInfo?.trim()
