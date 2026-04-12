@@ -370,7 +370,7 @@ export async function POST(req: NextRequest) {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
   const model = genAI.getGenerativeModel({
-    model: "gemma-3n-e2b-it",
+    model: "gemini-2.0-flash",
     systemInstruction: buildSystem(mode, userInfo, settings),
     tools: [{ functionDeclarations: FUNCTION_DECLARATIONS as unknown as FunctionDeclaration[] }],
   });
