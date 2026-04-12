@@ -81,24 +81,26 @@ const MODE_LABELS: Record<Mode, string> = {
 };
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
-function SpeechWave({ c, listening, s = 16 }: { c: string; listening: boolean; s?: number }) {
+function SpeechWave({ c, listening, s = 14 }: { c: string; listening: boolean; s?: number }) {
+  // 5 slim bars, varied resting heights, staggered animation
   const bars = [
-    { x: 1,    h: 5,  aH: 13, delay: "0s"    },
-    { x: 5.5,  h: 9,  aH: 14, delay: "0.13s" },
-    { x: 10,   h: 9,  aH: 14, delay: "0.26s" },
-    { x: 14.5, h: 5,  aH: 13, delay: "0.07s" },
+    { x: 0,    h: 4,  aH: 10, dur: "0.9s",  delay: "0s"     },
+    { x: 3.5,  h: 7,  aH: 14, dur: "0.75s", delay: "0.15s"  },
+    { x: 7,    h: 10, aH: 14, dur: "0.8s",  delay: "0s"     },
+    { x: 10.5, h: 7,  aH: 13, dur: "0.75s", delay: "0.1s"   },
+    { x: 14,   h: 4,  aH: 10, dur: "0.9s",  delay: "0.2s"   },
   ];
   const VH = 14;
   return (
-    <svg width={s} height={Math.round(s * VH / 18)} viewBox="0 0 18 14" fill="none">
+    <svg width={s} height={s} viewBox="0 0 16 14" fill="none">
       {bars.map((b, i) => {
         const sy = (VH - b.h) / 2, ay = (VH - b.aH) / 2;
         return (
-          <rect key={i} x={b.x} width={2.5} rx={1.25} fill={c} y={sy} height={b.h}>
+          <rect key={i} x={b.x} width={2} rx={1} fill={c} y={sy} height={b.h}>
             {listening && (
               <>
-                <animate attributeName="height" values={`${b.h};${b.aH};${b.h}`} dur="0.65s" begin={b.delay} repeatCount="indefinite"/>
-                <animate attributeName="y"      values={`${sy};${ay};${sy}`}     dur="0.65s" begin={b.delay} repeatCount="indefinite"/>
+                <animate attributeName="height" values={`${b.h};${b.aH};${b.h}`} dur={b.dur} begin={b.delay} repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.6 1;0.4 0 0.6 1"/>
+                <animate attributeName="y"      values={`${sy};${ay};${sy}`}     dur={b.dur} begin={b.delay} repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.6 1;0.4 0 0.6 1"/>
               </>
             )}
           </rect>
@@ -645,7 +647,7 @@ export default function BobAgent({
                   placeholder={listening ? "Listening… (pause to send)" : mode === "autopilot" ? "Tell BOB what to do…" : "Ask or tell BOB…"}
                   style={{
                     flex: 1, border: "none", outline: "none", background: "transparent",
-                    fontSize: 16, color: T.text(t), fontFamily: "'Satoshi', Arial, sans-serif",
+                    fontSize: mobile ? 16 : 13, color: T.text(t), fontFamily: "'Satoshi', Arial, sans-serif",
                     caretColor: T.text(t),
                   }}
                 />
