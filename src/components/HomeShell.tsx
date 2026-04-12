@@ -2313,7 +2313,6 @@ export function HomeShell() {
                   </span>
                   {!isDone && (
                     <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      <span style={{ fontSize: 10, fontWeight: 600, color: muted(theme), backgroundColor: theme === "dark" ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.06)", border: `1px solid ${border(theme)}`, borderRadius: 999, padding: "2px 7px", whiteSpace: "nowrap" }}>{timeLabel}</span>
                       {dueLabel && <span style={{ fontSize: 10, fontWeight: 600, color: dueColor, backgroundColor: theme === "dark" ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.06)", border: `1px solid ${dueColor}44`, borderRadius: 999, padding: "2px 7px", whiteSpace: "nowrap" }}>{dueLabel}</span>}
                     </div>
                   )}
@@ -3393,12 +3392,7 @@ export function HomeShell() {
                   className={thoughtUnlinkTarget === note.id ? "thought-vibrate" : undefined}
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                    <div style={pill(boardTheme)}>{note.type === "task" ? (() => {
-                      const mins = note.steps.length > 0
-                        ? note.steps.filter(s => !s.done).reduce((sum, s) => sum + (s.minutes ?? 25), 0)
-                        : (note.minutes ?? estimateTime(note.title));
-                      return mins >= 60 ? `${Math.floor(mins/60)}h${mins%60 ? ` ${mins%60}m` : ""}` : `${mins}m`;
-                    })() : "Idea"}</div>
+                    <div style={pill(boardTheme)}>{note.type === "task" ? "Task" : "Idea"}</div>
 
                     {note.type === "task" && (note.dueDate || note.completed || note.steps.every(s => s.done && s.id)) && (() => {
                       const done = note.completed || (note.steps.length > 0 && note.steps.every(s => s.done));
@@ -5924,7 +5918,7 @@ export function HomeShell() {
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center", marginBottom: 20 }}>
                 {presets.map(m => (
                   <button key={m} style={presetBtn(false)} onClick={() => commitFocus(focusPicker.noteId, focusPicker.chain, m)}>
-                    {m === 25 ? "🍅 25" : `${m}`}<span style={{ fontSize: 11, opacity: .6 }}> min</span>
+                    {m}<span style={{ fontSize: 11, opacity: .6 }}> min</span>
                   </button>
                 ))}
               </div>
