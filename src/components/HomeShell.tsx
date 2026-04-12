@@ -576,6 +576,14 @@ export function HomeShell() {
   const [focusChainMode, setFocusChainMode] = useState(false);
   const [focusNextStep, setFocusNextStep] = useState<{ id: number; title: string; minutes: number } | null>(null);
   const [focusExitConfirm, setFocusExitConfirm] = useState(false);
+  // Duration picker (shown before focus starts)
+  const [focusPicker, setFocusPicker] = useState<{ noteId: number; chain: boolean } | null>(null);
+  const [focusCustomMin, setFocusCustomMin] = useState("");
+  // Session review (shown after focus ends)
+  const [focusReview, setFocusReview] = useState<{ elapsedMin: number; noteId: number } | null>(null);
+  const focusSessionStartRef = useRef<number>(0); // epoch ms when session started
+  // Profile panel
+  const [profileOpen, setProfileOpen] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeType, setUpgradeType] = useState<BoardType>("task");
   const [limitReachedOpen, setLimitReachedOpen] = useState(false);
@@ -721,6 +729,8 @@ export function HomeShell() {
   }, [isSignedIn]);
 
   const saveBoard = useMutation(api.boards.save);
+  const logFocusSession = useMutation(api.focusStats.logSession);
+  const focusStatsData = useQuery(api.focusStats.getStats, isSignedIn ? { days: 7 } : "skip");
   const setReminderMut = useMutation(api.reminders.set);
   const emailPrefs = useQuery(api.emailPrefs.get);
   const updateEmailPrefs = useMutation(api.emailPrefs.update);
@@ -1972,21 +1982,24 @@ export function HomeShell() {
   }
 
   function startFocus(noteId: number, chain = false) {
+    // Show duration picker first — actual timer starts after user commits
+    setFocusPicker({ noteId, chain });
+    setFocusCustomMin("");
+  }
+
+  function commitFocus(noteId: number, chain: boolean, minutes: number) {
     const note = notes.find((n) => n.id === noteId);
     if (!note) return;
     let stepId: number | undefined;
     if (chain && note.steps.length > 0) {
       const first = note.steps.find(s => !s.done);
-      if (first) {
-        stepId = first.id;
-      }
-      // else: all subtasks done, fall through and focus the parent task
+      if (first) stepId = first.id;
     }
     const step = stepId ? note.steps.find(s => s.id === stepId) : null;
-    const total = step ? (step.minutes ?? 25) : (note.minutes ?? estimateTime(note.title));
-    const totalSecs = total * 60;
+    const totalSecs = minutes * 60;
     focusTotalSecsRef.current = totalSecs;
     focusStartedAtRef.current = Date.now();
+    focusSessionStartRef.current = Date.now();
     setFocusNoteId(noteId);
     setFocusStepId(stepId ?? null);
     setFocusChainMode(chain);
@@ -1995,7 +2008,45 @@ export function HomeShell() {
     setFocusPaused(false);
     setFocusExitConfirm(false);
     setFocusNextStep(null);
+    setFocusPicker(null);
+    // Track attempt on the note
+    setNotes(prev => prev.map(n => n.id === noteId ? {
+      ...n,
+      attemptCount: (n.attemptCount ?? 0) + 1,
+      lastTackledAt: Date.now(),
+    } : n));
     setFocusOpen(true);
+  }
+
+  function closeFocusWithReview(noteId: number) {
+    const elapsedMin = Math.max(1, Math.round((Date.now() - focusSessionStartRef.current) / 60000));
+    setFocusReview({ elapsedMin, noteId });
+    setFocusOpen(false);
+    setFocusCompleted(false);
+    setFocusPaused(false);
+    setFocusExitConfirm(false);
+    setBreakSecondsLeft(0);
+    setFocusNextStep(null);
+    setFocusStepId(null);
+  }
+
+  async function handleFocusReviewDone(markFinished: boolean) {
+    if (!focusReview) return;
+    const { elapsedMin, noteId } = focusReview;
+    const today = new Date().toISOString().slice(0, 10);
+    // Update note stats locally
+    setNotes(prev => prev.map(n => n.id === noteId ? {
+      ...n,
+      totalTimeSpent: (n.totalTimeSpent ?? 0) + elapsedMin,
+      lastTackledAt: Date.now(),
+      completed: markFinished ? true : n.completed,
+    } : n));
+    // Log to Convex
+    if (isSignedIn) {
+      await logFocusSession({ date: today, minutes: elapsedMin, taskCompleted: markFinished });
+    }
+    setFocusReview(null);
+    setFocusNoteId(null);
   }
 
   return (
@@ -3537,6 +3588,16 @@ export function HomeShell() {
             </div>
 
             <div style={{ position: "relative", display: "flex", gap: 5, alignItems: "center" }}>
+              {/* Focus stats */}
+              {isSignedIn && (
+                <button onClick={() => setProfileOpen(true)} style={circleButton(boardTheme)} aria-label="Focus stats" title="Focus stats">
+                  {(focusStatsData?.currentStreak ?? 0) > 0
+                    ? <span style={{ fontSize: 12, lineHeight: 1 }}>🔥</span>
+                    : <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.4"/><path d="M7 4v3l2 1.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+                  }
+                </button>
+              )}
+
               {/* Theme toggle — lightbulb */}
               <ThemeToggle theme={boardTheme} onToggle={() => setBoardTheme((t) => (t === "dark" ? "light" : "dark"))} />
 
@@ -5230,14 +5291,14 @@ export function HomeShell() {
                         Start {focusNextStep.title}
                       </button>
                       <button
-                        onClick={() => { setFocusOpen(false); setFocusCompleted(false); setFocusNextStep(null); setFocusNoteId(null); setFocusStepId(null); setFocusChainMode(false); }}
+                        onClick={() => focusNoteId ? closeFocusWithReview(focusNoteId) : undefined}
                         style={focusBtnGhost}
                       >
                         Finish
                       </button>
                     </>
                   ) : (
-                    <button onClick={advanceToNext} style={focusBtnPrimary}>
+                    <button onClick={() => focusNoteId ? closeFocusWithReview(focusNoteId) : undefined} style={focusBtnPrimary}>
                       Done
                     </button>
                   )}
@@ -5305,11 +5366,19 @@ export function HomeShell() {
             )}
 
             {/* Exit confirmation overlay */}
-            {focusExitConfirm && (
+            {focusExitConfirm && focusNoteId && (
               <div style={{ position: "absolute", inset: 0, zIndex: 10, backgroundColor: "rgba(6,7,10,.88)", backdropFilter: "blur(8px)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 0, textAlign: "center", padding: "40px 28px" }}>
-                <div style={{ fontSize: 18, fontWeight: 700, color: "#f7f8fb", marginBottom: 10 }}>Exit focus mode?</div>
-                <div style={{ fontSize: 14, color: "rgba(247,248,251,.45)", marginBottom: 28, lineHeight: 1.65 }}>Your timer will reset and your progress won't be saved.</div>
-                <div style={{ display: "flex", gap: 10 }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#f7f8fb", marginBottom: 8 }}>Save your progress?</div>
+                <div style={{ fontSize: 14, color: "rgba(247,248,251,.45)", marginBottom: 28, lineHeight: 1.65 }}>
+                  {Math.max(1, Math.round((Date.now() - focusSessionStartRef.current) / 60000))} min focused — log it before you go.
+                </div>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+                  <button
+                    onClick={() => closeFocusWithReview(focusNoteId)}
+                    style={{ height: 40, padding: "0 20px", borderRadius: 999, border: "1px solid rgba(255,255,255,.14)", backgroundColor: "rgba(255,255,255,.08)", color: "rgba(247,248,251,.75)", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+                  >
+                    Save progress
+                  </button>
                   <button
                     onClick={() => {
                       setFocusOpen(false); setFocusExitConfirm(false); setFocusPaused(false);
@@ -5318,11 +5387,11 @@ export function HomeShell() {
                     }}
                     style={{ height: 40, padding: "0 20px", borderRadius: 999, border: "1px solid rgba(220,60,60,.3)", backgroundColor: "rgba(220,60,60,.15)", color: "rgba(255,150,150,.85)", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
                   >
-                    Exit anyway
+                    Exit without saving
                   </button>
                   <button
                     onClick={() => setFocusExitConfirm(false)}
-                    style={{ height: 40, padding: "0 20px", borderRadius: 999, border: "1px solid rgba(255,255,255,.14)", backgroundColor: "rgba(255,255,255,.08)", color: "rgba(247,248,251,.75)", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+                    style={{ height: 40, padding: "0 20px", borderRadius: 999, border: "none", backgroundColor: "transparent", color: "rgba(247,248,251,.4)", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
                   >
                     Keep going
                   </button>
@@ -5917,6 +5986,169 @@ export function HomeShell() {
           </div>
         </div>
       )}
+
+      {/* ── Duration Picker ── */}
+      {focusPicker && (() => {
+        const pickerNote = notes.find(n => n.id === focusPicker.noteId);
+        if (!pickerNote) return null;
+        const presets = [15, 25, 45, 60, 90];
+        const overlay: CSSProperties = { position: "fixed", inset: 0, zIndex: 950, backgroundColor: "rgba(6,7,10,.92)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 };
+        const card: CSSProperties = { width: "min(400px,100%)", background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 20, padding: "32px 28px", display: "flex", flexDirection: "column", alignItems: "center", gap: 0, textAlign: "center" };
+        const presetBtn = (active: boolean): CSSProperties => ({
+          height: 44, minWidth: 60, borderRadius: 12, border: active ? "1.5px solid rgba(255,255,255,.6)" : "1px solid rgba(255,255,255,.12)",
+          backgroundColor: active ? "rgba(255,255,255,.12)" : "rgba(255,255,255,.05)",
+          color: active ? "#f7f8fb" : "rgba(247,248,251,.55)", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+        });
+        const customVal = parseInt(focusCustomMin, 10);
+        const customValid = !isNaN(customVal) && customVal >= 1 && customVal <= 180;
+        return (
+          <div style={overlay} onClick={() => setFocusPicker(null)}>
+            <div style={card} onClick={e => e.stopPropagation()}>
+              <div style={{ fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase", color: "rgba(247,248,251,.4)", fontWeight: 600, marginBottom: 14 }}>Focus Session</div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: "#f7f8fb", letterSpacing: "-.02em", lineHeight: 1.2, marginBottom: 6 }}>{pickerNote.title}</div>
+              <div style={{ fontSize: 13, color: "rgba(247,248,251,.35)", marginBottom: 28 }}>How long are you committing to this?</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center", marginBottom: 20 }}>
+                {presets.map(m => (
+                  <button key={m} style={presetBtn(false)} onClick={() => commitFocus(focusPicker.noteId, focusPicker.chain, m)}>
+                    {m === 25 ? "🍅 25" : `${m}`}<span style={{ fontSize: 11, opacity: .6 }}> min</span>
+                  </button>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 8, width: "100%", alignItems: "center", marginBottom: 24 }}>
+                <input
+                  type="number" min={1} max={180} placeholder="Custom min"
+                  value={focusCustomMin}
+                  onChange={e => setFocusCustomMin(e.target.value)}
+                  style={{ flex: 1, height: 40, borderRadius: 10, border: "1px solid rgba(255,255,255,.15)", background: "rgba(255,255,255,.06)", color: "#f7f8fb", fontSize: 14, padding: "0 12px", outline: "none", fontFamily: "inherit" }}
+                />
+                <button
+                  disabled={!customValid}
+                  onClick={() => customValid && commitFocus(focusPicker.noteId, focusPicker.chain, customVal)}
+                  style={{ height: 40, padding: "0 16px", borderRadius: 10, border: "none", backgroundColor: customValid ? "rgba(255,255,255,.18)" : "rgba(255,255,255,.06)", color: customValid ? "#f7f8fb" : "rgba(247,248,251,.3)", fontSize: 14, fontWeight: 600, cursor: customValid ? "pointer" : "default", fontFamily: "inherit" }}
+                >
+                  Start
+                </button>
+              </div>
+              <button onClick={() => setFocusPicker(null)} style={{ fontSize: 13, color: "rgba(247,248,251,.3)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Session Review Modal ── */}
+      {focusReview && (() => {
+        const reviewNote = notes.find(n => n.id === focusReview.noteId);
+        const overlay: CSSProperties = { position: "fixed", inset: 0, zIndex: 950, backgroundColor: "rgba(6,20,9,.96)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 };
+        const card: CSSProperties = { width: "min(400px,100%)", display: "flex", flexDirection: "column", alignItems: "center", gap: 0, textAlign: "center" };
+        const streak = focusStatsData?.currentStreak ?? 0;
+        const todayMin = (focusStatsData?.days.find(d => d.date === new Date().toISOString().slice(0,10))?.totalMinutes ?? 0) + focusReview.elapsedMin;
+        return (
+          <div style={overlay}>
+            <div style={card}>
+              {/* Checkmark */}
+              <div style={{ width: 56, height: 56, borderRadius: "50%", backgroundColor: "rgba(80,180,100,.15)", border: "1.5px solid rgba(100,210,120,.35)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
+                <svg width="24" height="24" viewBox="0 0 22 22" fill="none"><polyline points="5,12 9,16 17,7" stroke="#6fc46b" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </div>
+              <div style={{ fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase", color: "rgba(247,248,251,.35)", fontWeight: 500, marginBottom: 10 }}>Session complete</div>
+              <div style={{ fontSize: 28, fontWeight: 700, color: "#f7f8fb", letterSpacing: "-.02em", lineHeight: 1.2, marginBottom: 6 }}>
+                {focusReview.elapsedMin} min focused
+              </div>
+              {reviewNote && <div style={{ fontSize: 14, color: "rgba(247,248,251,.4)", marginBottom: 4 }}>{reviewNote.title}</div>}
+              {/* Stats row */}
+              <div style={{ display: "flex", gap: 24, marginTop: 20, marginBottom: 32 }}>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: "#f7f8fb" }}>🔥 {streak > 0 ? streak : "–"}</div>
+                  <div style={{ fontSize: 11, color: "rgba(247,248,251,.35)", marginTop: 4 }}>day streak</div>
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: "#f7f8fb" }}>{todayMin} min</div>
+                  <div style={{ fontSize: 11, color: "rgba(247,248,251,.35)", marginTop: 4 }}>today</div>
+                </div>
+              </div>
+              {/* Actions */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}>
+                <button
+                  onClick={() => handleFocusReviewDone(true)}
+                  style={{ height: 48, borderRadius: 14, border: "none", backgroundColor: "#6fc46b", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+                >
+                  Mark task done ✓
+                </button>
+                <button
+                  onClick={() => handleFocusReviewDone(false)}
+                  style={{ height: 48, borderRadius: 14, border: "1px solid rgba(255,255,255,.14)", backgroundColor: "rgba(255,255,255,.07)", color: "rgba(247,248,251,.8)", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
+                >
+                  Still in progress — save time
+                </button>
+                <button
+                  onClick={() => { setFocusReview(null); setFocusNoteId(null); }}
+                  style={{ fontSize: 12, color: "rgba(247,248,251,.25)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", marginTop: 4 }}
+                >
+                  Exit without saving
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Profile Panel ── */}
+      {profileOpen && (() => {
+        const stats = focusStatsData;
+        const streak = stats?.currentStreak ?? 0;
+        const totalHours = Math.round((stats?.totalMinutes ?? 0) / 60 * 10) / 10;
+        const totalTasks = stats?.totalTasksCompleted ?? 0;
+        const days = stats?.days ?? [];
+        const maxMin = Math.max(...days.map(d => d.totalMinutes), 1);
+        const today = new Date().toISOString().slice(0, 10);
+        const overlay: CSSProperties = { position: "fixed", inset: 0, zIndex: 800, backgroundColor: theme === "dark" ? "rgba(6,8,12,.7)" : "rgba(10,10,12,.36)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 };
+        const card: CSSProperties = { width: "min(380px,100%)", background: theme === "dark" ? "rgba(16,18,22,.98)" : "rgba(252,252,250,.99)", border: `1px solid ${border(theme)}`, borderRadius: 20, padding: "28px 24px", display: "flex", flexDirection: "column", gap: 24 };
+        const dayLabel = (date: string) => { const d = new Date(date + "T12:00:00"); return ["Su","Mo","Tu","We","Th","Fr","Sa"][d.getDay()]; };
+        return (
+          <div style={overlay} onClick={() => setProfileOpen(false)}>
+            <div style={card} onClick={e => e.stopPropagation()}>
+              {/* Header */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ fontSize: 16, fontWeight: 700, color: pageText(theme), letterSpacing: "-.01em" }}>Focus Stats</div>
+                <button onClick={() => setProfileOpen(false)} style={{ width: 28, height: 28, borderRadius: 8, border: "none", background: "transparent", color: muted(theme), fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+              </div>
+              {/* Streak + totals */}
+              <div style={{ display: "flex", gap: 12 }}>
+                {[
+                  { label: "Streak", value: streak > 0 ? `🔥 ${streak}d` : "–", sub: "days in a row" },
+                  { label: "Total focused", value: `${totalHours}h`, sub: "all time" },
+                  { label: "Tasks done", value: String(totalTasks), sub: "all time" },
+                ].map(({ label: _l, value, sub }) => (
+                  <div key={sub} style={{ flex: 1, background: theme === "dark" ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", borderRadius: 12, padding: "12px 10px", textAlign: "center" }}>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: pageText(theme) }}>{value}</div>
+                    <div style={{ fontSize: 10.5, color: muted(theme), marginTop: 3 }}>{sub}</div>
+                  </div>
+                ))}
+              </div>
+              {/* 7-day bar chart */}
+              <div>
+                <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 600, color: muted(theme), marginBottom: 12 }}>Last 7 days</div>
+                <div style={{ display: "flex", gap: 6, alignItems: "flex-end", height: 80 }}>
+                  {days.map(d => {
+                    const pct = d.totalMinutes / maxMin;
+                    const isToday = d.date === today;
+                    return (
+                      <div key={d.date} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, height: "100%", justifyContent: "flex-end" }}>
+                        <div style={{ fontSize: 9, color: muted(theme), opacity: .6 }}>{d.totalMinutes > 0 ? `${d.totalMinutes}m` : ""}</div>
+                        <div style={{ width: "100%", borderRadius: 4, backgroundColor: d.totalMinutes > 0 ? (isToday ? "#6fc46b" : theme === "dark" ? "rgba(255,255,255,.35)" : "rgba(0,0,0,.25)") : (theme === "dark" ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.06)"), height: `${Math.max(pct * 56, d.totalMinutes > 0 ? 8 : 4)}px`, transition: "height .3s" }} />
+                        <div style={{ fontSize: 10, color: isToday ? pageText(theme) : muted(theme), fontWeight: isToday ? 700 : 400 }}>{dayLabel(d.date)}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              {/* Weekly total */}
+              <div style={{ fontSize: 13, color: muted(theme), textAlign: "center" }}>
+                {days.reduce((s, d) => s + d.totalMinutes, 0)} min this week · {days.filter(d => d.totalMinutes > 0).length} active days
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Footer */}
       <footer style={{ textAlign: "center", padding: "24px 16px", borderTop: `1px solid ${border(theme)}`, marginTop: 40 }}>

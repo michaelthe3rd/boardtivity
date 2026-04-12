@@ -50,4 +50,8 @@ export type Note = {
   flowMode: FlowMode;
   linkedNoteIds: number[];
   colorIdx?: number;
+  // Focus tracking
+  totalTimeSpent?: number;   // minutes focused on this task (all time)
+  lastTackledAt?: number;    // epoch ms of last focus session
+  attemptCount?: number;     // number of focus sessions started
 };

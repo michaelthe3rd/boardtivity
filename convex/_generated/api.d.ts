@@ -15,6 +15,7 @@ import type * as crons from "../crons.js";
 import type * as emailPrefs from "../emailPrefs.js";
 import type * as emails from "../emails.js";
 import type * as feedback from "../feedback.js";
+import type * as focusStats from "../focusStats.js";
 import type * as http from "../http.js";
 import type * as reminders from "../reminders.js";
 import type * as sessions from "../sessions.js";
@@ -35,6 +36,7 @@ declare const fullApi: ApiFromModules<{
   emailPrefs: typeof emailPrefs;
   emails: typeof emails;
   feedback: typeof feedback;
+  focusStats: typeof focusStats;
   http: typeof http;
   reminders: typeof reminders;
   sessions: typeof sessions;

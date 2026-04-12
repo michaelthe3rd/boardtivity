@@ -86,4 +86,12 @@ export default defineSchema({
   }).index("by_token", ["tokenIdentifier"])
     .index("by_stripe_customer", ["stripeCustomerId"])
     .index("by_stripe_subscription", ["stripeSubscriptionId"]),
+
+  focusStats: defineTable({
+    tokenIdentifier: v.string(),
+    date: v.string(),          // "YYYY-MM-DD"
+    totalMinutes: v.number(),
+    tasksCompleted: v.number(),
+  }).index("by_token", ["tokenIdentifier"])
+    .index("by_token_and_date", ["tokenIdentifier", "date"]),
 });
