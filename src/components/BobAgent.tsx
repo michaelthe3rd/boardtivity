@@ -647,7 +647,8 @@ export default function BobAgent({
                   placeholder={listening ? "Listening… (pause to send)" : mode === "autopilot" ? "Tell BOB what to do…" : "Ask or tell BOB…"}
                   style={{
                     flex: 1, border: "none", outline: "none", background: "transparent",
-                    fontSize: mobile ? 16 : 13, color: T.text(t), fontFamily: "'Satoshi', Arial, sans-serif",
+                    fontSize: 16, zoom: mobile ? (13 / 16) : 1,
+                    color: T.text(t), fontFamily: "'Satoshi', Arial, sans-serif",
                     caretColor: T.text(t),
                   }}
                 />
