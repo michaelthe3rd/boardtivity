@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   title: "Boardtivity",
   description: "Boardtivity — the visual board for tasks, thoughts, and focus.",
   icons: {
-    icon: "/favicon.svg",
+    icon: "/favicon-square.png",
     apple: "/apple-touch-icon.png",
   },
 };
