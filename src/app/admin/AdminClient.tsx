@@ -123,7 +123,7 @@ function AdminGate({ onUnlock }: { onUnlock: () => void }) {
       <div style={{ width: "min(400px, calc(100vw - 40px))" }}>
         <div style={{ marginBottom: 40, textAlign: "center" }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-full.png" alt="Boardtivity" style={{ height: 130, marginBottom: 32, filter: "brightness(0) invert(1)" }} />
+          <img src="/logo-vertical.svg" alt="Boardtivity" style={{ height: 130, marginBottom: 32, filter: "brightness(0) invert(1)" }} />
           <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-.03em", color: "#f0f0ee", marginBottom: 8 }}>Admin Access</div>
           <div style={{ fontSize: 14, color: "rgba(255,255,255,.32)", lineHeight: 1.6 }}>
             {showNotAdmin ? "This account doesn't have admin access." : "Sign in with your admin account to continue."}

@@ -15,7 +15,7 @@ export default function LogoPage() {
 
       {/* Header */}
       <div style={{ padding: "32px 48px 0", display: "flex", alignItems: "center", gap: 10 }}>
-        <img src="/logo-icon.png" width={22} height={22} alt="Boardtivity" style={{ display: "block" }} />
+        <img src="/logo-icon.svg" width={22} height={22} alt="Boardtivity" style={{ display: "block" }} />
         <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: ".04em", color: "#111315" }}>Logo Preview</span>
       </div>
 
