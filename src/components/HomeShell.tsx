@@ -2356,7 +2356,6 @@ export function HomeShell() {
                       <div key={step.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <span style={{ width: 9, height: 9, borderRadius: "50%", border: step.done ? "1px solid #3d8b40" : `1px solid ${theme === "dark" ? "rgba(255,255,255,.22)" : "rgba(0,0,0,.22)"}`, backgroundColor: step.done ? "#6fc46b" : "transparent", display: "inline-block", flexShrink: 0 }} />
                         <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: step.done ? muted(theme) : pageText(theme), opacity: step.done ? .5 : 1, textDecoration: step.done ? "line-through" : "none" }}>{step.title}</span>
-                        {step.minutes && <span style={{ fontSize: 11, color: muted(theme), opacity: .45 }}>{step.minutes}m</span>}
                       </div>
                     ))}
                   </div>
@@ -2920,40 +2919,6 @@ export function HomeShell() {
                             />
                           </div>
                         </div>
-                        <div style={{ display: "flex", alignItems: "center", height: 44, backgroundColor: paper(theme), border: `1.5px solid ${border(theme)}`, borderRadius: 12, padding: "0 14px", gap: 8 }}>
-                          <span style={{ fontSize: 13, fontWeight: 600, color: muted(theme), flex: 1 }}>Duration</span>
-                          <input
-                            type="number"
-                            inputMode="numeric"
-                            min="1"
-                            max="480"
-                            value={mobileEditMinutes}
-                            onChange={e => setMobileEditMinutes(e.target.value)}
-                            placeholder="—"
-                            style={{ border: "none", backgroundColor: "transparent", color: pageText(theme), fontSize: 14, fontWeight: 600, outline: "none", textAlign: "right", padding: 0, width: 52 }}
-                          />
-                          <span style={{ fontSize: 13, color: muted(theme), opacity: .55 }}>min</span>
-                        </div>
-                        {mobileEditSteps.length > 0 && (
-                          <div style={{ backgroundColor: paper(theme), border: `1.5px solid ${border(theme)}`, borderRadius: 12, padding: "10px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
-                            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".05em", textTransform: "uppercase", color: muted(theme), opacity: .5 }}>Subtask durations</div>
-                            {mobileEditSteps.map((s, i) => (
-                              <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: pageText(theme), overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</span>
-                                <input
-                                  type="number"
-                                  inputMode="numeric"
-                                  min="1"
-                                  max="480"
-                                  value={s.minutes}
-                                  onChange={e => setMobileEditSteps(prev => prev.map((x, j) => j === i ? { ...x, minutes: Math.max(1, parseInt(e.target.value) || 1) } : x))}
-                                  style={{ border: `1px solid ${border(theme)}`, backgroundColor: "transparent", color: pageText(theme), fontSize: 13, fontWeight: 600, outline: "none", textAlign: "right", padding: "4px 8px", borderRadius: 8, width: 52 }}
-                                />
-                                <span style={{ fontSize: 12, color: muted(theme), opacity: .55, flexShrink: 0 }}>min</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
                       </>
                     )}
                     <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
@@ -3336,7 +3301,6 @@ export function HomeShell() {
                           />
                           <span style={{ fontWeight: 700, fontSize: 13, color: noteText(boardTheme) }}>{step.title}</span>
                         </div>
-                        <span style={pill(boardTheme)}>{step.minutes} min</span>
                       </div>
                     </button>
                   ))
@@ -4401,19 +4365,6 @@ export function HomeShell() {
                       <option value="High">High priority</option>
                     </select>
 
-                    {aiSteps.length > 0 ? (
-                      <div style={{ ...fieldStyle(boardTheme), justifyContent: "center" }}>
-                        <div style={{ color: muted(boardTheme), fontSize: 14 }}>
-                          {aiSteps.reduce((s, st) => s + st.minutes, 0)} min total
-                        </div>
-                      </div>
-                    ) : (
-                      <div style={{ ...fieldStyle(boardTheme), justifyContent: "space-between" }}>
-                        <button onClick={() => setMinutes((m) => Math.max(5, m - 5))} style={circleButton(boardTheme, 30)}>-</button>
-                        <div style={{ flex: 1, textAlign: "center", color: pageText(boardTheme), opacity: 0.92 }}>{minutes} min</div>
-                        <button onClick={() => setMinutes((m) => m + 5)} style={circleButton(boardTheme, 30)}>+</button>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
@@ -4487,25 +4438,6 @@ export function HomeShell() {
                               />
                               <button
                                 onClick={() => {
-                                  const newMins = Math.max(5, step.minutes - 5);
-                                  const diff = newMins - step.minutes; // 0 if already at min, -5 otherwise
-                                  setAiSteps((prev) => prev.map((s) => s.id === step.id ? { ...s, minutes: newMins } : s));
-                                  setMinutes((m) => Math.max(5, m + diff));
-                                }}
-                                style={{ background: "none", border: "none", cursor: "pointer", color: muted(boardTheme), fontSize: 16, padding: "0 2px", lineHeight: 1, fontWeight: 700 }}
-                              >−</button>
-                              <span style={{ fontSize: 14, fontWeight: 600, color: muted(boardTheme), minWidth: 22, textAlign: "center" }}>{step.minutes}</span>
-                              <button
-                                onClick={() => {
-                                  setAiSteps((prev) => prev.map((s) => s.id === step.id ? { ...s, minutes: s.minutes + 5 } : s));
-                                  setMinutes((m) => m + 5);
-                                }}
-                                style={{ background: "none", border: "none", cursor: "pointer", color: muted(boardTheme), fontSize: 16, padding: "0 2px", lineHeight: 1, fontWeight: 700 }}
-                              >+</button>
-                              <span style={{ fontSize: 13, color: muted(boardTheme) }}>min</span>
-                              <button
-                                onClick={() => {
-                                  setMinutes((m) => Math.max(5, m - step.minutes));
                                   setAiSteps((prev) => prev.filter((s) => s.id !== step.id));
                                 }}
                                 style={{ background: "none", border: "none", cursor: "pointer", color: muted(boardTheme), fontSize: 16, padding: "0 2px", lineHeight: 1 }}
@@ -4721,7 +4653,6 @@ export function HomeShell() {
                         <div style={{ fontSize: 14, color: muted(boardTheme), opacity: .4, lineHeight: 1.7, fontStyle: "italic" }}>No note added.</div>
                       ) : null}
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 12 }}>
-                        {detailNote.minutes && <span style={pill(boardTheme)}>{detailNote.minutes} min</span>}
                         {detailNote.importance && detailNote.importance !== "none" && (
                           <span style={pill(boardTheme)}>{detailNote.importance} priority</span>
                         )}
@@ -4769,19 +4700,6 @@ export function HomeShell() {
                               onChange={e => setDetailEditSteps(prev => prev.map(s => s.id === step.id ? { ...s, title: e.target.value } : s))}
                               style={{ flex: 1, border: `1px solid ${border(boardTheme)}`, borderRadius: 6, background: boardTheme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)", fontWeight: 600, fontSize: 14, color: pageText(boardTheme), outline: "none", fontFamily: "inherit", padding: "4px 8px" }}
                             />
-                            <button
-                              onClick={() => {
-                                const newMins = Math.max(5, step.minutes - 5);
-                                setDetailEditSteps(prev => prev.map(s => s.id === step.id ? { ...s, minutes: newMins } : s));
-                              }}
-                              style={{ background: "none", border: "none", cursor: "pointer", color: muted(boardTheme), fontSize: 16, padding: "0 2px", lineHeight: 1, fontWeight: 700 }}
-                            >−</button>
-                            <span style={{ fontSize: 14, fontWeight: 600, color: muted(boardTheme), minWidth: 22, textAlign: "center" }}>{step.minutes}</span>
-                            <button
-                              onClick={() => setDetailEditSteps(prev => prev.map(s => s.id === step.id ? { ...s, minutes: s.minutes + 5 } : s))}
-                              style={{ background: "none", border: "none", cursor: "pointer", color: muted(boardTheme), fontSize: 16, padding: "0 2px", lineHeight: 1, fontWeight: 700 }}
-                            >+</button>
-                            <span style={{ fontSize: 13, color: muted(boardTheme) }}>min</span>
                             <button
                               onClick={() => setDetailEditSteps(prev => prev.filter(s => s.id !== step.id))}
                               style={{ background: "none", border: "none", cursor: "pointer", color: muted(boardTheme), fontSize: 14, padding: "0 4px", lineHeight: 1, opacity: .6 }}
@@ -4846,7 +4764,6 @@ export function HomeShell() {
                               />
                               <span style={{ fontWeight: 600, fontSize: 14, color: pageText(boardTheme) }}>{step.title}</span>
                             </div>
-                            <span style={{ ...pill(boardTheme), flexShrink: 0 }}>{step.minutes} min</span>
                           </button>
                         ))}
                       </div>
@@ -4967,12 +4884,10 @@ export function HomeShell() {
                                     Next up · {incompleteSteps.length} remaining
                                   </div>
                                   <div style={{ fontWeight: 700, fontSize: 15, color: pageText(boardTheme) }}>{nextStep.title}</div>
-                                  <div style={{ marginTop: 3, fontSize: 13, color: muted(boardTheme) }}>{nextStep.minutes} min</div>
                                 </div>
                               ) : (
                                 <div style={{ marginBottom: 14 }}>
                                   <div style={{ fontWeight: 700, fontSize: 15, color: pageText(boardTheme) }}>{detailNote.title}</div>
-                                  <div style={{ marginTop: 3, fontSize: 13, color: muted(boardTheme) }}>{detailNote.minutes} min</div>
                                 </div>
                               )}
                               <button
@@ -5099,7 +5014,6 @@ export function HomeShell() {
             </div>
             <div style={{ padding: 18, display: "grid", gap: 12 }}>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <span style={pill(boardTheme)}>{stepModal.minutes} min</span>
                 <span style={pill(boardTheme)}>{stepModal.done ? "Completed" : "Not started"}</span>
               </div>
               {stepModal.done ? (
