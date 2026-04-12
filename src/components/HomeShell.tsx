@@ -580,6 +580,7 @@ export function HomeShell() {
   const [focusPicker, setFocusPicker] = useState<{ noteId: number; chain: boolean } | null>(null);
   const [focusCustomMin, setFocusCustomMin] = useState("");
   const [focusPickerSelected, setFocusPickerSelected] = useState<number | null>(null);
+  const [focusPickerShowCustom, setFocusPickerShowCustom] = useState(false);
   // Session review (shown after focus ends)
   const [focusReview, setFocusReview] = useState<{ elapsedMin: number; noteId: number } | null>(null);
   const focusSessionStartRef = useRef<number>(0); // epoch ms when session started
@@ -3003,24 +3004,6 @@ export function HomeShell() {
                           <div style={{ height: "100%", width: `${currentStepFill}%`, borderRadius: 999, backgroundColor: barColor, transition: "width 1s linear" }} />
                         </div>
                       </div>
-                      {hasChain && (
-                        <div>
-                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                            <span style={{ fontSize: 13, color: dimmed ? "rgba(247,248,251,.2)" : "rgba(247,248,251,.38)" }}>Overall</span>
-                            <span style={{ fontSize: 13, color: dimmed ? "rgba(247,248,251,.2)" : "rgba(247,248,251,.38)" }}>{Math.round(overallFill)}%</span>
-                          </div>
-                          <div style={{ display: "flex", gap: 4 }}>
-                            {allSteps.map((s, i) => {
-                              const fill = s.done ? 100 : s.id === focusStepId ? currentStepFill : 0;
-                              return (
-                                <div key={s.id} style={{ flex: s.minutes ?? 25, height: 6, borderRadius: 999, backgroundColor: trackColor, overflow: "hidden" }}>
-                                  <div style={{ height: "100%", width: `${fill}%`, borderRadius: 999, backgroundColor: barColor, transition: "width 1s linear" }} />
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
                     </div>
                   );
                 };
@@ -5122,31 +5105,6 @@ export function HomeShell() {
                   <div style={{ height: "100%", width: `${currentStepFill}%`, borderRadius: 999, backgroundColor: barColor, transition: "width 1s linear" }} />
                 </div>
               </div>
-              {/* Overall task bar — only shown in chain mode */}
-              {hasChain && (
-                <div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10, gap: 12 }}>
-                    <span style={{ fontSize: 15, fontWeight: 500, color: dimmed ? "rgba(247,248,251,.2)" : "rgba(247,248,251,.38)" }}>Overall progress</span>
-                    <span style={{ fontSize: 15, color: dimmed ? "rgba(247,248,251,.2)" : "rgba(247,248,251,.38)", flexShrink: 0 }}>{Math.round(progressPct)}%</span>
-                  </div>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    {allSteps.map((s, i) => (
-                      <div key={s.id} style={{
-                        flex: s.minutes ?? 25, height: 6, borderRadius: 999,
-                        backgroundColor: trackColor, overflow: "hidden",
-                      }}>
-                        <div style={{
-                          height: "100%", width: `${stepFills[i]}%`, borderRadius: 999,
-                          backgroundColor: s.done
-                            ? dimmed ? "rgba(111,196,107,.4)" : "#6fc46b"
-                            : barColor,
-                          transition: "width 1s linear",
-                        }} />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           );
         };
@@ -5912,12 +5870,12 @@ export function HomeShell() {
         });
         const customVal = parseInt(focusCustomMin, 10);
         const customValid = !isNaN(customVal) && customVal >= 1 && customVal <= 480;
-        const effectiveSelected = focusPickerSelected ?? (customValid ? customVal : null);
+        const effectiveSelected = focusPickerSelected ?? (focusPickerShowCustom && customValid ? customVal : null);
         const canStart = effectiveSelected !== null;
         const formatPreset = (m: number) => m >= 60 ? `${m / 60}hr` : `${m}`;
         const formatPresetSub = (m: number) => m >= 60 ? "" : " min";
         return (
-          <div style={overlay} onClick={() => { setFocusPicker(null); setFocusPickerSelected(null); setFocusCustomMin(""); }}>
+          <div style={overlay} onClick={() => { setFocusPicker(null); setFocusPickerSelected(null); setFocusCustomMin(""); setFocusPickerShowCustom(false); }}>
             <div style={card} onClick={e => e.stopPropagation()}>
               <div style={{ fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase", color: "rgba(247,248,251,.4)", fontWeight: 600, marginBottom: 14 }}>Focus Session</div>
               <div style={{ fontSize: 20, fontWeight: 700, color: "#f7f8fb", letterSpacing: "-.02em", lineHeight: 1.2, marginBottom: 6 }}>{pickerNote.title}</div>
@@ -5931,22 +5889,24 @@ export function HomeShell() {
                 ))}
                 {/* Custom + button */}
                 <button
-                  style={{ ...presetBtn(focusPickerSelected === null && customValid), flex: "0 0 auto", padding: "0 14px" }}
-                  onClick={() => { setFocusPickerSelected(null); (document.getElementById("focus-custom-input") as HTMLInputElement | null)?.focus(); }}
+                  style={{ ...presetBtn(focusPickerShowCustom && focusPickerSelected === null), flex: "0 0 auto", padding: "0 14px" }}
+                  onClick={() => { setFocusPickerSelected(null); setFocusPickerShowCustom(true); setTimeout(() => (document.getElementById("focus-custom-input") as HTMLInputElement | null)?.focus(), 50); }}
                 >
                   +
                 </button>
               </div>
-              {/* Custom input (shown when + is active or typed) */}
-              <div style={{ width: "100%", marginBottom: 24, overflow: "hidden", maxHeight: focusPickerSelected === null ? 52 : 0, transition: "max-height .2s ease", display: "flex", gap: 8 }}>
-                <input
-                  id="focus-custom-input"
-                  type="number" min={1} max={480} placeholder="Custom min"
-                  value={focusCustomMin}
-                  onChange={e => setFocusCustomMin(e.target.value)}
-                  style={{ flex: 1, height: 44, borderRadius: 12, border: `1px solid ${customValid ? "rgba(255,255,255,.35)" : "rgba(255,255,255,.15)"}`, background: "rgba(255,255,255,.06)", color: "#f7f8fb", fontSize: 14, padding: "0 12px", outline: "none", fontFamily: "inherit" }}
-                />
-              </div>
+              {/* Custom input (shown only after + is clicked) */}
+              {focusPickerShowCustom && (
+                <div style={{ width: "100%", marginBottom: 12, display: "flex", gap: 8 }}>
+                  <input
+                    id="focus-custom-input"
+                    type="number" min={1} max={480} placeholder="Custom min"
+                    value={focusCustomMin}
+                    onChange={e => setFocusCustomMin(e.target.value)}
+                    style={{ flex: 1, height: 44, borderRadius: 12, border: `1px solid ${customValid ? "rgba(255,255,255,.35)" : "rgba(255,255,255,.15)"}`, background: "rgba(255,255,255,.06)", color: "#f7f8fb", fontSize: 14, padding: "0 12px", outline: "none", fontFamily: "inherit" }}
+                  />
+                </div>
+              )}
               {/* Start button */}
               <button
                 disabled={!canStart}
@@ -5955,13 +5915,14 @@ export function HomeShell() {
                   const mins = effectiveSelected!;
                   setFocusPickerSelected(null);
                   setFocusCustomMin("");
+                  setFocusPickerShowCustom(false);
                   commitFocus(focusPicker.noteId, focusPicker.chain, mins);
                 }}
                 style={{ width: "100%", height: 50, borderRadius: 14, border: "none", backgroundColor: canStart ? "#f5f5f2" : "rgba(255,255,255,.08)", color: canStart ? "#111315" : "rgba(247,248,251,.25)", fontSize: 15, fontWeight: 700, cursor: canStart ? "pointer" : "default", fontFamily: "inherit", marginBottom: 16, transition: "background-color .15s, color .15s" }}
               >
                 Start
               </button>
-              <button onClick={() => { setFocusPicker(null); setFocusPickerSelected(null); setFocusCustomMin(""); }} style={{ fontSize: 13, color: "rgba(247,248,251,.3)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+              <button onClick={() => { setFocusPicker(null); setFocusPickerSelected(null); setFocusCustomMin(""); setFocusPickerShowCustom(false); }} style={{ fontSize: 13, color: "rgba(247,248,251,.3)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
             </div>
           </div>
         );
