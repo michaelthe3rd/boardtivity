@@ -579,6 +579,7 @@ export function HomeShell() {
   // Duration picker (shown before focus starts)
   const [focusPicker, setFocusPicker] = useState<{ noteId: number; chain: boolean } | null>(null);
   const [focusCustomMin, setFocusCustomMin] = useState("");
+  const [focusPickerSelected, setFocusPickerSelected] = useState<number | null>(null);
   // Session review (shown after focus ends)
   const [focusReview, setFocusReview] = useState<{ elapsedMin: number; noteId: number } | null>(null);
   const focusSessionStartRef = useRef<number>(0); // epoch ms when session started
@@ -5899,45 +5900,68 @@ export function HomeShell() {
       {focusPicker && (() => {
         const pickerNote = notes.find(n => n.id === focusPicker.noteId);
         if (!pickerNote) return null;
-        const presets = [15, 25, 45, 60, 90];
+        const presets = [15, 30, 60, 120];
         const overlay: CSSProperties = { position: "fixed", inset: 0, zIndex: 950, backgroundColor: "rgba(6,7,10,.92)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 };
         const card: CSSProperties = { width: "min(400px,100%)", background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 20, padding: "32px 28px", display: "flex", flexDirection: "column", alignItems: "center", gap: 0, textAlign: "center" };
         const presetBtn = (active: boolean): CSSProperties => ({
-          height: 44, minWidth: 60, borderRadius: 12, border: active ? "1.5px solid rgba(255,255,255,.6)" : "1px solid rgba(255,255,255,.12)",
-          backgroundColor: active ? "rgba(255,255,255,.12)" : "rgba(255,255,255,.05)",
-          color: active ? "#f7f8fb" : "rgba(247,248,251,.55)", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+          height: 56, flex: 1, borderRadius: 14,
+          border: active ? "1.5px solid rgba(255,255,255,.7)" : "1px solid rgba(255,255,255,.12)",
+          backgroundColor: active ? "rgba(255,255,255,.15)" : "rgba(255,255,255,.05)",
+          color: active ? "#f7f8fb" : "rgba(247,248,251,.55)", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+          transition: "background-color .15s, border-color .15s",
         });
         const customVal = parseInt(focusCustomMin, 10);
-        const customValid = !isNaN(customVal) && customVal >= 1 && customVal <= 180;
+        const customValid = !isNaN(customVal) && customVal >= 1 && customVal <= 480;
+        const effectiveSelected = focusPickerSelected ?? (customValid ? customVal : null);
+        const canStart = effectiveSelected !== null;
+        const formatPreset = (m: number) => m >= 60 ? `${m / 60}hr` : `${m}`;
+        const formatPresetSub = (m: number) => m >= 60 ? "" : " min";
         return (
-          <div style={overlay} onClick={() => setFocusPicker(null)}>
+          <div style={overlay} onClick={() => { setFocusPicker(null); setFocusPickerSelected(null); setFocusCustomMin(""); }}>
             <div style={card} onClick={e => e.stopPropagation()}>
               <div style={{ fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase", color: "rgba(247,248,251,.4)", fontWeight: 600, marginBottom: 14 }}>Focus Session</div>
               <div style={{ fontSize: 20, fontWeight: 700, color: "#f7f8fb", letterSpacing: "-.02em", lineHeight: 1.2, marginBottom: 6 }}>{pickerNote.title}</div>
               <div style={{ fontSize: 13, color: "rgba(247,248,251,.35)", marginBottom: 28 }}>How long are you committing to this?</div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center", marginBottom: 20 }}>
+              {/* Preset row */}
+              <div style={{ display: "flex", gap: 8, width: "100%", marginBottom: 12 }}>
                 {presets.map(m => (
-                  <button key={m} style={presetBtn(false)} onClick={() => commitFocus(focusPicker.noteId, focusPicker.chain, m)}>
-                    {m}<span style={{ fontSize: 11, opacity: .6 }}> min</span>
+                  <button key={m} style={presetBtn(focusPickerSelected === m)} onClick={() => { setFocusPickerSelected(m); setFocusCustomMin(""); }}>
+                    {formatPreset(m)}<span style={{ fontSize: 11, opacity: .6 }}>{formatPresetSub(m)}</span>
                   </button>
                 ))}
-              </div>
-              <div style={{ display: "flex", gap: 8, width: "100%", alignItems: "center", marginBottom: 24 }}>
-                <input
-                  type="number" min={1} max={180} placeholder="Custom min"
-                  value={focusCustomMin}
-                  onChange={e => setFocusCustomMin(e.target.value)}
-                  style={{ flex: 1, height: 40, borderRadius: 10, border: "1px solid rgba(255,255,255,.15)", background: "rgba(255,255,255,.06)", color: "#f7f8fb", fontSize: 14, padding: "0 12px", outline: "none", fontFamily: "inherit" }}
-                />
+                {/* Custom + button */}
                 <button
-                  disabled={!customValid}
-                  onClick={() => customValid && commitFocus(focusPicker.noteId, focusPicker.chain, customVal)}
-                  style={{ height: 40, padding: "0 16px", borderRadius: 10, border: "none", backgroundColor: customValid ? "rgba(255,255,255,.18)" : "rgba(255,255,255,.06)", color: customValid ? "#f7f8fb" : "rgba(247,248,251,.3)", fontSize: 14, fontWeight: 600, cursor: customValid ? "pointer" : "default", fontFamily: "inherit" }}
+                  style={{ ...presetBtn(focusPickerSelected === null && customValid), flex: "0 0 auto", padding: "0 14px" }}
+                  onClick={() => { setFocusPickerSelected(null); (document.getElementById("focus-custom-input") as HTMLInputElement | null)?.focus(); }}
                 >
-                  Start
+                  +
                 </button>
               </div>
-              <button onClick={() => setFocusPicker(null)} style={{ fontSize: 13, color: "rgba(247,248,251,.3)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+              {/* Custom input (shown when + is active or typed) */}
+              <div style={{ width: "100%", marginBottom: 24, overflow: "hidden", maxHeight: focusPickerSelected === null ? 52 : 0, transition: "max-height .2s ease", display: "flex", gap: 8 }}>
+                <input
+                  id="focus-custom-input"
+                  type="number" min={1} max={480} placeholder="Custom min"
+                  value={focusCustomMin}
+                  onChange={e => setFocusCustomMin(e.target.value)}
+                  style={{ flex: 1, height: 44, borderRadius: 12, border: `1px solid ${customValid ? "rgba(255,255,255,.35)" : "rgba(255,255,255,.15)"}`, background: "rgba(255,255,255,.06)", color: "#f7f8fb", fontSize: 14, padding: "0 12px", outline: "none", fontFamily: "inherit" }}
+                />
+              </div>
+              {/* Start button */}
+              <button
+                disabled={!canStart}
+                onClick={() => {
+                  if (!canStart) return;
+                  const mins = effectiveSelected!;
+                  setFocusPickerSelected(null);
+                  setFocusCustomMin("");
+                  commitFocus(focusPicker.noteId, focusPicker.chain, mins);
+                }}
+                style={{ width: "100%", height: 50, borderRadius: 14, border: "none", backgroundColor: canStart ? "#f5f5f2" : "rgba(255,255,255,.08)", color: canStart ? "#111315" : "rgba(247,248,251,.25)", fontSize: 15, fontWeight: 700, cursor: canStart ? "pointer" : "default", fontFamily: "inherit", marginBottom: 16, transition: "background-color .15s, color .15s" }}
+              >
+                Start
+              </button>
+              <button onClick={() => { setFocusPicker(null); setFocusPickerSelected(null); setFocusCustomMin(""); }} style={{ fontSize: 13, color: "rgba(247,248,251,.3)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
             </div>
           </div>
         );
