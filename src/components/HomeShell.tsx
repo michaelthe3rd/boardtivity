@@ -2973,7 +2973,7 @@ export function HomeShell() {
                 const allSteps = fn.steps;
                 const hasChain = focusChainMode && allSteps.length > 1;
                 const currentStepSecs = (step?.minutes ?? fn.minutes ?? estimateTime(fn.title)) * 60;
-                const currentStepFill = Math.min(100, Math.max(0, ((currentStepSecs - focusSecondsLeft) / currentStepSecs) * 100));
+                const currentStepFill = Math.min(100, Math.max(0, (focusSecondsLeft / currentStepSecs) * 100));
                 const totalMinutes = hasChain ? allSteps.reduce((s, x) => s + (x.minutes ?? 25), 0) : (step?.minutes ?? fn.minutes ?? estimateTime(fn.title));
                 const totalSecs2 = totalMinutes * 60;
                 const currentIdx = step ? allSteps.findIndex(s => s.id === focusStepId) : -1;
@@ -5077,8 +5077,8 @@ export function HomeShell() {
 
         // Current subtask fill (0–100% of just this step)
         const currentStepFill = focusStep
-          ? Math.min(100, Math.max(0, ((currentStepSecs - focusSecondsLeft) / currentStepSecs) * 100))
-          : Math.min(100, Math.max(0, progressPct));
+          ? Math.min(100, Math.max(0, (focusSecondsLeft / currentStepSecs) * 100))
+          : Math.min(100, Math.max(0, 100 - progressPct));
 
         // Shared progress bar sub-component (inline)
         const progressBar = (dimmed = false) => {
