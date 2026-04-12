@@ -5737,11 +5737,19 @@ export function HomeShell() {
             {/* CTA */}
             {checkoutError && <div style={{ fontSize: 12, color: "#c03030", marginBottom: 10, textAlign: "center" }}>{checkoutError}</div>}
             <button
+              onClick={() => { setUpgradeOpen(false); startCheckout("annual"); }}
+              disabled={checkoutLoading}
+              style={{ width: "100%", padding: "13px 0", borderRadius: 11, border: "none", backgroundColor: pageText(theme), color: pageBg(theme), fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-.02em", marginBottom: 8, opacity: checkoutLoading ? 0.6 : 1, position: "relative" }}
+            >
+              {checkoutLoading ? "Loading…" : "Get Plus — $60/yr →"}
+              <span style={{ position: "absolute", top: -9, right: 12, fontSize: 10, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", backgroundColor: "#6fc46b", color: "#fff", borderRadius: 99, padding: "2px 7px" }}>Save 17%</span>
+            </button>
+            <button
               onClick={() => { setUpgradeOpen(false); startCheckout("monthly"); }}
               disabled={checkoutLoading}
-              style={{ width: "100%", padding: "13px 0", borderRadius: 11, border: "none", backgroundColor: pageText(theme), color: pageBg(theme), fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-.02em", marginBottom: 8, opacity: checkoutLoading ? 0.6 : 1 }}
+              style={{ width: "100%", padding: "12px 0", borderRadius: 11, border: `1px solid ${border(theme)}`, background: "none", color: pageText(theme), fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-.02em", marginBottom: 8, opacity: checkoutLoading ? 0.6 : 1 }}
             >
-              {checkoutLoading ? "Loading…" : "Get Plus — $6/mo →"}
+              {checkoutLoading ? "Loading…" : "Get Plus — $6/mo"}
             </button>
             <button
               onClick={() => setUpgradeOpen(false)}
