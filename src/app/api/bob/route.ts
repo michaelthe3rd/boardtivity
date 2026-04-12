@@ -214,10 +214,9 @@ function buildBoardContext(notes: NoteSnap[], activeBoardId?: string): string {
 }
 
 // ── System prompt ─────────────────────────────────────────────────────────────
-function buildSystem(notes: NoteSnap[], mode: Mode, userInfo?: string, settings?: Settings, activeBoardId?: string): string {
-  const boardNotes = activeBoardId ? notes.filter(n => !n.boardId || n.boardId === activeBoardId) : notes;
-  const active    = boardNotes.filter(n => !n.completed);
-  const completed = boardNotes.filter(n => n.completed);
+// Board contents are NOT repeated here — they are injected into every user message
+// via buildBoardContext(). Keeping them out of the system prompt halves input tokens.
+function buildSystem(mode: Mode, userInfo?: string, settings?: Settings): string {
   const today  = new Date().toISOString().split("T")[0];
   const activeBoardType = settings?.activeBoardType ?? "task";
   const boards = settings?.boards ?? [];
@@ -233,30 +232,6 @@ function buildSystem(notes: NoteSnap[], mode: Mode, userInfo?: string, settings?
       "AUTOPILOT MODE — act immediately, optimize on your own judgment, chain multiple tools if needed. Don't ask — just do. Narrate what you did afterwards in 1-2 sentences.",
   }[mode];
 
-  function formatNote(n: NoteSnap, done = false) {
-    const parts: string[] = [];
-    parts.push(`ID:${n.id}`);
-    parts.push(done ? "COMPLETED" : n.type === "task" ? "TASK" : "IDEA");
-    parts.push(`"${n.title}"`);
-    if (n.importance && n.importance !== "none") parts.push(`priority:${n.importance}`);
-    if (n.dueDate) parts.push(`due:${n.dueDate}`);
-    if (n.minutes) parts.push(`${n.minutes}min`);
-    if (n.steps?.length) parts.push(`steps:${n.steps.filter(s => !s.done).length}/${n.steps.length} remaining`);
-    if (n.body) parts.push(`note:"${n.body.slice(0, 60)}"`);
-    parts.push(`pos:(${Math.round(n.x)},${Math.round(n.y)})`);
-    return parts.join(", ");
-  }
-
-  const activeTasks   = active.filter(n => n.type === "task");
-  const activeIdeas   = active.filter(n => n.type === "thought");
-  const boardText = active.length || completed.length
-    ? [
-        activeTasks.length   ? `TASKS (${activeTasks.length}):\n${activeTasks.map(n => "  • " + formatNote(n)).join("\n")}` : "TASKS: none",
-        activeIdeas.length   ? `IDEAS (${activeIdeas.length}):\n${activeIdeas.map(n => "  • " + formatNote(n)).join("\n")}` : "IDEAS: none",
-        completed.length     ? `COMPLETED (${Math.min(completed.length, 10)}):\n${completed.slice(0, 10).map(n => "  • " + formatNote(n, true)).join("\n")}` : "",
-      ].filter(Boolean).join("\n")
-    : "Board is empty.";
-
   const userSection = userInfo?.trim() ? `\nAbout the user: ${userInfo.trim()}\n` : "";
 
   const taskColorNames = TASK_COLOR_NAMES;
@@ -266,11 +241,6 @@ function buildSystem(notes: NoteSnap[], mode: Mode, userInfo?: string, settings?
   const taskColorStr = settings?.taskColorMode === "single"
     ? `task color mode: single (${taskColorNames[settings.taskSingleColorIdx ?? 0]})`
     : `task color mode: priority — High:${taskColorNames[settings?.taskHighColorIdx ?? 0]}, Medium:${taskColorNames[settings?.taskMedColorIdx ?? 1]}, Low:${taskColorNames[settings?.taskLowColorIdx ?? 2]}`;
-
-  const ideaColorNoteInfo = active
-    .filter(n => n.type === "thought" && n.colorIdx !== undefined)
-    .map(n => `ID:${n.id} color:${IDEA_COLOR_NAMES[n.colorIdx!] ?? "unknown"}`)
-    .join(", ");
 
   const crossBoardRule = activeBoardType === "task"
     ? `— This is a TASK board. If the user asks to create an idea/thought, do NOT create it here. Instead say: "This is a task board — should I add that to your idea board${thoughtBoards.length === 1 ? ` (${thoughtBoards[0].name})` : thoughtBoards.length > 1 ? ` (${thoughtBoards.map(b => b.name).join(" or ")})` : ""}?" and wait for confirmation before acting.`
@@ -284,13 +254,9 @@ Today: ${today}
 Active board: "${settings?.activeBoardName ?? "Current Board"}" (${activeBoardType} board)
 All boards: ${boards.map(b => `${b.name} [${b.type}]`).join(", ") || "none"}
 
-════ CURRENT BOARD CONTENTS ════
-${boardText}
-════════════════════════════════
-The data above is the user's LIVE board. It is always accurate and up to date. Use it to answer any questions about their tasks or ideas.
+The user's live board contents are provided in a <board> block at the start of every message. Use that data to answer questions about their tasks and ideas.
 
 Settings: ${ideaColorStr} | ${taskColorStr} | theme:${settings?.boardTheme ?? "light"}
-${ideaColorNoteInfo ? `Idea colors: ${ideaColorNoteInfo}` : ""}
 
 Rules:
 ${crossBoardRule}
@@ -299,7 +265,7 @@ ${crossBoardRule}
 — NEVER overlap notes: space at least 252px horizontally, 162px vertically.
 — When centering, use board center (3400, 2100). Layout grid: 276px col stride, 186px row stride.
 — Reference notes by their title and ID.
-— Never claim the board is empty if items are listed above.`;
+— Never claim the board is empty if items are listed in the <board> block.`;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -396,7 +362,7 @@ export async function POST(req: NextRequest) {
 
   const model = genAI.getGenerativeModel({
     model: "gemini-3-flash-preview",
-    systemInstruction: buildSystem(notes, mode, userInfo, settings, rawActiveBoardId),
+    systemInstruction: buildSystem(mode, userInfo, settings),
     // Gemini does not support mixing googleSearch + functionDeclarations.
     // Advisor mode: grounding only (no function calls). Action modes: function calls only.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
