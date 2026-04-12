@@ -869,22 +869,31 @@ export function HomeShell() {
   }
 
   // Find a board position that doesn't overlap existing notes for the active board.
-  function findFreeSpot(existing: Note[], preferredX: number, preferredY: number): { x: number; y: number } {
+  function findFreeSpot(
+    existing: Note[], preferredX: number, preferredY: number,
+    minX = 40, maxX = BOARD_W - NOTE_W - 40,
+    minY = 60, maxY = BOARD_H - NOTE_H - 40,
+  ): { x: number; y: number } {
     const W = NOTE_W + 24;
     const H = NOTE_H + 24;
+    // Ensure bounds are valid (can collapse if visible area is tiny).
+    const bMinX = Math.min(minX, maxX);
+    const bMaxX = Math.max(minX, maxX);
+    const bMinY = Math.min(minY, maxY);
+    const bMaxY = Math.max(minY, maxY);
     function overlaps(x: number, y: number) {
       return existing.some(n => Math.abs(n.x - x) < W && Math.abs(n.y - y) < H);
     }
-    const px = Math.max(40, Math.min(BOARD_W - NOTE_W - 40, preferredX));
-    const py = Math.max(60, Math.min(BOARD_H - NOTE_H - 40, preferredY));
+    const px = Math.max(bMinX, Math.min(bMaxX, preferredX));
+    const py = Math.max(bMinY, Math.min(bMaxY, preferredY));
     if (!overlaps(px, py)) return { x: px, y: py };
     for (let ring = 1; ring <= 30; ring++) {
       const step = Math.max(W, H);
       for (let dx = -ring; dx <= ring; dx++) {
         for (let dy = -ring; dy <= ring; dy++) {
           if (Math.abs(dx) !== ring && Math.abs(dy) !== ring) continue;
-          const cx = Math.max(40, Math.min(BOARD_W - NOTE_W - 40, px + dx * step));
-          const cy = Math.max(60, Math.min(BOARD_H - NOTE_H - 40, py + dy * step));
+          const cx = Math.max(bMinX, Math.min(bMaxX, px + dx * step));
+          const cy = Math.max(bMinY, Math.min(bMaxY, py + dy * step));
           if (!overlaps(cx, cy)) return { x: cx, y: cy };
         }
       }
@@ -1934,12 +1943,11 @@ export function HomeShell() {
 
     // Use functional setNotes so each BOB note sees the previously added notes
     // (prevents overlap when BOB creates multiple notes in one request).
+    // Pass visible bounds into findFreeSpot so the spiral is constrained to the
+    // visible area — no separate clamp needed, note always lands on screen.
     setNotes(prev => {
       const boardNotes = prev.filter(n => n.boardId === activeBoardId);
-      const { x: rx, y: ry } = findFreeSpot(boardNotes, vpCx, vpCy);
-      // Clamp to visible area so findFreeSpot's spiral never lands off-screen.
-      const x = Math.max(visMinX, Math.min(visMaxX, rx));
-      const y = Math.max(visMinY, Math.min(visMaxY, ry));
+      const { x, y } = findFreeSpot(boardNotes, vpCx, vpCy, visMinX, visMaxX, visMinY, visMaxY);
       const newNote: Note = {
         id,
         boardId: activeBoardId,

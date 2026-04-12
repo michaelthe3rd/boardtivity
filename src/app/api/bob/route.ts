@@ -198,6 +198,7 @@ function buildBoardContext(notes: NoteSnap[], activeBoardId?: string, settings?:
     if (n.importance && n.importance !== "none") s += ` | ${n.importance}`;
     if (n.dueDate) s += ` | due:${n.dueDate}`;
     if (n.steps?.length) s += ` | steps:${n.steps.filter(s => !s.done).length}/${n.steps.length}`;
+    s += ` | pos:(${Math.round(n.x)},${Math.round(n.y)})`;
     return s;
   }
 
@@ -263,7 +264,7 @@ Today: ${today}
 Active board: "${settings?.activeBoardName ?? "Current Board"}" (${activeBoardType} board)
 All boards: ${boards.map(b => `${b.name} [${b.type === "thought" ? "idea" : b.type}]`).join(", ") || "none"}
 
-The user's live board contents are provided in a <board> block at the start of every message. Use that data to answer questions about their tasks and ideas.
+The user's live board contents are provided in a <board> block at the start of every message. Each note shows its current position as pos:(x,y). Use that data to answer questions and to calculate new positions when organizing.
 
 Settings: ${ideaColorStr} | ${taskColorStr} | theme:${settings?.boardTheme ?? "light"}
 
@@ -273,8 +274,9 @@ ${crossBoardRule}
 — After acting, say what you did in 1–2 sentences.
 — NEVER overlap notes: space at least 252px horizontally, 162px vertically.
 — When centering, use board center (3400, 2100). Layout grid: 276px col stride, 186px row stride.
+— When the user asks to line up, sort, arrange, or organize notes: call organize_board using ALL the IDs listed in the <board> block for the relevant type. Never say there are no notes if any are listed.
 — Reference notes by their title and ID.
-— Never claim the board is empty if items are listed in the <board> block.`;
+— CRITICAL: The <board> block is the ground truth. Never contradict it, even if prior conversation history said otherwise. If the board shows tasks, there ARE tasks.`;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
