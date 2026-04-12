@@ -644,11 +644,20 @@ export default function BobAgent({
                   value={inputText}
                   onChange={e => setInputText(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+                  onFocus={() => {
+                    if (!mobile) return;
+                    const vp = document.querySelector("meta[name=viewport]");
+                    if (vp) vp.setAttribute("content", "width=device-width, initial-scale=1, maximum-scale=1");
+                  }}
+                  onBlur={() => {
+                    if (!mobile) return;
+                    const vp = document.querySelector("meta[name=viewport]");
+                    if (vp) vp.setAttribute("content", "width=device-width, initial-scale=1");
+                  }}
                   placeholder={listening ? "Listening… (pause to send)" : mode === "autopilot" ? "Tell BOB what to do…" : "Ask or tell BOB…"}
                   style={{
                     flex: 1, border: "none", outline: "none", background: "transparent",
-                    fontSize: 16, zoom: mobile ? (13 / 16) : 1,
-                    color: T.text(t), fontFamily: "'Satoshi', Arial, sans-serif",
+                    fontSize: 13, color: T.text(t), fontFamily: "'Satoshi', Arial, sans-serif",
                     caretColor: T.text(t),
                   }}
                 />
