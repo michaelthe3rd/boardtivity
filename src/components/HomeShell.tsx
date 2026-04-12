@@ -1347,6 +1347,17 @@ export function HomeShell() {
   useEffect(() => { focusStepIdRef.current = focusStepId; }, [focusStepId]);
   useEffect(() => { notesRef.current = notes; }, [notes]);
 
+  // Warn on refresh/close while in focus mode
+  useEffect(() => {
+    if (!focusOpen) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "You're in a focus session — refreshing will reset your timer.";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [focusOpen]);
+
   useEffect(() => {
     const handler = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener("fullscreenchange", handler);
@@ -3000,9 +3011,6 @@ export function HomeShell() {
                             </span>
                           )}
                         </div>
-                        <div style={{ height: 6, borderRadius: 999, backgroundColor: trackColor, overflow: "hidden" }}>
-                          <div style={{ height: "100%", width: `${currentStepFill}%`, borderRadius: 999, backgroundColor: barColor, transition: "width 1s linear" }} />
-                        </div>
                       </div>
                     </div>
                   );
@@ -3534,7 +3542,10 @@ export function HomeShell() {
               {isSignedIn && (
                 <button onClick={() => setProfileOpen(true)} style={circleButton(boardTheme)} aria-label="Focus stats" title="Focus stats">
                   {(focusStatsData?.currentStreak ?? 0) > 0
-                    ? <svg width="13" height="15" viewBox="0 0 13 15" fill="none"><path d="M6.5 14C3.46 14 1 11.7 1 8.87c0-1.7.76-3.1 1.73-4.13.2-.21.54-.07.54.22v.28c0 .55.62.88 1.07.57C5.47 4.97 6 3.67 6 2.25c0-.56.03-1.1.1-1.6.07-.47.65-.63.97-.27C8.77 2.3 10 4.6 10 6.5c0 .34.37.54.65.36.38-.24.65-.65.65-1.11 0-.18.21-.28.35-.16C12.5 6.6 13 7.68 13 8.87 13 11.7 10.54 14 7.5 14H6.5Z" fill="currentColor" opacity=".9"/><path d="M6.5 11.5c-.97 0-1.75-.72-1.75-1.6 0-.53.25-1 .57-1.35.07-.07.18-.02.18.07v.09c0 .18.2.29.35.19.47-.32.65-.82.65-1.35 0 .69.58 1.26 1.3 1.26.1 0 .2-.07.2-.17 0-.06.07-.09.12-.05.38.36.63.87.63 1.31 0 .88-.78 1.6-1.75 1.6H6.5Z" fill="currentColor" opacity=".4"/></svg>
+                    ? <svg width="11" height="15" viewBox="0 0 11 15" fill="none" style={{ display: "block" }}>
+                        <style>{`@keyframes boltPulse{0%,100%{opacity:.55}50%{opacity:1}}`}</style>
+                        <path d="M7 1L1 8.5h4L3.5 14 10 6H6L7 1Z" fill="currentColor" style={{ animation: "boltPulse 1.8s ease-in-out infinite" }}/>
+                      </svg>
                     : <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.4"/><path d="M7 4v3l2 1.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
                   }
                 </button>
@@ -4642,6 +4653,13 @@ export function HomeShell() {
                           if (total > 0 && doneCount > 0) return <span style={pill(boardTheme)}>{doneCount}/{total} done</span>;
                           return <span style={pill(boardTheme)}>Not started</span>;
                         })()}
+                        {(detailNote.totalTimeSpent ?? 0) > 0 && (
+                          <span style={pill(boardTheme)}>
+                            {(detailNote.totalTimeSpent ?? 0) >= 60
+                              ? `${Math.floor((detailNote.totalTimeSpent ?? 0) / 60)}h ${(detailNote.totalTimeSpent ?? 0) % 60 > 0 ? `${(detailNote.totalTimeSpent ?? 0) % 60}m` : ""} focused`
+                              : `${detailNote.totalTimeSpent}m focused`}
+                          </span>
+                        )}
                       </div>
                     </>
                   )}
@@ -5101,9 +5119,6 @@ export function HomeShell() {
                     </span>
                   )}
                 </div>
-                <div style={{ height: 6, borderRadius: 999, backgroundColor: trackColor, overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${currentStepFill}%`, borderRadius: 999, backgroundColor: barColor, transition: "width 1s linear" }} />
-                </div>
               </div>
             </div>
           );
@@ -5239,28 +5254,30 @@ export function HomeShell() {
                 <div style={{ fontSize: 14, color: "rgba(247,248,251,.45)", marginBottom: 28, lineHeight: 1.65 }}>
                   {Math.max(1, Math.round((Date.now() - focusSessionStartRef.current) / 60000))} min focused — log it before you go.
                 </div>
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
-                  <button
-                    onClick={() => closeFocusWithReview(focusNoteId)}
-                    style={{ height: 40, padding: "0 20px", borderRadius: 999, border: "1px solid rgba(255,255,255,.14)", backgroundColor: "rgba(255,255,255,.08)", color: "rgba(247,248,251,.75)", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
-                  >
-                    Save progress
-                  </button>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 320 }}>
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <button
+                      onClick={() => closeFocusWithReview(focusNoteId)}
+                      style={{ flex: 1, height: 44, borderRadius: 999, border: "1px solid rgba(255,255,255,.18)", backgroundColor: "rgba(255,255,255,.10)", color: "rgba(247,248,251,.85)", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+                    >
+                      Save progress
+                    </button>
+                    <button
+                      onClick={() => setFocusExitConfirm(false)}
+                      style={{ flex: 1, height: 44, borderRadius: 999, border: "1px solid rgba(255,255,255,.18)", backgroundColor: "rgba(255,255,255,.10)", color: "rgba(247,248,251,.85)", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+                    >
+                      Keep going
+                    </button>
+                  </div>
                   <button
                     onClick={() => {
                       setFocusOpen(false); setFocusExitConfirm(false); setFocusPaused(false);
                       setBreakSecondsLeft(0); setFocusSecondsLeft(0);
                       setFocusNoteId(null); setFocusStepId(null); setFocusChainMode(false);
                     }}
-                    style={{ height: 40, padding: "0 20px", borderRadius: 999, border: "1px solid rgba(220,60,60,.3)", backgroundColor: "rgba(220,60,60,.15)", color: "rgba(255,150,150,.85)", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+                    style={{ width: "100%", height: 44, borderRadius: 999, border: "1px solid rgba(220,60,60,.3)", backgroundColor: "rgba(220,60,60,.15)", color: "rgba(255,150,150,.85)", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
                   >
                     Exit without saving
-                  </button>
-                  <button
-                    onClick={() => setFocusExitConfirm(false)}
-                    style={{ height: 40, padding: "0 20px", borderRadius: 999, border: "none", backgroundColor: "transparent", color: "rgba(247,248,251,.4)", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
-                  >
-                    Keep going
                   </button>
                 </div>
               </div>
@@ -5879,6 +5896,13 @@ export function HomeShell() {
             <div style={card} onClick={e => e.stopPropagation()}>
               <div style={{ fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase", color: "rgba(247,248,251,.4)", fontWeight: 600, marginBottom: 14 }}>Focus Session</div>
               <div style={{ fontSize: 20, fontWeight: 700, color: "#f7f8fb", letterSpacing: "-.02em", lineHeight: 1.2, marginBottom: 6 }}>{pickerNote.title}</div>
+              {(pickerNote.totalTimeSpent ?? 0) > 0 && (
+                <div style={{ fontSize: 12, color: "rgba(247,248,251,.4)", marginBottom: 8 }}>
+                  {(pickerNote.totalTimeSpent ?? 0) >= 60
+                    ? `${Math.floor((pickerNote.totalTimeSpent ?? 0) / 60)}h ${(pickerNote.totalTimeSpent ?? 0) % 60}m already logged`
+                    : `${pickerNote.totalTimeSpent}m already logged`}
+                </div>
+              )}
               <div style={{ fontSize: 13, color: "rgba(247,248,251,.35)", marginBottom: 28 }}>How long are you committing to this?</div>
               {/* Preset row */}
               <div style={{ display: "flex", gap: 8, width: "100%", marginBottom: 12 }}>
