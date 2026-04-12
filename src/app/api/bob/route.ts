@@ -175,11 +175,20 @@ const FUNCTION_DECLARATIONS = [
 // ── Compact board context injected into every user message ───────────────────
 // Gemini's systemInstruction is not always reliably read in chat mode.
 // Embedding the board state directly in the user turn guarantees the model sees it.
-function buildBoardContext(notes: NoteSnap[], activeBoardId?: string): string {
-  const boardNotes = activeBoardId ? notes.filter(n => !n.boardId || n.boardId === activeBoardId) : notes;
+function buildBoardContext(notes: NoteSnap[], activeBoardId?: string, settings?: Settings): string {
+  // Strict filter: match boardId exactly, or include legacy notes (no boardId) only on the
+  // default task board ("my-board") since that's where they were created before boardId existed.
+  const boardNotes = activeBoardId
+    ? notes.filter(n => n.boardId === activeBoardId || (!n.boardId && activeBoardId === "my-board"))
+    : notes;
   const active    = boardNotes.filter(n => !n.completed);
-  const completed = notes.filter(n => n.completed);
-  if (active.length === 0 && completed.length === 0) return "<board>empty</board>";
+  const completed = boardNotes.filter(n => n.completed);
+
+  const boardType = settings?.activeBoardType ?? "task";
+  const boardName = settings?.activeBoardName ?? "Current Board";
+  const header = `<board name="${boardName}" type="${boardType}">`;
+
+  if (active.length === 0 && completed.length === 0) return `${header}\nempty\n</board>`;
 
   const tasks = active.filter(n => n.type === "task");
   const ideas = active.filter(n => n.type === "thought");
@@ -192,7 +201,7 @@ function buildBoardContext(notes: NoteSnap[], activeBoardId?: string): string {
     return s;
   }
 
-  const lines: string[] = ["<board>"];
+  const lines: string[] = [header];
   if (tasks.length) {
     lines.push(`TASKS (${tasks.length}):`);
     tasks.forEach(n => lines.push(noteLine(n)));
@@ -386,7 +395,7 @@ export async function POST(req: NextRequest) {
     const chat = model.startChat({ history: geminiHistory });
     // Inject board context directly into the user message — systemInstruction alone
     // is not reliably surfaced on every chat turn in the Gemini API.
-    const boardContext = buildBoardContext(notes, rawActiveBoardId);
+    const boardContext = buildBoardContext(notes, rawActiveBoardId, settings);
     const fullMessage = `${boardContext}\n\nUser: ${message}`;
     const result = await chat.sendMessageStream(fullMessage);
 
