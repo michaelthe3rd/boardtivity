@@ -3534,7 +3534,7 @@ export function HomeShell() {
               {isSignedIn && (
                 <button onClick={() => setProfileOpen(true)} style={circleButton(boardTheme)} aria-label="Focus stats" title="Focus stats">
                   {(focusStatsData?.currentStreak ?? 0) > 0
-                    ? <span style={{ fontSize: 12, lineHeight: 1 }}>🔥</span>
+                    ? <svg width="13" height="15" viewBox="0 0 13 15" fill="none"><path d="M6.5 14C3.46 14 1 11.7 1 8.87c0-1.7.76-3.1 1.73-4.13.2-.21.54-.07.54.22v.28c0 .55.62.88 1.07.57C5.47 4.97 6 3.67 6 2.25c0-.56.03-1.1.1-1.6.07-.47.65-.63.97-.27C8.77 2.3 10 4.6 10 6.5c0 .34.37.54.65.36.38-.24.65-.65.65-1.11 0-.18.21-.28.35-.16C12.5 6.6 13 7.68 13 8.87 13 11.7 10.54 14 7.5 14H6.5Z" fill="currentColor" opacity=".9"/><path d="M6.5 11.5c-.97 0-1.75-.72-1.75-1.6 0-.53.25-1 .57-1.35.07-.07.18-.02.18.07v.09c0 .18.2.29.35.19.47-.32.65-.82.65-1.35 0 .69.58 1.26 1.3 1.26.1 0 .2-.07.2-.17 0-.06.07-.09.12-.05.38.36.63.87.63 1.31 0 .88-.78 1.6-1.75 1.6H6.5Z" fill="currentColor" opacity=".4"/></svg>
                     : <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.4"/><path d="M7 4v3l2 1.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
                   }
                 </button>
@@ -5950,7 +5950,10 @@ export function HomeShell() {
               {/* Stats row */}
               <div style={{ display: "flex", gap: 24, marginTop: 20, marginBottom: 32 }}>
                 <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: 22, fontWeight: 700, color: "#f7f8fb" }}>🔥 {streak > 0 ? streak : "–"}</div>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: "#f7f8fb", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                    <svg width="18" height="22" viewBox="0 0 13 15" fill="none"><path d="M6.5 14C3.46 14 1 11.7 1 8.87c0-1.7.76-3.1 1.73-4.13.2-.21.54-.07.54.22v.28c0 .55.62.88 1.07.57C5.47 4.97 6 3.67 6 2.25c0-.56.03-1.1.1-1.6.07-.47.65-.63.97-.27C8.77 2.3 10 4.6 10 6.5c0 .34.37.54.65.36.38-.24.65-.65.65-1.11 0-.18.21-.28.35-.16C12.5 6.6 13 7.68 13 8.87 13 11.7 10.54 14 7.5 14H6.5Z" fill="#f97316"/><path d="M6.5 11.5c-.97 0-1.75-.72-1.75-1.6 0-.53.25-1 .57-1.35.07-.07.18-.02.18.07v.09c0 .18.2.29.35.19.47-.32.65-.82.65-1.35 0 .69.58 1.26 1.3 1.26.1 0 .2-.07.2-.17 0-.06.07-.09.12-.05.38.36.63.87.63 1.31 0 .88-.78 1.6-1.75 1.6H6.5Z" fill="#fde68a"/></svg>
+                    {streak > 0 ? streak : "–"}
+                  </div>
                   <div style={{ fontSize: 11, color: "rgba(247,248,251,.35)", marginTop: 4 }}>day streak</div>
                 </div>
                 <div style={{ textAlign: "center" }}>
@@ -6007,12 +6010,14 @@ export function HomeShell() {
               {/* Streak + totals */}
               <div style={{ display: "flex", gap: 12 }}>
                 {[
-                  { label: "Streak", value: streak > 0 ? `🔥 ${streak}d` : "–", sub: "days in a row" },
+                  { label: "Streak", value: streak > 0 ? `${streak}d` : "–", sub: "days in a row", icon: streak > 0 ? <svg width="13" height="16" viewBox="0 0 13 15" fill="none"><path d="M6.5 14C3.46 14 1 11.7 1 8.87c0-1.7.76-3.1 1.73-4.13.2-.21.54-.07.54.22v.28c0 .55.62.88 1.07.57C5.47 4.97 6 3.67 6 2.25c0-.56.03-1.1.1-1.6.07-.47.65-.63.97-.27C8.77 2.3 10 4.6 10 6.5c0 .34.37.54.65.36.38-.24.65-.65.65-1.11 0-.18.21-.28.35-.16C12.5 6.6 13 7.68 13 8.87 13 11.7 10.54 14 7.5 14H6.5Z" fill="#f97316"/><path d="M6.5 11.5c-.97 0-1.75-.72-1.75-1.6 0-.53.25-1 .57-1.35.07-.07.18-.02.18.07v.09c0 .18.2.29.35.19.47-.32.65-.82.65-1.35 0 .69.58 1.26 1.3 1.26.1 0 .2-.07.2-.17 0-.06.07-.09.12-.05.38.36.63.87.63 1.31 0 .88-.78 1.6-1.75 1.6H6.5Z" fill="#fde68a"/></svg> : null },
                   { label: "Total focused", value: `${totalHours}h`, sub: "all time" },
                   { label: "Tasks done", value: String(totalTasks), sub: "all time" },
-                ].map(({ label: _l, value, sub }) => (
+                ].map(({ label: _l, value, sub, icon }) => (
                   <div key={sub} style={{ flex: 1, background: theme === "dark" ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", borderRadius: 12, padding: "12px 10px", textAlign: "center" }}>
-                    <div style={{ fontSize: 20, fontWeight: 700, color: pageText(theme) }}>{value}</div>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: pageText(theme), display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                      {icon ?? null}{value}
+                    </div>
                     <div style={{ fontSize: 10.5, color: muted(theme), marginTop: 3 }}>{sub}</div>
                   </div>
                 ))}
