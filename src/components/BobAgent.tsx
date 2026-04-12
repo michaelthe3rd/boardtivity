@@ -6,7 +6,7 @@ import { api } from "../../convex/_generated/api";
 import type { ThemeMode, Note, Importance } from "@/lib/board";
 
 // ── Types ────────────────────────────────────────────────────────────────────
-type Mode       = "advisor" | "assistant" | "autopilot";
+type Mode       = "assistant" | "autopilot";
 
 export type BobSweepResult = { id: number; x: number; y: number }[];
 export type BobNewNote = {
@@ -56,7 +56,7 @@ interface Props {
 
 const MODE_KEY = "bob_mode";
 function loadMode(): Mode {
-  try { const m = localStorage.getItem(MODE_KEY); if (m === "advisor" || m === "assistant" || m === "autopilot") return m; } catch {}
+  try { const m = localStorage.getItem(MODE_KEY); if (m === "assistant" || m === "autopilot") return m; } catch {}
   return "assistant";
 }
 function saveMode(m: Mode) {
@@ -76,7 +76,6 @@ const T = {
 };
 
 const MODE_LABELS: Record<Mode, string> = {
-  advisor:   "Advisor",
   assistant: "Assistant",
   autopilot: "Autopilot",
 };
@@ -643,7 +642,7 @@ export default function BobAgent({
                   value={inputText}
                   onChange={e => setInputText(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-                  placeholder={listening ? "Listening… (pause to send)" : mode === "autopilot" ? "Tell BOB what to do…" : mode === "advisor" ? "Ask BOB anything…" : "Ask or tell BOB…"}
+                  placeholder={listening ? "Listening… (pause to send)" : mode === "autopilot" ? "Tell BOB what to do…" : "Ask or tell BOB…"}
                   style={{
                     flex: 1, border: "none", outline: "none", background: "transparent",
                     fontSize: 13, color: T.text(t), fontFamily: "'Satoshi', Arial, sans-serif",
@@ -673,7 +672,7 @@ export default function BobAgent({
                 gap: 4, padding: "8px 10px",
                 borderTop: `1px solid ${T.border(t)}`,
               }}>
-                {(["advisor", "assistant", "autopilot"] as Mode[]).map(m => (
+                {(["assistant", "autopilot"] as Mode[]).map(m => (
                   <button
                     key={m}
                     onClick={() => changeMode(m)}
@@ -693,7 +692,7 @@ export default function BobAgent({
               {usage && (() => {
                 const cap = usage.baseLimit + usage.purchasedTokens;
                 const pct = Math.min(100, Math.round((usage.totalUsed / cap) * 100));
-                const modeCost = mode === "autopilot" ? "High" : mode === "assistant" ? "Med" : "Low";
+                const modeCost = mode === "autopilot" ? "High" : "Med";
                 const barColor = pct >= 100
                   ? "#e05555"
                   : pct >= 90

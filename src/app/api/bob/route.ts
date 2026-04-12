@@ -7,7 +7,7 @@ type NoteSnap = {
   completed: boolean; x: number; y: number; colorIdx?: number;
   steps?: { title: string; minutes: number; done: boolean }[];
 };
-type Mode = "advisor" | "assistant" | "autopilot";
+type Mode = "assistant" | "autopilot";
 type HistoryMsg = { role: "user" | "assistant"; content: string };
 type BoardInfo = { id: string; name: string; type: "task" | "thought" };
 type Settings = {
@@ -234,10 +234,8 @@ function buildSystem(mode: Mode, userInfo?: string, settings?: Settings): string
   const ideaBoards  = boards.filter(b => b.type === "thought");
 
   const modeText = {
-    advisor:
-      "ADVISOR MODE — analyze and suggest only. Do NOT call any action tools. If the user asks you to do something that requires a tool (create, edit, delete, organize, etc.), decline politely and say: \"Switch to Assistant or Autopilot mode to let me do that.\"",
     assistant:
-      "ASSISTANT MODE — execute actions when clearly asked. For large or destructive changes, briefly say what you're about to do before calling tools.",
+      "ASSISTANT MODE — you can search the web, answer questions, give advice, and execute actions when clearly asked. Use Google Search for real-world info: places, hours, events, recommendations, news, anything outside the board. For board actions (create, edit, delete, organize), briefly confirm what you're about to do before calling tools.",
     autopilot:
       "AUTOPILOT MODE — act immediately, optimize on your own judgment, chain multiple tools if needed. Don't ask — just do. Narrate what you did afterwards in 1-2 sentences.",
   }[mode];
@@ -270,7 +268,7 @@ Settings: ${ideaColorStr} | ${taskColorStr} | theme:${settings?.boardTheme ?? "l
 
 Rules:
 ${crossBoardRule}
-— ${mode === "advisor" ? "You have Google Search. Use it for real-world info: places, hours, events, recommendations, news." : "No web search in this mode. For web questions, suggest switching to Advisor mode."}
+— No live web search. For real-world info (places, hours, news), draw on your training knowledge and say so.
 — After acting, say what you did in 1–2 sentences.
 — NEVER overlap notes: space at least 252px horizontally, 162px vertically.
 — When centering, use board center (3400, 2100). Layout grid: 276px col stride, 186px row stride.
@@ -343,7 +341,7 @@ export async function POST(req: NextRequest) {
   const rawHistory     = Array.isArray(body.history) ? body.history.slice(0, 12)  : [];
 
   const message  = rawMessage.trim().slice(0, 4000);
-  const mode: Mode = rawMode === "advisor" || rawMode === "autopilot" ? rawMode : "assistant";
+  const mode: Mode = rawMode === "autopilot" ? rawMode : "assistant";
   const userInfo = rawUserInfo.slice(0, 1000);
   // Send all notes unfiltered — boardId filter was silently wiping notes on ID mismatch.
   const notes = rawNotes;
@@ -374,12 +372,7 @@ export async function POST(req: NextRequest) {
   const model = genAI.getGenerativeModel({
     model: "gemini-3-flash-preview",
     systemInstruction: buildSystem(mode, userInfo, settings),
-    // Gemini does not support mixing googleSearch + functionDeclarations.
-    // Advisor mode: grounding only (no function calls). Action modes: function calls only.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    tools: mode === "advisor"
-      ? [{ googleSearch: {} } as any]
-      : [{ functionDeclarations: FUNCTION_DECLARATIONS as unknown as FunctionDeclaration[] }],
+    tools: [{ functionDeclarations: FUNCTION_DECLARATIONS as unknown as FunctionDeclaration[] }],
   });
 
   // Gemini uses "model" instead of "assistant" for role
