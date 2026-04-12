@@ -184,7 +184,7 @@ function buildBoardContext(notes: NoteSnap[], activeBoardId?: string, settings?:
   const active    = boardNotes.filter(n => !n.completed);
   const completed = boardNotes.filter(n => n.completed);
 
-  const boardType = settings?.activeBoardType ?? "task";
+  const boardType = settings?.activeBoardType === "thought" ? "idea" : (settings?.activeBoardType ?? "task");
   const boardName = settings?.activeBoardName ?? "Current Board";
   const header = `<board name="${boardName}" type="${boardType}">`;
 
@@ -227,10 +227,10 @@ function buildBoardContext(notes: NoteSnap[], activeBoardId?: string, settings?:
 // via buildBoardContext(). Keeping them out of the system prompt halves input tokens.
 function buildSystem(mode: Mode, userInfo?: string, settings?: Settings): string {
   const today  = new Date().toISOString().split("T")[0];
-  const activeBoardType = settings?.activeBoardType ?? "task";
+  const activeBoardType = settings?.activeBoardType === "thought" ? "idea" : (settings?.activeBoardType ?? "task");
   const boards = settings?.boards ?? [];
-  const taskBoards    = boards.filter(b => b.type === "task");
-  const thoughtBoards = boards.filter(b => b.type === "thought");
+  const taskBoards  = boards.filter(b => b.type === "task");
+  const ideaBoards  = boards.filter(b => b.type === "thought");
 
   const modeText = {
     advisor:
@@ -252,16 +252,16 @@ function buildSystem(mode: Mode, userInfo?: string, settings?: Settings): string
     : `task color mode: priority — High:${taskColorNames[settings?.taskHighColorIdx ?? 0]}, Medium:${taskColorNames[settings?.taskMedColorIdx ?? 1]}, Low:${taskColorNames[settings?.taskLowColorIdx ?? 2]}`;
 
   const crossBoardRule = activeBoardType === "task"
-    ? `— This is a TASK board. If the user asks to create an idea, do NOT create it here. Instead say: "This is a task board — should I add that to your idea board${thoughtBoards.length === 1 ? ` (${thoughtBoards[0].name})` : thoughtBoards.length > 1 ? ` (${thoughtBoards.map(b => b.name).join(" or ")})` : ""}?" and wait for confirmation before acting.`
+    ? `— This is a TASK board. If the user asks to create an idea, do NOT create it here. Instead say: "This is a task board — should I add that to your idea board${ideaBoards.length === 1 ? ` (${ideaBoards[0].name})` : ideaBoards.length > 1 ? ` (${ideaBoards.map(b => b.name).join(" or ")})` : ""}?" and wait for confirmation before acting.`
     : `— This is an IDEA board. If the user asks to create a task, do NOT create it here. Instead say: "This is an idea board — should I add that to your task board${taskBoards.length === 1 ? ` (${taskBoards[0].name})` : taskBoards.length > 1 ? ` (${taskBoards.map(b => b.name).join(" or ")})` : ""}?" and wait for confirmation before acting.`;
 
-  return `You are BOB (Boardtivity Operating Brain) — a sharp AI assistant inside a visual task and idea board app. Be concise, confident, direct.
+  return `You are BOB (Boardtivity Operating Brain) — a sharp AI assistant inside a visual task and idea board app. Be concise, confident, direct. Do not use markdown formatting like **bold** or *italic* in your responses — plain text only.
 
 ${modeText}
 ${userSection}
 Today: ${today}
 Active board: "${settings?.activeBoardName ?? "Current Board"}" (${activeBoardType} board)
-All boards: ${boards.map(b => `${b.name} [${b.type}]`).join(", ") || "none"}
+All boards: ${boards.map(b => `${b.name} [${b.type === "thought" ? "idea" : b.type}]`).join(", ") || "none"}
 
 The user's live board contents are provided in a <board> block at the start of every message. Use that data to answer questions about their tasks and ideas.
 
