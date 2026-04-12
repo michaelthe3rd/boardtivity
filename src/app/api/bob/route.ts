@@ -252,7 +252,7 @@ function buildSystem(mode: Mode, userInfo?: string, settings?: Settings): string
     : `task color mode: priority — High:${taskColorNames[settings?.taskHighColorIdx ?? 0]}, Medium:${taskColorNames[settings?.taskMedColorIdx ?? 1]}, Low:${taskColorNames[settings?.taskLowColorIdx ?? 2]}`;
 
   const crossBoardRule = activeBoardType === "task"
-    ? `— This is a TASK board. If the user asks to create an idea/thought, do NOT create it here. Instead say: "This is a task board — should I add that to your idea board${thoughtBoards.length === 1 ? ` (${thoughtBoards[0].name})` : thoughtBoards.length > 1 ? ` (${thoughtBoards.map(b => b.name).join(" or ")})` : ""}?" and wait for confirmation before acting.`
+    ? `— This is a TASK board. If the user asks to create an idea, do NOT create it here. Instead say: "This is a task board — should I add that to your idea board${thoughtBoards.length === 1 ? ` (${thoughtBoards[0].name})` : thoughtBoards.length > 1 ? ` (${thoughtBoards.map(b => b.name).join(" or ")})` : ""}?" and wait for confirmation before acting.`
     : `— This is an IDEA board. If the user asks to create a task, do NOT create it here. Instead say: "This is an idea board — should I add that to your task board${taskBoards.length === 1 ? ` (${taskBoards[0].name})` : taskBoards.length > 1 ? ` (${taskBoards.map(b => b.name).join(" or ")})` : ""}?" and wait for confirmation before acting.`;
 
   return `You are BOB (Boardtivity Operating Brain) — a sharp AI assistant inside a visual task and idea board app. Be concise, confident, direct.
