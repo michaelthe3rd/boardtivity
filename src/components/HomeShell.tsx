@@ -4651,6 +4651,7 @@ export function HomeShell() {
                           const completed = detailNote.completed || (total > 0 && doneCount === total);
                           if (completed) return <span style={pill(boardTheme)}>Completed</span>;
                           if (total > 0 && doneCount > 0) return <span style={pill(boardTheme)}>{doneCount}/{total} done</span>;
+                          if ((detailNote.totalTimeSpent ?? 0) > 0) return null;
                           return <span style={pill(boardTheme)}>Not started</span>;
                         })()}
                         {(detailNote.totalTimeSpent ?? 0) > 0 && (
@@ -5107,19 +5108,6 @@ export function HomeShell() {
           const trackColor = `rgba(255,255,255,${trackAlpha})`;
           return (
             <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: hasChain ? 16 : 0 }}>
-              {/* Current subtask bar */}
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10, gap: 12 }}>
-                  <span style={{ fontSize: 15, fontWeight: 600, color: dimmed ? "rgba(247,248,251,.42)" : "rgba(247,248,251,.82)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {focusStep ? focusStep.title : (focusNote?.title ?? "")}
-                  </span>
-                  {hasChain && focusNote && focusStep && (
-                    <span style={{ fontSize: 15, color: dimmed ? "rgba(247,248,251,.25)" : "rgba(247,248,251,.42)", flexShrink: 0 }}>
-                      {focusNote.steps.findIndex(s => s.id === focusStepId) + 1} / {focusNote.steps.length}
-                    </span>
-                  )}
-                </div>
-              </div>
             </div>
           );
         };
@@ -5975,7 +5963,15 @@ export function HomeShell() {
               <div style={{ display: "flex", gap: 24, marginTop: 20, marginBottom: 32 }}>
                 <div style={{ textAlign: "center" }}>
                   <div style={{ fontSize: 22, fontWeight: 700, color: "#f7f8fb", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                    <svg width="18" height="22" viewBox="0 0 13 15" fill="none"><path d="M6.5 14C3.46 14 1 11.7 1 8.87c0-1.7.76-3.1 1.73-4.13.2-.21.54-.07.54.22v.28c0 .55.62.88 1.07.57C5.47 4.97 6 3.67 6 2.25c0-.56.03-1.1.1-1.6.07-.47.65-.63.97-.27C8.77 2.3 10 4.6 10 6.5c0 .34.37.54.65.36.38-.24.65-.65.65-1.11 0-.18.21-.28.35-.16C12.5 6.6 13 7.68 13 8.87 13 11.7 10.54 14 7.5 14H6.5Z" fill="#f97316"/><path d="M6.5 11.5c-.97 0-1.75-.72-1.75-1.6 0-.53.25-1 .57-1.35.07-.07.18-.02.18.07v.09c0 .18.2.29.35.19.47-.32.65-.82.65-1.35 0 .69.58 1.26 1.3 1.26.1 0 .2-.07.2-.17 0-.06.07-.09.12-.05.38.36.63.87.63 1.31 0 .88-.78 1.6-1.75 1.6H6.5Z" fill="#fde68a"/></svg>
+                    {streak > 0 && (() => {
+                      const dur = Math.max(0.6, 2.4 - streak * 0.08);
+                      return (
+                        <svg width="16" height="22" viewBox="0 0 11 15" fill="none">
+                          <style>{`@keyframes boltSpark{0%,100%{opacity:.7;filter:drop-shadow(0 0 2px #facc15)}40%{opacity:1;filter:drop-shadow(0 0 6px #fde68a) drop-shadow(0 0 12px #f59e0b)}}`}</style>
+                          <path d="M7 1L1 8.5h4L3.5 14 10 6H6L7 1Z" fill="#facc15" style={{ animation: `boltSpark ${dur}s ease-in-out infinite` }}/>
+                        </svg>
+                      );
+                    })()}
                     {streak > 0 ? streak : "–"}
                   </div>
                   <div style={{ fontSize: 11, color: "rgba(247,248,251,.35)", marginTop: 4 }}>day streak</div>
@@ -6034,7 +6030,7 @@ export function HomeShell() {
               {/* Streak + totals */}
               <div style={{ display: "flex", gap: 12 }}>
                 {[
-                  { label: "Streak", value: streak > 0 ? `${streak}d` : "–", sub: "days in a row", icon: streak > 0 ? <svg width="13" height="16" viewBox="0 0 13 15" fill="none"><path d="M6.5 14C3.46 14 1 11.7 1 8.87c0-1.7.76-3.1 1.73-4.13.2-.21.54-.07.54.22v.28c0 .55.62.88 1.07.57C5.47 4.97 6 3.67 6 2.25c0-.56.03-1.1.1-1.6.07-.47.65-.63.97-.27C8.77 2.3 10 4.6 10 6.5c0 .34.37.54.65.36.38-.24.65-.65.65-1.11 0-.18.21-.28.35-.16C12.5 6.6 13 7.68 13 8.87 13 11.7 10.54 14 7.5 14H6.5Z" fill="#f97316"/><path d="M6.5 11.5c-.97 0-1.75-.72-1.75-1.6 0-.53.25-1 .57-1.35.07-.07.18-.02.18.07v.09c0 .18.2.29.35.19.47-.32.65-.82.65-1.35 0 .69.58 1.26 1.3 1.26.1 0 .2-.07.2-.17 0-.06.07-.09.12-.05.38.36.63.87.63 1.31 0 .88-.78 1.6-1.75 1.6H6.5Z" fill="#fde68a"/></svg> : null },
+                  { label: "Streak", value: streak > 0 ? `${streak}d` : "–", sub: "days in a row", icon: streak > 0 ? (() => { const dur = Math.max(0.6, 2.4 - streak * 0.08); return <svg width="11" height="15" viewBox="0 0 11 15" fill="none"><path d="M7 1L1 8.5h4L3.5 14 10 6H6L7 1Z" fill="#facc15" style={{ animation: `boltSpark ${dur}s ease-in-out infinite` }}/></svg>; })() : null },
                   { label: "Total focused", value: `${totalHours}h`, sub: "all time" },
                   { label: "Tasks done", value: String(totalTasks), sub: "all time" },
                 ].map(({ label: _l, value, sub, icon }) => (
