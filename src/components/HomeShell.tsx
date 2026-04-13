@@ -2066,19 +2066,48 @@ export function HomeShell() {
     const { elapsedMin, noteId } = focusReview;
     const _d = new Date();
     const today = `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,"0")}-${String(_d.getDate()).padStart(2,"0")}`;
-    // Update note stats locally
-    setNotes(prev => prev.map(n => n.id === noteId ? {
+    // Compute updated notes immediately so we can push to cloud right away
+    // (don't rely on the 300ms debounce — avoids losing time if a Convex sync
+    // races in before the debounce fires)
+    const updatedNotes = notes.map(n => n.id === noteId ? {
       ...n,
       totalTimeSpent: (n.totalTimeSpent ?? 0) + elapsedMin,
       lastTackledAt: Date.now(),
       completed: markFinished ? true : n.completed,
-    } : n));
-    // Log to Convex (skip if less than 1 minute)
+    } : n);
+    setNotes(updatedNotes);
+    if (isSignedIn) {
+      const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx });
+      latestBoardStateRef.current = freshState;
+      pushToCloud();
+    }
+    // Log focus session to Convex (skip if less than 1 minute)
     if (isSignedIn && elapsedMin > 0) {
       await logFocusSession({ date: today, minutes: elapsedMin, taskCompleted: markFinished });
     }
     setFocusReview(null);
     setFocusNoteId(null);
+  }
+
+  async function logMobileFocusTime(noteId: number, markFinished: boolean) {
+    const elapsedMin = Math.floor((Date.now() - focusSessionStartRef.current) / 60000);
+    const _d = new Date();
+    const today = `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,"0")}-${String(_d.getDate()).padStart(2,"0")}`;
+    const updatedNotes = notes.map(n => n.id === noteId ? {
+      ...n,
+      totalTimeSpent: (n.totalTimeSpent ?? 0) + elapsedMin,
+      lastTackledAt: Date.now(),
+      completed: markFinished ? true : n.completed,
+    } : n);
+    setNotes(updatedNotes);
+    if (isSignedIn) {
+      const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx });
+      latestBoardStateRef.current = freshState;
+      pushToCloud();
+      if (elapsedMin > 0) {
+        await logFocusSession({ date: today, minutes: elapsedMin, taskCompleted: markFinished });
+      }
+    }
   }
 
   return (
@@ -3123,10 +3152,10 @@ export function HomeShell() {
                           {focusNextStep ? (
                             <>
                               <button type="button" onClick={advanceToNext} style={btnGreen}>Start next</button>
-                              <button type="button" onClick={() => { setFocusOpen(false); setFocusCompleted(false); setFocusNoteId(null); setFocusNextStep(null); setFocusStepId(null); setFocusChainMode(false); }} style={btn}>Done</button>
+                              <button type="button" onClick={() => { if (fn.id) logMobileFocusTime(fn.id, false); setFocusOpen(false); setFocusCompleted(false); setFocusNoteId(null); setFocusNextStep(null); setFocusStepId(null); setFocusChainMode(false); }} style={btn}>Done</button>
                             </>
                           ) : (
-                            <button type="button" onClick={() => { setFocusOpen(false); setFocusCompleted(false); setFocusNoteId(null); setFocusNextStep(null); setFocusStepId(null); setFocusChainMode(false); }} style={btnGreen}>Done</button>
+                            <button type="button" onClick={() => { if (fn.id) logMobileFocusTime(fn.id, true); setFocusOpen(false); setFocusCompleted(false); setFocusNoteId(null); setFocusNextStep(null); setFocusStepId(null); setFocusChainMode(false); }} style={btnGreen}>Done</button>
                           )}
                         </div>
                       </div>
