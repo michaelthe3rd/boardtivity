@@ -22,12 +22,12 @@ const NOTE_PALETTE = [
   { light: "#fde8e8", dark: "#3a0e0e", halo: "rgba(220,50,50,.22)",   swatch: "#dc3535" },  // red
 ];
 
-// Task color palette: first 3 are priority defaults (red/orange/yellow), then NOTE_PALETTE
+// Task color palette: first 3 are priority defaults (red/orange/yellow), then idea colors minus orange/yellow/red
 const TASK_PALETTE = [
   { light: "#fde8e8", dark: "#3d1515", halo: "rgba(215,60,60,.22)",   swatch: "#c03030" },  // red   (High default)
   { light: "#fdeede", dark: "#3a2210", halo: "rgba(220,130,40,.22)",  swatch: "#d07030" },  // orange (Med default)
   { light: "#fdfae0", dark: "#352c12", halo: "rgba(210,190,40,.22)",  swatch: "#c8960a" },  // yellow (Low default)
-  ...NOTE_PALETTE,
+  ...NOTE_PALETTE.slice(0, 7), // pink → lime only (no orange/yellow/red overlap)
 ];
 
 function hexToRgba(hex: string, alpha: number): string {
@@ -2878,12 +2878,12 @@ export function HomeShell() {
                     {mobileAddMode === "thought" && (
                       <>
                         {/* Color picker */}
-                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                           <span style={{ fontSize: 12, fontWeight: 700, color: muted(theme), letterSpacing: ".04em" }}>Color</span>
-                          <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
-                            <button onClick={() => setMobileAddColorIdx(undefined)} style={{ width: 26, height: 26, borderRadius: "50%", padding: 0, cursor: "pointer", backgroundColor: theme === "dark" ? "#555" : "#ccc", border: mobileAddColorIdx === undefined ? `2.5px solid ${pageText(theme)}` : "2.5px solid transparent", outline: mobileAddColorIdx === undefined ? `2px solid ${theme === "dark" ? "rgba(255,255,255,.35)" : "rgba(0,0,0,.25)"}` : "none", outlineOffset: 2 }} title="Grey" />
+                          <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2 }}>
+                            <button onClick={() => setMobileAddColorIdx(undefined)} style={{ flexShrink: 0, width: 24, height: 24, borderRadius: "50%", padding: 0, cursor: "pointer", backgroundColor: theme === "dark" ? "#555" : "#ccc", border: mobileAddColorIdx === undefined ? `2.5px solid ${pageText(theme)}` : "2.5px solid transparent", outline: mobileAddColorIdx === undefined ? `2px solid ${theme === "dark" ? "rgba(255,255,255,.35)" : "rgba(0,0,0,.25)"}` : "none", outlineOffset: 2 }} title="Grey" />
                             {NOTE_PALETTE.map((p, i) => (
-                              <button key={i} onClick={() => setMobileAddColorIdx(i)} style={{ width: 26, height: 26, borderRadius: "50%", padding: 0, cursor: "pointer", backgroundColor: p.swatch, border: mobileAddColorIdx === i ? `2.5px solid ${pageText(theme)}` : "2.5px solid transparent", outline: mobileAddColorIdx === i ? `2px solid ${p.swatch}` : "none", outlineOffset: 2 }} />
+                              <button key={i} onClick={() => setMobileAddColorIdx(i)} style={{ flexShrink: 0, width: 24, height: 24, borderRadius: "50%", padding: 0, cursor: "pointer", backgroundColor: p.swatch, border: mobileAddColorIdx === i ? `2.5px solid ${pageText(theme)}` : "2.5px solid transparent", outline: mobileAddColorIdx === i ? `2px solid ${p.swatch}` : "none", outlineOffset: 2 }} />
                             ))}
                           </div>
                         </div>
