@@ -6,10 +6,17 @@ type NoteSnap = {
   importance?: string; dueDate?: string; minutes?: number;
   completed: boolean; x: number; y: number; colorIdx?: number;
   steps?: { title: string; minutes: number; done: boolean }[];
+  totalTimeSpent?: number; attemptCount?: number;
 };
 type Mode = "assistant" | "autopilot";
 type HistoryMsg = { role: "user" | "assistant"; content: string };
 type BoardInfo = { id: string; name: string; type: "task" | "thought" };
+type FocusStats = {
+  currentStreak: number;
+  totalMinutes: number;
+  totalTasksCompleted: number;
+  days: { date: string; totalMinutes: number; tasksCompleted: number }[];
+};
 type Settings = {
   taskColorMode?: "priority" | "single";
   taskHighColorIdx?: number; taskMedColorIdx?: number; taskLowColorIdx?: number;
@@ -172,10 +179,26 @@ const FUNCTION_DECLARATIONS = [
   },
 ];
 
+// ── Focus stats context ───────────────────────────────────────────────────────
+function buildFocusContext(focusStats?: FocusStats): string {
+  if (!focusStats) return "";
+  const { currentStreak, totalMinutes, totalTasksCompleted, days } = focusStats;
+  const totalH = totalMinutes < 60 ? `${totalMinutes}m` : `${Math.round(totalMinutes / 60 * 10) / 10}h`;
+  const weekMin = days.reduce((s, d) => s + d.totalMinutes, 0);
+  const activeDays = days.filter(d => d.totalMinutes > 0).length;
+  const recentDays = days.slice(-7).map(d => `${d.date}:${d.totalMinutes}m`).join(", ");
+  return `\n<focus_stats>
+streak: ${currentStreak} day${currentStreak !== 1 ? "s" : ""} in a row
+total focused: ${totalH} all time | ${weekMin}m this week (${activeDays} active days)
+tasks completed: ${totalTasksCompleted} all time
+last 7 days: ${recentDays}
+</focus_stats>`;
+}
+
 // ── Compact board context injected into every user message ───────────────────
 // Gemini's systemInstruction is not always reliably read in chat mode.
 // Embedding the board state directly in the user turn guarantees the model sees it.
-function buildBoardContext(notes: NoteSnap[], activeBoardId?: string, settings?: Settings): string {
+function buildBoardContext(notes: NoteSnap[], activeBoardId?: string, settings?: Settings, focusStats?: FocusStats): string {
   // Strict filter: match boardId exactly, or include legacy notes (no boardId) only on the
   // default task board ("my-board") since that's where they were created before boardId existed.
   const boardNotes = activeBoardId
@@ -198,6 +221,8 @@ function buildBoardContext(notes: NoteSnap[], activeBoardId?: string, settings?:
     if (n.importance && n.importance !== "none") s += ` | ${n.importance}`;
     if (n.dueDate) s += ` | due:${n.dueDate}`;
     if (n.steps?.length) s += ` | steps:${n.steps.filter(s => !s.done).length}/${n.steps.length}`;
+    if ((n.totalTimeSpent ?? 0) > 0) s += ` | focused:${n.totalTimeSpent}m`;
+    if ((n.attemptCount ?? 0) > 0) s += ` | sessions:${n.attemptCount}`;
     s += ` | pos:(${Math.round(n.x)},${Math.round(n.y)})`;
     return s;
   }
@@ -220,6 +245,7 @@ function buildBoardContext(notes: NoteSnap[], activeBoardId?: string, settings?:
     completed.slice(0, 5).forEach(n => lines.push(`  ID:${n.id} | "${n.title}"`));
   }
   lines.push("</board>");
+  if (focusStats) lines.push(buildFocusContext(focusStats));
   return lines.join("\n");
 }
 
@@ -274,7 +300,9 @@ ${crossBoardRule}
 — When centering, use board center (3400, 2100). Layout grid: 276px col stride, 186px row stride.
 — When the user asks to line up, sort, arrange, or organize notes: call organize_board using ALL the IDs listed in the <board> block for the relevant type. Never say there are no notes if any are listed.
 — Reference notes by their title and ID.
-— CRITICAL: The <board> block is the ground truth. Never contradict it, even if prior conversation history said otherwise. If the board shows tasks, there ARE tasks.`;
+— CRITICAL: The <board> block is the ground truth. Never contradict it, even if prior conversation history said otherwise. If the board shows tasks, there ARE tasks.
+— Focus mode: users can start a timed focus session on any task. Each task tracks totalTimeSpent (minutes focused all-time) and attemptCount (sessions started). These appear in the board context as "focused:Xm" and "sessions:N". Use this to give personalized advice — e.g. notice if a task has many sessions but low completion, or suggest what to focus on next based on urgency and prior effort.
+— Focus stats: the <focus_stats> block shows the user's streak, weekly focus time, and daily breakdown. Reference this when coaching or summarizing productivity. A streak of 0 means they haven't focused today.`;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -328,7 +356,7 @@ export async function POST(req: NextRequest) {
     return new Response("Rate limit exceeded — try again in a minute", { status: 429 });
   }
 
-  let body: { message?: string; notes?: NoteSnap[]; activeBoardId?: string; mode?: Mode; history?: HistoryMsg[]; userInfo?: string; settings?: Settings };
+  let body: { message?: string; notes?: NoteSnap[]; activeBoardId?: string; mode?: Mode; history?: HistoryMsg[]; userInfo?: string; settings?: Settings; focusStats?: FocusStats };
   try { body = await req.json(); }
   catch { return new Response("Invalid JSON", { status: 400 }); }
 
@@ -343,12 +371,12 @@ export async function POST(req: NextRequest) {
   const message  = rawMessage.trim().slice(0, 4000);
   const mode: Mode = rawMode === "autopilot" ? rawMode : "assistant";
   const userInfo = rawUserInfo.slice(0, 1000);
-  // Send all notes unfiltered — boardId filter was silently wiping notes on ID mismatch.
   const notes = rawNotes;
   const history  = rawHistory.filter(
     h => h && (h.role === "user" || h.role === "assistant") && typeof h.content === "string"
   ).map(h => ({ role: h.role as "user" | "assistant", content: h.content.slice(0, 2000) }));
   const settings = body.settings;
+  const focusStats = body.focusStats;
 
   if (!message) return new Response("No message", { status: 400 });
 
@@ -390,7 +418,7 @@ export async function POST(req: NextRequest) {
     const chat = model.startChat({ history: geminiHistory });
     // Inject board context directly into the user message — systemInstruction alone
     // is not reliably surfaced on every chat turn in the Gemini API.
-    const boardContext = buildBoardContext(notes, rawActiveBoardId, settings);
+    const boardContext = buildBoardContext(notes, rawActiveBoardId, settings, focusStats);
     const fullMessage = `${boardContext}\n\nUser: ${message}`;
     const result = await chat.sendMessageStream(fullMessage);
 

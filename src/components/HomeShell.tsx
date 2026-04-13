@@ -2427,6 +2427,7 @@ export function HomeShell() {
                   userInfo={bobUserInfo}
                   autoSend={bobAutoSend}
                   settings={{ taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, thoughtColorMode, thoughtFixedColorIdx, boardTheme: theme, boardGrid, activeBoardType: activeBoard?.type as "task" | "thought" | undefined, activeBoardName: activeBoard?.name, boards: boards.map(b => ({ id: b.id, name: b.name, type: b.type as "task" | "thought" })) }}
+                  focusStats={focusStatsData ?? undefined}
                   mobile
                 />
               </div>
@@ -3520,6 +3521,7 @@ export function HomeShell() {
                 userInfo={bobUserInfo}
                 autoSend={bobAutoSend}
                 settings={{ taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, thoughtColorMode, thoughtFixedColorIdx, boardTheme, boardGrid, activeBoardType: activeBoard?.type as "task" | "thought" | undefined, activeBoardName: activeBoard?.name, boards: boards.map(b => ({ id: b.id, name: b.name, type: b.type as "task" | "thought" })) }}
+                focusStats={focusStatsData ?? undefined}
               />
             </div>
             <div style={{
@@ -6012,7 +6014,8 @@ export function HomeShell() {
       {profileOpen && (() => {
         const stats = focusStatsData;
         const streak = stats?.currentStreak ?? 0;
-        const totalHours = Math.round((stats?.totalMinutes ?? 0) / 60 * 10) / 10;
+        const totalMins = stats?.totalMinutes ?? 0;
+        const totalHoursDisplay = totalMins < 60 ? `${totalMins}m` : `${Math.round(totalMins / 60 * 10) / 10}h`;
         const totalTasks = stats?.totalTasksCompleted ?? 0;
         const days = stats?.days ?? [];
         const maxMin = Math.max(...days.map(d => d.totalMinutes), 1);
@@ -6032,7 +6035,7 @@ export function HomeShell() {
               <div style={{ display: "flex", gap: 12 }}>
                 {[
                   { label: "Streak", value: streak > 0 ? `${streak}d` : "–", sub: "days in a row", icon: streak > 0 ? (() => { const dur = Math.max(0.6, 2.4 - streak * 0.08); return <svg width="11" height="15" viewBox="0 0 11 15" fill="none" overflow="visible" style={{ animation: `boltSpark ${dur}s ease-in-out infinite` }}><path d="M7 1L1 8.5h4L3.5 14 10 6H6L7 1Z" fill="#facc15"/></svg>; })() : null },
-                  { label: "Total focused", value: `${totalHours}h`, sub: "all time" },
+                  { label: "Total focused", value: totalHoursDisplay, sub: "all time" },
                   { label: "Tasks done", value: String(totalTasks), sub: "all time" },
                 ].map(({ label: _l, value, sub, icon }) => (
                   <div key={sub} style={{ flex: 1, background: theme === "dark" ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", borderRadius: 12, padding: "12px 10px", textAlign: "center" }}>

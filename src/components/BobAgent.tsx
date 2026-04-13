@@ -52,6 +52,7 @@ interface Props {
   autoSend?: boolean;
   settings?: BobSettings;
   mobile?: boolean;
+  focusStats?: { currentStreak: number; totalMinutes: number; totalTasksCompleted: number; days: { date: string; totalMinutes: number; tasksCompleted: number }[] };
 }
 
 const MODE_KEY = "bob_mode";
@@ -148,7 +149,7 @@ export default function BobAgent({
   onHighlightNotes, onLaunchFocus, onSaveUndo, onUndo, isAdmin = true,
   userInfo = "", autoSend = false,
   onSetIdeaColor, onConfigureTaskColors, onConfigureBoard, settings,
-  mobile = false,
+  mobile = false, focusStats,
 }: Props) {
   const [open,    setOpen]    = useState(false);
   const [closing, setClosing] = useState(false);
@@ -218,6 +219,8 @@ export default function BobAgent({
     importance: n.importance, dueDate: n.dueDate, minutes: n.minutes,
     completed: n.completed, x: n.x, y: n.y,
     colorIdx: n.colorIdx,
+    totalTimeSpent: n.totalTimeSpent,
+    attemptCount: n.attemptCount,
     steps: (n.steps ?? []).map(s => ({ title: s.title, minutes: s.minutes, done: s.done })),
   }));
 
@@ -345,7 +348,7 @@ export default function BobAgent({
       const res = await fetch("/api/bob", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ message: msg, notes: noteSnaps, activeBoardId, mode, history, userInfo, settings }),
+        body: JSON.stringify({ message: msg, notes: noteSnaps, activeBoardId, mode, history, userInfo, settings, focusStats }),
       });
 
       if (!res.body) throw new Error("No stream");
