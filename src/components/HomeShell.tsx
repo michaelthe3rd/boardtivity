@@ -2088,7 +2088,7 @@ export function HomeShell() {
                 Feedback
               </button>
             )}
-            <ThemeToggle theme={theme} onToggle={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} size={isMobile ? 32 : 40} />
+            {!isMobile && <ThemeToggle theme={theme} onToggle={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} size={40} />}
             {isSignedIn ? (
               <div ref={userMenuRef} style={{ position: "relative" }}>
                 <button
@@ -2467,6 +2467,7 @@ export function HomeShell() {
                     }
                   </button>
                 )}
+                <ThemeToggle theme={theme} onToggle={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} size={34} />
                 {isSignedIn && (
                   <button
                     onClick={() => setMobileSettingsOpen(true)}
