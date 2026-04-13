@@ -108,8 +108,9 @@ const INITIAL_BOARDS: Board[] = [
 // Convert yyyy-mm-dd ↔ mm-dd-yyyy for display
 function isoToMDY(iso: string) {
   if (!iso || iso.length !== 10) return "";
-  const [y, m, d] = iso.split("-");
-  return `${m}-${d}-${y}`;
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const [y, m, d] = iso.split("-").map(Number);
+  return `${months[m - 1]} ${d}, ${y}`;
 }
 function mdyToISO(mdy: string) {
   const clean = mdy.replace(/\//g, "-");
@@ -4345,7 +4346,7 @@ export function HomeShell() {
                   </div>
                 )}
                 {!thoughtMode && (
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                     <div
                       style={{
                         ...fieldStyle(boardTheme),
