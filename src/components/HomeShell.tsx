@@ -2664,7 +2664,7 @@ export function HomeShell() {
                           {!isPlus && <span style={{ fontSize: 10, fontWeight: 700, color: muted(theme), opacity: .6 }}>Plus</span>}
                         </div>
                         {isPlus ? (
-                          <div style={{ display: "flex", gap: 6, flexWrap: "nowrap", overflowX: "auto", alignItems: "center", paddingBottom: 2 }}>
+                          <div style={{ display: "flex", gap: 6, flexWrap: "nowrap", overflowX: "auto", alignItems: "center", padding: 4, margin: -4 }}>
                             <button onClick={() => setThoughtColorMode("random")} style={{ flexShrink: 0, width: 22, height: 22, borderRadius: "50%", cursor: "pointer", padding: 0, background: theme === "dark" ? "#2a2d32" : "#d8d8d8", border: thoughtColorMode === "random" ? `2.5px solid ${pageText(theme)}` : "2.5px solid transparent", outline: thoughtColorMode === "random" ? `2px solid ${theme === "dark" ? "#888" : "#aaa"}` : "none", outlineOffset: 2 }} title="No default (randomized)" />
                             {NOTE_PALETTE.map((p, i) => (
                               <button key={i} onClick={() => { setThoughtColorMode("fixed"); setThoughtFixedColorIdx(i); }} style={{ flexShrink: 0, width: 22, height: 22, borderRadius: "50%", border: (thoughtColorMode === "fixed" && thoughtFixedColorIdx === i) ? `2.5px solid ${pageText(theme)}` : "2.5px solid transparent", outline: (thoughtColorMode === "fixed" && thoughtFixedColorIdx === i) ? `2px solid ${p.swatch}` : "none", outlineOffset: 2, backgroundColor: p.swatch, cursor: "pointer", padding: 0 }} title={p.name} />
@@ -2880,7 +2880,7 @@ export function HomeShell() {
                         {/* Color picker */}
                         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                           <span style={{ fontSize: 12, fontWeight: 700, color: muted(theme), letterSpacing: ".04em" }}>Color</span>
-                          <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2 }}>
+                          <div style={{ display: "flex", gap: 6, overflowX: "auto", padding: 4, margin: -4 }}>
                             <button onClick={() => setMobileAddColorIdx(undefined)} style={{ flexShrink: 0, width: 24, height: 24, borderRadius: "50%", padding: 0, cursor: "pointer", backgroundColor: theme === "dark" ? "#555" : "#ccc", border: mobileAddColorIdx === undefined ? `2.5px solid ${pageText(theme)}` : "2.5px solid transparent", outline: mobileAddColorIdx === undefined ? `2px solid ${theme === "dark" ? "rgba(255,255,255,.35)" : "rgba(0,0,0,.25)"}` : "none", outlineOffset: 2 }} title="Grey" />
                             {NOTE_PALETTE.map((p, i) => (
                               <button key={i} onClick={() => setMobileAddColorIdx(i)} style={{ flexShrink: 0, width: 24, height: 24, borderRadius: "50%", padding: 0, cursor: "pointer", backgroundColor: p.swatch, border: mobileAddColorIdx === i ? `2.5px solid ${pageText(theme)}` : "2.5px solid transparent", outline: mobileAddColorIdx === i ? `2px solid ${p.swatch}` : "none", outlineOffset: 2 }} />
@@ -3759,7 +3759,7 @@ export function HomeShell() {
                     <div style={{ fontSize: 12, color: muted(boardTheme), lineHeight: 1.5 }}>
                       Default color for new ideas. Pick one below, or leave unset for grey. You can always change color per-card using the circle in the corner.
                     </div>
-                    <div style={{ display: "flex", gap: 6, flexWrap: "nowrap", overflowX: "auto", alignItems: "center", paddingBottom: 2 }}>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "nowrap", overflowX: "auto", alignItems: "center", padding: 4, margin: -4 }}>
                       {/* Grey / no default */}
                       <button onClick={() => setThoughtColorMode("random")} style={{
                         flexShrink: 0, width: 22, height: 22, borderRadius: "50%", cursor: "pointer", padding: 0,
