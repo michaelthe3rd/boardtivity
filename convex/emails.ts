@@ -20,11 +20,19 @@ interface Task {
   completed: boolean;
   steps: Step[];
   importance: string;
+  totalTimeSpent?: number;
 }
 
 interface BoardState {
   boards: { id: number; name: string }[];
   notes: Task[];
+}
+
+interface FocusData {
+  currentStreak: number;
+  totalMinutes: number;
+  totalTasksCompleted: number;
+  weekMinutes: number;
 }
 
 type DigestType = "daily" | "weekly";
@@ -35,7 +43,7 @@ export const getUsersForDigest = internalQuery({
   args: { digestType: v.union(v.literal("daily"), v.literal("weekly")) },
   handler: async (ctx, { digestType }) => {
     const users = await ctx.db.query("userBoards").take(2000);
-    const byEmail = new Map<string, { email: string; boardState: string; updatedAt: number }>();
+    const byEmail = new Map<string, { email: string; boardState: string; updatedAt: number; tokenIdentifier: string }>();
 
     for (const user of users) {
       if (!user.email) continue;
@@ -51,15 +59,53 @@ export const getUsersForDigest = internalQuery({
 
       if (!enabled) continue;
 
-      // Keep only the most recently updated entry per email address to avoid
-      // duplicate sends when a user has two accounts with the same email.
       const existing = byEmail.get(user.email);
       if (!existing || user.updatedAt > existing.updatedAt) {
-        byEmail.set(user.email, { email: user.email, boardState: user.boardState, updatedAt: user.updatedAt });
+        byEmail.set(user.email, { email: user.email, boardState: user.boardState, updatedAt: user.updatedAt, tokenIdentifier: user.tokenIdentifier });
       }
     }
 
-    return Array.from(byEmail.values());
+    // Fetch focus stats for each user
+    const results = [];
+    for (const u of byEmail.values()) {
+      const today = new Date().toISOString().slice(0, 10);
+      const weekAgo = new Date();
+      weekAgo.setUTCDate(weekAgo.getUTCDate() - 6);
+      const weekAgoStr = weekAgo.toISOString().slice(0, 10);
+
+      const allRows = await ctx.db
+        .query("focusStats")
+        .withIndex("by_token", (q) => q.eq("tokenIdentifier", u.tokenIdentifier))
+        .take(10000);
+
+      let totalMinutes = 0;
+      let totalTasksCompleted = 0;
+      let weekMinutes = 0;
+      for (const row of allRows) {
+        totalMinutes += row.totalMinutes;
+        totalTasksCompleted += row.tasksCompleted;
+        if (row.date >= weekAgoStr) weekMinutes += row.totalMinutes;
+      }
+
+      // Streak: consecutive days ending today
+      let currentStreak = 0;
+      for (let i = 0; ; i++) {
+        const d = new Date();
+        d.setUTCDate(d.getUTCDate() - i);
+        const dateStr = d.toISOString().slice(0, 10);
+        const row = allRows.find(r => r.date === dateStr);
+        if (row && row.totalMinutes > 0) {
+          currentStreak++;
+        } else {
+          if (i === 0 && dateStr === today) continue;
+          break;
+        }
+      }
+
+      results.push({ email: u.email, boardState: u.boardState, focus: { currentStreak, totalMinutes, totalTasksCompleted, weekMinutes } });
+    }
+
+    return results;
   },
 });
 
@@ -114,18 +160,44 @@ function taskRow(task: Task, highlight?: string) {
   const dueLabel = task.dueDate ? formatDate(task.dueDate) : "";
   const impColor = task.importance === "High" ? "#c03030" : task.importance === "Medium" ? "#b07010" : "#4a7040";
   const isHighlighted = !!highlight;
+  const timeLabel = (task.totalTimeSpent ?? 0) > 0
+    ? `<span style="font-size:11px;color:#aaa;margin-left:6px;">${task.totalTimeSpent! >= 60 ? `${Math.floor(task.totalTimeSpent! / 60)}h ${task.totalTimeSpent! % 60 > 0 ? `${task.totalTimeSpent! % 60}m` : ""}` : `${task.totalTimeSpent}m`} focused</span>`
+    : "";
   return `
     <tr>
       <td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0;">
         <div style="display:flex;align-items:flex-start;gap:10px;">
           <div style="width:6px;height:6px;border-radius:50%;background:${isHighlighted ? highlight : (task.importance !== "none" ? impColor : "#ccc")};margin-top:6px;flex-shrink:0;"></div>
           <div style="flex:1;">
-            <div style="font-size:14px;font-weight:600;color:${isHighlighted ? "#111" : "#222"};">${task.title}</div>
+            <div style="font-size:14px;font-weight:600;color:${isHighlighted ? "#111" : "#222"};">${task.title}${timeLabel}</div>
             ${dueLabel ? `<div style="font-size:12px;color:${isHighlighted ? highlight : "#999"};margin-top:2px;">${dueLabel}</div>` : ""}
           </div>
         </div>
       </td>
     </tr>`;
+}
+
+function focusSection(focus: FocusData, type: "daily" | "weekly") {
+  if (focus.totalMinutes === 0 && focus.currentStreak === 0) return "";
+
+  const streakBolt = focus.currentStreak > 0
+    ? `<span style="display:inline-block;background:#fef9c3;color:#854d0e;font-size:12px;font-weight:700;padding:2px 8px;border-radius:6px;margin-right:8px;">⚡ ${focus.currentStreak}d streak</span>`
+    : "";
+
+  const weekMins = focus.weekMinutes;
+  const weekLabel = weekMins < 60 ? `${weekMins}m` : `${Math.round(weekMins / 60 * 10) / 10}h`;
+  const totalMins = focus.totalMinutes;
+  const totalLabel = totalMins < 60 ? `${totalMins}m` : `${Math.round(totalMins / 60 * 10) / 10}h`;
+
+  const statLine = type === "daily"
+    ? `${weekLabel} focused this week · ${focus.totalTasksCompleted} tasks completed all time`
+    : `${weekLabel} focused this week · ${totalLabel} total`;
+
+  return `
+    <div style="background:#f9f9f7;border-radius:10px;padding:14px 16px;margin-bottom:20px;border:1px solid #ebebeb;">
+      <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:#999;margin-bottom:8px;">Focus</div>
+      <div>${streakBolt}<span style="font-size:13px;color:#555;">${statLine}</span></div>
+    </div>`;
 }
 
 function emailWrapper(title: string, subtitle: string, body: string) {
@@ -170,18 +242,18 @@ export const sendDailyDigests = internalAction({
   handler: async (ctx) => {
     const users = await ctx.runQuery(internal.emails.getUsersForDigest, { digestType: "daily" });
     const today = todayUTC();
-    const tomorrow = tomorrowUTC();
     const dateLabel = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 
     for (const user of users) {
       const tasks = pendingTasks(user.boardState);
+      const focusBlock = focusSection(user.focus, "daily");
 
       let body: string;
       let subject: string;
 
       if (tasks.length === 0) {
         subject = `No tasks for today — ${dateLabel}`;
-        body = `
+        body = focusBlock + `
           <div style="text-align:center;padding:24px 0;">
             <div style="font-size:32px;margin-bottom:12px;">✓</div>
             <div style="font-size:18px;font-weight:700;color:#111;margin-bottom:8px;">You're all clear today!</div>
@@ -203,7 +275,7 @@ export const sendDailyDigests = internalAction({
           });
         const upcoming3 = upcomingAll.slice(0, 3);
         const remaining = upcomingAll.length - upcoming3.length;
-        body =
+        body = focusBlock +
           taskSection("Overdue", overdue, "#c03030") +
           taskSection("Due Today", dueToday, "#cc1f1f") +
           taskSection("Upcoming", upcoming3) +
@@ -228,7 +300,7 @@ export const sendWeeklyDigests = internalAction({
     const users = await ctx.runQuery(internal.emails.getUsersForDigest, { digestType: "weekly" });
     const today = todayUTC();
     const now = new Date();
-    const dayOfWeek = now.getUTCDay(); // 0=Sun, 1=Mon…6=Sat
+    const dayOfWeek = now.getUTCDay();
     const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
     const monday = new Date(now);
     monday.setUTCDate(now.getUTCDate() - daysToMonday);
@@ -238,13 +310,14 @@ export const sendWeeklyDigests = internalAction({
 
     for (const user of users) {
       const tasks = pendingTasks(user.boardState);
+      const focusBlock = focusSection(user.focus, "weekly");
 
       let body: string;
       let subject: string;
 
       if (tasks.length === 0) {
         subject = "Clean slate this week — Boardtivity";
-        body = `
+        body = focusBlock + `
           <div style="text-align:center;padding:24px 0;">
             <div style="font-size:32px;margin-bottom:12px;">🗓</div>
             <div style="font-size:18px;font-weight:700;color:#111;margin-bottom:8px;">Nothing on the books yet!</div>
@@ -256,7 +329,7 @@ export const sendWeeklyDigests = internalAction({
         const overdue = tasks.filter((t) => t.dueDate && t.dueDate < today);
         const withDue = tasks.filter((t) => t.dueDate && t.dueDate >= today).sort((a, b) => (a.dueDate! < b.dueDate! ? -1 : 1));
         const noDue = tasks.filter((t) => !t.dueDate);
-        body =
+        body = focusBlock +
           (overdue.length > 0 ? taskSection("Overdue", overdue, "#c03030") : "") +
           (withDue.length > 0 ? taskSection("Scheduled", withDue) : "") +
           (noDue.length > 0 ? taskSection("No due date", noDue) : "") +
@@ -271,4 +344,3 @@ export const sendWeeklyDigests = internalAction({
     }
   },
 });
-
