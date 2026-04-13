@@ -2269,7 +2269,7 @@ export function HomeShell() {
             if (mobileAddMode === "task" && !mobileAddDueDate) return;
             const id = genId();
             const now = new Date().toISOString();
-            setNotes(prev => [...prev, {
+            const newNote = {
               id, boardId: activeBoardId,
               type: mobileAddMode === "thought" ? "thought" : "task",
               title: mobileAddTitle.trim(), body: mobileAddBody.trim(),
@@ -2281,14 +2281,20 @@ export function HomeShell() {
               colorIdx: mobileAddMode === "thought"
                 ? (mobileAddColorIdx !== undefined ? mobileAddColorIdx : (!isPlus ? Math.floor(Math.random() * NOTE_PALETTE.length) : undefined))
                 : undefined,
-            }]);
+            } as Note;
+            const updatedNotes = [...notes, newNote];
+            setNotes(updatedNotes);
             if (mobileAddMode === "thought" && mobileAddRemindIn !== null) {
               setReminderMut({ noteId: id, noteTitle: mobileAddTitle.trim(), delayMs: mobileAddRemindIn }).catch(() => {});
             }
             setMobileAddTitle(""); setMobileAddBody(""); setMobileAddImportance("Low"); setMobileAddDueDate(""); setMobileAddMode(null);
             setMobileAddColorIdx(undefined); setMobileAddRemindIn(null);
-            // Force immediate cloud push (don't wait for debounce)
-            setTimeout(() => pushToCloud(), 50);
+            // Build state with new note immediately and push — don't wait for debounce or effect timing
+            if (isSignedIn) {
+              const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx });
+              latestBoardStateRef.current = freshState;
+              pushToCloud();
+            }
           }
 
           // Plain render functions (not React components) so focus state updates work correctly
