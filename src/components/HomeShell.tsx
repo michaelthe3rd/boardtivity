@@ -2269,6 +2269,12 @@ export function HomeShell() {
             if (mobileAddMode === "task" && !mobileAddDueDate) return;
             const id = genId();
             const now = new Date().toISOString();
+            // Spawn at viewport center (or board center if no viewport), non-overlapping
+            const viewport = viewportRef.current;
+            const vpCx = viewport ? (viewport.clientWidth  / 2 - pan.x) / scale - NOTE_W / 2 : BOARD_W / 2;
+            const vpCy = viewport ? (viewport.clientHeight / 2 - pan.y) / scale - NOTE_H / 2 : BOARD_H / 2;
+            const boardNotes = notes.filter(n => n.boardId === activeBoardId);
+            const { x: spawnX, y: spawnY } = findFreeSpot(boardNotes, vpCx, vpCy);
             const newNote = {
               id, boardId: activeBoardId,
               type: mobileAddMode === "thought" ? "thought" : "task",
@@ -2276,7 +2282,7 @@ export function HomeShell() {
               importance: mobileAddMode === "task" ? mobileAddImportance : "none",
               dueDate: (mobileAddMode === "task" && mobileAddDueDate) ? mobileAddDueDate : undefined,
               createdAt: now, completed: false,
-              x: 80 + Math.random() * 200, y: 80 + Math.random() * 200,
+              x: spawnX, y: spawnY,
               steps: [], showFlow: false, flowMode: "web", linkedNoteIds: [],
               colorIdx: mobileAddMode === "thought"
                 ? (mobileAddColorIdx !== undefined ? mobileAddColorIdx : (!isPlus ? Math.floor(Math.random() * NOTE_PALETTE.length) : undefined))
