@@ -657,7 +657,7 @@ export default function BobAgent({
                     const vp = document.querySelector("meta[name=viewport]");
                     if (vp) vp.setAttribute("content", "width=device-width, initial-scale=1");
                   }}
-                  placeholder={listening ? "Listening… (pause to send)" : mode === "autopilot" ? "Tell BOB what to do…" : "Ask or tell BOB…"}
+                  placeholder={listening ? "Listening… (pause to send)" : mode === "autopilot" ? "Tell BOB what to do…" : "Ask BOB about anything…"}
                   style={{
                     flex: 1, border: "none", outline: "none", background: "transparent",
                     fontSize: 13, color: T.text(t), fontFamily: "'Satoshi', Arial, sans-serif",
