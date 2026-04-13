@@ -2285,6 +2285,8 @@ export function HomeShell() {
             }
             setMobileAddTitle(""); setMobileAddBody(""); setMobileAddImportance("Low"); setMobileAddDueDate(""); setMobileAddMode(null);
             setMobileAddColorIdx(undefined); setMobileAddRemindIn(null);
+            // Force immediate cloud push (don't wait for debounce)
+            setTimeout(() => pushToCloud(), 50);
           }
 
           // Plain render functions (not React components) so focus state updates work correctly
@@ -2856,12 +2858,15 @@ export function HomeShell() {
                             );
                           })}
                         </div>
-                        <input
-                          type="date"
-                          value={mobileAddDueDate}
-                          onChange={e => setMobileAddDueDate(e.target.value)}
-                          style={{ fontSize: 14, color: mobileAddDueDate ? pageText(theme) : muted(theme), backgroundColor: paper(theme), border: `1.5px solid ${border(theme)}`, borderRadius: 12, padding: "10px 14px", outline: "none", width: "100%", boxSizing: "border-box", fontFamily: "inherit" }}
-                        />
+                        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: muted(theme), letterSpacing: ".04em" }}>Due date</span>
+                          <input
+                            type="date"
+                            value={mobileAddDueDate}
+                            onChange={e => setMobileAddDueDate(e.target.value)}
+                            style={{ fontSize: 14, color: mobileAddDueDate ? pageText(theme) : muted(theme), backgroundColor: paper(theme), border: `1.5px solid ${border(theme)}`, borderRadius: 12, padding: "10px 14px", outline: "none", width: "100%", maxWidth: "100%", boxSizing: "border-box", fontFamily: "inherit", display: "block" }}
+                          />
+                        </div>
                       </>
                     )}
                     {mobileAddMode === "thought" && (
@@ -3127,7 +3132,7 @@ export function HomeShell() {
 
               {/* FAB */}
               <button
-                onClick={() => { setMobileAddMode(isThoughtBoard ? "thought" : "task"); setMobileAddTitle(""); setMobileAddImportance("none"); setMobileAddDueDate(""); }}
+                onClick={() => { setMobileAddMode(isThoughtBoard ? "thought" : "task"); setMobileAddTitle(""); setMobileAddBody(""); setMobileAddImportance("Low"); setMobileAddDueDate(""); setMobileAddColorIdx(undefined); setMobileAddRemindIn(null); }}
                 style={{ position: "fixed", bottom: 24, right: 20, height: 42, borderRadius: 999, backgroundColor: theme === "dark" ? "#23262b" : "#ffffff", color: theme === "dark" ? "#f5f5f2" : "#433d35", border: `1px solid ${border(theme)}`, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, padding: "0 18px 0 14px", boxShadow: "0 4px 20px rgba(0,0,0,.22)", zIndex: 100, fontSize: 14, fontWeight: 600, fontFamily: "inherit" }}
               >
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
