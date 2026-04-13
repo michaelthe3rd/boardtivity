@@ -5393,6 +5393,154 @@ export function HomeShell() {
           </div>
         </div>
       )}
+
+      {/* ── Duration Picker (inside board-shell so it renders in fullscreen) ── */}
+      {focusPicker && (() => {
+        const pickerNote = notes.find(n => n.id === focusPicker.noteId);
+        if (!pickerNote) return null;
+        const presets = [15, 30, 60, 120];
+        const overlay: CSSProperties = { position: "fixed", inset: 0, zIndex: 950, backgroundColor: "rgba(6,7,10,.92)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 };
+        const card: CSSProperties = { width: "min(400px,100%)", background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 20, padding: "32px 28px", display: "flex", flexDirection: "column", alignItems: "center", gap: 0, textAlign: "center" };
+        const presetBtn = (active: boolean): CSSProperties => ({
+          height: 56, flex: 1, borderRadius: 14,
+          border: active ? "1.5px solid rgba(255,255,255,.7)" : "1px solid rgba(255,255,255,.12)",
+          backgroundColor: active ? "rgba(255,255,255,.15)" : "rgba(255,255,255,.05)",
+          color: active ? "#f7f8fb" : "rgba(247,248,251,.55)", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+          transition: "background-color .15s, border-color .15s",
+        });
+        const customVal = parseInt(focusCustomMin, 10);
+        const customValid = !isNaN(customVal) && customVal >= 1 && customVal <= 480;
+        const effectiveSelected = focusPickerSelected ?? (focusPickerShowCustom && customValid ? customVal : null);
+        const canStart = effectiveSelected !== null;
+        const formatPreset = (m: number) => m >= 60 ? `${m / 60}hr` : `${m}`;
+        const formatPresetSub = (m: number) => m >= 60 ? "" : " min";
+        return (
+          <div style={overlay} onClick={() => { setFocusPicker(null); setFocusPickerSelected(null); setFocusCustomMin(""); setFocusPickerShowCustom(false); }}>
+            <div style={card} onClick={e => e.stopPropagation()}>
+              <div style={{ fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase", color: "rgba(247,248,251,.4)", fontWeight: 600, marginBottom: 14 }}>Focus Session</div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: "#f7f8fb", letterSpacing: "-.02em", lineHeight: 1.2, marginBottom: 6 }}>{pickerNote.title}</div>
+              {(pickerNote.totalTimeSpent ?? 0) > 0 && (
+                <div style={{ fontSize: 12, color: "rgba(247,248,251,.4)", marginBottom: 8 }}>
+                  {(pickerNote.totalTimeSpent ?? 0) >= 60
+                    ? `${Math.floor((pickerNote.totalTimeSpent ?? 0) / 60)}h ${(pickerNote.totalTimeSpent ?? 0) % 60}m already logged`
+                    : `${pickerNote.totalTimeSpent}m already logged`}
+                </div>
+              )}
+              <div style={{ fontSize: 13, color: "rgba(247,248,251,.35)", marginBottom: 28 }}>How long are you committing to this?</div>
+              {/* Preset row */}
+              <div style={{ display: "flex", gap: 8, width: "100%", marginBottom: 12 }}>
+                {presets.map(m => (
+                  <button key={m} style={presetBtn(focusPickerSelected === m)} onClick={() => { setFocusPickerSelected(m); setFocusCustomMin(""); }}>
+                    {formatPreset(m)}<span style={{ fontSize: 11, opacity: .6 }}>{formatPresetSub(m)}</span>
+                  </button>
+                ))}
+                {/* Custom + button */}
+                <button
+                  style={{ ...presetBtn(focusPickerShowCustom && focusPickerSelected === null), flex: "0 0 auto", padding: "0 14px" }}
+                  onClick={() => { setFocusPickerSelected(null); setFocusPickerShowCustom(true); setTimeout(() => (document.getElementById("focus-custom-input") as HTMLInputElement | null)?.focus(), 50); }}
+                >
+                  +
+                </button>
+              </div>
+              {/* Custom input (shown only after + is clicked) */}
+              {focusPickerShowCustom && (
+                <div style={{ width: "100%", marginBottom: 12, display: "flex", gap: 8 }}>
+                  <input
+                    id="focus-custom-input"
+                    type="number" min={1} max={480} placeholder="Custom min"
+                    value={focusCustomMin}
+                    onChange={e => setFocusCustomMin(e.target.value)}
+                    style={{ flex: 1, height: 44, borderRadius: 12, border: `1px solid ${customValid ? "rgba(255,255,255,.35)" : "rgba(255,255,255,.15)"}`, background: "rgba(255,255,255,.06)", color: "#f7f8fb", fontSize: 14, padding: "0 12px", outline: "none", fontFamily: "inherit" }}
+                  />
+                </div>
+              )}
+              {/* Start button */}
+              <button
+                disabled={!canStart}
+                onClick={() => {
+                  if (!canStart) return;
+                  const mins = effectiveSelected!;
+                  setFocusPickerSelected(null);
+                  setFocusCustomMin("");
+                  setFocusPickerShowCustom(false);
+                  commitFocus(focusPicker.noteId, focusPicker.chain, mins);
+                }}
+                style={{ width: "100%", height: 50, borderRadius: 14, border: "none", backgroundColor: canStart ? "#f5f5f2" : "rgba(255,255,255,.08)", color: canStart ? "#111315" : "rgba(247,248,251,.25)", fontSize: 15, fontWeight: 700, cursor: canStart ? "pointer" : "default", fontFamily: "inherit", marginBottom: 16, transition: "background-color .15s, color .15s" }}
+              >
+                Start
+              </button>
+              <button onClick={() => { setFocusPicker(null); setFocusPickerSelected(null); setFocusCustomMin(""); setFocusPickerShowCustom(false); }} style={{ fontSize: 13, color: "rgba(247,248,251,.3)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Session Review Modal (inside board-shell so it renders in fullscreen) ── */}
+      {focusReview && (() => {
+        const reviewNote = notes.find(n => n.id === focusReview.noteId);
+        const overlay: CSSProperties = { position: "fixed", inset: 0, zIndex: 950, backgroundColor: "rgba(6,20,9,.96)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 };
+        const card: CSSProperties = { width: "min(400px,100%)", display: "flex", flexDirection: "column", alignItems: "center", gap: 0, textAlign: "center" };
+        const streak = focusStatsData?.currentStreak ?? 0;
+        const todayMin = (focusStatsData?.days.find(d => d.date === new Date().toISOString().slice(0,10))?.totalMinutes ?? 0) + focusReview.elapsedMin;
+        return (
+          <div style={overlay}>
+            <div style={card}>
+              {/* Checkmark */}
+              <div style={{ width: 56, height: 56, borderRadius: "50%", backgroundColor: "rgba(80,180,100,.15)", border: "1.5px solid rgba(100,210,120,.35)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
+                <svg width="24" height="24" viewBox="0 0 22 22" fill="none"><polyline points="5,12 9,16 17,7" stroke="#6fc46b" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </div>
+              <div style={{ fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase", color: "rgba(247,248,251,.35)", fontWeight: 500, marginBottom: 10 }}>Session complete</div>
+              <div style={{ fontSize: 28, fontWeight: 700, color: "#f7f8fb", letterSpacing: "-.02em", lineHeight: 1.2, marginBottom: 6 }}>
+                {focusReview.elapsedMin} min focused
+              </div>
+              {reviewNote && <div style={{ fontSize: 14, color: "rgba(247,248,251,.4)", marginBottom: 4 }}>{reviewNote.title}</div>}
+              {/* Stats row */}
+              <div style={{ display: "flex", gap: 24, marginTop: 20, marginBottom: 32 }}>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: "#f7f8fb", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                    {streak > 0 && (() => {
+                      const dur = Math.max(0.6, 2.4 - streak * 0.08);
+                      return (
+                        <svg width="16" height="22" viewBox="0 0 11 15" fill="none" overflow="visible" style={{ filter: `drop-shadow(0 0 3px #facc15aa)`, animation: `boltSpark ${dur}s ease-in-out infinite` }}>
+                          <style>{`@keyframes boltSpark{0%,100%{opacity:.65;filter:drop-shadow(0 0 2px #facc1566)}40%{opacity:1;filter:drop-shadow(0 0 7px #facc15cc)}}`}</style>
+                          <path d="M7 1L1 8.5h4L3.5 14 10 6H6L7 1Z" fill="#facc15"/>
+                        </svg>
+                      );
+                    })()}
+                    {streak > 0 ? streak : "–"}
+                  </div>
+                  <div style={{ fontSize: 11, color: "rgba(247,248,251,.35)", marginTop: 4 }}>day streak</div>
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: "#f7f8fb" }}>{todayMin} min</div>
+                  <div style={{ fontSize: 11, color: "rgba(247,248,251,.35)", marginTop: 4 }}>today</div>
+                </div>
+              </div>
+              {/* Actions */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}>
+                <button
+                  onClick={() => handleFocusReviewDone(true)}
+                  style={{ height: 48, borderRadius: 14, border: "none", backgroundColor: "#6fc46b", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+                >
+                  Mark task done ✓
+                </button>
+                <button
+                  onClick={() => handleFocusReviewDone(false)}
+                  style={{ height: 48, borderRadius: 14, border: "1px solid rgba(255,255,255,.14)", backgroundColor: "rgba(255,255,255,.07)", color: "rgba(247,248,251,.8)", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
+                >
+                  Still in progress — save time
+                </button>
+                <button
+                  onClick={() => { setFocusReview(null); setFocusNoteId(null); }}
+                  style={{ fontSize: 12, color: "rgba(247,248,251,.25)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", marginTop: 4 }}
+                >
+                  Exit without saving
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
       </div>
       </section>
 
@@ -5931,153 +6079,6 @@ export function HomeShell() {
         </div>
       )}
 
-      {/* ── Duration Picker ── */}
-      {focusPicker && (() => {
-        const pickerNote = notes.find(n => n.id === focusPicker.noteId);
-        if (!pickerNote) return null;
-        const presets = [15, 30, 60, 120];
-        const overlay: CSSProperties = { position: "fixed", inset: 0, zIndex: 950, backgroundColor: "rgba(6,7,10,.92)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 };
-        const card: CSSProperties = { width: "min(400px,100%)", background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 20, padding: "32px 28px", display: "flex", flexDirection: "column", alignItems: "center", gap: 0, textAlign: "center" };
-        const presetBtn = (active: boolean): CSSProperties => ({
-          height: 56, flex: 1, borderRadius: 14,
-          border: active ? "1.5px solid rgba(255,255,255,.7)" : "1px solid rgba(255,255,255,.12)",
-          backgroundColor: active ? "rgba(255,255,255,.15)" : "rgba(255,255,255,.05)",
-          color: active ? "#f7f8fb" : "rgba(247,248,251,.55)", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-          transition: "background-color .15s, border-color .15s",
-        });
-        const customVal = parseInt(focusCustomMin, 10);
-        const customValid = !isNaN(customVal) && customVal >= 1 && customVal <= 480;
-        const effectiveSelected = focusPickerSelected ?? (focusPickerShowCustom && customValid ? customVal : null);
-        const canStart = effectiveSelected !== null;
-        const formatPreset = (m: number) => m >= 60 ? `${m / 60}hr` : `${m}`;
-        const formatPresetSub = (m: number) => m >= 60 ? "" : " min";
-        return (
-          <div style={overlay} onClick={() => { setFocusPicker(null); setFocusPickerSelected(null); setFocusCustomMin(""); setFocusPickerShowCustom(false); }}>
-            <div style={card} onClick={e => e.stopPropagation()}>
-              <div style={{ fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase", color: "rgba(247,248,251,.4)", fontWeight: 600, marginBottom: 14 }}>Focus Session</div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: "#f7f8fb", letterSpacing: "-.02em", lineHeight: 1.2, marginBottom: 6 }}>{pickerNote.title}</div>
-              {(pickerNote.totalTimeSpent ?? 0) > 0 && (
-                <div style={{ fontSize: 12, color: "rgba(247,248,251,.4)", marginBottom: 8 }}>
-                  {(pickerNote.totalTimeSpent ?? 0) >= 60
-                    ? `${Math.floor((pickerNote.totalTimeSpent ?? 0) / 60)}h ${(pickerNote.totalTimeSpent ?? 0) % 60}m already logged`
-                    : `${pickerNote.totalTimeSpent}m already logged`}
-                </div>
-              )}
-              <div style={{ fontSize: 13, color: "rgba(247,248,251,.35)", marginBottom: 28 }}>How long are you committing to this?</div>
-              {/* Preset row */}
-              <div style={{ display: "flex", gap: 8, width: "100%", marginBottom: 12 }}>
-                {presets.map(m => (
-                  <button key={m} style={presetBtn(focusPickerSelected === m)} onClick={() => { setFocusPickerSelected(m); setFocusCustomMin(""); }}>
-                    {formatPreset(m)}<span style={{ fontSize: 11, opacity: .6 }}>{formatPresetSub(m)}</span>
-                  </button>
-                ))}
-                {/* Custom + button */}
-                <button
-                  style={{ ...presetBtn(focusPickerShowCustom && focusPickerSelected === null), flex: "0 0 auto", padding: "0 14px" }}
-                  onClick={() => { setFocusPickerSelected(null); setFocusPickerShowCustom(true); setTimeout(() => (document.getElementById("focus-custom-input") as HTMLInputElement | null)?.focus(), 50); }}
-                >
-                  +
-                </button>
-              </div>
-              {/* Custom input (shown only after + is clicked) */}
-              {focusPickerShowCustom && (
-                <div style={{ width: "100%", marginBottom: 12, display: "flex", gap: 8 }}>
-                  <input
-                    id="focus-custom-input"
-                    type="number" min={1} max={480} placeholder="Custom min"
-                    value={focusCustomMin}
-                    onChange={e => setFocusCustomMin(e.target.value)}
-                    style={{ flex: 1, height: 44, borderRadius: 12, border: `1px solid ${customValid ? "rgba(255,255,255,.35)" : "rgba(255,255,255,.15)"}`, background: "rgba(255,255,255,.06)", color: "#f7f8fb", fontSize: 14, padding: "0 12px", outline: "none", fontFamily: "inherit" }}
-                  />
-                </div>
-              )}
-              {/* Start button */}
-              <button
-                disabled={!canStart}
-                onClick={() => {
-                  if (!canStart) return;
-                  const mins = effectiveSelected!;
-                  setFocusPickerSelected(null);
-                  setFocusCustomMin("");
-                  setFocusPickerShowCustom(false);
-                  commitFocus(focusPicker.noteId, focusPicker.chain, mins);
-                }}
-                style={{ width: "100%", height: 50, borderRadius: 14, border: "none", backgroundColor: canStart ? "#f5f5f2" : "rgba(255,255,255,.08)", color: canStart ? "#111315" : "rgba(247,248,251,.25)", fontSize: 15, fontWeight: 700, cursor: canStart ? "pointer" : "default", fontFamily: "inherit", marginBottom: 16, transition: "background-color .15s, color .15s" }}
-              >
-                Start
-              </button>
-              <button onClick={() => { setFocusPicker(null); setFocusPickerSelected(null); setFocusCustomMin(""); setFocusPickerShowCustom(false); }} style={{ fontSize: 13, color: "rgba(247,248,251,.3)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* ── Session Review Modal ── */}
-      {focusReview && (() => {
-        const reviewNote = notes.find(n => n.id === focusReview.noteId);
-        const overlay: CSSProperties = { position: "fixed", inset: 0, zIndex: 950, backgroundColor: "rgba(6,20,9,.96)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 };
-        const card: CSSProperties = { width: "min(400px,100%)", display: "flex", flexDirection: "column", alignItems: "center", gap: 0, textAlign: "center" };
-        const streak = focusStatsData?.currentStreak ?? 0;
-        const todayMin = (focusStatsData?.days.find(d => d.date === new Date().toISOString().slice(0,10))?.totalMinutes ?? 0) + focusReview.elapsedMin;
-        return (
-          <div style={overlay}>
-            <div style={card}>
-              {/* Checkmark */}
-              <div style={{ width: 56, height: 56, borderRadius: "50%", backgroundColor: "rgba(80,180,100,.15)", border: "1.5px solid rgba(100,210,120,.35)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
-                <svg width="24" height="24" viewBox="0 0 22 22" fill="none"><polyline points="5,12 9,16 17,7" stroke="#6fc46b" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              </div>
-              <div style={{ fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase", color: "rgba(247,248,251,.35)", fontWeight: 500, marginBottom: 10 }}>Session complete</div>
-              <div style={{ fontSize: 28, fontWeight: 700, color: "#f7f8fb", letterSpacing: "-.02em", lineHeight: 1.2, marginBottom: 6 }}>
-                {focusReview.elapsedMin} min focused
-              </div>
-              {reviewNote && <div style={{ fontSize: 14, color: "rgba(247,248,251,.4)", marginBottom: 4 }}>{reviewNote.title}</div>}
-              {/* Stats row */}
-              <div style={{ display: "flex", gap: 24, marginTop: 20, marginBottom: 32 }}>
-                <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: 22, fontWeight: 700, color: "#f7f8fb", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                    {streak > 0 && (() => {
-                      const dur = Math.max(0.6, 2.4 - streak * 0.08);
-                      return (
-                        <svg width="16" height="22" viewBox="0 0 11 15" fill="none" overflow="visible" style={{ filter: `drop-shadow(0 0 3px #facc15aa)`, animation: `boltSpark ${dur}s ease-in-out infinite` }}>
-                          <style>{`@keyframes boltSpark{0%,100%{opacity:.65;filter:drop-shadow(0 0 2px #facc1566)}40%{opacity:1;filter:drop-shadow(0 0 7px #facc15cc)}}`}</style>
-                          <path d="M7 1L1 8.5h4L3.5 14 10 6H6L7 1Z" fill="#facc15"/>
-                        </svg>
-                      );
-                    })()}
-                    {streak > 0 ? streak : "–"}
-                  </div>
-                  <div style={{ fontSize: 11, color: "rgba(247,248,251,.35)", marginTop: 4 }}>day streak</div>
-                </div>
-                <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: 22, fontWeight: 700, color: "#f7f8fb" }}>{todayMin} min</div>
-                  <div style={{ fontSize: 11, color: "rgba(247,248,251,.35)", marginTop: 4 }}>today</div>
-                </div>
-              </div>
-              {/* Actions */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}>
-                <button
-                  onClick={() => handleFocusReviewDone(true)}
-                  style={{ height: 48, borderRadius: 14, border: "none", backgroundColor: "#6fc46b", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
-                >
-                  Mark task done ✓
-                </button>
-                <button
-                  onClick={() => handleFocusReviewDone(false)}
-                  style={{ height: 48, borderRadius: 14, border: "1px solid rgba(255,255,255,.14)", backgroundColor: "rgba(255,255,255,.07)", color: "rgba(247,248,251,.8)", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
-                >
-                  Still in progress — save time
-                </button>
-                <button
-                  onClick={() => { setFocusReview(null); setFocusNoteId(null); }}
-                  style={{ fontSize: 12, color: "rgba(247,248,251,.25)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", marginTop: 4 }}
-                >
-                  Exit without saving
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
 
       {/* ── Profile Panel ── */}
       {profileOpen && (() => {
