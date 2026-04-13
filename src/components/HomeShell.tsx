@@ -2033,7 +2033,7 @@ export function HomeShell() {
   }
 
   function closeFocusWithReview(noteId: number) {
-    const elapsedMin = Math.max(1, Math.round((Date.now() - focusSessionStartRef.current) / 60000));
+    const elapsedMin = Math.floor((Date.now() - focusSessionStartRef.current) / 60000);
     setFocusReview({ elapsedMin, noteId });
     setFocusOpen(false);
     setFocusCompleted(false);
@@ -2056,8 +2056,8 @@ export function HomeShell() {
       lastTackledAt: Date.now(),
       completed: markFinished ? true : n.completed,
     } : n));
-    // Log to Convex
-    if (isSignedIn) {
+    // Log to Convex (skip if less than 1 minute)
+    if (isSignedIn && elapsedMin > 0) {
       await logFocusSession({ date: today, minutes: elapsedMin, taskCompleted: markFinished });
     }
     setFocusReview(null);
@@ -2086,18 +2086,6 @@ export function HomeShell() {
                 style={{ ...buttonStyle(theme, false), fontSize: 13 }}
               >
                 Feedback
-              </button>
-            )}
-            {isMobile && isSignedIn && (
-              <button
-                onClick={() => setProfileOpen(true)}
-                style={{ width: 32, height: 32, borderRadius: "50%", border: `1px solid ${border(theme)}`, backgroundColor: panel(theme), cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-                aria-label="Focus stats"
-              >
-                {(focusStatsData?.currentStreak ?? 0) > 0
-                  ? <svg width="10" height="13" viewBox="0 0 11 15" fill="none" overflow="visible" style={{ animation: "boltSpark 1.4s ease-in-out infinite" }}><path d="M7 1L1 8.5h4L3.5 14 10 6H6L7 1Z" fill="#facc15"/></svg>
-                  : <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.4"/><path d="M7 4v3l2 1.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
-                }
               </button>
             )}
             <ThemeToggle theme={theme} onToggle={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} size={isMobile ? 32 : 40} />
@@ -2467,6 +2455,18 @@ export function HomeShell() {
                 >
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 </button>
+                {isSignedIn && (
+                  <button
+                    onClick={() => setProfileOpen(true)}
+                    style={{ flexShrink: 0, width: 34, height: 34, borderRadius: 999, border: `1px solid ${border(theme)}`, backgroundColor: theme === "dark" ? "#1e2126" : "#ffffff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+                    aria-label="Focus stats"
+                  >
+                    {(focusStatsData?.currentStreak ?? 0) > 0
+                      ? <svg width="10" height="13" viewBox="0 0 11 15" fill="none" overflow="visible" style={{ animation: "boltSpark 1.4s ease-in-out infinite" }}><path d="M7 1L1 8.5h4L3.5 14 10 6H6L7 1Z" fill="#facc15"/></svg>
+                      : <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke={muted(theme)} strokeWidth="1.4"/><path d="M7 4v3l2 1.5" stroke={muted(theme)} strokeWidth="1.3" strokeLinecap="round"/></svg>
+                    }
+                  </button>
+                )}
                 {isSignedIn && (
                   <button
                     onClick={() => setMobileSettingsOpen(true)}
@@ -5259,7 +5259,7 @@ export function HomeShell() {
               <div style={{ position: "absolute", inset: 0, zIndex: 10, backgroundColor: "rgba(6,7,10,.88)", backdropFilter: "blur(8px)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 0, textAlign: "center", padding: "40px 28px" }}>
                 <div style={{ fontSize: 18, fontWeight: 700, color: "#f7f8fb", marginBottom: 8 }}>Save your progress?</div>
                 <div style={{ fontSize: 14, color: "rgba(247,248,251,.45)", marginBottom: 28, lineHeight: 1.65 }}>
-                  {Math.max(1, Math.round((Date.now() - focusSessionStartRef.current) / 60000))} min focused — log it before you go.
+                  {Math.floor((Date.now() - focusSessionStartRef.current) / 60000)} min focused — log it before you go.
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 320 }}>
                   <div style={{ display: "flex", gap: 10 }}>
