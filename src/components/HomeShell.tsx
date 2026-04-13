@@ -10,14 +10,14 @@ import { useUser, useClerk } from "@clerk/nextjs";
 import { api } from "../../convex/_generated/api";
 
 const NOTE_PALETTE = [
-  { light: "#f5c1e4", dark: "#4f2344", halo: "rgba(220,60,155,.24)",  swatch: "#df3eaa" },  // pink
-  { light: "#f8e8fd", dark: "#1e0e2e", halo: "rgba(175,70,225,.22)",  swatch: "#aa44dd" },  // orchid
-  { light: "#fde8ed", dark: "#2e0e18", halo: "rgba(240,70,100,.22)",  swatch: "#f03c64" },  // coral
-  { light: "#fdf0e8", dark: "#2e1a0e", halo: "rgba(240,155,80,.20)",  swatch: "#f0854a" },  // peach
-  { light: "#fdf8e6", dark: "#2a2208", halo: "rgba(215,185,55,.20)",  swatch: "#c89808" },  // butter
-  { light: "#ede8fd", dark: "#160e30", halo: "rgba(130,90,240,.22)",  swatch: "#7c4eee" },  // lilac
-  { light: "#e8f2fd", dark: "#0e1e35", halo: "rgba(65,145,230,.20)",  swatch: "#3a8ee0" },  // blue
-  { light: "#e8fdf4", dark: "#0a2418", halo: "rgba(45,185,135,.20)",  swatch: "#22b880" },  // mint
+  { light: "#fce7ff", dark: "#3a0a4a", halo: "rgba(217,70,239,.22)",  swatch: "#d946ef" },  // fuchsia
+  { light: "#f3e8ff", dark: "#2d0a4e", halo: "rgba(147,51,234,.22)",  swatch: "#9333ea" },  // purple
+  { light: "#e0e7ff", dark: "#1e1a4e", halo: "rgba(99,102,241,.22)",  swatch: "#6366f1" },  // indigo
+  { light: "#dbeafe", dark: "#0f1f4a", halo: "rgba(59,130,246,.20)",  swatch: "#3b82f6" },  // blue
+  { light: "#cffafe", dark: "#052a3a", halo: "rgba(8,145,178,.20)",   swatch: "#0891b2" },  // teal
+  { light: "#d1fae5", dark: "#052a1e", halo: "rgba(5,150,105,.20)",   swatch: "#059669" },  // emerald
+  { light: "#ecfccb", dark: "#1a2a04", halo: "rgba(132,204,22,.20)",  swatch: "#84cc16" },  // lime
+  { light: "#ffe4e6", dark: "#3a0a10", halo: "rgba(251,113,133,.22)", swatch: "#fb7185" },  // rose
 ];
 
 // Task color palette: first 3 are priority defaults (red/orange/yellow), then NOTE_PALETTE
@@ -641,7 +641,8 @@ export function HomeShell() {
   const [mobileExpandedIds, setMobileExpandedIds] = useState<Set<number>>(new Set());
   const [mobileAddMode, setMobileAddMode] = useState<"task" | "thought" | null>(null);
   const [mobileAddTitle, setMobileAddTitle] = useState("");
-  const [mobileAddImportance, setMobileAddImportance] = useState<Importance>("none");
+  const [mobileAddBody, setMobileAddBody] = useState("");
+  const [mobileAddImportance, setMobileAddImportance] = useState<Importance>("Low");
   const [mobileAddDueDate, setMobileAddDueDate] = useState("");
   const [mobileActionNoteId, setMobileActionNoteId] = useState<number | null>(null);
   const [mobileEditTitle, setMobileEditTitle] = useState("");
@@ -2267,7 +2268,7 @@ export function HomeShell() {
             setNotes(prev => [...prev, {
               id, boardId: activeBoardId,
               type: mobileAddMode === "thought" ? "thought" : "task",
-              title: mobileAddTitle.trim(), body: "",
+              title: mobileAddTitle.trim(), body: mobileAddBody.trim(),
               importance: mobileAddMode === "task" ? mobileAddImportance : "none",
               dueDate: (mobileAddMode === "task" && mobileAddDueDate) ? mobileAddDueDate : undefined,
               createdAt: now, completed: false,
@@ -2280,7 +2281,7 @@ export function HomeShell() {
             if (mobileAddMode === "thought" && mobileAddRemindIn !== null) {
               setReminderMut({ noteId: id, noteTitle: mobileAddTitle.trim(), delayMs: mobileAddRemindIn }).catch(() => {});
             }
-            setMobileAddTitle(""); setMobileAddImportance("none"); setMobileAddDueDate(""); setMobileAddMode(null);
+            setMobileAddTitle(""); setMobileAddBody(""); setMobileAddImportance("Low"); setMobileAddDueDate(""); setMobileAddMode(null);
             setMobileAddColorIdx(undefined); setMobileAddRemindIn(null);
           }
 
@@ -2825,7 +2826,7 @@ export function HomeShell() {
 
               {mobileAddMode && (
                 <div style={{ position: "fixed", inset: 0, zIndex: 800, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
-                  <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,.4)" }} onClick={() => { setMobileAddMode(null); setMobileAddTitle(""); setMobileAddColorIdx(undefined); setMobileAddRemindIn(null); }} />
+                  <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,.4)" }} onClick={() => { setMobileAddMode(null); setMobileAddTitle(""); setMobileAddBody(""); setMobileAddColorIdx(undefined); setMobileAddRemindIn(null); }} />
                   <div style={{ position: "relative", backgroundColor: surface(theme), borderRadius: "20px 20px 0 0", padding: "20px 20px 36px", display: "flex", flexDirection: "column", gap: 12 }}>
                     <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: muted(theme), opacity: .6, marginBottom: 2 }}>
                       {mobileAddMode === "task" ? "New Task" : "New Idea"}
@@ -2835,23 +2836,42 @@ export function HomeShell() {
                       rows={1}
                       value={mobileAddTitle}
                       onChange={e => { setMobileAddTitle(e.target.value); e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }}
-                      onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); mobileCreateNote(); } if (e.key === "Escape") { setMobileAddMode(null); setMobileAddTitle(""); setMobileAddColorIdx(undefined); setMobileAddRemindIn(null); } }}
+                      onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey && mobileAddMode === "task") { e.preventDefault(); mobileCreateNote(); } if (e.key === "Escape") { setMobileAddMode(null); setMobileAddTitle(""); setMobileAddBody(""); setMobileAddColorIdx(undefined); setMobileAddRemindIn(null); } }}
                       placeholder={mobileAddMode === "task" ? "What needs to be done?" : "What's your idea?"}
                       style={{ fontSize: 16, fontWeight: 600, color: pageText(theme), backgroundColor: paper(theme), border: `1.5px solid ${border(theme)}`, borderRadius: 12, padding: "13px 14px", outline: "none", width: "100%", boxSizing: "border-box", resize: "none", overflow: "hidden", lineHeight: 1.4 }}
                     />
                     {mobileAddMode === "task" && (
-                      <div style={{ display: "flex", gap: 6 }}>
-                        {(["none", "Low", "Medium", "High"] as Importance[]).map(imp => {
-                          const active = mobileAddImportance === imp;
-                          const col = imp === "none" ? muted(theme) : PRIORITY_COLORS[imp as "High"|"Medium"|"Low"];
-                          return (
-                            <button key={imp} onClick={() => setMobileAddImportance(imp)}
-                              style={{ flex: 1, height: 34, borderRadius: 999, border: active ? `1.5px solid ${col}` : `1px solid ${border(theme)}`, backgroundColor: (active && imp !== "none") ? hexToRgba(PRIORITY_COLORS[imp as "High"|"Medium"|"Low"], 0.12) : "transparent", color: active ? col : muted(theme), fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                              {imp === "none" ? "None" : imp}
-                            </button>
-                          );
-                        })}
-                      </div>
+                      <>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          {(["Low", "Medium", "High"] as Importance[]).map(imp => {
+                            const active = mobileAddImportance === imp;
+                            const col = PRIORITY_COLORS[imp as "High"|"Medium"|"Low"];
+                            return (
+                              <button key={imp} onClick={() => setMobileAddImportance(imp)}
+                                style={{ flex: 1, height: 34, borderRadius: 999, border: active ? `1.5px solid ${col}` : `1px solid ${border(theme)}`, backgroundColor: active ? hexToRgba(PRIORITY_COLORS[imp as "High"|"Medium"|"Low"], 0.12) : "transparent", color: active ? col : muted(theme), fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                                {imp}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <input
+                          type="date"
+                          value={mobileAddDueDate}
+                          onChange={e => setMobileAddDueDate(e.target.value)}
+                          style={{ fontSize: 14, color: mobileAddDueDate ? pageText(theme) : muted(theme), backgroundColor: paper(theme), border: `1.5px solid ${border(theme)}`, borderRadius: 12, padding: "10px 14px", outline: "none", width: "100%", boxSizing: "border-box", fontFamily: "inherit" }}
+                        />
+                      </>
+                    )}
+                    {mobileAddMode === "thought" && (
+                      <>
+                        <textarea
+                          rows={2}
+                          value={mobileAddBody}
+                          onChange={e => { setMobileAddBody(e.target.value); e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }}
+                          placeholder="Add notes… (optional)"
+                          style={{ fontSize: 14, color: pageText(theme), backgroundColor: paper(theme), border: `1.5px solid ${border(theme)}`, borderRadius: 12, padding: "12px 14px", outline: "none", width: "100%", boxSizing: "border-box", resize: "none", overflow: "hidden", lineHeight: 1.5 }}
+                        />
+                      </>
                     )}
                     {mobileAddMode === "thought" && (
                       <>
