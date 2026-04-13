@@ -3106,7 +3106,6 @@ export function HomeShell() {
                         {focusNextStep && (
                           <div style={{ marginTop: 8, fontSize: 13, color: "rgba(247,248,251,.4)" }}>Up next — <span style={{ color: "rgba(247,248,251,.7)", fontWeight: 600 }}>{focusNextStep.title}</span></div>
                         )}
-                        <div style={{ marginTop: 28, width: "100%" }}>{progressBars(true)}</div>
                         <div style={{ marginTop: 28, display: "flex", gap: 12 }}>
                           {focusNextStep ? (
                             <>
@@ -3125,7 +3124,6 @@ export function HomeShell() {
                           {String(Math.floor(breakSecondsLeft / 60)).padStart(2,"0")}:{String(breakSecondsLeft % 60).padStart(2,"0")}
                         </div>
                         <div style={{ marginTop: 10, fontSize: 14, color: "rgba(247,248,251,.4)" }}>Resumes automatically</div>
-                        <div style={{ marginTop: 36, width: "100%" }}>{progressBars(true)}</div>
                         <div style={{ marginTop: 36, display: "flex", gap: 12 }}>
                           <button type="button" onClick={() => { focusTotalSecsRef.current = focusPausedSecsRef.current; focusStartedAtRef.current = Date.now(); setFocusPaused(false); setBreakSecondsLeft(0); }} style={btn}>Resume now</button>
                           <button type="button" onClick={() => setFocusExitConfirm(true)} style={btnRed}>Exit</button>
@@ -3142,7 +3140,6 @@ export function HomeShell() {
                         <div style={{ fontSize: 96, fontWeight: 700, letterSpacing: "-.04em", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
                           {String(mins).padStart(2,"0")}:{String(secs).padStart(2,"0")}
                         </div>
-                        <div style={{ marginTop: 40, width: "100%" }}>{progressBars(false)}</div>
                         <div style={{ marginTop: 36, display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
                           {focusTotalSecsRef.current >= 30 * 60 && (
                             <button type="button" onClick={() => { focusPausedSecsRef.current = focusSecondsLeft; setFocusPaused(true); setBreakSecondsLeft(300); }} style={btn}>5 min break</button>
