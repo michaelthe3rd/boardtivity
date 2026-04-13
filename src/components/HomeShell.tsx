@@ -732,7 +732,8 @@ export function HomeShell() {
 
   const saveBoard = useMutation(api.boards.save);
   const logFocusSession = useMutation(api.focusStats.logSession);
-  const focusStatsData = useQuery(api.focusStats.getStats, isSignedIn ? { days: 7 } : "skip");
+  const localToday = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })();
+  const focusStatsData = useQuery(api.focusStats.getStats, isSignedIn ? { days: 7, clientToday: localToday } : "skip");
   const setReminderMut = useMutation(api.reminders.set);
   const emailPrefs = useQuery(api.emailPrefs.get);
   const updateEmailPrefs = useMutation(api.emailPrefs.update);
@@ -2046,7 +2047,8 @@ export function HomeShell() {
   async function handleFocusReviewDone(markFinished: boolean) {
     if (!focusReview) return;
     const { elapsedMin, noteId } = focusReview;
-    const today = new Date().toISOString().slice(0, 10);
+    const _d = new Date();
+    const today = `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,"0")}-${String(_d.getDate()).padStart(2,"0")}`;
     // Update note stats locally
     setNotes(prev => prev.map(n => n.id === noteId ? {
       ...n,
@@ -3542,9 +3544,8 @@ export function HomeShell() {
               {isSignedIn && (
                 <button onClick={() => setProfileOpen(true)} style={circleButton(boardTheme)} aria-label="Focus stats" title="Focus stats">
                   {(focusStatsData?.currentStreak ?? 0) > 0
-                    ? <svg width="11" height="15" viewBox="0 0 11 15" fill="none" style={{ display: "block" }}>
-                        <style>{`@keyframes boltPulse{0%,100%{opacity:.55}50%{opacity:1}}`}</style>
-                        <path d="M7 1L1 8.5h4L3.5 14 10 6H6L7 1Z" fill="currentColor" style={{ animation: "boltPulse 1.8s ease-in-out infinite" }}/>
+                    ? <svg width="11" height="15" viewBox="0 0 11 15" fill="none" overflow="visible" style={{ display: "block", animation: "boltSpark 1.4s ease-in-out infinite" }}>
+                        <path d="M7 1L1 8.5h4L3.5 14 10 6H6L7 1Z" fill="#facc15"/>
                       </svg>
                     : <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.4"/><path d="M7 4v3l2 1.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
                   }
@@ -5966,9 +5967,9 @@ export function HomeShell() {
                     {streak > 0 && (() => {
                       const dur = Math.max(0.6, 2.4 - streak * 0.08);
                       return (
-                        <svg width="16" height="22" viewBox="0 0 11 15" fill="none">
-                          <style>{`@keyframes boltSpark{0%,100%{opacity:.7;filter:drop-shadow(0 0 2px #facc15)}40%{opacity:1;filter:drop-shadow(0 0 6px #fde68a) drop-shadow(0 0 12px #f59e0b)}}`}</style>
-                          <path d="M7 1L1 8.5h4L3.5 14 10 6H6L7 1Z" fill="#facc15" style={{ animation: `boltSpark ${dur}s ease-in-out infinite` }}/>
+                        <svg width="16" height="22" viewBox="0 0 11 15" fill="none" overflow="visible" style={{ filter: `drop-shadow(0 0 3px #facc15aa)`, animation: `boltSpark ${dur}s ease-in-out infinite` }}>
+                          <style>{`@keyframes boltSpark{0%,100%{opacity:.65;filter:drop-shadow(0 0 2px #facc1566)}40%{opacity:1;filter:drop-shadow(0 0 7px #facc15cc)}}`}</style>
+                          <path d="M7 1L1 8.5h4L3.5 14 10 6H6L7 1Z" fill="#facc15"/>
                         </svg>
                       );
                     })()}
@@ -6015,7 +6016,7 @@ export function HomeShell() {
         const totalTasks = stats?.totalTasksCompleted ?? 0;
         const days = stats?.days ?? [];
         const maxMin = Math.max(...days.map(d => d.totalMinutes), 1);
-        const today = new Date().toISOString().slice(0, 10);
+        const today = localToday;
         const overlay: CSSProperties = { position: "fixed", inset: 0, zIndex: 800, backgroundColor: theme === "dark" ? "rgba(6,8,12,.7)" : "rgba(10,10,12,.36)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 };
         const card: CSSProperties = { width: "min(380px,100%)", background: theme === "dark" ? "rgba(16,18,22,.98)" : "rgba(252,252,250,.99)", border: `1px solid ${border(theme)}`, borderRadius: 20, padding: "28px 24px", display: "flex", flexDirection: "column", gap: 24 };
         const dayLabel = (date: string) => { const d = new Date(date + "T12:00:00"); return ["Su","Mo","Tu","We","Th","Fr","Sa"][d.getDay()]; };
@@ -6030,7 +6031,7 @@ export function HomeShell() {
               {/* Streak + totals */}
               <div style={{ display: "flex", gap: 12 }}>
                 {[
-                  { label: "Streak", value: streak > 0 ? `${streak}d` : "–", sub: "days in a row", icon: streak > 0 ? (() => { const dur = Math.max(0.6, 2.4 - streak * 0.08); return <svg width="11" height="15" viewBox="0 0 11 15" fill="none"><path d="M7 1L1 8.5h4L3.5 14 10 6H6L7 1Z" fill="#facc15" style={{ animation: `boltSpark ${dur}s ease-in-out infinite` }}/></svg>; })() : null },
+                  { label: "Streak", value: streak > 0 ? `${streak}d` : "–", sub: "days in a row", icon: streak > 0 ? (() => { const dur = Math.max(0.6, 2.4 - streak * 0.08); return <svg width="11" height="15" viewBox="0 0 11 15" fill="none" overflow="visible" style={{ animation: `boltSpark ${dur}s ease-in-out infinite` }}><path d="M7 1L1 8.5h4L3.5 14 10 6H6L7 1Z" fill="#facc15"/></svg>; })() : null },
                   { label: "Total focused", value: `${totalHours}h`, sub: "all time" },
                   { label: "Tasks done", value: String(totalTasks), sub: "all time" },
                 ].map(({ label: _l, value, sub, icon }) => (

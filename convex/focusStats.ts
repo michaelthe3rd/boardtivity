@@ -40,27 +40,30 @@ export const logSession = mutation({
 export const getStats = query({
   args: {
     days: v.number(),
+    // Client-supplied local date (YYYY-MM-DD) so streak/window uses
+    // the user's timezone rather than the server's UTC clock.
+    clientToday: v.optional(v.string()),
   },
-  handler: async (ctx, { days }) => {
+  handler: async (ctx, { days, clientToday }) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return null;
 
     const clampedDays = Math.min(days, 90);
 
+    // Use client-supplied date if provided, otherwise fall back to UTC
+    const todayStr = clientToday ?? new Date().toISOString().slice(0, 10);
+    const todayDate = new Date(todayStr + "T12:00:00Z"); // noon UTC avoids off-by-one
+
     // Build the set of date strings for the requested window (oldest → newest)
-    const today = new Date();
     const dateStrings: string[] = [];
     for (let i = clampedDays - 1; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
+      const d = new Date(todayDate);
+      d.setUTCDate(todayDate.getUTCDate() - i);
       dateStrings.push(d.toISOString().slice(0, 10));
     }
 
     const oldestDate = dateStrings[0];
 
-    // Fetch all rows for this user on or after oldestDate.
-    // The index is on [tokenIdentifier, date]; string comparison works for
-    // ISO date strings, so we can use gte to bound the scan.
     const rows = await ctx.db
       .query("focusStats")
       .withIndex("by_token_and_date", (q) =>
@@ -80,7 +83,6 @@ export const getStats = query({
       });
     }
 
-    // Produce the days array (one entry per requested date, filling zeros for missing days)
     const daysArray = dateStrings.map((date) => {
       const found = byDate.get(date);
       return {
@@ -90,7 +92,7 @@ export const getStats = query({
       };
     });
 
-    // All-time totals: fetch all rows for the user (bounded at 10000 to stay safe)
+    // All-time totals
     const allRows = await ctx.db
       .query("focusStats")
       .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
@@ -103,21 +105,18 @@ export const getStats = query({
       totalTasksCompletedAllTime += row.tasksCompleted;
     }
 
-    // Current streak: count consecutive days (ending today) with totalMinutes > 0
-    const todayStr = today.toISOString().slice(0, 10);
+    // Current streak: count consecutive days ending today (client local date)
     let currentStreak = 0;
     for (let i = 0; ; i++) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
+      const d = new Date(todayDate);
+      d.setUTCDate(todayDate.getUTCDate() - i);
       const dateStr = d.toISOString().slice(0, 10);
 
-      // Look up in the allRows map
       const matchingRow = allRows.find((r) => r.date === dateStr);
       if (matchingRow && matchingRow.totalMinutes > 0) {
         currentStreak++;
       } else {
-        // If today has no entry yet, don't break the streak — skip today and
-        // continue checking yesterday. Otherwise break.
+        // Skip today if no entry yet (don't break streak)
         if (i === 0 && dateStr === todayStr) {
           continue;
         }
