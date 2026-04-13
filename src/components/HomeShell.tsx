@@ -10,16 +10,16 @@ import { useUser, useClerk } from "@clerk/nextjs";
 import { api } from "../../convex/_generated/api";
 
 const NOTE_PALETTE = [
-  { light: "#f5c1e4", dark: "#4f2344", halo: "rgba(220,60,155,.24)",  swatch: "#df3eaa" },  // pink
-  { light: "#f3e8ff", dark: "#2d0a4e", halo: "rgba(147,51,234,.22)",  swatch: "#9333ea" },  // purple
-  { light: "#e0e7ff", dark: "#1e1a4e", halo: "rgba(99,102,241,.22)",  swatch: "#6366f1" },  // indigo
-  { light: "#dbeafe", dark: "#0f1f4a", halo: "rgba(59,130,246,.20)",  swatch: "#3b82f6" },  // blue
-  { light: "#cffafe", dark: "#052a3a", halo: "rgba(8,145,178,.20)",   swatch: "#0891b2" },  // teal
-  { light: "#d1fae5", dark: "#052a1e", halo: "rgba(5,150,105,.20)",   swatch: "#059669" },  // emerald
-  { light: "#ecfccb", dark: "#1a2a04", halo: "rgba(132,204,22,.20)",  swatch: "#84cc16" },  // lime
-  { light: "#fdf0e8", dark: "#2e1a0e", halo: "rgba(240,130,60,.20)",  swatch: "#f0854a" },  // orange
-  { light: "#fdf8e0", dark: "#2a2208", halo: "rgba(210,185,40,.20)",  swatch: "#d4a017" },  // yellow
-  { light: "#fde8e8", dark: "#3a0e0e", halo: "rgba(220,50,50,.22)",   swatch: "#dc3535" },  // red
+  { name: "Pink",    light: "#f5c1e4", dark: "#4f2344", halo: "rgba(220,60,155,.24)",  swatch: "#df3eaa" },
+  { name: "Purple",  light: "#f3e8ff", dark: "#2d0a4e", halo: "rgba(147,51,234,.22)",  swatch: "#9333ea" },
+  { name: "Indigo",  light: "#e0e7ff", dark: "#1e1a4e", halo: "rgba(99,102,241,.22)",  swatch: "#6366f1" },
+  { name: "Blue",    light: "#dbeafe", dark: "#0f1f4a", halo: "rgba(59,130,246,.20)",  swatch: "#3b82f6" },
+  { name: "Teal",    light: "#cffafe", dark: "#052a3a", halo: "rgba(8,145,178,.20)",   swatch: "#0891b2" },
+  { name: "Emerald", light: "#d1fae5", dark: "#052a1e", halo: "rgba(5,150,105,.20)",   swatch: "#059669" },
+  { name: "Lime",    light: "#ecfccb", dark: "#1a2a04", halo: "rgba(132,204,22,.20)",  swatch: "#84cc16" },
+  { name: "Orange",  light: "#fdf0e8", dark: "#2e1a0e", halo: "rgba(240,130,60,.20)",  swatch: "#f0854a" },
+  { name: "Yellow",  light: "#fdf8e0", dark: "#2a2208", halo: "rgba(210,185,40,.20)",  swatch: "#d4a017" },
+  { name: "Red",     light: "#fde8e8", dark: "#3a0e0e", halo: "rgba(220,50,50,.22)",   swatch: "#dc3535" },
 ];
 
 // Task color palette: first 3 are priority defaults (red/orange/yellow), then idea colors minus orange/yellow/red
@@ -2664,10 +2664,10 @@ export function HomeShell() {
                           {!isPlus && <span style={{ fontSize: 10, fontWeight: 700, color: muted(theme), opacity: .6 }}>Plus</span>}
                         </div>
                         {isPlus ? (
-                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                            <button onClick={() => setThoughtColorMode("random")} style={{ width: 28, height: 28, borderRadius: "50%", cursor: "pointer", padding: 0, background: theme === "dark" ? "#2a2d32" : "#d8d8d8", border: thoughtColorMode === "random" ? `2.5px solid ${pageText(theme)}` : "2.5px solid transparent", outline: thoughtColorMode === "random" ? `2px solid ${theme === "dark" ? "#888" : "#aaa"}` : "none", outlineOffset: 2 }} title="No default (randomized)" />
+                          <div style={{ display: "flex", gap: 6, flexWrap: "nowrap", overflowX: "auto", alignItems: "center", paddingBottom: 2 }}>
+                            <button onClick={() => setThoughtColorMode("random")} style={{ flexShrink: 0, width: 22, height: 22, borderRadius: "50%", cursor: "pointer", padding: 0, background: theme === "dark" ? "#2a2d32" : "#d8d8d8", border: thoughtColorMode === "random" ? `2.5px solid ${pageText(theme)}` : "2.5px solid transparent", outline: thoughtColorMode === "random" ? `2px solid ${theme === "dark" ? "#888" : "#aaa"}` : "none", outlineOffset: 2 }} title="No default (randomized)" />
                             {NOTE_PALETTE.map((p, i) => (
-                              <button key={i} onClick={() => { setThoughtColorMode("fixed"); setThoughtFixedColorIdx(i); }} style={{ width: 28, height: 28, borderRadius: "50%", border: (thoughtColorMode === "fixed" && thoughtFixedColorIdx === i) ? `2.5px solid ${pageText(theme)}` : "2.5px solid transparent", outline: (thoughtColorMode === "fixed" && thoughtFixedColorIdx === i) ? `2px solid ${p.swatch}` : "none", outlineOffset: 2, backgroundColor: p.swatch, cursor: "pointer", padding: 0 }} />
+                              <button key={i} onClick={() => { setThoughtColorMode("fixed"); setThoughtFixedColorIdx(i); }} style={{ flexShrink: 0, width: 22, height: 22, borderRadius: "50%", border: (thoughtColorMode === "fixed" && thoughtFixedColorIdx === i) ? `2.5px solid ${pageText(theme)}` : "2.5px solid transparent", outline: (thoughtColorMode === "fixed" && thoughtFixedColorIdx === i) ? `2px solid ${p.swatch}` : "none", outlineOffset: 2, backgroundColor: p.swatch, cursor: "pointer", padding: 0 }} title={p.name} />
                             ))}
                           </div>
                         ) : (
@@ -3759,10 +3759,10 @@ export function HomeShell() {
                     <div style={{ fontSize: 12, color: muted(boardTheme), lineHeight: 1.5 }}>
                       Default color for new ideas. Pick one below, or leave unset for grey. You can always change color per-card using the circle in the corner.
                     </div>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "nowrap", overflowX: "auto", alignItems: "center", paddingBottom: 2 }}>
                       {/* Grey / no default */}
                       <button onClick={() => setThoughtColorMode("random")} style={{
-                        width: 26, height: 26, borderRadius: "50%", cursor: "pointer", padding: 0,
+                        flexShrink: 0, width: 22, height: 22, borderRadius: "50%", cursor: "pointer", padding: 0,
                         background: boardTheme === "dark" ? "#2a2d32" : "#d8d8d8",
                         border: thoughtColorMode === "random" ? `2.5px solid ${pageText(boardTheme)}` : "2.5px solid transparent",
                         outline: thoughtColorMode === "random" ? `2px solid ${boardTheme === "dark" ? "#888" : "#aaa"}` : "none",
@@ -3770,16 +3770,16 @@ export function HomeShell() {
                       }} title="No default (grey)" />
                       {NOTE_PALETTE.map((p, i) => (
                         <button key={i} onClick={() => { setThoughtColorMode("fixed"); setThoughtFixedColorIdx(i); }} style={{
-                          width: 26, height: 26, borderRadius: "50%",
+                          flexShrink: 0, width: 22, height: 22, borderRadius: "50%",
                           border: (thoughtColorMode === "fixed" && thoughtFixedColorIdx === i) ? `2.5px solid ${pageText(boardTheme)}` : "2.5px solid transparent",
                           outline: (thoughtColorMode === "fixed" && thoughtFixedColorIdx === i) ? `2px solid ${p.swatch}` : "none",
                           outlineOffset: 2,
                           backgroundColor: p.swatch, cursor: "pointer", padding: 0,
-                        }} />
+                        }} title={p.name} />
                       ))}
                     </div>
                     <p style={{ margin: 0, fontSize: 11, color: muted(boardTheme), lineHeight: 1.5 }}>
-                      Free users get randomized idea colors. {thoughtColorMode === "random" ? "Currently using grey (no default set)." : `Currently defaulting to ${NOTE_PALETTE[thoughtFixedColorIdx]?.swatch}.`}
+                      Free users get randomized idea colors. {thoughtColorMode === "random" ? "Currently using grey (no default set)." : `Currently defaulting to ${NOTE_PALETTE[thoughtFixedColorIdx]?.name}.`}
                     </p>
                   </div>
                 ) : (
