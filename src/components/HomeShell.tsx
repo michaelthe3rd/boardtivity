@@ -2265,6 +2265,7 @@ export function HomeShell() {
 
           function mobileCreateNote() {
             if (!mobileAddTitle.trim()) return;
+            if (mobileAddMode === "task" && !mobileAddDueDate) return;
             const id = genId();
             const now = new Date().toISOString();
             setNotes(prev => [...prev, {
@@ -2858,14 +2859,19 @@ export function HomeShell() {
                             );
                           })}
                         </div>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: muted(theme), letterSpacing: ".04em" }}>Due date</span>
-                          <input
-                            type="date"
-                            value={mobileAddDueDate}
-                            onChange={e => setMobileAddDueDate(e.target.value)}
-                            style={{ fontSize: 14, color: mobileAddDueDate ? pageText(theme) : muted(theme), backgroundColor: paper(theme), border: `1.5px solid ${border(theme)}`, borderRadius: 12, padding: "10px 14px", outline: "none", width: "100%", maxWidth: "100%", boxSizing: "border-box", fontFamily: "inherit", display: "block" }}
-                          />
+                        <div style={{ display: "flex", alignItems: "center", height: 44, backgroundColor: paper(theme), border: `1.5px solid ${mobileAddDueDate ? border(theme) : (theme === "dark" ? "#8b3a3a" : "#d06060")}`, borderRadius: 12, padding: "0 14px", gap: 8 }}>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: muted(theme), flex: 1 }}>Due date</span>
+                          <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+                            <span style={{ fontSize: 14, fontWeight: 600, color: mobileAddDueDate ? pageText(theme) : (theme === "dark" ? "#ff8080" : "#c05050"), pointerEvents: "none" }}>
+                              {mobileAddDueDate ? isoToMDY(mobileAddDueDate) : "Required"}
+                            </span>
+                            <input
+                              type="date"
+                              value={mobileAddDueDate}
+                              onChange={e => setMobileAddDueDate(e.target.value)}
+                              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer", zIndex: 1 }}
+                            />
+                          </div>
                         </div>
                       </>
                     )}
