@@ -3000,7 +3000,7 @@ export function HomeShell() {
                         onClick={() => {
                           if (!mobileEditTitle.trim()) return;
                           const parsedMins = mobileEditMinutes ? parseInt(mobileEditMinutes) : undefined;
-                          setNotes(ns => ns.map(n => n.id === actionNote.id ? {
+                          const updatedNotes = notes.map(n => n.id === actionNote.id ? {
                             ...n,
                             title: mobileEditTitle.trim(),
                             importance: mobileEditImportance,
@@ -3011,15 +3011,21 @@ export function HomeShell() {
                               const edited = mobileEditSteps.find(e => e.id === s.id);
                               return edited ? { ...s, minutes: edited.minutes } : s;
                             }),
-                          } : n));
+                          } : n);
+                          setNotes(updatedNotes);
                           setMobileActionNoteId(null);
                           setMobileDeleteConfirm(false);
+                          if (isSignedIn) {
+                            const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx });
+                            latestBoardStateRef.current = freshState;
+                            pushToCloud();
+                          }
                         }}
                         style={{ flex: 1, height: 44, borderRadius: 12, backgroundColor: theme === "dark" ? "#f5f5f2" : "#171613", color: theme === "dark" ? "#171613" : "#f7f8fb", border: "none", fontSize: 15, fontWeight: 700, cursor: "pointer" }}
                       >Save</button>
                       {mobileDeleteConfirm ? (
                         <button
-                          onClick={() => { setNotes(ns => ns.filter(n => n.id !== actionNote.id)); setMobileActionNoteId(null); setMobileDeleteConfirm(false); }}
+                          onClick={() => { const updatedNotes = notes.filter(n => n.id !== actionNote.id); setNotes(updatedNotes); setMobileActionNoteId(null); setMobileDeleteConfirm(false); if (isSignedIn) { const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx }); latestBoardStateRef.current = freshState; pushToCloud(); } }}
                           style={{ height: 44, borderRadius: 12, backgroundColor: theme === "dark" ? "rgba(220,60,60,.18)" : "rgba(180,40,40,.1)", color: theme === "dark" ? "#ff8080" : "#c03030", border: `1.5px solid ${theme === "dark" ? "rgba(220,60,60,.5)" : "rgba(180,40,40,.4)"}`, padding: "0 16px", fontSize: 14, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" }}
                         >Confirm</button>
                       ) : (
