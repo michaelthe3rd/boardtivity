@@ -2088,6 +2088,18 @@ export function HomeShell() {
                 Feedback
               </button>
             )}
+            {isMobile && isSignedIn && (
+              <button
+                onClick={() => setProfileOpen(true)}
+                style={{ width: 32, height: 32, borderRadius: "50%", border: `1px solid ${border(theme)}`, backgroundColor: panel(theme), cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                aria-label="Focus stats"
+              >
+                {(focusStatsData?.currentStreak ?? 0) > 0
+                  ? <svg width="10" height="13" viewBox="0 0 11 15" fill="none" overflow="visible" style={{ animation: "boltSpark 1.4s ease-in-out infinite" }}><path d="M7 1L1 8.5h4L3.5 14 10 6H6L7 1Z" fill="#facc15"/></svg>
+                  : <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.4"/><path d="M7 4v3l2 1.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+                }
+              </button>
+            )}
             <ThemeToggle theme={theme} onToggle={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} size={isMobile ? 32 : 40} />
             {isSignedIn ? (
               <div ref={userMenuRef} style={{ position: "relative" }}>
@@ -3079,7 +3091,9 @@ export function HomeShell() {
                         </div>
                         <div style={{ marginTop: 40, width: "100%" }}>{progressBars(false)}</div>
                         <div style={{ marginTop: 36, display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
-                          <button type="button" onClick={() => { focusPausedSecsRef.current = focusSecondsLeft; setFocusPaused(true); setBreakSecondsLeft(300); }} style={btn}>5 min break</button>
+                          {focusTotalSecsRef.current >= 30 * 60 && (
+                            <button type="button" onClick={() => { focusPausedSecsRef.current = focusSecondsLeft; setFocusPaused(true); setBreakSecondsLeft(300); }} style={btn}>5 min break</button>
+                          )}
                           <button type="button" onClick={() => setFocusExitConfirm(true)} style={btnRed}>Exit</button>
                         </div>
                       </div>
@@ -5223,9 +5237,11 @@ export function HomeShell() {
                   {progressBar(false)}
                 </div>
                 <div style={{ marginTop: 44, display: "flex", gap: 10, alignItems: "center" }}>
-                  <button onClick={() => { focusPausedSecsRef.current = focusSecondsLeft; setFocusPaused(true); setBreakSecondsLeft(300); }} style={focusBtnPrimary}>
-                    5 min break
-                  </button>
+                  {focusTotalSecsRef.current >= 30 * 60 && (
+                    <button onClick={() => { focusPausedSecsRef.current = focusSecondsLeft; setFocusPaused(true); setBreakSecondsLeft(300); }} style={focusBtnPrimary}>
+                      5 min break
+                    </button>
+                  )}
                   {!!isAdmin && (
                     <button onClick={() => { focusTotalSecsRef.current = 0; focusStartedAtRef.current = Date.now(); }} style={focusBtnSecondary}>
                       Skip
