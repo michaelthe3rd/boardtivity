@@ -17,7 +17,9 @@ const NOTE_PALETTE = [
   { light: "#cffafe", dark: "#052a3a", halo: "rgba(8,145,178,.20)",   swatch: "#0891b2" },  // teal
   { light: "#d1fae5", dark: "#052a1e", halo: "rgba(5,150,105,.20)",   swatch: "#059669" },  // emerald
   { light: "#ecfccb", dark: "#1a2a04", halo: "rgba(132,204,22,.20)",  swatch: "#84cc16" },  // lime
-  { light: "#ffe4e6", dark: "#3a0a10", halo: "rgba(251,113,133,.22)", swatch: "#fb7185" },  // rose
+  { light: "#fdf0e8", dark: "#2e1a0e", halo: "rgba(240,130,60,.20)",  swatch: "#f0854a" },  // orange
+  { light: "#fdf8e0", dark: "#2a2208", halo: "rgba(210,185,40,.20)",  swatch: "#d4a017" },  // yellow
+  { light: "#fde8e8", dark: "#3a0e0e", halo: "rgba(220,50,50,.22)",   swatch: "#dc3535" },  // red
 ];
 
 // Task color palette: first 3 are priority defaults (red/orange/yellow), then NOTE_PALETTE
