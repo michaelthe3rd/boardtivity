@@ -3946,7 +3946,7 @@ export function HomeShell() {
                     {/* Shuffle / randomize */}
                     <button onClick={() => setThoughtColorMode("random")} style={{
                       flexShrink: 0, width: 22, height: 22, borderRadius: "50%", cursor: "pointer", padding: 0,
-                      background: "conic-gradient(#df3eaa, #9333ea, #6366f1, #3b82f6, #0891b2, #059669, #84cc16, #d4a017, #dc3535, #df3eaa)",
+                      background: "conic-gradient(hsl(0,100%,55%), hsl(30,100%,55%), hsl(60,100%,55%), hsl(90,100%,55%), hsl(120,100%,55%), hsl(150,100%,55%), hsl(180,100%,55%), hsl(210,100%,55%), hsl(240,100%,55%), hsl(270,100%,55%), hsl(300,100%,55%), hsl(330,100%,55%), hsl(360,100%,55%))",
                       border: thoughtColorMode === "random" ? `2.5px solid ${pageText(boardTheme)}` : "2.5px solid transparent",
                       outline: thoughtColorMode === "random" ? `2px solid ${boardTheme === "dark" ? "rgba(255,255,255,.45)" : "rgba(0,0,0,.25)"}` : "none",
                       outlineOffset: 2,
@@ -4014,7 +4014,7 @@ export function HomeShell() {
                                     title="Pick custom color"
                                     style={{
                                       position: "relative", width: 22, height: 22, borderRadius: "50%", cursor: "pointer", padding: 0, border: "none",
-                                      background: "conic-gradient(#df3eaa, #9333ea, #6366f1, #3b82f6, #0891b2, #059669, #84cc16, #d4a017, #dc3535, #df3eaa)",
+                                      background: "conic-gradient(hsl(0,100%,55%), hsl(30,100%,55%), hsl(60,100%,55%), hsl(90,100%,55%), hsl(120,100%,55%), hsl(150,100%,55%), hsl(180,100%,55%), hsl(210,100%,55%), hsl(240,100%,55%), hsl(270,100%,55%), hsl(300,100%,55%), hsl(330,100%,55%), hsl(360,100%,55%))",
                                       boxShadow: currentIdx >= TASK_PALETTE.length ? `0 0 0 2.5px ${pageText(boardTheme)}, 0 0 0 4.5px ${customVal || "#fff"}` : "none",
                                       display: "flex", alignItems: "center", justifyContent: "center",
                                     }}
@@ -4054,7 +4054,7 @@ export function HomeShell() {
                               title="Pick custom color"
                               style={{
                                 position: "relative", width: 22, height: 22, borderRadius: "50%", cursor: "pointer", padding: 0, border: "none",
-                                background: "conic-gradient(#df3eaa, #9333ea, #6366f1, #3b82f6, #0891b2, #059669, #84cc16, #d4a017, #dc3535, #df3eaa)",
+                                background: "conic-gradient(hsl(0,100%,55%), hsl(30,100%,55%), hsl(60,100%,55%), hsl(90,100%,55%), hsl(120,100%,55%), hsl(150,100%,55%), hsl(180,100%,55%), hsl(210,100%,55%), hsl(240,100%,55%), hsl(270,100%,55%), hsl(300,100%,55%), hsl(330,100%,55%), hsl(360,100%,55%))",
                                 boxShadow: taskSingleColorIdx >= TASK_PALETTE.length ? `0 0 0 2.5px ${pageText(boardTheme)}, 0 0 0 4.5px ${taskSingleCustom || "#fff"}` : "none",
                                 display: "flex", alignItems: "center", justifyContent: "center",
                               }}
