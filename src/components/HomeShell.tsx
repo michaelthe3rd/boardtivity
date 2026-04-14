@@ -1262,7 +1262,20 @@ export function HomeShell() {
         taskMedColorIdx?: number; taskLowColorIdx?: number; taskSingleColorIdx?: number;
       };
       if (Array.isArray(data.boards) && data.boards.length > 0) setBoards(data.boards);
-      if (Array.isArray(data.notes)) setNotes(data.notes);
+      if (Array.isArray(data.notes)) {
+        // Merge focus-tracking fields: never let a cloud sync reduce time already
+        // logged locally. Last-write-wins on the blob would otherwise clobber
+        // totalTimeSpent when a save from another session (e.g. desktop) arrives.
+        setNotes(prev => data.notes!.map(cloudNote => {
+          const local = prev.find(n => n.id === cloudNote.id);
+          return {
+            ...cloudNote,
+            totalTimeSpent: Math.max(cloudNote.totalTimeSpent ?? 0, local?.totalTimeSpent ?? 0) || undefined,
+            attemptCount: Math.max(cloudNote.attemptCount ?? 0, local?.attemptCount ?? 0) || undefined,
+            lastTackledAt: Math.max(cloudNote.lastTackledAt ?? 0, local?.lastTackledAt ?? 0) || undefined,
+          };
+        }));
+      }
       if (data.activeBoardId) setActiveBoardId(data.activeBoardId);
       if (Array.isArray(data.drafts)) setDrafts(data.drafts);
       if (data.thoughtColorMode) setThoughtColorMode(data.thoughtColorMode);
