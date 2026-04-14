@@ -802,6 +802,14 @@ export function HomeShell() {
   const [taskMedColorIdx, setTaskMedColorIdx] = useState<number>(() => readLocal("taskMedColorIdx", 1));
   const [taskLowColorIdx, setTaskLowColorIdx] = useState<number>(() => readLocal("taskLowColorIdx", 2));
   const [taskSingleColorIdx, setTaskSingleColorIdx] = useState<number>(() => readLocal("taskSingleColorIdx", 0));
+  const [taskSingleCustom, setTaskSingleCustom] = useState<string>(() => readLocal("taskSingleCustom", ""));
+  const [taskHighCustom, setTaskHighCustom]     = useState<string>(() => readLocal("taskHighCustom", ""));
+  const [taskMedCustom, setTaskMedCustom]       = useState<string>(() => readLocal("taskMedCustom", ""));
+  const [taskLowCustom, setTaskLowCustom]       = useState<string>(() => readLocal("taskLowCustom", ""));
+  const colorWheelSingleRef = useRef<HTMLInputElement | null>(null);
+  const colorWheelHighRef   = useRef<HTMLInputElement | null>(null);
+  const colorWheelMedRef    = useRef<HTMLInputElement | null>(null);
+  const colorWheelLowRef    = useRef<HTMLInputElement | null>(null);
   const settingsRef = useRef<HTMLDivElement | null>(null);
   const [cloudSyncState, setCloudSyncState] = useState<"loading" | "synced" | "saving" | "error">("loading");
 
@@ -824,8 +832,15 @@ export function HomeShell() {
   // Resolve effective task color for a given priority level
   const taskPaletteEntry = (importance: "High" | "Medium" | "Low") => {
     if (!isPlus) return null; // use hardcoded PRIORITY_COLORS for free users
-    if (taskColorMode === "single") return TASK_PALETTE[taskSingleColorIdx % TASK_PALETTE.length];
+    if (taskColorMode === "single") {
+      if (taskSingleColorIdx >= TASK_PALETTE.length && taskSingleCustom)
+        return { swatch: taskSingleCustom, light: taskSingleCustom, dark: taskSingleCustom, halo: hexToRgba(taskSingleCustom, 0.22) };
+      return TASK_PALETTE[taskSingleColorIdx % TASK_PALETTE.length];
+    }
     const idx = importance === "High" ? taskHighColorIdx : importance === "Medium" ? taskMedColorIdx : taskLowColorIdx;
+    const custom = importance === "High" ? taskHighCustom : importance === "Medium" ? taskMedCustom : taskLowCustom;
+    if (idx >= TASK_PALETTE.length && custom)
+      return { swatch: custom, light: custom, dark: custom, halo: hexToRgba(custom, 0.22) };
     return TASK_PALETTE[idx % TASK_PALETTE.length];
   };
   const getBg = (importance: Importance | undefined) => {
@@ -1160,7 +1175,7 @@ export function HomeShell() {
   }
 
   function currentBoardState() {
-    return JSON.stringify({ boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx });
+    return JSON.stringify({ boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom });
   }
 
   async function pushToCloud(retries = 3) {
@@ -1255,6 +1270,7 @@ export function HomeShell() {
         thoughtFixedColorIdx?: number; boardGrid?: "grid" | "dots" | "blank";
         taskColorMode?: "priority" | "single"; taskHighColorIdx?: number;
         taskMedColorIdx?: number; taskLowColorIdx?: number; taskSingleColorIdx?: number;
+        taskSingleCustom?: string; taskHighCustom?: string; taskMedCustom?: string; taskLowCustom?: string;
       };
       if (Array.isArray(data.boards) && data.boards.length > 0) setBoards(data.boards);
       if (Array.isArray(data.notes)) {
@@ -1281,6 +1297,10 @@ export function HomeShell() {
       if (typeof data.taskMedColorIdx === "number") setTaskMedColorIdx(data.taskMedColorIdx);
       if (typeof data.taskLowColorIdx === "number") setTaskLowColorIdx(data.taskLowColorIdx);
       if (typeof data.taskSingleColorIdx === "number") setTaskSingleColorIdx(data.taskSingleColorIdx);
+      if (typeof data.taskSingleCustom === "string") setTaskSingleCustom(data.taskSingleCustom);
+      if (typeof data.taskHighCustom   === "string") setTaskHighCustom(data.taskHighCustom);
+      if (typeof data.taskMedCustom    === "string") setTaskMedCustom(data.taskMedCustom);
+      if (typeof data.taskLowCustom    === "string") setTaskLowCustom(data.taskLowCustom);
       setCloudSyncState("synced");
     } catch { setCloudSyncState("error"); }
   }, [isSignedIn, savedBoard]);
@@ -1318,7 +1338,7 @@ export function HomeShell() {
     } else {
       try { localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme })); } catch {}
     }
-  }, [isHydrated, isSignedIn, theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx]);
+  }, [isHydrated, isSignedIn, theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom]);
 
   // ── Flush any pending debounced save when tab hides or closes ────────────────
   useEffect(() => {
@@ -2119,7 +2139,7 @@ export function HomeShell() {
     });
     setNotes(updatedNotes);
     if (isSignedIn) {
-      const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx });
+      const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom });
       latestBoardStateRef.current = freshState;
       pushToCloud();
     }
@@ -2152,7 +2172,7 @@ export function HomeShell() {
     });
     setNotes(updatedNotes);
     if (isSignedIn) {
-      const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx });
+      const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom });
       latestBoardStateRef.current = freshState;
       pushToCloud();
       if (elapsedMin > 0) {
@@ -2405,7 +2425,7 @@ export function HomeShell() {
             setMobileAddColorIdx(undefined); setMobileAddRemindIn(null);
             // Build state with new note immediately and push — don't wait for debounce or effect timing
             if (isSignedIn) {
-              const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx });
+              const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom });
               latestBoardStateRef.current = freshState;
               pushToCloud();
             }
@@ -3155,7 +3175,7 @@ export function HomeShell() {
                           setMobileActionNoteId(null);
                           setMobileDeleteConfirm(false);
                           if (isSignedIn) {
-                            const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx });
+                            const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom });
                             latestBoardStateRef.current = freshState;
                             pushToCloud();
                           }
@@ -3164,7 +3184,7 @@ export function HomeShell() {
                       >Save</button>
                       {mobileDeleteConfirm ? (
                         <button
-                          onClick={() => { const updatedNotes = notes.filter(n => n.id !== actionNote.id); setNotes(updatedNotes); setMobileActionNoteId(null); setMobileDeleteConfirm(false); if (isSignedIn) { const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx }); latestBoardStateRef.current = freshState; pushToCloud(); } }}
+                          onClick={() => { const updatedNotes = notes.filter(n => n.id !== actionNote.id); setNotes(updatedNotes); setMobileActionNoteId(null); setMobileDeleteConfirm(false); if (isSignedIn) { const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom }); latestBoardStateRef.current = freshState; pushToCloud(); } }}
                           style={{ height: 44, borderRadius: 12, backgroundColor: theme === "dark" ? "rgba(220,60,60,.18)" : "rgba(180,40,40,.1)", color: theme === "dark" ? "#ff8080" : "#c03030", border: `1.5px solid ${theme === "dark" ? "rgba(220,60,60,.5)" : "rgba(180,40,40,.4)"}`, padding: "0 16px", fontSize: 14, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" }}
                         >Confirm</button>
                       ) : (
@@ -3928,14 +3948,14 @@ export function HomeShell() {
                       Default color for new ideas. Pick one below, or leave unset for grey. You can always change color per-card using the circle in the corner.
                     </div>
                     <div style={{ display: "flex", gap: 6, flexWrap: "nowrap", overflowX: "auto", alignItems: "center", padding: 4, margin: -4 }}>
-                      {/* Grey / no default */}
+                      {/* Rainbow / randomize */}
                       <button onClick={() => setThoughtColorMode("random")} style={{
                         flexShrink: 0, width: 22, height: 22, borderRadius: "50%", cursor: "pointer", padding: 0,
-                        background: boardTheme === "dark" ? "#2a2d32" : "#d8d8d8",
+                        background: "conic-gradient(#df3eaa, #9333ea, #6366f1, #3b82f6, #0891b2, #059669, #84cc16, #d4a017, #dc3535, #df3eaa)",
                         border: thoughtColorMode === "random" ? `2.5px solid ${pageText(boardTheme)}` : "2.5px solid transparent",
-                        outline: thoughtColorMode === "random" ? `2px solid ${boardTheme === "dark" ? "#888" : "#aaa"}` : "none",
+                        outline: thoughtColorMode === "random" ? `2px solid ${boardTheme === "dark" ? "rgba(255,255,255,.5)" : "rgba(0,0,0,.3)"}` : "none",
                         outlineOffset: 2,
-                      }} title="No default (grey)" />
+                      }} title="Randomize color" />
                       {NOTE_PALETTE.map((p, i) => (
                         <button key={i} onClick={() => { setThoughtColorMode("fixed"); setThoughtFixedColorIdx(i); }} style={{
                           flexShrink: 0, width: 22, height: 22, borderRadius: "50%",
@@ -3947,7 +3967,7 @@ export function HomeShell() {
                       ))}
                     </div>
                     <p style={{ margin: 0, fontSize: 11, color: muted(boardTheme), lineHeight: 1.5 }}>
-                      Free users get randomized idea colors. {thoughtColorMode === "random" ? "Currently using grey (no default set)." : `Currently defaulting to ${NOTE_PALETTE[thoughtFixedColorIdx]?.name}.`}
+                      Free users get randomized idea colors. {thoughtColorMode === "random" ? "Currently randomizing colors." : `Currently defaulting to ${NOTE_PALETTE[thoughtFixedColorIdx]?.name}.`}
                     </p>
                   </div>
                 ) : (
@@ -3983,22 +4003,45 @@ export function HomeShell() {
 
                     {taskColorMode === "priority" ? (
                       <div style={{ display: "grid", gap: 10 }}>
-                        {(["High", "Medium", "Low"] as const).map((lvl, li) => {
+                        {(["High", "Medium", "Low"] as const).map((lvl) => {
                           const currentIdx = lvl === "High" ? taskHighColorIdx : lvl === "Medium" ? taskMedColorIdx : taskLowColorIdx;
                           const setter = lvl === "High" ? setTaskHighColorIdx : lvl === "Medium" ? setTaskMedColorIdx : setTaskLowColorIdx;
+                          const customVal = lvl === "High" ? taskHighCustom : lvl === "Medium" ? taskMedCustom : taskLowCustom;
+                          const setCustom = lvl === "High" ? setTaskHighCustom : lvl === "Medium" ? setTaskMedCustom : setTaskLowCustom;
+                          const wheelRef = lvl === "High" ? colorWheelHighRef : lvl === "Medium" ? colorWheelMedRef : colorWheelLowRef;
                           return (
                             <div key={lvl}>
                               <div style={{ fontSize: 12, fontWeight: 600, color: pageText(boardTheme), marginBottom: 6 }}>{lvl} priority</div>
-                              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
                                 {TASK_PALETTE.map((p, i) => (
                                   <button key={i} onClick={() => setter(i)} style={{
                                     width: 22, height: 22, borderRadius: "50%",
-                                    border: currentIdx === i ? `2.5px solid ${pageText(boardTheme)}` : "2.5px solid transparent",
-                                    outline: currentIdx === i ? `2px solid ${p.swatch}` : "none",
+                                    border: (currentIdx === i && currentIdx < TASK_PALETTE.length) ? `2.5px solid ${pageText(boardTheme)}` : "2.5px solid transparent",
+                                    outline: (currentIdx === i && currentIdx < TASK_PALETTE.length) ? `2px solid ${p.swatch}` : "none",
                                     outlineOffset: 2,
                                     backgroundColor: p.swatch, cursor: "pointer", padding: 0,
                                   }} />
                                 ))}
+                                <div style={{ position: "relative" }}>
+                                  <button
+                                    onClick={() => wheelRef.current?.click()}
+                                    title="Custom color"
+                                    style={{
+                                      width: 22, height: 22, borderRadius: "50%", cursor: "pointer", padding: 0, border: "none",
+                                      background: currentIdx >= TASK_PALETTE.length && customVal
+                                        ? customVal
+                                        : "conic-gradient(#c03030, #d07030, #c8960a, #84cc16, #059669, #0891b2, #3b82f6, #6366f1, #9333ea, #df3eaa, #dc3535, #c03030)",
+                                      boxShadow: currentIdx >= TASK_PALETTE.length ? `0 0 0 2.5px ${pageText(boardTheme)}` : "none",
+                                      outline: currentIdx >= TASK_PALETTE.length ? `2px solid ${customVal || pageText(boardTheme)}` : "none",
+                                      outlineOffset: 2,
+                                    }}
+                                  />
+                                  <input ref={wheelRef} type="color"
+                                    value={customVal || "#ff6600"}
+                                    onChange={e => { setCustom(e.target.value); setter(TASK_PALETTE.length); }}
+                                    style={{ position: "absolute", opacity: 0, width: 0, height: 0, top: 0, left: 0, pointerEvents: "none" }}
+                                  />
+                                </div>
                               </div>
                             </div>
                           );
@@ -4007,16 +4050,37 @@ export function HomeShell() {
                     ) : (
                       <div>
                         <div style={{ fontSize: 12, color: muted(boardTheme), marginBottom: 8 }}>Apply one color to all tasks regardless of priority.</div>
-                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
                           {TASK_PALETTE.map((p, i) => (
                             <button key={i} onClick={() => setTaskSingleColorIdx(i)} style={{
                               width: 22, height: 22, borderRadius: "50%",
-                              border: taskSingleColorIdx === i ? `2.5px solid ${pageText(boardTheme)}` : "2.5px solid transparent",
-                              outline: taskSingleColorIdx === i ? `2px solid ${p.swatch}` : "none",
+                              border: (taskSingleColorIdx === i && taskSingleColorIdx < TASK_PALETTE.length) ? `2.5px solid ${pageText(boardTheme)}` : "2.5px solid transparent",
+                              outline: (taskSingleColorIdx === i && taskSingleColorIdx < TASK_PALETTE.length) ? `2px solid ${p.swatch}` : "none",
                               outlineOffset: 2,
                               backgroundColor: p.swatch, cursor: "pointer", padding: 0,
                             }} />
                           ))}
+                          {/* Custom color wheel */}
+                          <div style={{ position: "relative" }}>
+                            <button
+                              onClick={() => colorWheelSingleRef.current?.click()}
+                              title="Custom color"
+                              style={{
+                                width: 22, height: 22, borderRadius: "50%", cursor: "pointer", padding: 0, border: "none",
+                                background: taskSingleColorIdx >= TASK_PALETTE.length && taskSingleCustom
+                                  ? taskSingleCustom
+                                  : "conic-gradient(#c03030, #d07030, #c8960a, #84cc16, #059669, #0891b2, #3b82f6, #6366f1, #9333ea, #df3eaa, #dc3535, #c03030)",
+                                outline: taskSingleColorIdx >= TASK_PALETTE.length ? `2px solid ${taskSingleCustom || pageText(boardTheme)}` : "none",
+                                outlineOffset: 2,
+                                boxShadow: taskSingleColorIdx >= TASK_PALETTE.length ? `0 0 0 2.5px ${pageText(boardTheme)}` : "none",
+                              }}
+                            />
+                            <input ref={colorWheelSingleRef} type="color"
+                              value={taskSingleCustom || "#ff6600"}
+                              onChange={e => { setTaskSingleCustom(e.target.value); setTaskSingleColorIdx(TASK_PALETTE.length); }}
+                              style={{ position: "absolute", opacity: 0, width: 0, height: 0, top: 0, left: 0, pointerEvents: "none" }}
+                            />
+                          </div>
                         </div>
                       </div>
                     )}
