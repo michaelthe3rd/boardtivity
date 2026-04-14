@@ -831,7 +831,6 @@ export function HomeShell() {
 
   // Resolve effective task color for a given priority level
   const taskPaletteEntry = (importance: "High" | "Medium" | "Low") => {
-    if (!isPlus) return null; // use hardcoded PRIORITY_COLORS for free users
     if (taskColorMode === "single") {
       if (taskSingleColorIdx >= TASK_PALETTE.length && taskSingleCustom)
         return { swatch: taskSingleCustom, light: taskSingleCustom, dark: taskSingleCustom, halo: hexToRgba(taskSingleCustom, 0.22) };
@@ -1819,7 +1818,7 @@ export function HomeShell() {
       showFlow: false,
       flowMode: "web",
       linkedNoteIds: [],
-      colorIdx: composerColorIdx !== undefined ? composerColorIdx : (!isPlus ? Math.floor(Math.random() * NOTE_PALETTE.length) : undefined),
+      colorIdx: composerColorIdx !== undefined ? composerColorIdx : (thoughtColorMode === "random" ? Math.floor(Math.random() * NOTE_PALETTE.length) : thoughtFixedColorIdx),
     };
 
     setNotes((prev) => [...prev, note]);
@@ -2058,7 +2057,7 @@ export function HomeShell() {
         flowMode: "web",
         linkedNoteIds: [],
         colorIdx: note.type === "thought"
-          ? (isPlus ? (thoughtColorMode === "fixed" ? thoughtFixedColorIdx : undefined) : Math.floor(Math.random() * 8))
+          ? (thoughtColorMode === "fixed" ? thoughtFixedColorIdx : Math.floor(Math.random() * NOTE_PALETTE.length))
           : undefined,
       };
       return [...prev, newNote];
@@ -2412,7 +2411,7 @@ export function HomeShell() {
               x: spawnX, y: spawnY,
               steps: [], showFlow: false, flowMode: "web", linkedNoteIds: [],
               colorIdx: mobileAddMode === "thought"
-                ? (mobileAddColorIdx !== undefined ? mobileAddColorIdx : (!isPlus ? Math.floor(Math.random() * NOTE_PALETTE.length) : undefined))
+                ? (mobileAddColorIdx !== undefined ? mobileAddColorIdx : (thoughtColorMode === "random" ? Math.floor(Math.random() * NOTE_PALETTE.length) : thoughtFixedColorIdx))
                 : undefined,
             } as Note;
             const updatedNotes = [...notes, newNote];
@@ -3938,53 +3937,48 @@ export function HomeShell() {
 
               {/* Idea Colors */}
               <div style={{ display: "grid", gap: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), fontWeight: 700 }}>Idea Colors</div>
-                  {!isPlus && <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", color: muted(boardTheme), opacity: .6, display: "flex", alignItems: "center", gap: 3 }}><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Plus</span>}
-                </div>
-                {isPlus ? (
-                  <div style={{ display: "grid", gap: 10 }}>
-                    <div style={{ fontSize: 12, color: muted(boardTheme), lineHeight: 1.5 }}>
-                      Default color for new ideas. Pick one below, or leave unset for grey. You can always change color per-card using the circle in the corner.
-                    </div>
-                    <div style={{ display: "flex", gap: 6, flexWrap: "nowrap", overflowX: "auto", alignItems: "center", padding: 4, margin: -4 }}>
-                      {/* Rainbow / randomize */}
-                      <button onClick={() => setThoughtColorMode("random")} style={{
-                        flexShrink: 0, width: 22, height: 22, borderRadius: "50%", cursor: "pointer", padding: 0,
-                        background: "conic-gradient(#df3eaa, #9333ea, #6366f1, #3b82f6, #0891b2, #059669, #84cc16, #d4a017, #dc3535, #df3eaa)",
-                        border: thoughtColorMode === "random" ? `2.5px solid ${pageText(boardTheme)}` : "2.5px solid transparent",
-                        outline: thoughtColorMode === "random" ? `2px solid ${boardTheme === "dark" ? "rgba(255,255,255,.5)" : "rgba(0,0,0,.3)"}` : "none",
-                        outlineOffset: 2,
-                      }} title="Randomize color" />
-                      {NOTE_PALETTE.map((p, i) => (
-                        <button key={i} onClick={() => { setThoughtColorMode("fixed"); setThoughtFixedColorIdx(i); }} style={{
-                          flexShrink: 0, width: 22, height: 22, borderRadius: "50%",
-                          border: (thoughtColorMode === "fixed" && thoughtFixedColorIdx === i) ? `2.5px solid ${pageText(boardTheme)}` : "2.5px solid transparent",
-                          outline: (thoughtColorMode === "fixed" && thoughtFixedColorIdx === i) ? `2px solid ${p.swatch}` : "none",
-                          outlineOffset: 2,
-                          backgroundColor: p.swatch, cursor: "pointer", padding: 0,
-                        }} title={p.name} />
-                      ))}
-                    </div>
-                    <p style={{ margin: 0, fontSize: 11, color: muted(boardTheme), lineHeight: 1.5 }}>
-                      Free users get randomized idea colors. {thoughtColorMode === "random" ? "Currently randomizing colors." : `Currently defaulting to ${NOTE_PALETTE[thoughtFixedColorIdx]?.name}.`}
-                    </p>
-                  </div>
-                ) : (
+                <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), fontWeight: 700 }}>Idea Colors</div>
+                <div style={{ display: "grid", gap: 10 }}>
                   <div style={{ fontSize: 12, color: muted(boardTheme), lineHeight: 1.5 }}>
-                    Ideas are assigned a random color. Upgrade to Plus to set a default and change colors per-card.
+                    Default color for new ideas. Pick one below, or use the shuffle to randomize. You can always change color per-card using the circle in the corner.
                   </div>
-                )}
+                  <div style={{ display: "flex", gap: 6, flexWrap: "nowrap", overflowX: "auto", alignItems: "center", padding: 4, margin: -4 }}>
+                    {/* Shuffle / randomize — pie-slice SVG so it reads clearly at small sizes */}
+                    <button onClick={() => setThoughtColorMode("random")} style={{
+                      flexShrink: 0, width: 26, height: 26, borderRadius: "50%", cursor: "pointer", padding: 0,
+                      background: "none", border: thoughtColorMode === "random" ? `2.5px solid ${pageText(boardTheme)}` : "2.5px solid transparent",
+                      outline: thoughtColorMode === "random" ? `2px solid ${boardTheme === "dark" ? "rgba(255,255,255,.45)" : "rgba(0,0,0,.25)"}` : "none",
+                      outlineOffset: 2, display: "flex", alignItems: "center", justifyContent: "center",
+                    }} title="Randomize color">
+                      <svg width="22" height="22" viewBox="0 0 22 22">
+                        <path d="M11 11 L11 1 A10 10 0 0 1 19.66 6 Z" fill="#dc3535"/>
+                        <path d="M11 11 L19.66 6 A10 10 0 0 1 19.66 16 Z" fill="#d07030"/>
+                        <path d="M11 11 L19.66 16 A10 10 0 0 1 11 21 Z" fill="#84cc16"/>
+                        <path d="M11 11 L11 21 A10 10 0 0 1 2.34 16 Z" fill="#059669"/>
+                        <path d="M11 11 L2.34 16 A10 10 0 0 1 2.34 6 Z" fill="#3b82f6"/>
+                        <path d="M11 11 L2.34 6 A10 10 0 0 1 11 1 Z" fill="#9333ea"/>
+                      </svg>
+                    </button>
+                    {NOTE_PALETTE.map((p, i) => (
+                      <button key={i} onClick={() => { setThoughtColorMode("fixed"); setThoughtFixedColorIdx(i); }} style={{
+                        flexShrink: 0, width: 22, height: 22, borderRadius: "50%",
+                        border: (thoughtColorMode === "fixed" && thoughtFixedColorIdx === i) ? `2.5px solid ${pageText(boardTheme)}` : "2.5px solid transparent",
+                        outline: (thoughtColorMode === "fixed" && thoughtFixedColorIdx === i) ? `2px solid ${p.swatch}` : "none",
+                        outlineOffset: 2,
+                        backgroundColor: p.swatch, cursor: "pointer", padding: 0,
+                      }} title={p.name} />
+                    ))}
+                  </div>
+                  <p style={{ margin: 0, fontSize: 11, color: muted(boardTheme), lineHeight: 1.5 }}>
+                    {thoughtColorMode === "random" ? "New ideas will get a random color each time." : `New ideas will default to ${NOTE_PALETTE[thoughtFixedColorIdx]?.name}.`}
+                  </p>
+                </div>
               </div>
 
               {/* Task Colors */}
               <div style={{ display: "grid", gap: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), fontWeight: 700 }}>Task Colors</div>
-                  {!isPlus && <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", color: muted(boardTheme), opacity: .6, display: "flex", alignItems: "center", gap: 3 }}><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Plus</span>}
-                </div>
-                {isPlus ? (
-                  <div style={{ display: "grid", gap: 14 }}>
+                <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), fontWeight: 700 }}>Task Colors</div>
+                <div style={{ display: "grid", gap: 14 }}>
                     {/* Mode toggle */}
                     <div style={{ display: "flex", gap: 6, padding: 3, backgroundColor: boardTheme === "dark" ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", borderRadius: 10, border: `1px solid ${border(boardTheme)}` }}>
                       {(["priority", "single"] as const).map(m => (
@@ -4025,17 +4019,18 @@ export function HomeShell() {
                                 <div style={{ position: "relative" }}>
                                   <button
                                     onClick={() => wheelRef.current?.click()}
-                                    title="Custom color"
+                                    title="Pick custom color"
                                     style={{
-                                      width: 22, height: 22, borderRadius: "50%", cursor: "pointer", padding: 0, border: "none",
-                                      background: currentIdx >= TASK_PALETTE.length && customVal
-                                        ? customVal
-                                        : "conic-gradient(#c03030, #d07030, #c8960a, #84cc16, #059669, #0891b2, #3b82f6, #6366f1, #9333ea, #df3eaa, #dc3535, #c03030)",
-                                      boxShadow: currentIdx >= TASK_PALETTE.length ? `0 0 0 2.5px ${pageText(boardTheme)}` : "none",
-                                      outline: currentIdx >= TASK_PALETTE.length ? `2px solid ${customVal || pageText(boardTheme)}` : "none",
-                                      outlineOffset: 2,
+                                      position: "relative", width: 22, height: 22, borderRadius: "50%", cursor: "pointer", padding: 0, border: "none",
+                                      background: "conic-gradient(#c03030 0deg 60deg, #84cc16 60deg 120deg, #059669 120deg 180deg, #3b82f6 180deg 240deg, #9333ea 240deg 300deg, #df3eaa 300deg 360deg)",
+                                      boxShadow: currentIdx >= TASK_PALETTE.length ? `0 0 0 2.5px ${pageText(boardTheme)}, 0 0 0 4.5px ${customVal || "#fff"}` : "none",
+                                      display: "flex", alignItems: "center", justifyContent: "center",
                                     }}
-                                  />
+                                  >
+                                    {currentIdx >= TASK_PALETTE.length && customVal && (
+                                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: customVal, border: "1.5px solid rgba(255,255,255,.8)", display: "block", pointerEvents: "none" }} />
+                                    )}
+                                  </button>
                                   <input ref={wheelRef} type="color"
                                     value={customVal || "#ff6600"}
                                     onChange={e => { setCustom(e.target.value); setter(TASK_PALETTE.length); }}
@@ -4060,21 +4055,22 @@ export function HomeShell() {
                               backgroundColor: p.swatch, cursor: "pointer", padding: 0,
                             }} />
                           ))}
-                          {/* Custom color wheel */}
+                          {/* Custom color wheel — always shows rainbow; dot in center when custom active */}
                           <div style={{ position: "relative" }}>
                             <button
                               onClick={() => colorWheelSingleRef.current?.click()}
-                              title="Custom color"
+                              title="Pick custom color"
                               style={{
-                                width: 22, height: 22, borderRadius: "50%", cursor: "pointer", padding: 0, border: "none",
-                                background: taskSingleColorIdx >= TASK_PALETTE.length && taskSingleCustom
-                                  ? taskSingleCustom
-                                  : "conic-gradient(#c03030, #d07030, #c8960a, #84cc16, #059669, #0891b2, #3b82f6, #6366f1, #9333ea, #df3eaa, #dc3535, #c03030)",
-                                outline: taskSingleColorIdx >= TASK_PALETTE.length ? `2px solid ${taskSingleCustom || pageText(boardTheme)}` : "none",
-                                outlineOffset: 2,
-                                boxShadow: taskSingleColorIdx >= TASK_PALETTE.length ? `0 0 0 2.5px ${pageText(boardTheme)}` : "none",
+                                position: "relative", width: 22, height: 22, borderRadius: "50%", cursor: "pointer", padding: 0, border: "none",
+                                background: "conic-gradient(#c03030 0deg 60deg, #84cc16 60deg 120deg, #059669 120deg 180deg, #3b82f6 180deg 240deg, #9333ea 240deg 300deg, #df3eaa 300deg 360deg)",
+                                boxShadow: taskSingleColorIdx >= TASK_PALETTE.length ? `0 0 0 2.5px ${pageText(boardTheme)}, 0 0 0 4.5px ${taskSingleCustom || "#fff"}` : "none",
+                                display: "flex", alignItems: "center", justifyContent: "center",
                               }}
-                            />
+                            >
+                              {taskSingleColorIdx >= TASK_PALETTE.length && taskSingleCustom && (
+                                <span style={{ width: 8, height: 8, borderRadius: "50%", background: taskSingleCustom, border: "1.5px solid rgba(255,255,255,.8)", display: "block", pointerEvents: "none" }} />
+                              )}
+                            </button>
                             <input ref={colorWheelSingleRef} type="color"
                               value={taskSingleCustom || "#ff6600"}
                               onChange={e => { setTaskSingleCustom(e.target.value); setTaskSingleColorIdx(TASK_PALETTE.length); }}
@@ -4085,11 +4081,6 @@ export function HomeShell() {
                       </div>
                     )}
                   </div>
-                ) : (
-                  <div style={{ fontSize: 12, color: muted(boardTheme), lineHeight: 1.5 }}>
-                    Tasks use priority-based colors (red/orange/yellow). Upgrade to Plus to customize colors per priority or set a single color.
-                  </div>
-                )}
               </div>
 
               {/* Email Notifications */}
@@ -4356,7 +4347,7 @@ export function HomeShell() {
           <button
             onClick={() => {
               // Plus: use their default color (fixed mode) or grey (undefined); Free: random
-              setComposerColorIdx(isPlus ? (thoughtColorMode === "fixed" ? thoughtFixedColorIdx : undefined) : undefined);
+              setComposerColorIdx(thoughtColorMode === "fixed" ? thoughtFixedColorIdx : undefined);
               setComposerOpen(true);
             }}
             style={{
