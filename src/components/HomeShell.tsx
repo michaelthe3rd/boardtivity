@@ -159,6 +159,13 @@ function formatDateShort(date?: string) {
   return new Date(date + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+function fmtTime(t?: string): string {
+  if (!t) return "";
+  const [h, m] = t.split(":").map(Number);
+  const ampm = h >= 12 ? "pm" : "am";
+  return ` ${h % 12 || 12}:${String(m).padStart(2, "0")}${ampm}`;
+}
+
 function nextBoardName(existing: Board[], type: BoardType) {
   const base = type === "task" ? "My Board" : "My Ideas";
   const count = existing.filter((b) => b.type === type).length;
@@ -549,6 +556,7 @@ export function HomeShell() {
   const [detailEditTitle, setDetailEditTitle] = useState("");
   const [detailEditBody, setDetailEditBody] = useState("");
   const [detailEditDueDate, setDetailEditDueDate] = useState("");
+  const [detailEditDueTime, setDetailEditDueTime] = useState("");
   const [detailEditImportance, setDetailEditImportance] = useState<Importance>("none");
   const [detailEditMinutes, setDetailEditMinutes] = useState(60);
   const [detailEditSteps, setDetailEditSteps] = useState<Step[]>([]);
@@ -563,6 +571,7 @@ export function HomeShell() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [dueDate, setDueDate] = useState("");
+  const [dueTime, setDueTime] = useState("");
   const [minutes, setMinutes] = useState(60);
   const [importance, setImportance] = useState<Importance>("none");
   const [aiSteps, setAiSteps] = useState<Step[]>([]);
@@ -660,9 +669,11 @@ export function HomeShell() {
   const [mobileAddBody, setMobileAddBody] = useState("");
   const [mobileAddImportance, setMobileAddImportance] = useState<Importance>("Low");
   const [mobileAddDueDate, setMobileAddDueDate] = useState("");
+  const [mobileAddDueTime, setMobileAddDueTime] = useState("");
   const [mobileActionNoteId, setMobileActionNoteId] = useState<number | null>(null);
   const [mobileEditTitle, setMobileEditTitle] = useState("");
   const [mobileEditDueDate, setMobileEditDueDate] = useState("");
+  const [mobileEditDueTime, setMobileEditDueTime] = useState("");
   const [mobileEditImportance, setMobileEditImportance] = useState<Importance>("none");
   const [mobileEditMinutes, setMobileEditMinutes] = useState("");
   const [mobileAddColorIdx, setMobileAddColorIdx] = useState<number | undefined>(undefined);
@@ -752,6 +763,7 @@ export function HomeShell() {
   const localToday = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })();
   const focusStatsData = useQuery(api.focusStats.getStats, isSignedIn ? { days: 7, clientToday: localToday } : "skip");
   const setReminderMut = useMutation(api.reminders.set);
+  const cancelReminderMut = useMutation(api.reminders.cancel);
   const emailPrefs = useQuery(api.emailPrefs.get);
   const updateEmailPrefs = useMutation(api.emailPrefs.update);
   const savedBoard = useQuery(api.boards.load);
@@ -1763,6 +1775,7 @@ export function HomeShell() {
       title: title.trim(),
       body: body.trim(),
       dueDate: thoughtMode ? undefined : dueDate,
+      dueTime: (!thoughtMode && dueTime) ? dueTime : undefined,
       minutes: taskMinutes,
       importance: thoughtMode ? undefined : importance,
       createdAt: new Date().toISOString().slice(0, 10),
@@ -1777,6 +1790,9 @@ export function HomeShell() {
     };
 
     setNotes((prev) => [...prev, note]);
+    if (note.type === "task") {
+      scheduleDueDateReminder(note.id, note.title, note.dueDate, note.dueTime);
+    }
     resetComposer();
     setComposerOpen(false);
   }
@@ -1789,6 +1805,7 @@ export function HomeShell() {
     setTitle("");
     setBody("");
     setDueDate("");
+    setDueTime("");
     setMinutes(30);
     setImportance("none");
     setAiSteps([]);
@@ -1811,6 +1828,7 @@ export function HomeShell() {
       title: title.trim(),
       body: body.trim(),
       dueDate,
+      dueTime,
       minutes,
       importance,
       aiSteps,
@@ -1829,6 +1847,7 @@ export function HomeShell() {
     setTitle(draft.title);
     setBody(draft.body);
     setDueDate(draft.dueDate);
+    setDueTime(draft.dueTime ?? "");
     setMinutes(draft.minutes);
     setImportance(draft.importance);
     setAiSteps(draft.aiSteps);
@@ -1892,6 +1911,7 @@ export function HomeShell() {
 
   function completeTask(noteId: number) {
     setNotes((prev) => prev.map((n) => (n.id === noteId ? { ...n, completed: true } : n)));
+    cancelReminderMut({ noteId }).catch(() => {});
     setDetailNoteId(null);
   }
 
@@ -2110,6 +2130,18 @@ export function HomeShell() {
     }
   }
 
+  function scheduleDueDateReminder(noteId: number, noteTitle: string, dueDate: string | undefined, dueTimeVal: string | undefined) {
+    if (!isSignedIn || !dueDate || !dueTimeVal) {
+      cancelReminderMut({ noteId }).catch(() => {});
+      return;
+    }
+    const dueDatetime = new Date(`${dueDate}T${dueTimeVal}:00`).getTime();
+    const remindAt = dueDatetime - 60 * 60 * 1000; // 1 hour before
+    const delayMs = remindAt - Date.now();
+    if (delayMs <= 0) return;
+    setReminderMut({ noteId, noteTitle, delayMs }).catch(() => {});
+  }
+
   return (
     <main style={{ minHeight: "100vh", fontFamily: "'Satoshi', Arial, sans-serif" }}>
 
@@ -2294,16 +2326,17 @@ export function HomeShell() {
             return PRIORITY_COLORS[importance as "High"|"Medium"|"Low"];
           }
 
-          function dueLabelAndColor(dueDate: string | undefined): [string, string] {
+          function dueLabelAndColor(dueDate: string | undefined, dueTime?: string): [string, string] {
             if (!dueDate) return ["", muted(theme)];
             const today = todayStr();
             const tomorrow = tomorrowStr();
+            const timeStr = fmtTime(dueTime);
             if (dueDate < today) return ["Overdue",  theme === "dark" ? "#ff6666" : "#c03030"];
-            if (dueDate === today) return ["Due Today", theme === "dark" ? "#ffb347" : "#b86800"];
-            if (dueDate === tomorrow) return ["Tomorrow", muted(theme)];
+            if (dueDate === today) return [`Due Today${timeStr}`, theme === "dark" ? "#ffb347" : "#b86800"];
+            if (dueDate === tomorrow) return [`Tomorrow${timeStr}`, muted(theme)];
             const [y, m, d] = dueDate.split("-").map(Number);
             const due = new Date(y, m - 1, d);
-            return [due.toLocaleDateString(undefined, { month: "short", day: "numeric" }), muted(theme)];
+            return [`${due.toLocaleDateString(undefined, { month: "short", day: "numeric" })}${timeStr}`, muted(theme)];
           }
 
           function mobileCreateNote() {
@@ -2323,6 +2356,7 @@ export function HomeShell() {
               title: mobileAddTitle.trim(), body: mobileAddBody.trim(),
               importance: mobileAddMode === "task" ? mobileAddImportance : "none",
               dueDate: (mobileAddMode === "task" && mobileAddDueDate) ? mobileAddDueDate : undefined,
+              dueTime: (mobileAddMode === "task" && mobileAddDueTime) ? mobileAddDueTime : undefined,
               createdAt: now, completed: false,
               x: spawnX, y: spawnY,
               steps: [], showFlow: false, flowMode: "web", linkedNoteIds: [],
@@ -2335,7 +2369,8 @@ export function HomeShell() {
             if (mobileAddMode === "thought" && mobileAddRemindIn !== null) {
               setReminderMut({ noteId: id, noteTitle: mobileAddTitle.trim(), delayMs: mobileAddRemindIn }).catch(() => {});
             }
-            setMobileAddTitle(""); setMobileAddBody(""); setMobileAddImportance("Low"); setMobileAddDueDate(""); setMobileAddMode(null);
+            scheduleDueDateReminder(id, mobileAddTitle.trim(), mobileAddMode === "task" ? mobileAddDueDate : undefined, mobileAddMode === "task" ? mobileAddDueTime : undefined);
+            setMobileAddTitle(""); setMobileAddBody(""); setMobileAddImportance("Low"); setMobileAddDueDate(""); setMobileAddDueTime(""); setMobileAddMode(null);
             setMobileAddColorIdx(undefined); setMobileAddRemindIn(null);
             // Build state with new note immediately and push — don't wait for debounce or effect timing
             if (isSignedIn) {
@@ -2352,6 +2387,7 @@ export function HomeShell() {
             setMobileActionNoteId(note.id);
             setMobileEditTitle(note.title);
             setMobileEditDueDate(note.dueDate ?? "");
+            setMobileEditDueTime(note.dueTime ?? "");
             setMobileEditImportance(note.importance ?? "none");
             setMobileEditMinutes(note.minutes != null ? String(note.minutes) : "");
             setMobileEditSteps(note.steps.map(s => ({ id: s.id, title: s.title, minutes: s.minutes ?? 25 })));
@@ -2370,7 +2406,7 @@ export function HomeShell() {
               : dueToday
               ? "1.5px solid rgba(200,130,20,.6)"
               : mobileGetBorder(imp, isDone);
-            const [dueLabel, dueColor] = dueLabelAndColor(note.dueDate);
+            const [dueLabel, dueColor] = dueLabelAndColor(note.dueDate, note.dueTime);
             const isExpanded = mobileExpandedIds.has(note.id);
             const impColor = priorityColor(imp, theme);
             const doneDots = note.steps.filter(s => s.done).length;
@@ -2928,6 +2964,17 @@ export function HomeShell() {
                             />
                           </div>
                         </div>
+                        {mobileAddDueDate && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+                            <span style={{ fontSize: 12, color: muted(theme), whiteSpace: "nowrap" }}>Time</span>
+                            <input
+                              type="time"
+                              value={mobileAddDueTime}
+                              onChange={e => setMobileAddDueTime(e.target.value)}
+                              style={{ flex: 1, height: 38, borderRadius: 10, border: `1px solid ${border(theme)}`, background: theme === "dark" ? "rgba(255,255,255,.06)" : "#fff", color: mobileAddDueTime ? pageText(theme) : muted(theme), fontSize: 14, padding: "0 10px", fontFamily: "inherit", outline: "none", colorScheme: theme === "dark" ? "dark" : "light" }}
+                            />
+                          </div>
+                        )}
                       </>
                     )}
                     {mobileAddMode === "thought" && (
@@ -3035,6 +3082,17 @@ export function HomeShell() {
                             />
                           </div>
                         </div>
+                        {mobileEditDueDate && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+                            <span style={{ fontSize: 12, color: muted(theme), whiteSpace: "nowrap" }}>Time</span>
+                            <input
+                              type="time"
+                              value={mobileEditDueTime}
+                              onChange={e => setMobileEditDueTime(e.target.value)}
+                              style={{ flex: 1, height: 38, borderRadius: 10, border: `1px solid ${border(theme)}`, background: theme === "dark" ? "rgba(255,255,255,.06)" : "#fff", color: mobileEditDueTime ? pageText(theme) : muted(theme), fontSize: 14, padding: "0 10px", fontFamily: "inherit", outline: "none", colorScheme: theme === "dark" ? "dark" : "light" }}
+                            />
+                          </div>
+                        )}
                       </>
                     )}
                     <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
@@ -3047,6 +3105,7 @@ export function HomeShell() {
                             title: mobileEditTitle.trim(),
                             importance: mobileEditImportance,
                             dueDate: mobileEditDueDate || undefined,
+                            dueTime: mobileEditDueTime || undefined,
                             minutes: parsedMins && parsedMins > 0 ? parsedMins : undefined,
                             ...(actionNote.type === "thought" ? { colorIdx: mobileEditColorIdx } : {}),
                             steps: n.steps.map(s => {
@@ -3055,6 +3114,7 @@ export function HomeShell() {
                             }),
                           } : n);
                           setNotes(updatedNotes);
+                          scheduleDueDateReminder(actionNote.id, mobileEditTitle.trim() || actionNote.title, mobileEditDueDate || undefined, mobileEditDueTime || undefined);
                           setMobileActionNoteId(null);
                           setMobileDeleteConfirm(false);
                           if (isSignedIn) {
@@ -3089,7 +3149,9 @@ export function HomeShell() {
                 const fn = notes.find(n => n.id === focusNoteId);
                 if (!fn) return null;
                 const step = focusStepId ? fn.steps.find(s => s.id === focusStepId) : null;
-                const mins = Math.floor(focusSecondsLeft / 60);
+                const totalMins = Math.floor(focusSecondsLeft / 60);
+                const hrs = Math.floor(totalMins / 60);
+                const mins = totalMins % 60;
                 const secs = focusSecondsLeft % 60;
                 const allSteps = fn.steps;
                 const hasChain = focusChainMode && allSteps.length > 1;
@@ -3180,7 +3242,7 @@ export function HomeShell() {
                         )}
                         <div style={{ fontSize: 17, fontWeight: 600, color: "rgba(247,248,251,.75)", lineHeight: 1.4, maxWidth: 300, marginBottom: 28 }}>{step ? step.title : fn.title}</div>
                         <div style={{ fontSize: 96, fontWeight: 700, letterSpacing: "-.04em", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
-                          {String(mins).padStart(2,"0")}:{String(secs).padStart(2,"0")}
+                          {hrs > 0 ? `${hrs}:${String(mins).padStart(2,"0")}:${String(secs).padStart(2,"0")}` : `${String(mins).padStart(2,"0")}:${String(secs).padStart(2,"0")}`}
                         </div>
                         <div style={{ marginTop: 36, display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
                           {focusTotalSecsRef.current >= 30 * 60 && (
@@ -3520,7 +3582,7 @@ export function HomeShell() {
                             backgroundColor: "rgba(200,130,20,.1)",
                             boxShadow: "0 0 6px rgba(200,130,20,.3)",
                           } : {}),
-                        }}>{overdue ? "Overdue" : dueToday ? "Due Today" : `Due ${formatDateShort(note.dueDate)}`}</div>
+                        }}>{overdue ? "Overdue" : dueToday ? `Due Today${fmtTime(note.dueTime)}` : `Due ${formatDateShort(note.dueDate)}${fmtTime(note.dueTime)}`}</div>
                       );
                     })()}
                   </div>
@@ -4436,6 +4498,17 @@ export function HomeShell() {
                         }}
                       />
                     </div>
+                    {dueDate && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+                        <span style={{ fontSize: 12, color: muted(boardTheme), whiteSpace: "nowrap" }}>Time (optional)</span>
+                        <input
+                          type="time"
+                          value={dueTime}
+                          onChange={e => setDueTime(e.target.value)}
+                          style={{ height: 34, borderRadius: 8, border: `1px solid ${border(boardTheme)}`, background: boardTheme === "dark" ? "rgba(255,255,255,.06)" : "#fff", color: dueTime ? pageText(boardTheme) : muted(boardTheme), fontSize: 13, padding: "0 8px", fontFamily: "inherit", outline: "none", colorScheme: boardTheme === "dark" ? "dark" : "light" }}
+                        />
+                      </div>
+                    )}
 
                     <select
                       value={importance}
@@ -4674,6 +4747,17 @@ export function HomeShell() {
                               style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer", zIndex: 1 }}
                             />
                           </div>
+                          {detailEditDueDate && (
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+                              <span style={{ fontSize: 12, color: muted(boardTheme), whiteSpace: "nowrap" }}>Time (optional)</span>
+                              <input
+                                type="time"
+                                value={detailEditDueTime}
+                                onChange={e => setDetailEditDueTime(e.target.value)}
+                                style={{ height: 34, borderRadius: 8, border: `1px solid ${border(boardTheme)}`, background: boardTheme === "dark" ? "rgba(255,255,255,.06)" : "#fff", color: detailEditDueTime ? pageText(boardTheme) : muted(boardTheme), fontSize: 13, padding: "0 8px", fontFamily: "inherit", outline: "none", colorScheme: boardTheme === "dark" ? "dark" : "light" }}
+                              />
+                            </div>
+                          )}
                         </div>
                         <div>
                           <div style={{ fontSize: 11, letterSpacing: ".1em", textTransform: "uppercase", color: muted(boardTheme), marginBottom: 5 }}>Priority</div>
@@ -4888,6 +4972,7 @@ export function HomeShell() {
                               ...n,
                               title: detailEditTitle.trim(),
                               dueDate: detailEditDueDate || undefined,
+                              dueTime: detailEditDueTime || undefined,
                               importance: detailEditImportance,
                               minutes: newMinutes,
                               steps: (() => {
@@ -4895,6 +4980,7 @@ export function HomeShell() {
                                 return newSteps.map((s, i) => (s.x === 0 && s.y === 0) ? laid[i] : s);
                               })(),
                             } : n));
+                            scheduleDueDateReminder(detailNote.id, detailEditTitle.trim() || detailNote.title, detailEditDueDate || undefined, detailEditDueTime || undefined);
                             setDetailEditing(false);
                           }}
                           style={buttonStyle(boardTheme, true)}
@@ -5323,7 +5409,7 @@ export function HomeShell() {
                   {focusStep ? focusStep.title : focusNote?.title}
                 </div>
                 <div style={{ marginTop: 28, fontSize: 96, fontWeight: 700, letterSpacing: "-.04em", fontVariantNumeric: "tabular-nums", lineHeight: 1, color: "#f7f8fb" }}>
-                  {String(Math.floor(focusSecondsLeft / 60)).padStart(2, "0")}:{String(focusSecondsLeft % 60).padStart(2, "0")}
+                  {(() => { const tm = Math.floor(focusSecondsLeft / 60); const h = Math.floor(tm / 60); const m = tm % 60; const s = focusSecondsLeft % 60; return h > 0 ? `${h}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}` : `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`; })()}
                 </div>
                 <div style={{ marginTop: 48, width: "100%" }}>
                   {progressBar(false)}

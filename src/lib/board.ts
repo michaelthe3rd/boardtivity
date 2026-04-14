@@ -23,6 +23,7 @@ export type Draft = {
   title: string;
   body: string;
   dueDate: string;
+  dueTime: string;
   minutes: number;
   importance: Importance;
   aiSteps: Step[];
@@ -39,6 +40,7 @@ export type Note = {
   title: string;
   body: string;
   dueDate?: string;
+  dueTime?: string;
   minutes?: number;
   importance?: Importance;
   createdAt: string;

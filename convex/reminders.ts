@@ -118,7 +118,7 @@ export const send = internalAction({
         body: JSON.stringify({
           from,
           to: reminder.email,
-          subject: `Reminder: ${reminder.noteTitle}`,
+          subject: `⏰ Due in 1 hour: ${reminder.noteTitle}`,
           html: buildReminderHtml(reminder.noteTitle),
         }),
       });
@@ -142,11 +142,11 @@ function buildReminderHtml(title: string): string {
     <table width="100%" style="max-width:520px;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.07);">
       <tr><td style="padding:28px 32px 20px;background:#111;">
         <div style="font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.5);font-weight:700;margin-bottom:6px;">Boardtivity</div>
-        <div style="font-size:22px;font-weight:800;color:#fff;">You have a reminder</div>
+        <div style="font-size:22px;font-weight:800;color:#fff;">Due in 1 hour</div>
       </td></tr>
       <tr><td style="padding:28px 32px 32px;">
-        <div style="font-size:18px;font-weight:700;color:#111;margin-bottom:8px;">💡 ${safe}</div>
-        <p style="font-size:14px;color:#888;margin:0 0 24px;line-height:1.6;">This is the reminder you set for your idea on Boardtivity.</p>
+        <div style="font-size:18px;font-weight:700;color:#111;margin-bottom:8px;">⏰ ${safe}</div>
+        <p style="font-size:14px;color:#888;margin:0 0 24px;line-height:1.6;">This task is due in about 1 hour. Head to Boardtivity to stay on track.</p>
         <a href="https://boardtivity.com" style="display:inline-block;background:#111;color:#fff;font-size:14px;font-weight:700;text-decoration:none;padding:12px 28px;border-radius:10px;">Open Boardtivity →</a>
       </td></tr>
       <tr><td style="padding:16px 32px;border-top:1px solid #f0f0f0;text-align:center;">
