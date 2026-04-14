@@ -3945,11 +3945,9 @@ export function HomeShell() {
                   <div style={{ display: "flex", gap: 6, flexWrap: "nowrap", overflowX: "auto", alignItems: "center", padding: 4, margin: -4 }}>
                     {/* Shuffle / randomize */}
                     <button onClick={() => setThoughtColorMode("random")} style={{
-                      flexShrink: 0, width: 22, height: 22, borderRadius: "50%", cursor: "pointer", padding: 0,
+                      flexShrink: 0, width: 22, height: 22, borderRadius: 6, cursor: "pointer", padding: 0, border: "none",
                       background: "conic-gradient(hsl(0,100%,55%), hsl(30,100%,55%), hsl(60,100%,55%), hsl(90,100%,55%), hsl(120,100%,55%), hsl(150,100%,55%), hsl(180,100%,55%), hsl(210,100%,55%), hsl(240,100%,55%), hsl(270,100%,55%), hsl(300,100%,55%), hsl(330,100%,55%), hsl(360,100%,55%))",
-                      border: thoughtColorMode === "random" ? `2.5px solid ${pageText(boardTheme)}` : "2.5px solid transparent",
-                      outline: thoughtColorMode === "random" ? `2px solid ${boardTheme === "dark" ? "rgba(255,255,255,.45)" : "rgba(0,0,0,.25)"}` : "none",
-                      outlineOffset: 2, overflow: "hidden",
+                      boxShadow: thoughtColorMode === "random" ? `0 0 0 2.5px ${pageText(boardTheme)}, 0 0 0 4.5px ${boardTheme === "dark" ? "rgba(255,255,255,.25)" : "rgba(0,0,0,.2)"}` : "none",
                     }} title="Randomize color" />
                     {NOTE_PALETTE.map((p, i) => (
                       <button key={i} onClick={() => { setThoughtColorMode("fixed"); setThoughtFixedColorIdx(i); }} style={{
@@ -4013,7 +4011,7 @@ export function HomeShell() {
                                     onClick={() => wheelRef.current?.click()}
                                     title="Pick custom color"
                                     style={{
-                                      position: "relative", width: 22, height: 22, borderRadius: "50%", cursor: "pointer", padding: 0, border: "none",
+                                      position: "relative", width: 22, height: 22, borderRadius: 6, cursor: "pointer", padding: 0, border: "none",
                                       background: "conic-gradient(hsl(0,100%,55%), hsl(30,100%,55%), hsl(60,100%,55%), hsl(90,100%,55%), hsl(120,100%,55%), hsl(150,100%,55%), hsl(180,100%,55%), hsl(210,100%,55%), hsl(240,100%,55%), hsl(270,100%,55%), hsl(300,100%,55%), hsl(330,100%,55%), hsl(360,100%,55%))",
                                       boxShadow: currentIdx >= TASK_PALETTE.length ? `0 0 0 2.5px ${pageText(boardTheme)}, 0 0 0 4.5px ${customVal || "#fff"}` : "none",
                                       display: "flex", alignItems: "center", justifyContent: "center",
@@ -4053,7 +4051,7 @@ export function HomeShell() {
                               onClick={() => colorWheelSingleRef.current?.click()}
                               title="Pick custom color"
                               style={{
-                                position: "relative", width: 22, height: 22, borderRadius: "50%", cursor: "pointer", padding: 0, border: "none",
+                                position: "relative", width: 22, height: 22, borderRadius: 6, cursor: "pointer", padding: 0, border: "none",
                                 background: "conic-gradient(hsl(0,100%,55%), hsl(30,100%,55%), hsl(60,100%,55%), hsl(90,100%,55%), hsl(120,100%,55%), hsl(150,100%,55%), hsl(180,100%,55%), hsl(210,100%,55%), hsl(240,100%,55%), hsl(270,100%,55%), hsl(300,100%,55%), hsl(330,100%,55%), hsl(360,100%,55%))",
                                 boxShadow: taskSingleColorIdx >= TASK_PALETTE.length ? `0 0 0 2.5px ${pageText(boardTheme)}, 0 0 0 4.5px ${taskSingleCustom || "#fff"}` : "none",
                                 display: "flex", alignItems: "center", justifyContent: "center",
