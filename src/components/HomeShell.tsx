@@ -810,6 +810,11 @@ export function HomeShell() {
   const colorWheelHighRef   = useRef<HTMLInputElement | null>(null);
   const colorWheelMedRef    = useRef<HTMLInputElement | null>(null);
   const colorWheelLowRef    = useRef<HTMLInputElement | null>(null);
+  // Mobile-specific refs (separate from desktop since only one settings panel is in the DOM at a time)
+  const colorWheelMobileSingleRef = useRef<HTMLInputElement | null>(null);
+  const colorWheelMobileHighRef   = useRef<HTMLInputElement | null>(null);
+  const colorWheelMobileMedRef    = useRef<HTMLInputElement | null>(null);
+  const colorWheelMobileLowRef    = useRef<HTMLInputElement | null>(null);
   const settingsRef = useRef<HTMLDivElement | null>(null);
   const [cloudSyncState, setCloudSyncState] = useState<"loading" | "synced" | "saving" | "error">("loading");
 
@@ -2807,68 +2812,115 @@ export function HomeShell() {
 
                       {/* Idea colors */}
                       <div>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                          <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme), fontWeight: 700 }}>Idea Colors</div>
-                          {!isPlus && <span style={{ fontSize: 10, fontWeight: 700, color: muted(theme), opacity: .6 }}>Plus</span>}
+                        <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 10 }}>Idea Colors</div>
+                        <div style={{ display: "flex", gap: 6, flexWrap: "nowrap", overflowX: "auto", alignItems: "center", padding: 6, margin: -6 }}>
+                          {/* Rainbow / randomize */}
+                          <button onClick={() => setThoughtColorMode("random")} style={{
+                            flexShrink: 0, width: 22, height: 22, borderRadius: 6, cursor: "pointer", padding: 0, border: "none",
+                            background: "conic-gradient(hsl(0,100%,55%), hsl(30,100%,55%), hsl(60,100%,55%), hsl(90,100%,55%), hsl(120,100%,55%), hsl(150,100%,55%), hsl(180,100%,55%), hsl(210,100%,55%), hsl(240,100%,55%), hsl(270,100%,55%), hsl(300,100%,55%), hsl(330,100%,55%), hsl(360,100%,55%))",
+                            boxShadow: thoughtColorMode === "random" ? `0 0 0 2.5px ${pageText(theme)}, 0 0 0 4.5px ${theme === "dark" ? "rgba(255,255,255,.25)" : "rgba(0,0,0,.2)"}` : "none",
+                            overflow: "hidden",
+                          }} title="Randomize color" />
+                          {NOTE_PALETTE.map((p, i) => (
+                            <button key={i} onClick={() => { setThoughtColorMode("fixed"); setThoughtFixedColorIdx(i); }} style={{
+                              flexShrink: 0, width: 22, height: 22, borderRadius: "50%",
+                              border: (thoughtColorMode === "fixed" && thoughtFixedColorIdx === i) ? `2.5px solid ${pageText(theme)}` : "2.5px solid transparent",
+                              outline: (thoughtColorMode === "fixed" && thoughtFixedColorIdx === i) ? `2px solid ${p.swatch}` : "none",
+                              outlineOffset: 2, backgroundColor: p.swatch, cursor: "pointer", padding: 0,
+                            }} title={p.name} />
+                          ))}
                         </div>
-                        {isPlus ? (
-                          <div style={{ display: "flex", gap: 6, flexWrap: "nowrap", overflowX: "auto", alignItems: "center", padding: 6, margin: -6 }}>
-                            <button onClick={() => setThoughtColorMode("random")} style={{ flexShrink: 0, width: 22, height: 22, borderRadius: "50%", cursor: "pointer", padding: 0, background: theme === "dark" ? "#2a2d32" : "#d8d8d8", border: thoughtColorMode === "random" ? `2.5px solid ${pageText(theme)}` : "2.5px solid transparent", outline: thoughtColorMode === "random" ? `2px solid ${theme === "dark" ? "#888" : "#aaa"}` : "none", outlineOffset: 2 }} title="No default (randomized)" />
-                            {NOTE_PALETTE.map((p, i) => (
-                              <button key={i} onClick={() => { setThoughtColorMode("fixed"); setThoughtFixedColorIdx(i); }} style={{ flexShrink: 0, width: 22, height: 22, borderRadius: "50%", border: (thoughtColorMode === "fixed" && thoughtFixedColorIdx === i) ? `2.5px solid ${pageText(theme)}` : "2.5px solid transparent", outline: (thoughtColorMode === "fixed" && thoughtFixedColorIdx === i) ? `2px solid ${p.swatch}` : "none", outlineOffset: 2, backgroundColor: p.swatch, cursor: "pointer", padding: 0 }} title={p.name} />
-                            ))}
-                          </div>
-                        ) : (
-                          <div style={{ fontSize: 13, color: muted(theme), lineHeight: 1.5 }}>Ideas get a random color. Upgrade to Plus to set a default.</div>
-                        )}
+                        <p style={{ margin: "8px 0 0", fontSize: 11, color: muted(theme), lineHeight: 1.5 }}>
+                          {thoughtColorMode === "random" ? "New ideas get a random color each time." : `New ideas default to ${NOTE_PALETTE[thoughtFixedColorIdx]?.name}.`}
+                        </p>
                       </div>
 
                       {/* Task colors */}
                       <div>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                          <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme), fontWeight: 700 }}>Task Colors</div>
-                          {!isPlus && <span style={{ fontSize: 10, fontWeight: 700, color: muted(theme), opacity: .6 }}>Plus</span>}
-                        </div>
-                        {isPlus ? (
-                          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                            <div style={{ display: "flex", gap: 6, padding: 3, backgroundColor: theme === "dark" ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", borderRadius: 10, border: `1px solid ${border(theme)}` }}>
-                              {(["priority", "single"] as const).map(m => (
-                                <button key={m} onClick={() => setTaskColorMode(m)} style={{ flex: 1, height: 34, borderRadius: 8, border: "none", backgroundColor: taskColorMode === m ? (theme === "dark" ? "rgba(255,255,255,.12)" : "#ffffff") : "transparent", boxShadow: taskColorMode === m ? "0 1px 4px rgba(0,0,0,.12)" : "none", color: taskColorMode === m ? pageText(theme) : muted(theme), fontSize: 13, fontWeight: taskColorMode === m ? 700 : 500, cursor: "pointer", transition: "background-color .12s" }}>
-                                  {m === "priority" ? "By Priority" : "One Color"}
-                                </button>
-                              ))}
-                            </div>
-                            {taskColorMode === "priority" ? (
-                              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                                {(["High", "Medium", "Low"] as const).map(lvl => {
-                                  const currentIdx = lvl === "High" ? taskHighColorIdx : lvl === "Medium" ? taskMedColorIdx : taskLowColorIdx;
-                                  const setter = lvl === "High" ? setTaskHighColorIdx : lvl === "Medium" ? setTaskMedColorIdx : setTaskLowColorIdx;
-                                  return (
-                                    <div key={lvl}>
-                                      <div style={{ fontSize: 12, fontWeight: 600, color: pageText(theme), marginBottom: 6 }}>{lvl} priority</div>
-                                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                                        {TASK_PALETTE.map((p, i) => (
-                                          <button key={i} onClick={() => setter(i)} style={{ width: 24, height: 24, borderRadius: "50%", border: currentIdx === i ? `2.5px solid ${pageText(theme)}` : "2.5px solid transparent", outline: currentIdx === i ? `2px solid ${p.swatch}` : "none", outlineOffset: 2, backgroundColor: p.swatch, cursor: "pointer", padding: 0 }} />
-                                        ))}
+                        <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 10 }}>Task Colors</div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                          <div style={{ display: "flex", gap: 6, padding: 3, backgroundColor: theme === "dark" ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", borderRadius: 10, border: `1px solid ${border(theme)}` }}>
+                            {(["priority", "single"] as const).map(m => (
+                              <button key={m} onClick={() => setTaskColorMode(m)} style={{ flex: 1, height: 34, borderRadius: 8, border: "none", backgroundColor: taskColorMode === m ? (theme === "dark" ? "rgba(255,255,255,.12)" : "#ffffff") : "transparent", boxShadow: taskColorMode === m ? "0 1px 4px rgba(0,0,0,.12)" : "none", color: taskColorMode === m ? pageText(theme) : muted(theme), fontSize: 13, fontWeight: taskColorMode === m ? 700 : 500, cursor: "pointer", transition: "background-color .12s" }}>
+                                {m === "priority" ? "By Priority" : "One Color"}
+                              </button>
+                            ))}
+                          </div>
+                          {taskColorMode === "priority" ? (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                              {(["High", "Medium", "Low"] as const).map(lvl => {
+                                const currentIdx = lvl === "High" ? taskHighColorIdx : lvl === "Medium" ? taskMedColorIdx : taskLowColorIdx;
+                                const setter = lvl === "High" ? setTaskHighColorIdx : lvl === "Medium" ? setTaskMedColorIdx : setTaskLowColorIdx;
+                                const customVal = lvl === "High" ? taskHighCustom : lvl === "Medium" ? taskMedCustom : taskLowCustom;
+                                const setCustom = lvl === "High" ? setTaskHighCustom : lvl === "Medium" ? setTaskMedCustom : setTaskLowCustom;
+                                const wheelRef = lvl === "High" ? colorWheelMobileHighRef : lvl === "Medium" ? colorWheelMobileMedRef : colorWheelMobileLowRef;
+                                return (
+                                  <div key={lvl}>
+                                    <div style={{ fontSize: 12, fontWeight: 600, color: pageText(theme), marginBottom: 6 }}>{lvl} priority</div>
+                                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", padding: 6, margin: -6 }}>
+                                      {TASK_PALETTE.map((p, i) => (
+                                        <button key={i} onClick={() => setter(i)} style={{
+                                          width: 22, height: 22, borderRadius: "50%",
+                                          border: (currentIdx === i && currentIdx < TASK_PALETTE.length) ? `2.5px solid ${pageText(theme)}` : "2.5px solid transparent",
+                                          outline: (currentIdx === i && currentIdx < TASK_PALETTE.length) ? `2px solid ${p.swatch}` : "none",
+                                          outlineOffset: 2, backgroundColor: p.swatch, cursor: "pointer", padding: 0,
+                                        }} />
+                                      ))}
+                                      <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                                        <button
+                                          onClick={() => { setter(TASK_PALETTE.length); wheelRef.current?.click(); }}
+                                          title="Pick custom color"
+                                          style={{
+                                            position: "relative", width: 22, height: 22, borderRadius: 6, cursor: "pointer", padding: 0, border: "none", flexShrink: 0,
+                                            background: customVal ? customVal : "conic-gradient(hsl(0,100%,55%), hsl(30,100%,55%), hsl(60,100%,55%), hsl(90,100%,55%), hsl(120,100%,55%), hsl(150,100%,55%), hsl(180,100%,55%), hsl(210,100%,55%), hsl(240,100%,55%), hsl(270,100%,55%), hsl(300,100%,55%), hsl(330,100%,55%), hsl(360,100%,55%))",
+                                            boxShadow: currentIdx >= TASK_PALETTE.length ? `0 0 0 2.5px ${pageText(theme)}, 0 0 0 4.5px ${customVal || "#fff"}` : "none",
+                                            overflow: "hidden",
+                                          }}
+                                        />
+                                        <input ref={wheelRef} type="color"
+                                          value={customVal || "#ff6600"}
+                                          onChange={e => { setCustom(e.target.value); setter(TASK_PALETTE.length); }}
+                                          style={{ position: "absolute", opacity: 0, width: 0, height: 0, top: 0, left: 0, pointerEvents: "none" }}
+                                        />
                                       </div>
                                     </div>
-                                  );
-                                })}
-                              </div>
-                            ) : (
-                              <div>
-                                <div style={{ fontSize: 12, color: muted(theme), marginBottom: 8 }}>One color for all tasks.</div>
-                                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                                  {TASK_PALETTE.map((p, i) => (
-                                    <button key={i} onClick={() => setTaskSingleColorIdx(i)} style={{ width: 24, height: 24, borderRadius: "50%", border: taskSingleColorIdx === i ? `2.5px solid ${pageText(theme)}` : "2.5px solid transparent", outline: taskSingleColorIdx === i ? `2px solid ${p.swatch}` : "none", outlineOffset: 2, backgroundColor: p.swatch, cursor: "pointer", padding: 0 }} />
-                                  ))}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div>
+                              <div style={{ fontSize: 12, color: muted(theme), marginBottom: 8 }}>One color for all tasks.</div>
+                              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", padding: 6, margin: -6 }}>
+                                {TASK_PALETTE.map((p, i) => (
+                                  <button key={i} onClick={() => setTaskSingleColorIdx(i)} style={{
+                                    width: 22, height: 22, borderRadius: "50%",
+                                    border: (taskSingleColorIdx === i && taskSingleColorIdx < TASK_PALETTE.length) ? `2.5px solid ${pageText(theme)}` : "2.5px solid transparent",
+                                    outline: (taskSingleColorIdx === i && taskSingleColorIdx < TASK_PALETTE.length) ? `2px solid ${p.swatch}` : "none",
+                                    outlineOffset: 2, backgroundColor: p.swatch, cursor: "pointer", padding: 0,
+                                  }} />
+                                ))}
+                                <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                                  <button
+                                    onClick={() => { setTaskSingleColorIdx(TASK_PALETTE.length); colorWheelMobileSingleRef.current?.click(); }}
+                                    title="Pick custom color"
+                                    style={{
+                                      position: "relative", width: 22, height: 22, borderRadius: 6, cursor: "pointer", padding: 0, border: "none", flexShrink: 0,
+                                      background: taskSingleCustom ? taskSingleCustom : "conic-gradient(hsl(0,100%,55%), hsl(30,100%,55%), hsl(60,100%,55%), hsl(90,100%,55%), hsl(120,100%,55%), hsl(150,100%,55%), hsl(180,100%,55%), hsl(210,100%,55%), hsl(240,100%,55%), hsl(270,100%,55%), hsl(300,100%,55%), hsl(330,100%,55%), hsl(360,100%,55%))",
+                                      boxShadow: taskSingleColorIdx >= TASK_PALETTE.length ? `0 0 0 2.5px ${pageText(theme)}, 0 0 0 4.5px ${taskSingleCustom || "#fff"}` : "none",
+                                      overflow: "hidden",
+                                    }}
+                                  />
+                                  <input ref={colorWheelMobileSingleRef} type="color"
+                                    value={taskSingleCustom || "#ff6600"}
+                                    onChange={e => { setTaskSingleCustom(e.target.value); setTaskSingleColorIdx(TASK_PALETTE.length); }}
+                                    style={{ position: "absolute", opacity: 0, width: 0, height: 0, top: 0, left: 0, pointerEvents: "none" }}
+                                  />
                                 </div>
                               </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div style={{ fontSize: 13, color: muted(theme), lineHeight: 1.5 }}>Tasks use priority-based colors. Upgrade to Plus to customize.</div>
-                        )}
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       {/* BOB */}
