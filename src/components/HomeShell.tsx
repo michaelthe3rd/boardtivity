@@ -830,11 +830,6 @@ export function HomeShell() {
   const colorWheelHighRef   = useRef<HTMLInputElement | null>(null);
   const colorWheelMedRef    = useRef<HTMLInputElement | null>(null);
   const colorWheelLowRef    = useRef<HTMLInputElement | null>(null);
-  // Mobile-specific refs (separate from desktop since only one settings panel is in the DOM at a time)
-  const colorWheelMobileSingleRef = useRef<HTMLInputElement | null>(null);
-  const colorWheelMobileHighRef   = useRef<HTMLInputElement | null>(null);
-  const colorWheelMobileMedRef    = useRef<HTMLInputElement | null>(null);
-  const colorWheelMobileLowRef    = useRef<HTMLInputElement | null>(null);
   const settingsRef = useRef<HTMLDivElement | null>(null);
   const [cloudSyncState, setCloudSyncState] = useState<"loading" | "synced" | "saving" | "error">("loading");
 
@@ -2879,7 +2874,6 @@ export function HomeShell() {
                                 const setter = lvl === "High" ? setTaskHighColorIdx : lvl === "Medium" ? setTaskMedColorIdx : setTaskLowColorIdx;
                                 const customVal = lvl === "High" ? taskHighCustom : lvl === "Medium" ? taskMedCustom : taskLowCustom;
                                 const setCustom = lvl === "High" ? setTaskHighCustom : lvl === "Medium" ? setTaskMedCustom : setTaskLowCustom;
-                                const wheelRef = lvl === "High" ? colorWheelMobileHighRef : lvl === "Medium" ? colorWheelMobileMedRef : colorWheelMobileLowRef;
                                 return (
                                   <div key={lvl}>
                                     <div style={{ fontSize: 12, fontWeight: 600, color: pageText(theme), marginBottom: 6 }}>{lvl} priority</div>
@@ -2892,23 +2886,20 @@ export function HomeShell() {
                                           outlineOffset: 2, backgroundColor: p.swatch, cursor: "pointer", padding: 0,
                                         }} />
                                       ))}
-                                      <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                                        <button
-                                          onClick={() => { setter(TASK_PALETTE.length); wheelRef.current?.click(); }}
-                                          title="Pick custom color"
-                                          style={{
-                                            position: "relative", width: 22, height: 22, borderRadius: 6, cursor: "pointer", padding: 0, border: "none", flexShrink: 0,
-                                            background: customVal ? customVal : "conic-gradient(hsl(0,100%,55%), hsl(30,100%,55%), hsl(60,100%,55%), hsl(90,100%,55%), hsl(120,100%,55%), hsl(150,100%,55%), hsl(180,100%,55%), hsl(210,100%,55%), hsl(240,100%,55%), hsl(270,100%,55%), hsl(300,100%,55%), hsl(330,100%,55%), hsl(360,100%,55%))",
-                                            boxShadow: currentIdx >= TASK_PALETTE.length ? `0 0 0 2.5px ${pageText(theme)}, 0 0 0 4.5px ${customVal || "#fff"}` : "none",
-                                            overflow: "hidden",
-                                          }}
-                                        />
-                                        <input ref={wheelRef} type="color"
+                                      <label style={{ position: "relative", width: 22, height: 22, flexShrink: 0, cursor: "pointer", display: "block", padding: 6, margin: -6 }}>
+                                        <span style={{
+                                          display: "block", width: 22, height: 22, borderRadius: 6,
+                                          background: customVal ? customVal : "conic-gradient(hsl(0,100%,55%), hsl(30,100%,55%), hsl(60,100%,55%), hsl(90,100%,55%), hsl(120,100%,55%), hsl(150,100%,55%), hsl(180,100%,55%), hsl(210,100%,55%), hsl(240,100%,55%), hsl(270,100%,55%), hsl(300,100%,55%), hsl(330,100%,55%), hsl(360,100%,55%))",
+                                          boxShadow: currentIdx >= TASK_PALETTE.length ? `0 0 0 2.5px ${pageText(theme)}, 0 0 0 4.5px ${customVal || "#fff"}` : "none",
+                                          overflow: "hidden", pointerEvents: "none",
+                                        }} />
+                                        <input type="color"
                                           value={customVal || "#ff6600"}
+                                          onClick={() => setter(TASK_PALETTE.length)}
                                           onChange={e => { setCustom(e.target.value); setter(TASK_PALETTE.length); }}
-                                          style={{ position: "absolute", opacity: 0, width: 0, height: 0, top: 0, left: 0, pointerEvents: "none" }}
+                                          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer", border: "none", padding: 0 }}
                                         />
-                                      </div>
+                                      </label>
                                     </div>
                                   </div>
                                 );
@@ -2926,23 +2917,20 @@ export function HomeShell() {
                                     outlineOffset: 2, backgroundColor: p.swatch, cursor: "pointer", padding: 0,
                                   }} />
                                 ))}
-                                <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                                  <button
-                                    onClick={() => { setTaskSingleColorIdx(TASK_PALETTE.length); colorWheelMobileSingleRef.current?.click(); }}
-                                    title="Pick custom color"
-                                    style={{
-                                      position: "relative", width: 22, height: 22, borderRadius: 6, cursor: "pointer", padding: 0, border: "none", flexShrink: 0,
-                                      background: taskSingleCustom ? taskSingleCustom : "conic-gradient(hsl(0,100%,55%), hsl(30,100%,55%), hsl(60,100%,55%), hsl(90,100%,55%), hsl(120,100%,55%), hsl(150,100%,55%), hsl(180,100%,55%), hsl(210,100%,55%), hsl(240,100%,55%), hsl(270,100%,55%), hsl(300,100%,55%), hsl(330,100%,55%), hsl(360,100%,55%))",
-                                      boxShadow: taskSingleColorIdx >= TASK_PALETTE.length ? `0 0 0 2.5px ${pageText(theme)}, 0 0 0 4.5px ${taskSingleCustom || "#fff"}` : "none",
-                                      overflow: "hidden",
-                                    }}
-                                  />
-                                  <input ref={colorWheelMobileSingleRef} type="color"
+                                <label style={{ position: "relative", width: 22, height: 22, flexShrink: 0, cursor: "pointer", display: "block", padding: 6, margin: -6 }}>
+                                  <span style={{
+                                    display: "block", width: 22, height: 22, borderRadius: 6,
+                                    background: taskSingleCustom ? taskSingleCustom : "conic-gradient(hsl(0,100%,55%), hsl(30,100%,55%), hsl(60,100%,55%), hsl(90,100%,55%), hsl(120,100%,55%), hsl(150,100%,55%), hsl(180,100%,55%), hsl(210,100%,55%), hsl(240,100%,55%), hsl(270,100%,55%), hsl(300,100%,55%), hsl(330,100%,55%), hsl(360,100%,55%))",
+                                    boxShadow: taskSingleColorIdx >= TASK_PALETTE.length ? `0 0 0 2.5px ${pageText(theme)}, 0 0 0 4.5px ${taskSingleCustom || "#fff"}` : "none",
+                                    overflow: "hidden", pointerEvents: "none",
+                                  }} />
+                                  <input type="color"
                                     value={taskSingleCustom || "#ff6600"}
+                                    onClick={() => setTaskSingleColorIdx(TASK_PALETTE.length)}
                                     onChange={e => { setTaskSingleCustom(e.target.value); setTaskSingleColorIdx(TASK_PALETTE.length); }}
-                                    style={{ position: "absolute", opacity: 0, width: 0, height: 0, top: 0, left: 0, pointerEvents: "none" }}
+                                    style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer", border: "none", padding: 0 }}
                                   />
-                                </div>
+                                </label>
                               </div>
                             </div>
                           )}
