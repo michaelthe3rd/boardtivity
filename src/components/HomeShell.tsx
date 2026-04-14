@@ -2808,7 +2808,7 @@ export function HomeShell() {
                           {!isPlus && <span style={{ fontSize: 10, fontWeight: 700, color: muted(theme), opacity: .6 }}>Plus</span>}
                         </div>
                         {isPlus ? (
-                          <div style={{ display: "flex", gap: 6, flexWrap: "nowrap", overflowX: "auto", alignItems: "center", padding: 4, margin: -4 }}>
+                          <div style={{ display: "flex", gap: 6, flexWrap: "nowrap", overflowX: "auto", alignItems: "center", padding: 6, margin: -6 }}>
                             <button onClick={() => setThoughtColorMode("random")} style={{ flexShrink: 0, width: 22, height: 22, borderRadius: "50%", cursor: "pointer", padding: 0, background: theme === "dark" ? "#2a2d32" : "#d8d8d8", border: thoughtColorMode === "random" ? `2.5px solid ${pageText(theme)}` : "2.5px solid transparent", outline: thoughtColorMode === "random" ? `2px solid ${theme === "dark" ? "#888" : "#aaa"}` : "none", outlineOffset: 2 }} title="No default (randomized)" />
                             {NOTE_PALETTE.map((p, i) => (
                               <button key={i} onClick={() => { setThoughtColorMode("fixed"); setThoughtFixedColorIdx(i); }} style={{ flexShrink: 0, width: 22, height: 22, borderRadius: "50%", border: (thoughtColorMode === "fixed" && thoughtFixedColorIdx === i) ? `2.5px solid ${pageText(theme)}` : "2.5px solid transparent", outline: (thoughtColorMode === "fixed" && thoughtFixedColorIdx === i) ? `2px solid ${p.swatch}` : "none", outlineOffset: 2, backgroundColor: p.swatch, cursor: "pointer", padding: 0 }} title={p.name} />
@@ -3942,7 +3942,7 @@ export function HomeShell() {
                   <div style={{ fontSize: 12, color: muted(boardTheme), lineHeight: 1.5 }}>
                     Default color for new ideas. Pick one below, or use the shuffle to randomize. You can always change color per-card using the circle in the corner.
                   </div>
-                  <div style={{ display: "flex", gap: 6, flexWrap: "nowrap", overflowX: "auto", alignItems: "center", padding: 4, margin: -4 }}>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "nowrap", overflowX: "auto", alignItems: "center", padding: 6, margin: -6 }}>
                     {/* Shuffle / randomize */}
                     <button onClick={() => setThoughtColorMode("random")} style={{
                       flexShrink: 0, width: 22, height: 22, borderRadius: 6, cursor: "pointer", padding: 0, border: "none",
@@ -3996,7 +3996,7 @@ export function HomeShell() {
                           return (
                             <div key={lvl}>
                               <div style={{ fontSize: 12, fontWeight: 600, color: pageText(boardTheme), marginBottom: 6 }}>{lvl} priority</div>
-                              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", padding: 6, margin: -6 }}>
                                 {TASK_PALETTE.map((p, i) => (
                                   <button key={i} onClick={() => setter(i)} style={{
                                     width: 22, height: 22, borderRadius: "50%",
@@ -4035,7 +4035,7 @@ export function HomeShell() {
                     ) : (
                       <div>
                         <div style={{ fontSize: 12, color: muted(boardTheme), marginBottom: 8 }}>Apply one color to all tasks regardless of priority.</div>
-                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", padding: 6, margin: -6 }}>
                           {TASK_PALETTE.map((p, i) => (
                             <button key={i} onClick={() => setTaskSingleColorIdx(i)} style={{
                               width: 22, height: 22, borderRadius: "50%",
