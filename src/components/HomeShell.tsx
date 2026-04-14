@@ -3949,7 +3949,7 @@ export function HomeShell() {
                       background: "conic-gradient(hsl(0,100%,55%), hsl(30,100%,55%), hsl(60,100%,55%), hsl(90,100%,55%), hsl(120,100%,55%), hsl(150,100%,55%), hsl(180,100%,55%), hsl(210,100%,55%), hsl(240,100%,55%), hsl(270,100%,55%), hsl(300,100%,55%), hsl(330,100%,55%), hsl(360,100%,55%))",
                       border: thoughtColorMode === "random" ? `2.5px solid ${pageText(boardTheme)}` : "2.5px solid transparent",
                       outline: thoughtColorMode === "random" ? `2px solid ${boardTheme === "dark" ? "rgba(255,255,255,.45)" : "rgba(0,0,0,.25)"}` : "none",
-                      outlineOffset: 2,
+                      outlineOffset: 2, overflow: "hidden",
                     }} title="Randomize color" />
                     {NOTE_PALETTE.map((p, i) => (
                       <button key={i} onClick={() => { setThoughtColorMode("fixed"); setThoughtFixedColorIdx(i); }} style={{
