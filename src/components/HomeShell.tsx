@@ -3943,22 +3943,14 @@ export function HomeShell() {
                     Default color for new ideas. Pick one below, or use the shuffle to randomize. You can always change color per-card using the circle in the corner.
                   </div>
                   <div style={{ display: "flex", gap: 6, flexWrap: "nowrap", overflowX: "auto", alignItems: "center", padding: 4, margin: -4 }}>
-                    {/* Shuffle / randomize — pie-slice SVG so it reads clearly at small sizes */}
+                    {/* Shuffle / randomize */}
                     <button onClick={() => setThoughtColorMode("random")} style={{
-                      flexShrink: 0, width: 26, height: 26, borderRadius: "50%", cursor: "pointer", padding: 0,
-                      background: "none", border: thoughtColorMode === "random" ? `2.5px solid ${pageText(boardTheme)}` : "2.5px solid transparent",
+                      flexShrink: 0, width: 22, height: 22, borderRadius: "50%", cursor: "pointer", padding: 0,
+                      background: "conic-gradient(#df3eaa, #9333ea, #6366f1, #3b82f6, #0891b2, #059669, #84cc16, #d4a017, #dc3535, #df3eaa)",
+                      border: thoughtColorMode === "random" ? `2.5px solid ${pageText(boardTheme)}` : "2.5px solid transparent",
                       outline: thoughtColorMode === "random" ? `2px solid ${boardTheme === "dark" ? "rgba(255,255,255,.45)" : "rgba(0,0,0,.25)"}` : "none",
-                      outlineOffset: 2, display: "flex", alignItems: "center", justifyContent: "center",
-                    }} title="Randomize color">
-                      <svg width="22" height="22" viewBox="0 0 22 22">
-                        <path d="M11 11 L11 1 A10 10 0 0 1 19.66 6 Z" fill="#dc3535"/>
-                        <path d="M11 11 L19.66 6 A10 10 0 0 1 19.66 16 Z" fill="#d07030"/>
-                        <path d="M11 11 L19.66 16 A10 10 0 0 1 11 21 Z" fill="#84cc16"/>
-                        <path d="M11 11 L11 21 A10 10 0 0 1 2.34 16 Z" fill="#059669"/>
-                        <path d="M11 11 L2.34 16 A10 10 0 0 1 2.34 6 Z" fill="#3b82f6"/>
-                        <path d="M11 11 L2.34 6 A10 10 0 0 1 11 1 Z" fill="#9333ea"/>
-                      </svg>
-                    </button>
+                      outlineOffset: 2,
+                    }} title="Randomize color" />
                     {NOTE_PALETTE.map((p, i) => (
                       <button key={i} onClick={() => { setThoughtColorMode("fixed"); setThoughtFixedColorIdx(i); }} style={{
                         flexShrink: 0, width: 22, height: 22, borderRadius: "50%",
@@ -4022,7 +4014,7 @@ export function HomeShell() {
                                     title="Pick custom color"
                                     style={{
                                       position: "relative", width: 22, height: 22, borderRadius: "50%", cursor: "pointer", padding: 0, border: "none",
-                                      background: "conic-gradient(#c03030 0deg 60deg, #84cc16 60deg 120deg, #059669 120deg 180deg, #3b82f6 180deg 240deg, #9333ea 240deg 300deg, #df3eaa 300deg 360deg)",
+                                      background: "conic-gradient(#df3eaa, #9333ea, #6366f1, #3b82f6, #0891b2, #059669, #84cc16, #d4a017, #dc3535, #df3eaa)",
                                       boxShadow: currentIdx >= TASK_PALETTE.length ? `0 0 0 2.5px ${pageText(boardTheme)}, 0 0 0 4.5px ${customVal || "#fff"}` : "none",
                                       display: "flex", alignItems: "center", justifyContent: "center",
                                     }}
@@ -4062,7 +4054,7 @@ export function HomeShell() {
                               title="Pick custom color"
                               style={{
                                 position: "relative", width: 22, height: 22, borderRadius: "50%", cursor: "pointer", padding: 0, border: "none",
-                                background: "conic-gradient(#c03030 0deg 60deg, #84cc16 60deg 120deg, #059669 120deg 180deg, #3b82f6 180deg 240deg, #9333ea 240deg 300deg, #df3eaa 300deg 360deg)",
+                                background: "conic-gradient(#df3eaa, #9333ea, #6366f1, #3b82f6, #0891b2, #059669, #84cc16, #d4a017, #dc3535, #df3eaa)",
                                 boxShadow: taskSingleColorIdx >= TASK_PALETTE.length ? `0 0 0 2.5px ${pageText(boardTheme)}, 0 0 0 4.5px ${taskSingleCustom || "#fff"}` : "none",
                                 display: "flex", alignItems: "center", justifyContent: "center",
                               }}
