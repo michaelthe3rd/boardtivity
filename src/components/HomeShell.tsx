@@ -2979,13 +2979,16 @@ export function HomeShell() {
                         </div>
                         {mobileAddDueDate && (
                           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
-                            <span style={{ fontSize: 12, color: muted(theme), whiteSpace: "nowrap" }}>Time</span>
                             <input
                               type="time"
                               value={mobileAddDueTime}
                               onChange={e => setMobileAddDueTime(e.target.value)}
+                              placeholder="Time (optional)"
                               style={{ flex: 1, height: 38, borderRadius: 10, border: `1px solid ${border(theme)}`, background: theme === "dark" ? "rgba(255,255,255,.06)" : "#fff", color: mobileAddDueTime ? pageText(theme) : muted(theme), fontSize: 14, padding: "0 10px", fontFamily: "inherit", outline: "none", colorScheme: theme === "dark" ? "dark" : "light" }}
                             />
+                            {mobileAddDueTime && (
+                              <button type="button" onClick={() => setMobileAddDueTime("")} style={{ background: "none", border: "none", color: muted(theme), fontSize: 16, opacity: .6, cursor: "pointer", padding: "0 4px", lineHeight: 1 }}>✕</button>
+                            )}
                           </div>
                         )}
                       </>
@@ -3097,13 +3100,16 @@ export function HomeShell() {
                         </div>
                         {mobileEditDueDate && (
                           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
-                            <span style={{ fontSize: 12, color: muted(theme), whiteSpace: "nowrap" }}>Time</span>
                             <input
                               type="time"
                               value={mobileEditDueTime}
                               onChange={e => setMobileEditDueTime(e.target.value)}
+                              placeholder="Time (optional)"
                               style={{ flex: 1, height: 38, borderRadius: 10, border: `1px solid ${border(theme)}`, background: theme === "dark" ? "rgba(255,255,255,.06)" : "#fff", color: mobileEditDueTime ? pageText(theme) : muted(theme), fontSize: 14, padding: "0 10px", fontFamily: "inherit", outline: "none", colorScheme: theme === "dark" ? "dark" : "light" }}
                             />
+                            {mobileEditDueTime && (
+                              <button type="button" onClick={() => setMobileEditDueTime("")} style={{ background: "none", border: "none", color: muted(theme), fontSize: 16, opacity: .6, cursor: "pointer", padding: "0 4px", lineHeight: 1 }}>✕</button>
+                            )}
                           </div>
                         )}
                       </>
@@ -4478,50 +4484,55 @@ export function HomeShell() {
                   </div>
                 )}
                 {!thoughtMode && (
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                    <div
-                      style={{
-                        ...fieldStyle(boardTheme),
-                        position: "relative",
-                        cursor: "pointer",
-                        border: composerError.dueDate ? "1px solid rgba(200,40,40,.55)" : fieldStyle(boardTheme).border,
-                        boxShadow: composerError.dueDate ? "0 0 0 3px rgba(200,40,40,.12)" : "none",
-                      }}
-                    >
-                      <span style={{ color: dueDate ? pageText(boardTheme) : muted(boardTheme), pointerEvents: "none", position: "relative", zIndex: 0 }}>
-                        {dueDate ? formatDate(dueDate) : "Due date"}
-                      </span>
-                      <input
-                        ref={dateInputRef}
-                        type="date"
-                        value={dueDate}
-                        onClick={() => { try { (dateInputRef.current as any).showPicker(); } catch {} }}
-                        onChange={(e) => {
-                          setDueDate(e.target.value);
-                          setComposerError((prev) => ({ ...prev, dueDate: false }));
-                        }}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, alignItems: "start" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      <div
                         style={{
-                          position: "absolute",
-                          inset: 0,
-                          width: "100%",
-                          height: "100%",
-                          opacity: 0,
+                          ...fieldStyle(boardTheme),
+                          position: "relative",
                           cursor: "pointer",
-                          zIndex: 1,
+                          border: composerError.dueDate ? "1px solid rgba(200,40,40,.55)" : fieldStyle(boardTheme).border,
+                          boxShadow: composerError.dueDate ? "0 0 0 3px rgba(200,40,40,.12)" : "none",
                         }}
-                      />
-                    </div>
-                    {dueDate && (
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
-                        <span style={{ fontSize: 12, color: muted(boardTheme), whiteSpace: "nowrap" }}>Time (optional)</span>
+                      >
+                        <span style={{ color: dueDate ? pageText(boardTheme) : muted(boardTheme), pointerEvents: "none", position: "relative", zIndex: 0 }}>
+                          {dueDate ? formatDate(dueDate) : "Due date"}
+                        </span>
                         <input
-                          type="time"
-                          value={dueTime}
-                          onChange={e => setDueTime(e.target.value)}
-                          style={{ height: 34, borderRadius: 8, border: `1px solid ${border(boardTheme)}`, background: boardTheme === "dark" ? "rgba(255,255,255,.06)" : "#fff", color: dueTime ? pageText(boardTheme) : muted(boardTheme), fontSize: 13, padding: "0 8px", fontFamily: "inherit", outline: "none", colorScheme: boardTheme === "dark" ? "dark" : "light" }}
+                          ref={dateInputRef}
+                          type="date"
+                          value={dueDate}
+                          onClick={() => { try { (dateInputRef.current as any).showPicker(); } catch {} }}
+                          onChange={(e) => {
+                            setDueDate(e.target.value);
+                            setComposerError((prev) => ({ ...prev, dueDate: false }));
+                          }}
+                          style={{
+                            position: "absolute",
+                            inset: 0,
+                            width: "100%",
+                            height: "100%",
+                            opacity: 0,
+                            cursor: "pointer",
+                            zIndex: 1,
+                          }}
                         />
                       </div>
-                    )}
+                      {dueDate && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <input
+                            type="time"
+                            value={dueTime}
+                            onChange={e => setDueTime(e.target.value)}
+                            style={{ flex: 1, height: 34, borderRadius: 8, border: `1px solid ${border(boardTheme)}`, background: boardTheme === "dark" ? "rgba(255,255,255,.06)" : "#fff", color: dueTime ? pageText(boardTheme) : muted(boardTheme), fontSize: 13, padding: "0 8px", fontFamily: "inherit", outline: "none", colorScheme: boardTheme === "dark" ? "dark" : "light" }}
+                            placeholder="Time (optional)"
+                          />
+                          {dueTime && (
+                            <button type="button" onClick={() => setDueTime("")} style={{ background: "none", border: "none", color: muted(boardTheme), fontSize: 14, opacity: .6, cursor: "pointer", padding: "0 2px", lineHeight: 1 }}>✕</button>
+                          )}
+                        </div>
+                      )}
+                    </div>
 
                     <select
                       value={importance}
@@ -4746,9 +4757,9 @@ export function HomeShell() {
                         placeholder="Task title…"
                         style={{ width: "100%", background: "none", border: "none", outline: "none", fontSize: 18, fontWeight: 700, color: pageText(boardTheme), fontFamily: "inherit", padding: 0, boxSizing: "border-box" }}
                       />
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                        <div>
-                          <div style={{ fontSize: 11, letterSpacing: ".1em", textTransform: "uppercase", color: muted(boardTheme), marginBottom: 5 }}>Due date</div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, alignItems: "start" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          <div style={{ fontSize: 11, letterSpacing: ".1em", textTransform: "uppercase", color: muted(boardTheme), marginBottom: 1 }}>Due date</div>
                           <div style={{ position: "relative", width: "100%", border: `1px solid ${border(boardTheme)}`, borderRadius: 8, padding: "6px 10px", boxSizing: "border-box", display: "flex", alignItems: "center" }}>
                             <span style={{ fontSize: 13, color: detailEditDueDate ? pageText(boardTheme) : muted(boardTheme), flex: 1, pointerEvents: "none" }}>
                               {detailEditDueDate ? isoToMDY(detailEditDueDate) : "mm-dd-yyyy"}
@@ -4761,14 +4772,17 @@ export function HomeShell() {
                             />
                           </div>
                           {detailEditDueDate && (
-                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
-                              <span style={{ fontSize: 12, color: muted(boardTheme), whiteSpace: "nowrap" }}>Time (optional)</span>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                               <input
                                 type="time"
                                 value={detailEditDueTime}
                                 onChange={e => setDetailEditDueTime(e.target.value)}
-                                style={{ height: 34, borderRadius: 8, border: `1px solid ${border(boardTheme)}`, background: boardTheme === "dark" ? "rgba(255,255,255,.06)" : "#fff", color: detailEditDueTime ? pageText(boardTheme) : muted(boardTheme), fontSize: 13, padding: "0 8px", fontFamily: "inherit", outline: "none", colorScheme: boardTheme === "dark" ? "dark" : "light" }}
+                                placeholder="Time (optional)"
+                                style={{ flex: 1, height: 32, borderRadius: 8, border: `1px solid ${border(boardTheme)}`, background: boardTheme === "dark" ? "rgba(255,255,255,.06)" : "#fff", color: detailEditDueTime ? pageText(boardTheme) : muted(boardTheme), fontSize: 13, padding: "0 8px", fontFamily: "inherit", outline: "none", colorScheme: boardTheme === "dark" ? "dark" : "light" }}
                               />
+                              {detailEditDueTime && (
+                                <button type="button" onClick={() => setDetailEditDueTime("")} style={{ background: "none", border: "none", color: muted(boardTheme), fontSize: 14, opacity: .6, cursor: "pointer", padding: "0 2px", lineHeight: 1 }}>✕</button>
+                              )}
                             </div>
                           )}
                         </div>
@@ -4786,16 +4800,6 @@ export function HomeShell() {
                           </select>
                         </div>
                       </div>
-                      {detailEditSteps.length === 0 && (
-                        <div>
-                          <div style={{ fontSize: 11, letterSpacing: ".1em", textTransform: "uppercase", color: muted(boardTheme), marginBottom: 5 }}>Time estimate</div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <button onClick={() => setDetailEditMinutes(m => Math.max(5, m - 5))} style={{ background: "none", border: `1px solid ${border(boardTheme)}`, borderRadius: 6, width: 28, height: 28, cursor: "pointer", color: pageText(boardTheme), fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
-                            <span style={{ fontSize: 14, fontWeight: 600, color: pageText(boardTheme), minWidth: 60, textAlign: "center" }}>{detailEditMinutes} min</span>
-                            <button onClick={() => setDetailEditMinutes(m => m + 5)} style={{ background: "none", border: `1px solid ${border(boardTheme)}`, borderRadius: 6, width: 28, height: 28, cursor: "pointer", color: pageText(boardTheme), fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   ) : (
                     <>
