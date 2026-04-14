@@ -4012,15 +4012,12 @@ export function HomeShell() {
                                     title="Pick custom color"
                                     style={{
                                       position: "relative", width: 22, height: 22, borderRadius: 6, cursor: "pointer", padding: 0, border: "none",
-                                      background: "conic-gradient(hsl(0,100%,55%), hsl(30,100%,55%), hsl(60,100%,55%), hsl(90,100%,55%), hsl(120,100%,55%), hsl(150,100%,55%), hsl(180,100%,55%), hsl(210,100%,55%), hsl(240,100%,55%), hsl(270,100%,55%), hsl(300,100%,55%), hsl(330,100%,55%), hsl(360,100%,55%))",
+                                      background: (currentIdx >= TASK_PALETTE.length && customVal)
+                                        ? customVal
+                                        : "conic-gradient(hsl(0,100%,55%), hsl(30,100%,55%), hsl(60,100%,55%), hsl(90,100%,55%), hsl(120,100%,55%), hsl(150,100%,55%), hsl(180,100%,55%), hsl(210,100%,55%), hsl(240,100%,55%), hsl(270,100%,55%), hsl(300,100%,55%), hsl(330,100%,55%), hsl(360,100%,55%))",
                                       boxShadow: currentIdx >= TASK_PALETTE.length ? `0 0 0 2.5px ${pageText(boardTheme)}, 0 0 0 4.5px ${customVal || "#fff"}` : "none",
-                                      display: "flex", alignItems: "center", justifyContent: "center",
                                     }}
-                                  >
-                                    {currentIdx >= TASK_PALETTE.length && customVal && (
-                                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: customVal, border: "1.5px solid rgba(255,255,255,.8)", display: "block", pointerEvents: "none" }} />
-                                    )}
-                                  </button>
+                                  />
                                   <input ref={wheelRef} type="color"
                                     value={customVal || "#ff6600"}
                                     onChange={e => { setCustom(e.target.value); setter(TASK_PALETTE.length); }}
@@ -4045,22 +4042,19 @@ export function HomeShell() {
                               backgroundColor: p.swatch, cursor: "pointer", padding: 0,
                             }} />
                           ))}
-                          {/* Custom color wheel — always shows rainbow; dot in center when custom active */}
+                          {/* Custom color — solid when picked, rainbow when not */}
                           <div style={{ position: "relative" }}>
                             <button
                               onClick={() => colorWheelSingleRef.current?.click()}
                               title="Pick custom color"
                               style={{
                                 position: "relative", width: 22, height: 22, borderRadius: 6, cursor: "pointer", padding: 0, border: "none",
-                                background: "conic-gradient(hsl(0,100%,55%), hsl(30,100%,55%), hsl(60,100%,55%), hsl(90,100%,55%), hsl(120,100%,55%), hsl(150,100%,55%), hsl(180,100%,55%), hsl(210,100%,55%), hsl(240,100%,55%), hsl(270,100%,55%), hsl(300,100%,55%), hsl(330,100%,55%), hsl(360,100%,55%))",
+                                background: (taskSingleColorIdx >= TASK_PALETTE.length && taskSingleCustom)
+                                  ? taskSingleCustom
+                                  : "conic-gradient(hsl(0,100%,55%), hsl(30,100%,55%), hsl(60,100%,55%), hsl(90,100%,55%), hsl(120,100%,55%), hsl(150,100%,55%), hsl(180,100%,55%), hsl(210,100%,55%), hsl(240,100%,55%), hsl(270,100%,55%), hsl(300,100%,55%), hsl(330,100%,55%), hsl(360,100%,55%))",
                                 boxShadow: taskSingleColorIdx >= TASK_PALETTE.length ? `0 0 0 2.5px ${pageText(boardTheme)}, 0 0 0 4.5px ${taskSingleCustom || "#fff"}` : "none",
-                                display: "flex", alignItems: "center", justifyContent: "center",
                               }}
-                            >
-                              {taskSingleColorIdx >= TASK_PALETTE.length && taskSingleCustom && (
-                                <span style={{ width: 8, height: 8, borderRadius: "50%", background: taskSingleCustom, border: "1.5px solid rgba(255,255,255,.8)", display: "block", pointerEvents: "none" }} />
-                              )}
-                            </button>
+                            />
                             <input ref={colorWheelSingleRef} type="color"
                               value={taskSingleCustom || "#ff6600"}
                               onChange={e => { setTaskSingleCustom(e.target.value); setTaskSingleColorIdx(TASK_PALETTE.length); }}
