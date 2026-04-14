@@ -46,6 +46,26 @@ function blendHex(hex: string, bgHex: string, alpha: number): string {
   const b = Math.round(pb*alpha + bb*(1-alpha));
   return `rgb(${r},${g},${b})`;
 }
+// Ensures the card background has at least `minDelta` average-RGB distance from the page background.
+// Prevents near-invisible cards when custom colors are very dark (dark mode) or very light (light mode).
+function clampCardBg(cssColor: string, pageBgHex: string, minDelta: number): string {
+  const m = cssColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+  if (!m) return cssColor;
+  let r = parseInt(m[1]), g = parseInt(m[2]), b = parseInt(m[3]);
+  const pr = parseInt(pageBgHex.slice(1,3),16), pg = parseInt(pageBgHex.slice(3,5),16), pb = parseInt(pageBgHex.slice(5,7),16);
+  const pageLum = (pr + pg + pb) / 3;
+  const cardLum = (r + g + b) / 3;
+  if (pageLum < 128) {
+    // Dark page: card must be brighter
+    const deficit = (pageLum + minDelta) - cardLum;
+    if (deficit > 0) { r = Math.min(255, Math.round(r + deficit)); g = Math.min(255, Math.round(g + deficit)); b = Math.min(255, Math.round(b + deficit)); }
+  } else {
+    // Light page: card must be darker
+    const excess = cardLum - (pageLum - minDelta);
+    if (excess > 0) { r = Math.max(0, Math.round(r - excess)); g = Math.max(0, Math.round(g - excess)); b = Math.max(0, Math.round(b - excess)); }
+  }
+  return `rgb(${r},${g},${b})`;
+}
 
 const PRIORITY_COLORS: Record<"High"|"Medium"|"Low", string> = { High: "#c03030", Medium: "#d07030", Low: "#c8960a" };
 
@@ -851,7 +871,7 @@ export function HomeShell() {
     if (!importance || importance === "none") return boardTheme === "dark" ? "#2a2d32" : "#ebebeb";
     const custom = taskPaletteEntry(importance as "High"|"Medium"|"Low");
     const c = custom ? custom.swatch : PRIORITY_COLORS[importance as "High"|"Medium"|"Low"];
-    return blendHex(c, boardTheme === "dark" ? "#17191d" : "#ffffff", boardTheme === "dark" ? 0.28 : 0.32);
+    return clampCardBg(blendHex(c, boardTheme === "dark" ? "#17191d" : "#ffffff", boardTheme === "dark" ? 0.28 : 0.32), boardTheme === "dark" ? "#17191d" : "#ffffff", 28);
   };
   const getHalo = (importance: Importance | undefined) => {
     if (!importance || importance === "none") return boardTheme === "dark" ? "rgba(140,140,140,.18)" : "rgba(0,0,0,.10)";
@@ -2374,7 +2394,7 @@ export function HomeShell() {
             if (!importance || importance === "none") return theme === "dark" ? "#1e2126" : "#f4f4f1";
             const entry = taskPaletteEntry(importance as "High"|"Medium"|"Low");
             const c = entry ? entry.swatch : PRIORITY_COLORS[importance as "High"|"Medium"|"Low"];
-            return blendHex(c, theme === "dark" ? "#12141a" : "#ffffff", theme === "dark" ? 0.26 : 0.30);
+            return clampCardBg(blendHex(c, theme === "dark" ? "#12141a" : "#ffffff", theme === "dark" ? 0.26 : 0.30), theme === "dark" ? "#13151a" : "#f4f4f1", 28);
           }
           function mobileGetBorder(importance: Importance | undefined, done: boolean) {
             if (done) return `1.5px solid ${theme === "dark" ? "rgba(60,180,90,.30)" : "rgba(60,180,90,.45)"}`;
