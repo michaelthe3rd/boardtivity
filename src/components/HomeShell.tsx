@@ -163,7 +163,7 @@ function fmtTime(t?: string): string {
   if (!t) return "";
   const [h, m] = t.split(":").map(Number);
   const ampm = h >= 12 ? "pm" : "am";
-  return ` ${h % 12 || 12}:${String(m).padStart(2, "0")}${ampm}`;
+  return ` · ${h % 12 || 12}:${String(m).padStart(2, "0")}${ampm}`;
 }
 
 function nextBoardName(existing: Board[], type: BoardType) {
@@ -4806,7 +4806,7 @@ export function HomeShell() {
                           marginBottom: 6,
                           color: (() => { const d = detailNote.dueDate; const done = detailNote.completed || detailNote.steps.every(s => s.done); if (!d || done) return pageText(boardTheme); if (d < todayStr()) return boardTheme === "dark" ? "#ff6666" : "#c03030"; if (d === todayStr()) return boardTheme === "dark" ? "#ffb347" : "#b86800"; return pageText(boardTheme); })(),
                         }}>
-                          Due {formatDate(detailNote.dueDate)}
+                          Due {formatDate(detailNote.dueDate)}{fmtTime(detailNote.dueTime)}
                         </div>
                       )}
                       {detailNote.type !== "task" && detailEditing ? (
