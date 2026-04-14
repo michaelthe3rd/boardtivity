@@ -1253,6 +1253,13 @@ export function HomeShell() {
     // Convex is newer — apply it.
     lastAppliedCloudAtRef.current = savedBoard.updatedAt;
     justAppliedCloudRef.current = true;
+    // Stamp localStorage savedAt with the cloud timestamp so that if this tab
+    // immediately refreshes, the sync logic sees local == cloud and doesn't push stale data.
+    try {
+      const raw = localStorage.getItem("boardtivity");
+      const existing = raw ? JSON.parse(raw) : {};
+      localStorage.setItem("boardtivity", JSON.stringify({ ...existing, savedAt: savedBoard.updatedAt }));
+    } catch {}
     try {
       const data = JSON.parse(savedBoard.boardState) as {
         boards?: Board[]; notes?: Note[]; activeBoardId?: string;
@@ -1301,8 +1308,13 @@ export function HomeShell() {
       latestBoardStateRef.current = freshState;
 
       // Save full state to localStorage as a fast-load cache for same-browser visits.
-      // Include savedAt so the sync effect can determine which source is fresher.
-      try { localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, savedAt: Date.now() })); } catch {}
+      // Preserve the existing savedAt — it must only be stamped when we actually push to
+      // Convex (see pushToCloud). Overwriting it here would make the sync logic think a
+      // freshly-opened stale tab is newer than a recent save from another device.
+      try {
+        const existing = (() => { try { const r = localStorage.getItem("boardtivity"); return r ? JSON.parse(r) : {}; } catch { return {}; } })();
+        localStorage.setItem("boardtivity", JSON.stringify({ ...existing, theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx }));
+      } catch {}
 
       if (!convexReadyRef.current) return;
 
