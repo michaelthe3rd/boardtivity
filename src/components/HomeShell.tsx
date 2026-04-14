@@ -2372,17 +2372,22 @@ export function HomeShell() {
           // Color helpers using page theme (not boardTheme)
           function mobileGetBg(importance: Importance | undefined) {
             if (!importance || importance === "none") return theme === "dark" ? "#1e2126" : "#f4f4f1";
-            return blendHex(PRIORITY_COLORS[importance as "High"|"Medium"|"Low"], theme === "dark" ? "#12141a" : "#ffffff", theme === "dark" ? 0.26 : 0.30);
+            const entry = taskPaletteEntry(importance as "High"|"Medium"|"Low");
+            const c = entry ? entry.swatch : PRIORITY_COLORS[importance as "High"|"Medium"|"Low"];
+            return blendHex(c, theme === "dark" ? "#12141a" : "#ffffff", theme === "dark" ? 0.26 : 0.30);
           }
           function mobileGetBorder(importance: Importance | undefined, done: boolean) {
             if (done) return `1.5px solid ${theme === "dark" ? "rgba(60,180,90,.30)" : "rgba(60,180,90,.45)"}`;
             if (!importance || importance === "none") return `1px solid ${border(theme)}`;
-            return `1.5px solid ${hexToRgba(PRIORITY_COLORS[importance as "High"|"Medium"|"Low"], theme === "dark" ? 0.28 : 0.42)}`;
+            const entry = taskPaletteEntry(importance as "High"|"Medium"|"Low");
+            const c = entry ? entry.swatch : PRIORITY_COLORS[importance as "High"|"Medium"|"Low"];
+            return `1.5px solid ${hexToRgba(c, theme === "dark" ? 0.28 : 0.42)}`;
           }
           function mobileGetAccent(importance: Importance | undefined, done: boolean) {
             if (done) return "#3db83d";
             if (!importance || importance === "none") return theme === "dark" ? "rgba(255,255,255,.15)" : "rgba(0,0,0,.12)";
-            return PRIORITY_COLORS[importance as "High"|"Medium"|"Low"];
+            const entry = taskPaletteEntry(importance as "High"|"Medium"|"Low");
+            return entry ? entry.swatch : PRIORITY_COLORS[importance as "High"|"Medium"|"Low"];
           }
 
           function dueLabelAndColor(dueDate: string | undefined, dueTime?: string): [string, string] {
@@ -2467,7 +2472,8 @@ export function HomeShell() {
               : mobileGetBorder(imp, isDone);
             const [dueLabel, dueColor] = dueLabelAndColor(note.dueDate, note.dueTime);
             const isExpanded = mobileExpandedIds.has(note.id);
-            const impColor = priorityColor(imp, theme);
+            const impEntry = imp ? taskPaletteEntry(imp) : null;
+            const impColor = impEntry ? impEntry.swatch : priorityColor(imp, theme);
             const doneDots = note.steps.filter(s => s.done).length;
             const hasSteps = note.steps.length > 0;
             const taskMins = note.steps.length > 0
