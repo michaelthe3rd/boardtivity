@@ -1222,13 +1222,6 @@ export function HomeShell() {
       return;
     }
 
-    // Read when local was last successfully pushed to Convex.
-    let localSavedAt = 0;
-    try {
-      const raw = localStorage.getItem("boardtivity");
-      if (raw) localSavedAt = (JSON.parse(raw) as { savedAt?: number }).savedAt ?? 0;
-    } catch {}
-
     const cloudHasRealData = !isCloudDefaultOnly(savedBoard.boardState);
     const localHasRealData = notes.length > 0 || boards.some(b => b.id !== "my-board" && b.id !== "my-thoughts");
 
@@ -1243,14 +1236,9 @@ export function HomeShell() {
       return;
     }
 
-    // Both have real data. If local was pushed more recently than Convex was last
-    // updated, local is newer — push it (covers migration from localStorage-only).
-    if (localHasRealData && localSavedAt > savedBoard.updatedAt) {
-      pushToCloud();
-      return;
-    }
-
-    // Convex is newer — apply it.
+    // Cloud has real data — always apply it. Cloud is the sole source of truth.
+    // Never push local over it; any pending local changes will be debounced-saved
+    // on top of the applied cloud state.
     lastAppliedCloudAtRef.current = savedBoard.updatedAt;
     justAppliedCloudRef.current = true;
     // Stamp localStorage savedAt with the cloud timestamp so that if this tab
