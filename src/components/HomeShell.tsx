@@ -1251,10 +1251,14 @@ export function HomeShell() {
     }
 
     // Cloud has real data — always apply it. Cloud is the sole source of truth.
-    // Never push local over it; any pending local changes will be debounced-saved
-    // on top of the applied cloud state.
     lastAppliedCloudAtRef.current = savedBoard.updatedAt;
     justAppliedCloudRef.current = true;
+    // Cancel any pending debounced save so a stale timer can't fire and push
+    // old settings (e.g. stale colors) over the cloud state we're about to apply.
+    if (convexSaveTimerRef.current) {
+      clearTimeout(convexSaveTimerRef.current);
+      convexSaveTimerRef.current = null;
+    }
     // Stamp localStorage savedAt with the cloud timestamp so that if this tab
     // immediately refreshes, the sync logic sees local == cloud and doesn't push stale data.
     try {
