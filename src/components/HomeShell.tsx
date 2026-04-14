@@ -607,7 +607,7 @@ export function HomeShell() {
   const [focusPickerSelected, setFocusPickerSelected] = useState<number | null>(null);
   const [focusPickerShowCustom, setFocusPickerShowCustom] = useState(false);
   // Session review (shown after focus ends)
-  const [focusReview, setFocusReview] = useState<{ elapsedMin: number; noteId: number } | null>(null);
+  const [focusReview, setFocusReview] = useState<{ elapsedMin: number; noteId: number; stepId: number | null } | null>(null);
   const focusSessionStartRef = useRef<number>(0); // epoch ms when session started
   // Profile panel
   const [profileOpen, setProfileOpen] = useState(false);
@@ -2084,7 +2084,7 @@ export function HomeShell() {
 
   function closeFocusWithReview(noteId: number) {
     const elapsedMin = Math.floor((Date.now() - focusSessionStartRef.current) / 60000);
-    setFocusReview({ elapsedMin, noteId });
+    setFocusReview({ elapsedMin, noteId, stepId: focusStepId });
     setFocusOpen(false);
     setFocusCompleted(false);
     setFocusPaused(false);
@@ -2096,18 +2096,27 @@ export function HomeShell() {
 
   async function handleFocusReviewDone(markFinished: boolean) {
     if (!focusReview) return;
-    const { elapsedMin, noteId } = focusReview;
+    const { elapsedMin, noteId, stepId } = focusReview;
     const _d = new Date();
     const today = `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,"0")}-${String(_d.getDate()).padStart(2,"0")}`;
     // Compute updated notes immediately so we can push to cloud right away
-    // (don't rely on the 300ms debounce — avoids losing time if a Convex sync
-    // races in before the debounce fires)
-    const updatedNotes = notes.map(n => n.id === noteId ? {
-      ...n,
-      totalTimeSpent: (n.totalTimeSpent ?? 0) + elapsedMin,
-      lastTackledAt: Date.now(),
-      completed: markFinished ? true : n.completed,
-    } : n);
+    const updatedNotes = notes.map(n => {
+      if (n.id !== noteId) return n;
+      let updatedSteps = n.steps;
+      if (markFinished && stepId) {
+        // Mark the focused subtask done
+        updatedSteps = n.steps.map(s => s.id === stepId ? { ...s, done: true } : s);
+      }
+      const allStepsDone = updatedSteps.length > 0 && updatedSteps.every(s => s.done);
+      return {
+        ...n,
+        steps: updatedSteps,
+        totalTimeSpent: (n.totalTimeSpent ?? 0) + elapsedMin,
+        lastTackledAt: Date.now(),
+        // Mark parent complete if: no subtasks + markFinished, OR all subtasks now done
+        completed: markFinished && (!stepId || allStepsDone) ? true : n.completed,
+      };
+    });
     setNotes(updatedNotes);
     if (isSignedIn) {
       const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx });
@@ -2122,16 +2131,25 @@ export function HomeShell() {
     setFocusNoteId(null);
   }
 
-  async function logMobileFocusTime(noteId: number, markFinished: boolean) {
+  async function logMobileFocusTime(noteId: number, stepId: number | null, markFinished: boolean) {
     const elapsedMin = Math.floor((Date.now() - focusSessionStartRef.current) / 60000);
     const _d = new Date();
     const today = `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,"0")}-${String(_d.getDate()).padStart(2,"0")}`;
-    const updatedNotes = notes.map(n => n.id === noteId ? {
-      ...n,
-      totalTimeSpent: (n.totalTimeSpent ?? 0) + elapsedMin,
-      lastTackledAt: Date.now(),
-      completed: markFinished ? true : n.completed,
-    } : n);
+    const updatedNotes = notes.map(n => {
+      if (n.id !== noteId) return n;
+      let updatedSteps = n.steps;
+      if (markFinished && stepId) {
+        updatedSteps = n.steps.map(s => s.id === stepId ? { ...s, done: true } : s);
+      }
+      const allStepsDone = updatedSteps.length > 0 && updatedSteps.every(s => s.done);
+      return {
+        ...n,
+        steps: updatedSteps,
+        totalTimeSpent: (n.totalTimeSpent ?? 0) + elapsedMin,
+        lastTackledAt: Date.now(),
+        completed: markFinished && (!stepId || allStepsDone) ? true : n.completed,
+      };
+    });
     setNotes(updatedNotes);
     if (isSignedIn) {
       const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx });
@@ -3233,10 +3251,10 @@ export function HomeShell() {
                           {focusNextStep ? (
                             <>
                               <button type="button" onClick={advanceToNext} style={btnGreen}>Start next</button>
-                              <button type="button" onClick={() => { if (fn.id) logMobileFocusTime(fn.id, false); setFocusOpen(false); setFocusCompleted(false); setFocusNoteId(null); setFocusNextStep(null); setFocusStepId(null); setFocusChainMode(false); }} style={btn}>Done</button>
+                              <button type="button" onClick={() => { const sid = focusStepId; if (fn.id) logMobileFocusTime(fn.id, sid, false); setFocusOpen(false); setFocusCompleted(false); setFocusNoteId(null); setFocusNextStep(null); setFocusStepId(null); setFocusChainMode(false); }} style={btn}>Done</button>
                             </>
                           ) : (
-                            <button type="button" onClick={() => { if (fn.id) logMobileFocusTime(fn.id, true); setFocusOpen(false); setFocusCompleted(false); setFocusNoteId(null); setFocusNextStep(null); setFocusStepId(null); setFocusChainMode(false); }} style={btnGreen}>Done</button>
+                            <button type="button" onClick={() => { const sid = focusStepId; if (fn.id) logMobileFocusTime(fn.id, sid, true); setFocusOpen(false); setFocusCompleted(false); setFocusNoteId(null); setFocusNextStep(null); setFocusStepId(null); setFocusChainMode(false); }} style={btnGreen}>Done</button>
                           )}
                         </div>
                       </div>
