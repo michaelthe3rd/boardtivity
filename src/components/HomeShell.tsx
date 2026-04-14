@@ -4006,13 +4006,13 @@ export function HomeShell() {
                                     backgroundColor: p.swatch, cursor: "pointer", padding: 0,
                                   }} />
                                 ))}
-                                <div style={{ position: "relative" }}>
+                                <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                                   <button
-                                    onClick={() => wheelRef.current?.click()}
+                                    onClick={() => { setter(TASK_PALETTE.length); wheelRef.current?.click(); }}
                                     title="Pick custom color"
                                     style={{
-                                      position: "relative", width: 22, height: 22, borderRadius: 6, cursor: "pointer", padding: 0, border: "none",
-                                      background: (currentIdx >= TASK_PALETTE.length && customVal)
+                                      position: "relative", width: 22, height: 22, borderRadius: 6, cursor: "pointer", padding: 0, border: "none", flexShrink: 0,
+                                      background: customVal
                                         ? customVal
                                         : "conic-gradient(hsl(0,100%,55%), hsl(30,100%,55%), hsl(60,100%,55%), hsl(90,100%,55%), hsl(120,100%,55%), hsl(150,100%,55%), hsl(180,100%,55%), hsl(210,100%,55%), hsl(240,100%,55%), hsl(270,100%,55%), hsl(300,100%,55%), hsl(330,100%,55%), hsl(360,100%,55%))",
                                       boxShadow: currentIdx >= TASK_PALETTE.length ? `0 0 0 2.5px ${pageText(boardTheme)}, 0 0 0 4.5px ${customVal || "#fff"}` : "none",
@@ -4043,13 +4043,13 @@ export function HomeShell() {
                             }} />
                           ))}
                           {/* Custom color — solid when picked, rainbow when not */}
-                          <div style={{ position: "relative" }}>
+                          <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                             <button
-                              onClick={() => colorWheelSingleRef.current?.click()}
+                              onClick={() => { setTaskSingleColorIdx(TASK_PALETTE.length); colorWheelSingleRef.current?.click(); }}
                               title="Pick custom color"
                               style={{
-                                position: "relative", width: 22, height: 22, borderRadius: 6, cursor: "pointer", padding: 0, border: "none",
-                                background: (taskSingleColorIdx >= TASK_PALETTE.length && taskSingleCustom)
+                                position: "relative", width: 22, height: 22, borderRadius: 6, cursor: "pointer", padding: 0, border: "none", flexShrink: 0,
+                                background: taskSingleCustom
                                   ? taskSingleCustom
                                   : "conic-gradient(hsl(0,100%,55%), hsl(30,100%,55%), hsl(60,100%,55%), hsl(90,100%,55%), hsl(120,100%,55%), hsl(150,100%,55%), hsl(180,100%,55%), hsl(210,100%,55%), hsl(240,100%,55%), hsl(270,100%,55%), hsl(300,100%,55%), hsl(330,100%,55%), hsl(360,100%,55%))",
                                 boxShadow: taskSingleColorIdx >= TASK_PALETTE.length ? `0 0 0 2.5px ${pageText(boardTheme)}, 0 0 0 4.5px ${taskSingleCustom || "#fff"}` : "none",
