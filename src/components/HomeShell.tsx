@@ -10,7 +10,7 @@ import { useUser, useClerk } from "@clerk/nextjs";
 import { api } from "../../convex/_generated/api";
 
 const NOTE_PALETTE = [
-  { name: "Pink",    light: "#f5c1e4", dark: "#4f2344", halo: "rgba(220,60,155,.24)",  swatch: "#df3eaa" },
+  { name: "Pink",    light: "#f5c1e4", dark: "#6b2358", halo: "rgba(220,60,155,.24)",  swatch: "#df3eaa" },
   { name: "Purple",  light: "#f3e8ff", dark: "#2d0a4e", halo: "rgba(147,51,234,.22)",  swatch: "#9333ea" },
   { name: "Indigo",  light: "#e0e7ff", dark: "#1e1a4e", halo: "rgba(99,102,241,.22)",  swatch: "#6366f1" },
   { name: "Blue",    light: "#dbeafe", dark: "#0f1f4a", halo: "rgba(59,130,246,.20)",  swatch: "#3b82f6" },
