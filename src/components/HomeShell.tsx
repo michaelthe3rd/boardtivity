@@ -1344,7 +1344,7 @@ export function HomeShell() {
       // freshly-opened stale tab is newer than a recent save from another device.
       try {
         const existing = (() => { try { const r = localStorage.getItem("boardtivity"); return r ? JSON.parse(r) : {}; } catch { return {}; } })();
-        localStorage.setItem("boardtivity", JSON.stringify({ ...existing, theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx }));
+        localStorage.setItem("boardtivity", JSON.stringify({ ...existing, theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom }));
       } catch {}
 
       if (!convexReadyRef.current) return;
@@ -2886,9 +2886,9 @@ export function HomeShell() {
                                           outlineOffset: 2, backgroundColor: p.swatch, cursor: "pointer", padding: 0,
                                         }} />
                                       ))}
-                                      <label style={{ position: "relative", width: 22, height: 22, flexShrink: 0, cursor: "pointer", display: "block", padding: 6, margin: -6 }}>
+                                      <label style={{ position: "relative", width: 22, height: 22, flexShrink: 0, cursor: "pointer", display: "flex" }}>
                                         <span style={{
-                                          display: "block", width: 22, height: 22, borderRadius: 6,
+                                          width: 22, height: 22, borderRadius: 6, flexShrink: 0,
                                           background: customVal ? customVal : "conic-gradient(hsl(0,100%,55%), hsl(30,100%,55%), hsl(60,100%,55%), hsl(90,100%,55%), hsl(120,100%,55%), hsl(150,100%,55%), hsl(180,100%,55%), hsl(210,100%,55%), hsl(240,100%,55%), hsl(270,100%,55%), hsl(300,100%,55%), hsl(330,100%,55%), hsl(360,100%,55%))",
                                           boxShadow: currentIdx >= TASK_PALETTE.length ? `0 0 0 2.5px ${pageText(theme)}, 0 0 0 4.5px ${customVal || "#fff"}` : "none",
                                           overflow: "hidden", pointerEvents: "none",
@@ -2917,9 +2917,9 @@ export function HomeShell() {
                                     outlineOffset: 2, backgroundColor: p.swatch, cursor: "pointer", padding: 0,
                                   }} />
                                 ))}
-                                <label style={{ position: "relative", width: 22, height: 22, flexShrink: 0, cursor: "pointer", display: "block", padding: 6, margin: -6 }}>
+                                <label style={{ position: "relative", width: 22, height: 22, flexShrink: 0, cursor: "pointer", display: "flex" }}>
                                   <span style={{
-                                    display: "block", width: 22, height: 22, borderRadius: 6,
+                                    width: 22, height: 22, borderRadius: 6, flexShrink: 0,
                                     background: taskSingleCustom ? taskSingleCustom : "conic-gradient(hsl(0,100%,55%), hsl(30,100%,55%), hsl(60,100%,55%), hsl(90,100%,55%), hsl(120,100%,55%), hsl(150,100%,55%), hsl(180,100%,55%), hsl(210,100%,55%), hsl(240,100%,55%), hsl(270,100%,55%), hsl(300,100%,55%), hsl(330,100%,55%), hsl(360,100%,55%))",
                                     boxShadow: taskSingleColorIdx >= TASK_PALETTE.length ? `0 0 0 2.5px ${pageText(theme)}, 0 0 0 4.5px ${taskSingleCustom || "#fff"}` : "none",
                                     overflow: "hidden", pointerEvents: "none",
