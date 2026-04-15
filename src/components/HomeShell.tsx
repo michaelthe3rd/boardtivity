@@ -186,6 +186,13 @@ function fmtTime(t?: string): string {
   return ` · ${h % 12 || 12}:${String(m).padStart(2, "0")}${ampm}`;
 }
 
+function fmtFocusTime(mins: number): string {
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}
+
 function nextBoardName(existing: Board[], type: BoardType) {
   const base = type === "task" ? "My Board" : "My Ideas";
   const count = existing.filter((b) => b.type === type).length;
@@ -5581,7 +5588,7 @@ export function HomeShell() {
               <div style={{ position: "absolute", inset: 0, zIndex: 10, backgroundColor: "rgba(6,7,10,.88)", backdropFilter: "blur(8px)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 0, textAlign: "center", padding: "40px 28px" }}>
                 <div style={{ fontSize: 18, fontWeight: 700, color: "#f7f8fb", marginBottom: 8 }}>Save your progress?</div>
                 <div style={{ fontSize: 14, color: "rgba(247,248,251,.45)", marginBottom: 28, lineHeight: 1.65 }}>
-                  {Math.floor((Date.now() - focusSessionStartRef.current) / 60000)} min focused — log it before you go.
+                  {fmtFocusTime(Math.floor((Date.now() - focusSessionStartRef.current) / 60000))} focused — log it before you go.
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 320 }}>
                   <div style={{ display: "flex", gap: 10 }}>
@@ -5760,7 +5767,7 @@ export function HomeShell() {
               </div>
               <div style={{ fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase", color: "rgba(247,248,251,.35)", fontWeight: 500, marginBottom: 10 }}>Session complete</div>
               <div style={{ fontSize: 28, fontWeight: 700, color: "#f7f8fb", letterSpacing: "-.02em", lineHeight: 1.2, marginBottom: 6 }}>
-                {focusReview.elapsedMin} min focused
+                {fmtFocusTime(focusReview.elapsedMin)} focused
               </div>
               {reviewNote && <div style={{ fontSize: 14, color: "rgba(247,248,251,.4)", marginBottom: 4 }}>{reviewNote.title}</div>}
               {/* Stats row */}
@@ -5781,7 +5788,7 @@ export function HomeShell() {
                   <div style={{ fontSize: 11, color: "rgba(247,248,251,.35)", marginTop: 4 }}>day streak</div>
                 </div>
                 <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: 22, fontWeight: 700, color: "#f7f8fb" }}>{todayMin} min</div>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: "#f7f8fb" }}>{fmtFocusTime(todayMin)}</div>
                   <div style={{ fontSize: 11, color: "rgba(247,248,251,.35)", marginTop: 4 }}>today</div>
                 </div>
               </div>
@@ -5816,7 +5823,7 @@ export function HomeShell() {
         const stats = focusStatsData;
         const streak = stats?.currentStreak ?? 0;
         const totalMins = stats?.totalMinutes ?? 0;
-        const totalHoursDisplay = totalMins < 60 ? `${totalMins}m` : `${Math.round(totalMins / 60 * 10) / 10}h`;
+        const totalHoursDisplay = fmtFocusTime(totalMins);
         const totalTasks = stats?.totalTasksCompleted ?? 0;
         const days = stats?.days ?? [];
         const maxMin = Math.max(...days.map(d => d.totalMinutes), 1);
@@ -5853,7 +5860,7 @@ export function HomeShell() {
                     const isToday = d.date === today;
                     return (
                       <div key={d.date} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, height: "100%", justifyContent: "flex-end" }}>
-                        <div style={{ fontSize: 9, color: muted(theme), opacity: .6 }}>{d.totalMinutes > 0 ? `${d.totalMinutes}m` : ""}</div>
+                        <div style={{ fontSize: 9, color: muted(theme), opacity: .6 }}>{d.totalMinutes > 0 ? fmtFocusTime(d.totalMinutes) : ""}</div>
                         <div style={{ width: "100%", borderRadius: 4, backgroundColor: d.totalMinutes > 0 ? (isToday ? "#6fc46b" : theme === "dark" ? "rgba(255,255,255,.35)" : "rgba(0,0,0,.25)") : (theme === "dark" ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.06)"), height: `${Math.max(pct * 56, d.totalMinutes > 0 ? 8 : 4)}px`, transition: "height .3s" }} />
                         <div style={{ fontSize: 10, color: isToday ? pageText(theme) : muted(theme), fontWeight: isToday ? 700 : 400 }}>{dayLabel(d.date)}</div>
                       </div>
@@ -5862,7 +5869,7 @@ export function HomeShell() {
                 </div>
               </div>
               <div style={{ fontSize: 13, color: muted(theme), textAlign: "center" }}>
-                {days.reduce((s, d) => s + d.totalMinutes, 0)} min this week · {days.filter(d => d.totalMinutes > 0).length} active days
+                {fmtFocusTime(days.reduce((s, d) => s + d.totalMinutes, 0))} this week · {days.filter(d => d.totalMinutes > 0).length} active days
               </div>
             </div>
           </div>
