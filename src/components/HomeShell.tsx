@@ -2627,7 +2627,7 @@ export function HomeShell() {
                         if (isActive) { setMobileBoardActionId(b.id); setMobileBoardRename(b.name); setMobileBoardRenaming(false); }
                         else setActiveBoardId(b.id);
                       }}
-                      style={{ flexShrink: 0, height: 34, borderRadius: 999, border: isActive ? "none" : `1px solid ${border(theme)}`, backgroundColor: isActive ? (theme === "dark" ? "#f5f5f2" : "#171613") : (theme === "dark" ? "#1e2126" : "#ffffff"), color: isActive ? (theme === "dark" ? "#171613" : "#f7f8fb") : pageText(theme), padding: "0 18px", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}
+                      style={{ flexShrink: 0, height: 38, borderRadius: 999, border: isActive ? "none" : `1px solid ${border(theme)}`, backgroundColor: isActive ? (theme === "dark" ? "#f5f5f2" : "#171613") : (theme === "dark" ? "#1e2126" : "#ffffff"), color: isActive ? (theme === "dark" ? "#171613" : "#f7f8fb") : pageText(theme), padding: "0 18px", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}
                     >
                       {b.name}
                     </button>
@@ -2635,14 +2635,14 @@ export function HomeShell() {
                 })}
                 <button
                   onClick={() => setMobileBoardTypePicker(true)}
-                  style={{ flexShrink: 0, width: 34, height: 34, borderRadius: 999, border: `1px solid ${border(theme)}`, backgroundColor: theme === "dark" ? "#1e2126" : "#ffffff", color: pageText(theme), cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+                  style={{ flexShrink: 0, width: 38, height: 38, borderRadius: 999, border: `1px solid ${border(theme)}`, backgroundColor: theme === "dark" ? "#1e2126" : "#ffffff", color: pageText(theme), cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
                 >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 </button>
                 {isSignedIn && (
                   <button
                     onClick={() => setProfileOpen(true)}
-                    style={{ flexShrink: 0, width: 34, height: 34, borderRadius: 999, border: `1px solid ${border(theme)}`, backgroundColor: theme === "dark" ? "#1e2126" : "#ffffff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+                    style={{ flexShrink: 0, width: 38, height: 38, borderRadius: 999, border: `1px solid ${border(theme)}`, backgroundColor: theme === "dark" ? "#1e2126" : "#ffffff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
                     aria-label="Focus stats"
                   >
                     {(focusStatsData?.currentStreak ?? 0) > 0
@@ -2651,11 +2651,11 @@ export function HomeShell() {
                     }
                   </button>
                 )}
-                <ThemeToggle theme={theme} onToggle={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} size={34} />
+                <ThemeToggle theme={theme} onToggle={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} size={38} />
                 {isSignedIn && (
                   <button
                     onClick={() => setMobileSettingsOpen(true)}
-                    style={{ flexShrink: 0, width: 34, height: 34, borderRadius: 999, border: `1px solid ${border(theme)}`, backgroundColor: theme === "dark" ? "#1e2126" : "#ffffff", color: muted(theme), cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+                    style={{ flexShrink: 0, width: 38, height: 38, borderRadius: 999, border: `1px solid ${border(theme)}`, backgroundColor: theme === "dark" ? "#1e2126" : "#ffffff", color: muted(theme), cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
                   >
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
@@ -4891,6 +4891,13 @@ export function HomeShell() {
                         placeholder="Task title…"
                         style={{ width: "100%", background: "none", border: "none", outline: "none", fontSize: 18, fontWeight: 700, color: pageText(boardTheme), fontFamily: "inherit", padding: 0, boxSizing: "border-box" }}
                       />
+                      <textarea
+                        value={detailEditBody}
+                        onChange={e => setDetailEditBody(e.target.value)}
+                        placeholder="Add a note…"
+                        rows={3}
+                        style={{ width: "100%", background: "none", border: "none", outline: "none", resize: "none", fontSize: 14, color: pageText(boardTheme), fontFamily: "inherit", lineHeight: 1.7, boxSizing: "border-box", padding: 0, opacity: 0.85 }}
+                      />
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, alignItems: "start" }}>
                         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                           <div style={{ fontSize: 11, letterSpacing: ".1em", textTransform: "uppercase", color: muted(boardTheme), marginBottom: 1 }}>Due date</div>
@@ -4945,6 +4952,11 @@ export function HomeShell() {
                           color: (() => { const d = detailNote.dueDate; const done = detailNote.completed || detailNote.steps.every(s => s.done); if (!d || done) return pageText(boardTheme); if (d < todayStr()) return boardTheme === "dark" ? "#ff6666" : "#c03030"; if (d === todayStr()) return boardTheme === "dark" ? "#ffb347" : "#b86800"; return pageText(boardTheme); })(),
                         }}>
                           Due {formatDate(detailNote.dueDate)}{fmtTime(detailNote.dueTime)}
+                        </div>
+                      )}
+                      {detailNote.type === "task" && detailNote.body && !detailEditing && (
+                        <div style={{ fontSize: 14, color: muted(boardTheme), lineHeight: 1.7, marginTop: detailNote.dueDate ? 8 : 0, marginBottom: 6 }}>
+                          {detailNote.body}
                         </div>
                       )}
                       {detailNote.type !== "task" && detailEditing ? (
@@ -5122,6 +5134,7 @@ export function HomeShell() {
                             setNotes(ns => ns.map(n => n.id === detailNote.id ? {
                               ...n,
                               title: detailEditTitle.trim(),
+                              body: detailEditBody.trim() || undefined,
                               dueDate: detailEditDueDate || undefined,
                               dueTime: detailEditDueTime || undefined,
                               importance: detailEditImportance,
