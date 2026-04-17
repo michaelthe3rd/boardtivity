@@ -5963,51 +5963,49 @@ export function HomeShell() {
 
         {/* ── Focus Mode — full-width immersive ── */}
         <div ref={whyRef} style={{ marginBottom: 100, opacity: whyVisible ? 1 : 0, transform: whyVisible ? "none" : "translateY(24px)", transition: "opacity .7s ease, transform .7s ease" }}>
-          <div style={{ maxWidth: 860, margin: "0 auto", borderRadius: 24, overflow: "hidden", backgroundColor: theme === "dark" ? "#0a0b0e" : "#0d0f12", position: "relative" }}>
+          <div style={{ maxWidth: 860, margin: "0 auto", borderRadius: 24, overflow: "hidden", backgroundColor: "#060708", position: "relative" }}>
             <div style={{ position: "absolute", top: 0, left: "15%", right: "15%", height: 1, background: "linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent)", pointerEvents: "none" }}/>
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", minHeight: isMobile ? "auto" : 380 }}>
-              {/* Left: actual focus mode UI replica */}
-              <div style={{ padding: isMobile ? "52px 24px 36px" : "56px 48px 48px", borderRight: isMobile ? "none" : "1px solid rgba(255,255,255,.05)", borderBottom: isMobile ? "1px solid rgba(255,255,255,.05)" : "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", minHeight: isMobile ? "auto" : 400 }}>
+              {/* Left: active focus session replica matching real UI */}
+              <div style={{ padding: isMobile ? "52px 24px 40px" : "56px 48px 52px", borderRight: isMobile ? "none" : "1px solid rgba(255,255,255,.05)", borderBottom: isMobile ? "1px solid rgba(255,255,255,.05)" : "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <div style={{ width: "100%", maxWidth: 300, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
+                  {/* Step counter */}
                   <div style={{ fontSize: 13, letterSpacing: ".16em", color: "rgba(247,248,251,.45)", fontWeight: 600 }}>2 / 3</div>
-                  <div style={{ marginTop: 12, fontSize: 18, fontWeight: 600, color: "rgba(247,248,251,.72)", letterSpacing: "-.01em", lineHeight: 1.4 }}>
-                    Study for Chemistry exam
+                  {/* Task name */}
+                  <div style={{ marginTop: 12, fontSize: 19, fontWeight: 600, color: "rgba(247,248,251,.75)", letterSpacing: "-.01em", lineHeight: 1.35, maxWidth: 260 }}>
+                    Practice problems
                   </div>
-                  <div style={{ marginTop: 20, fontSize: 72, fontWeight: 700, letterSpacing: "-.04em", fontVariantNumeric: "tabular-nums", lineHeight: 1, color: "#f7f8fb" }}>
-                    18:45
+                  {/* Big countdown — matches real 96px timer */}
+                  <div style={{ marginTop: 28, fontSize: isMobile ? 72 : 88, fontWeight: 700, letterSpacing: "-.04em", fontVariantNumeric: "tabular-nums", lineHeight: 1, color: "#f7f8fb" }}>
+                    24:00
                   </div>
-                  {/* Progress — current step */}
-                  <div style={{ marginTop: 28, width: "100%" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
-                      <span style={{ fontSize: 14, fontWeight: 600, color: "rgba(247,248,251,.8)" }}>Practice problems</span>
-                      <span style={{ fontSize: 14, color: "rgba(247,248,251,.4)" }}>2 / 3</span>
-                    </div>
-                    <div style={{ height: 6, borderRadius: 999, backgroundColor: "rgba(255,255,255,.1)", overflow: "hidden", marginBottom: 18 }}>
-                      <div style={{ height: "100%", width: "68%", borderRadius: 999, backgroundColor: "rgba(247,248,251,.88)" }}/>
-                    </div>
-                    {/* Overall segments */}
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
-                      <span style={{ fontSize: 14, fontWeight: 500, color: "rgba(247,248,251,.35)" }}>Overall progress</span>
-                      <span style={{ fontSize: 14, color: "rgba(247,248,251,.35)" }}>23%</span>
-                    </div>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      {[{ fill: 100, green: true }, { fill: 0, green: false }, { fill: 0, green: false }].map((s, i) => (
-                        <div key={i} style={{ flex: 1, height: 6, borderRadius: 999, backgroundColor: "rgba(255,255,255,.1)", overflow: "hidden" }}>
-                          <div style={{ height: "100%", width: `${s.fill}%`, borderRadius: 999, backgroundColor: s.green ? "#6fc46b" : "rgba(247,248,251,.88)" }}/>
-                        </div>
-                      ))}
-                    </div>
+                  {/* Per-step progress segments */}
+                  <div style={{ marginTop: 36, width: "100%", display: "flex", gap: 6 }}>
+                    {[{ fill: 100 }, { fill: 0 }, { fill: 0 }].map((s, i) => (
+                      <div key={i} style={{ flex: 1, height: 5, borderRadius: 999, backgroundColor: "rgba(255,255,255,.10)", overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${s.fill}%`, borderRadius: 999, backgroundColor: i === 1 ? "rgba(247,248,251,.88)" : "#6fc46b" }}/>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Exit button — matches real UI */}
+                  <div style={{ marginTop: 32, display: "flex", gap: 10 }}>
+                    <div style={{ height: 38, borderRadius: 999, border: "1px solid rgba(220,60,60,.25)", backgroundColor: "rgba(220,60,60,.10)", color: "rgba(255,160,160,.7)", padding: "0 20px", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center" }}>Exit</div>
+                  </div>
+                  {/* Streak badge */}
+                  <div style={{ marginTop: 20, display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "rgba(247,248,251,.4)", backgroundColor: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.09)", borderRadius: 999, padding: "5px 12px" }}>
+                    <svg width="9" height="13" viewBox="0 0 11 15" fill="none"><path d="M7 1L1 8.5h4L3.5 14 10 6H6L7 1Z" fill="#facc15"/></svg>
+                    5 day streak
                   </div>
                 </div>
               </div>
               {/* Right: copy */}
-              <div style={{ padding: isMobile ? "32px 24px 40px" : "56px 48px 48px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                <h3 style={{ margin: "0 0 18px", fontSize: "clamp(22px,2.2vw,32px)", fontWeight: 800, letterSpacing: "-.04em", color: "#f7f8fb", lineHeight: 1.08 }}>Lock in.<br/>Step by step.</h3>
+              <div style={{ padding: isMobile ? "32px 24px 44px" : "56px 48px 52px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                <h3 style={{ margin: "0 0 18px", fontSize: "clamp(22px,2.2vw,32px)", fontWeight: 800, letterSpacing: "-.04em", color: "#f7f8fb", lineHeight: 1.08 }}>Lock in.<br/>Build the streak.</h3>
                 <p style={{ margin: "0 0 36px", fontSize: 15, color: "rgba(255,255,255,.42)", lineHeight: 1.9 }}>
-                  Enter a timed focus session for any task or subtask. Boardtivity chains through your steps automatically — so you stay on track without thinking about it.
+                  Pick a session length and go. Boardtivity counts down, tracks your time, and chains through subtasks automatically — then shows you your streak when you're done.
                 </p>
                 <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                  {["Timed sessions per subtask", "Auto-chain through task steps", "Visual progress across all steps"].map((f) => (
+                  {["Timed sessions — 15m, 25m, 45m, 1hr, or custom", "Auto-chain through task subtasks", "Streak tracking across daily sessions", "Session review with time logged"].map((f) => (
                     <div key={f} style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 14, color: "rgba(255,255,255,.55)" }}>
                       <div style={{ width: 4, height: 4, borderRadius: "50%", backgroundColor: "rgba(255,255,255,.22)", flexShrink: 0 }}/>
                       {f}
@@ -6019,9 +6017,9 @@ export function HomeShell() {
           </div>
         </div>
 
-        {/* ── Features — 3-col editorial ── */}
+        {/* ── Features — 4-col editorial ── */}
         <div ref={featuresRef}>
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: isMobile ? 28 : 0, marginBottom: 88, opacity: featuresVisible ? 1 : 0, transform: featuresVisible ? "none" : "translateY(20px)", transition: "opacity .6s ease, transform .6s ease" }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr 1fr", gap: isMobile ? 28 : 0, marginBottom: 88, opacity: featuresVisible ? 1 : 0, transform: featuresVisible ? "none" : "translateY(20px)", transition: "opacity .6s ease, transform .6s ease" }}>
             {([
               {
                 label: "Visual Boards",
@@ -6034,14 +6032,19 @@ export function HomeShell() {
                 body: "Expand tasks into a subtask web you can see at once, or a sequential chain you step through one at a time.",
               },
               {
-                label: "Idea Notes",
-                heading: "Capture ideas\nnext to the work.",
-                body: "Drop color-coded idea notes anywhere on your board. Link them to tasks so ideas and action stay together.",
+                label: "Focus Sessions",
+                heading: "Timed sessions,\nyour way.",
+                body: "Pick 15m, 25m, 45m, 1hr, or a custom duration. Boardtivity counts down and auto-chains through subtasks.",
+              },
+              {
+                label: "Streaks & Stats",
+                heading: "Track your\nmomentum.",
+                body: "Every session logs time and builds your streak. See total hours focused, tasks completed, and daily activity.",
               },
             ] as const).map((f, i) => (
-              <div key={i} style={{ borderTop: `1px solid ${border(theme)}`, paddingTop: 28, paddingRight: isMobile ? 0 : (i < 2 ? 48 : 0), paddingBottom: 0 }}>
+              <div key={i} style={{ borderTop: `1px solid ${border(theme)}`, paddingTop: 28, paddingRight: isMobile ? 0 : (i < 3 ? 40 : 0), paddingBottom: 0 }}>
                 <div style={{ fontSize: 10, letterSpacing: ".18em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 20, opacity: .5 }}>{f.label}</div>
-                <h3 style={{ margin: "0 0 16px", fontSize: 20, fontWeight: 800, letterSpacing: "-.03em", color: pageText(theme), lineHeight: 1.22 }}>{f.heading.split("\n").map((line, j) => <span key={j}>{line}{j === 0 ? <br/> : null}</span>)}</h3>
+                <h3 style={{ margin: "0 0 16px", fontSize: 19, fontWeight: 800, letterSpacing: "-.03em", color: pageText(theme), lineHeight: 1.22 }}>{f.heading.split("\n").map((line, j) => <span key={j}>{line}{j === 0 ? <br/> : null}</span>)}</h3>
                 <p style={{ margin: 0, fontSize: 14, color: muted(theme), lineHeight: 1.85, opacity: .68 }}>{f.body}</p>
               </div>
             ))}
@@ -6056,7 +6059,7 @@ export function HomeShell() {
             <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1.08, letterSpacing: "-.035em", color: pageText(theme), marginBottom: 14 }}>Free forever</div>
             <div style={{ fontSize: 13, color: muted(theme), marginBottom: 18, lineHeight: 1.75, flexGrow: 1 }}>Full access to every feature — boards, tasks, subtasks, focus sessions, and idea notes. No credit card needed.</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 26 }}>
-              {["1 board per type", "1 idea per board", "Focus mode & subtasks", "Taskweb & Taskchain"].map((f) => (
+              {["1 board per type", "1 idea per board", "Focus sessions & streak tracking", "Taskweb & Taskchain"].map((f) => (
                 <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: pageText(theme) }}>
                   <div style={{ width: 16, height: 16, borderRadius: "50%", backgroundColor: hexToRgba("#6fc46b", .15), border: "1px solid rgba(111,196,107,.35)", display: "grid", placeItems: "center", flexShrink: 0 }}>
                     <svg width="8" height="8" viewBox="0 0 10 10"><polyline points="2,5.5 4.2,7.5 8,3" stroke="#6fc46b" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
