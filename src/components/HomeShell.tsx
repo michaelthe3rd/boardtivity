@@ -5134,7 +5134,7 @@ export function HomeShell() {
                             setNotes(ns => ns.map(n => n.id === detailNote.id ? {
                               ...n,
                               title: detailEditTitle.trim(),
-                              body: detailEditBody.trim() || undefined,
+                              body: detailEditBody.trim(),
                               dueDate: detailEditDueDate || undefined,
                               dueTime: detailEditDueTime || undefined,
                               importance: detailEditImportance,
