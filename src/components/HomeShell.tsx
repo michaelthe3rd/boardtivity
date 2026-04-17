@@ -5971,7 +5971,7 @@ export function HomeShell() {
                 <div style={{ width: "100%", maxWidth: 300, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
                   {/* Step counter */}
                   <div style={{ fontSize: 13, letterSpacing: ".16em", color: "rgba(247,248,251,.45)", fontWeight: 600 }}>2 / 3</div>
-                  {/* Task name */}
+                  {/* Current step name */}
                   <div style={{ marginTop: 12, fontSize: 19, fontWeight: 600, color: "rgba(247,248,251,.75)", letterSpacing: "-.01em", lineHeight: 1.35, maxWidth: 260 }}>
                     Practice problems
                   </div>
@@ -5979,22 +5979,42 @@ export function HomeShell() {
                   <div style={{ marginTop: 28, fontSize: isMobile ? 72 : 88, fontWeight: 700, letterSpacing: "-.04em", fontVariantNumeric: "tabular-nums", lineHeight: 1, color: "#f7f8fb" }}>
                     24:00
                   </div>
-                  {/* Per-step progress segments */}
-                  <div style={{ marginTop: 36, width: "100%", display: "flex", gap: 6 }}>
-                    {[{ fill: 100 }, { fill: 0 }, { fill: 0 }].map((s, i) => (
-                      <div key={i} style={{ flex: 1, height: 5, borderRadius: 999, backgroundColor: "rgba(255,255,255,.10)", overflow: "hidden" }}>
-                        <div style={{ height: "100%", width: `${s.fill}%`, borderRadius: 999, backgroundColor: i === 1 ? "rgba(247,248,251,.88)" : "#6fc46b" }}/>
-                      </div>
-                    ))}
+                  {/* Single continuous progress bar — white fill, matches real UI */}
+                  <div style={{ marginTop: 36, width: "100%", height: 5, borderRadius: 999, backgroundColor: "rgba(255,255,255,.10)", overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: "38%", borderRadius: 999, backgroundColor: "rgba(247,248,251,.88)" }}/>
                   </div>
-                  {/* Exit button — matches real UI */}
+                  {/* Exit button */}
                   <div style={{ marginTop: 32, display: "flex", gap: 10 }}>
                     <div style={{ height: 38, borderRadius: 999, border: "1px solid rgba(220,60,60,.25)", backgroundColor: "rgba(220,60,60,.10)", color: "rgba(255,160,160,.7)", padding: "0 20px", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center" }}>Exit</div>
                   </div>
-                  {/* Streak badge */}
-                  <div style={{ marginTop: 20, display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "rgba(247,248,251,.4)", backgroundColor: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.09)", borderRadius: 999, padding: "5px 12px" }}>
-                    <svg width="9" height="13" viewBox="0 0 11 15" fill="none"><path d="M7 1L1 8.5h4L3.5 14 10 6H6L7 1Z" fill="#facc15"/></svg>
-                    5 day streak
+                  {/* Stats card — streak + hours preview */}
+                  <div style={{ marginTop: 24, width: "100%", backgroundColor: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 14, padding: "14px 16px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                      <div style={{ flex: 1, textAlign: "center" }}>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: "#f7f8fb", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                          <svg width="9" height="13" viewBox="0 0 11 15" fill="none"><path d="M7 1L1 8.5h4L3.5 14 10 6H6L7 1Z" fill="#facc15"/></svg>
+                          5
+                        </div>
+                        <div style={{ fontSize: 10, color: "rgba(247,248,251,.35)", marginTop: 3 }}>day streak</div>
+                      </div>
+                      <div style={{ flex: 1, textAlign: "center" }}>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: "#f7f8fb" }}>14h</div>
+                        <div style={{ fontSize: 10, color: "rgba(247,248,251,.35)", marginTop: 3 }}>total focused</div>
+                      </div>
+                      <div style={{ flex: 1, textAlign: "center" }}>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: "#f7f8fb" }}>23</div>
+                        <div style={{ fontSize: 10, color: "rgba(247,248,251,.35)", marginTop: 3 }}>tasks done</div>
+                      </div>
+                    </div>
+                    {/* Mini bar chart — last 7 days */}
+                    <div style={{ marginTop: 14, display: "flex", gap: 4, alignItems: "flex-end", height: 36 }}>
+                      {[0.3, 0.6, 0.45, 1, 0.7, 0.55, 0.8].map((h, i) => (
+                        <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, height: "100%", justifyContent: "flex-end" }}>
+                          <div style={{ width: "100%", borderRadius: 3, backgroundColor: i === 6 ? "#6fc46b" : "rgba(255,255,255,.28)", height: `${h * 28}px` }}/>
+                          <div style={{ fontSize: 8, color: "rgba(247,248,251,.25)" }}>{["S","M","T","W","T","F","S"][i]}</div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -6002,10 +6022,10 @@ export function HomeShell() {
               <div style={{ padding: isMobile ? "32px 24px 44px" : "56px 48px 52px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
                 <h3 style={{ margin: "0 0 18px", fontSize: "clamp(22px,2.2vw,32px)", fontWeight: 800, letterSpacing: "-.04em", color: "#f7f8fb", lineHeight: 1.08 }}>Lock in.<br/>Build the streak.</h3>
                 <p style={{ margin: "0 0 36px", fontSize: 15, color: "rgba(255,255,255,.42)", lineHeight: 1.9 }}>
-                  Pick a session length and go. Boardtivity counts down, tracks your time, and chains through subtasks automatically — then shows you your streak when you're done.
+                  Commit to a session and go. Boardtivity counts down, chains through your subtasks, and logs every minute — so your streak and stats grow automatically.
                 </p>
                 <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                  {["Timed sessions — 15m, 25m, 45m, 1hr, or custom", "Auto-chain through task subtasks", "Streak tracking across daily sessions", "Session review with time logged"].map((f) => (
+                  {["Commit to a dedicated session — your call on how long", "Auto-chain through subtasks without losing focus", "Streak and total hours tracked across every session", "Session review screen after every finish"].map((f) => (
                     <div key={f} style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 14, color: "rgba(255,255,255,.55)" }}>
                       <div style={{ width: 4, height: 4, borderRadius: "50%", backgroundColor: "rgba(255,255,255,.22)", flexShrink: 0 }}/>
                       {f}
