@@ -3324,13 +3324,16 @@ export function HomeShell() {
                 return (
                   <div style={{ position: "fixed", inset: 0, zIndex: 950, backgroundColor: focusCompleted ? "rgb(6,20,9)" : focusPaused ? "rgb(7,8,18)" : "rgb(6,7,10)", color: "#f7f8fb", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 24px", textAlign: "center", overflowY: "hidden", overscrollBehavior: "none" }}>
                     {focusExitConfirm ? (
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
-                        <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>Exit focus mode?</div>
-                        <div style={{ fontSize: 14, color: "rgba(247,248,251,.45)", marginBottom: 32, lineHeight: 1.6 }}>Your timer will reset and progress won't be saved.</div>
-                        <div style={{ display: "flex", gap: 12 }}>
-                          <button type="button" onClick={() => { setFocusOpen(false); setFocusExitConfirm(false); setFocusPaused(false); setFocusCompleted(false); setFocusNoteId(null); setFocusStepId(null); setFocusSecondsLeft(0); setBreakSecondsLeft(0); }} style={btnRed}>Exit</button>
-                          <button type="button" onClick={() => setFocusExitConfirm(false)} style={btn}>Keep going</button>
+                      <div style={{ width: "100%", maxWidth: 320, display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
+                        <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Save your progress?</div>
+                        <div style={{ fontSize: 14, color: "rgba(247,248,251,.45)", marginBottom: 32, lineHeight: 1.65 }}>
+                          {fmtFocusTime(Math.floor((Date.now() - focusSessionStartRef.current) / 60000))} focused — log it before you go.
                         </div>
+                        <div style={{ display: "flex", gap: 10, width: "100%", marginBottom: 10 }}>
+                          <button type="button" onClick={() => { if (focusNoteId) closeFocusWithReview(focusNoteId); }} style={{ ...btn, flex: 1 }}>Save progress</button>
+                          <button type="button" onClick={() => setFocusExitConfirm(false)} style={{ ...btn, flex: 1 }}>Keep going</button>
+                        </div>
+                        <button type="button" onClick={() => { setFocusOpen(false); setFocusExitConfirm(false); setFocusPaused(false); setFocusCompleted(false); setFocusNoteId(null); setFocusStepId(null); setFocusSecondsLeft(0); setBreakSecondsLeft(0); setFocusChainMode(false); }} style={{ ...btnRed, width: "100%" }}>Exit without saving</button>
                       </div>
                     ) : focusCompleted ? (
                       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
@@ -3347,10 +3350,10 @@ export function HomeShell() {
                           {focusNextStep ? (
                             <>
                               <button type="button" onClick={advanceToNext} style={btnGreen}>Start next</button>
-                              <button type="button" onClick={() => { const sid = focusStepId; if (fn.id) logMobileFocusTime(fn.id, sid, false); setFocusOpen(false); setFocusCompleted(false); setFocusNoteId(null); setFocusNextStep(null); setFocusStepId(null); setFocusChainMode(false); }} style={btn}>Done</button>
+                              <button type="button" onClick={() => { if (focusNoteId) closeFocusWithReview(focusNoteId); }} style={btn}>Done</button>
                             </>
                           ) : (
-                            <button type="button" onClick={() => { const sid = focusStepId; if (fn.id) logMobileFocusTime(fn.id, sid, true); setFocusOpen(false); setFocusCompleted(false); setFocusNoteId(null); setFocusNextStep(null); setFocusStepId(null); setFocusChainMode(false); }} style={btnGreen}>Done</button>
+                            <button type="button" onClick={() => { if (focusNoteId) closeFocusWithReview(focusNoteId); }} style={btnGreen}>Done</button>
                           )}
                         </div>
                       </div>
@@ -5983,9 +5986,10 @@ export function HomeShell() {
                   <div style={{ marginTop: 36, width: "100%", height: 5, borderRadius: 999, backgroundColor: "rgba(255,255,255,.10)", overflow: "hidden" }}>
                     <div style={{ height: "100%", width: "38%", borderRadius: 999, backgroundColor: "rgba(247,248,251,.88)" }}/>
                   </div>
-                  {/* Exit button */}
+                  {/* Buttons — matches real active session: 5 min break + Exit */}
                   <div style={{ marginTop: 32, display: "flex", gap: 10 }}>
-                    <div style={{ height: 38, borderRadius: 999, border: "1px solid rgba(220,60,60,.25)", backgroundColor: "rgba(220,60,60,.10)", color: "rgba(255,160,160,.7)", padding: "0 20px", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center" }}>Exit</div>
+                    <div style={{ height: 38, borderRadius: 999, border: "1px solid rgba(255,255,255,.14)", backgroundColor: "rgba(255,255,255,.08)", color: "rgba(247,248,251,.75)", padding: "0 16px", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center" }}>5 min break</div>
+                    <div style={{ height: 38, borderRadius: 999, border: "1px solid rgba(220,60,60,.25)", backgroundColor: "rgba(220,60,60,.10)", color: "rgba(255,160,160,.7)", padding: "0 16px", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center" }}>Exit</div>
                   </div>
                   {/* Stats card — streak + hours preview */}
                   <div style={{ marginTop: 24, width: "100%", backgroundColor: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 14, padding: "14px 16px" }}>
