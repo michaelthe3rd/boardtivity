@@ -6171,10 +6171,15 @@ export function HomeShell() {
               <div style={{ fontSize: 10, letterSpacing: ".16em", textTransform: "uppercase", fontWeight: 700, color: "rgba(255,255,255,.45)" }}>Plus</div>
               <div style={{ fontSize: 10, letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 700, color: "rgba(255,255,255,.38)", border: "1px solid rgba(255,255,255,.14)", borderRadius: 999, padding: "3px 8px" }}>Most popular</div>
             </div>
-            <div style={{ fontSize: 34, fontWeight: 800, lineHeight: 1.08, letterSpacing: "-.035em", color: "#f7f8fb", marginBottom: 14 }}>$6 / mo</div>
-            <div style={{ fontSize: 13, lineHeight: 1.75, color: "rgba(255,255,255,.42)", marginBottom: 18, flexGrow: 1 }}>More boards, custom idea colors, and everything we build next.</div>
+            <div style={{ marginBottom: 14 }}>
+              <span style={{ fontSize: 34, fontWeight: 800, lineHeight: 1.08, letterSpacing: "-.035em", color: "#f7f8fb" }}>$6</span>
+              <span style={{ fontSize: 16, fontWeight: 600, color: "rgba(255,255,255,.45)", marginLeft: 4 }}>/ mo</span>
+              <span style={{ fontSize: 12, color: "rgba(255,255,255,.35)", marginLeft: 10 }}>or $60 / yr</span>
+              <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", backgroundColor: "#6fc46b", color: "#fff", borderRadius: 99, padding: "2px 7px" }}>Save 17%</span>
+            </div>
+            <div style={{ fontSize: 13, lineHeight: 1.75, color: "rgba(255,255,255,.42)", marginBottom: 18, flexGrow: 1 }}>More boards, BOB AI assistant, and everything we build next.</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 26 }}>
-              {["Up to 10 task boards", "Up to 5 idea boards", "Custom idea note colors", "Early access to new features"].map((f) => (
+              {["Up to 10 task boards", "Up to 5 idea boards", "BOB AI assistant", "Early access to new features"].map((f) => (
                 <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "rgba(255,255,255,.72)" }}>
                   <div style={{ width: 16, height: 16, borderRadius: "50%", backgroundColor: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.18)", display: "grid", placeItems: "center", flexShrink: 0 }}>
                     <svg width="8" height="8" viewBox="0 0 10 10"><polyline points="2,5.5 4.2,7.5 8,3" stroke="rgba(255,255,255,.7)" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -6183,7 +6188,18 @@ export function HomeShell() {
                 </div>
               ))}
             </div>
-            <button onClick={() => isPlus ? null : startCheckout("monthly")} disabled={checkoutLoading} style={{ width: "100%", height: 42, borderRadius: 999, border: isPlus ? "1px solid rgba(255,255,255,.18)" : "none", backgroundColor: isPlus ? "transparent" : "#f7f8fb", color: isPlus ? "rgba(255,255,255,.55)" : "#111315", fontSize: 14, fontWeight: 700, cursor: isPlus ? "default" : "pointer", opacity: checkoutLoading ? 0.6 : 1 }}>{isPlus ? "✓ Current plan" : checkoutLoading ? "Loading…" : "Get Plus — $6/mo"}</button>
+            {isPlus ? (
+              <button disabled style={{ width: "100%", height: 42, borderRadius: 999, border: "1px solid rgba(255,255,255,.18)", backgroundColor: "transparent", color: "rgba(255,255,255,.55)", fontSize: 14, fontWeight: 700, cursor: "default" }}>✓ Current plan</button>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <button onClick={() => startCheckout("annual")} disabled={checkoutLoading} style={{ width: "100%", height: 42, borderRadius: 999, border: "none", backgroundColor: "#f7f8fb", color: "#111315", fontSize: 14, fontWeight: 700, cursor: "pointer", opacity: checkoutLoading ? 0.6 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                  {checkoutLoading ? "Loading…" : <><span>Get Plus — $60 / yr</span><span style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", backgroundColor: "#6fc46b", color: "#fff", borderRadius: 99, padding: "2px 7px" }}>Save 17%</span></>}
+                </button>
+                <button onClick={() => startCheckout("monthly")} disabled={checkoutLoading} style={{ width: "100%", height: 42, borderRadius: 999, border: "1px solid rgba(255,255,255,.2)", backgroundColor: "transparent", color: "rgba(255,255,255,.7)", fontSize: 14, fontWeight: 600, cursor: "pointer", opacity: checkoutLoading ? 0.6 : 1 }}>
+                  {checkoutLoading ? "Loading…" : "Get Plus — $6 / mo"}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -6388,14 +6404,14 @@ export function HomeShell() {
               Unlock more with Plus
             </div>
             <div style={{ fontSize: 14, color: muted(theme), lineHeight: 1.65, marginBottom: 22 }}>
-              More boards, custom idea colors, and everything we build next.
+              More boards, BOB AI assistant, and everything we build next.
             </div>
             {/* Feature list */}
             <div style={{ display: "flex", flexDirection: "column", gap: 9, marginBottom: 24 }}>
               {[
                 "Up to 10 task boards",
                 "Up to 5 idea boards",
-                "Custom idea note colors",
+                "BOB AI assistant",
                 "Early access to new features",
               ].map((f) => (
                 <div key={f} style={{ display: "flex", alignItems: "flex-start", gap: 9, fontSize: 13.5, color: pageText(theme) }}>
@@ -6408,20 +6424,23 @@ export function HomeShell() {
             <div style={{ height: 1, backgroundColor: border(theme), marginBottom: 18 }} />
             {/* CTA */}
             {checkoutError && <div style={{ fontSize: 12, color: "#c03030", marginBottom: 10, textAlign: "center" }}>{checkoutError}</div>}
+            {/* Annual */}
             <button
               onClick={() => { setUpgradeOpen(false); startCheckout("annual"); }}
               disabled={checkoutLoading}
-              style={{ width: "100%", padding: "13px 0", borderRadius: 11, border: "none", backgroundColor: pageText(theme), color: pageBg(theme), fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-.02em", marginBottom: 8, opacity: checkoutLoading ? 0.6 : 1, position: "relative" }}
+              style={{ width: "100%", padding: "13px 16px", borderRadius: 11, border: "none", backgroundColor: pageText(theme), color: pageBg(theme), fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-.02em", marginBottom: 8, opacity: checkoutLoading ? 0.6 : 1, display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative" }}
             >
-              {checkoutLoading ? "Loading…" : "Get Plus — $60/yr →"}
-              <span style={{ position: "absolute", top: -9, right: 12, fontSize: 10, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", backgroundColor: "#6fc46b", color: "#fff", borderRadius: 99, padding: "2px 7px" }}>Save 17%</span>
+              <span>{checkoutLoading ? "Loading…" : "Annual — $60 / yr"}</span>
+              <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", backgroundColor: "#6fc46b", color: "#fff", borderRadius: 99, padding: "2px 8px" }}>Save 17%</span>
             </button>
+            {/* Monthly */}
             <button
               onClick={() => { setUpgradeOpen(false); startCheckout("monthly"); }}
               disabled={checkoutLoading}
-              style={{ width: "100%", padding: "12px 0", borderRadius: 11, border: `1px solid ${border(theme)}`, background: "none", color: pageText(theme), fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-.02em", marginBottom: 8, opacity: checkoutLoading ? 0.6 : 1 }}
+              style={{ width: "100%", padding: "13px 16px", borderRadius: 11, border: `1px solid ${border(theme)}`, background: "none", color: pageText(theme), fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-.02em", marginBottom: 8, opacity: checkoutLoading ? 0.6 : 1, display: "flex", alignItems: "center", justifyContent: "space-between" }}
             >
-              {checkoutLoading ? "Loading…" : "Get Plus — $6/mo"}
+              <span>{checkoutLoading ? "Loading…" : "Monthly — $6 / mo"}</span>
+              <span style={{ fontSize: 12, color: muted(theme) }}>→</span>
             </button>
             <button
               onClick={() => setUpgradeOpen(false)}
@@ -6477,7 +6496,7 @@ export function HomeShell() {
             <div style={{ fontSize: 11, letterSpacing: ".16em", textTransform: "uppercase", fontWeight: 700, color: muted(theme), marginBottom: 10 }}>Now on your account</div>
             <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: "-.04em", color: pageText(theme), marginBottom: 10 }}>You're all set</div>
             <div style={{ fontSize: 14, color: muted(theme), lineHeight: 1.7, marginBottom: 28 }}>
-              Your subscription is active. You now have access to up to 10 task boards, 5 idea boards, custom idea colors, and more features to come. Thank you for your support!
+              Your subscription is active. You now have access to up to 10 task boards, 5 idea boards, BOB AI assistant, and more features to come. Thank you for your support!
             </div>
             <button
               onClick={() => setShowSubscribedModal(false)}
