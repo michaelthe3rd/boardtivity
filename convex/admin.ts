@@ -48,20 +48,18 @@ export const getStats = query({
   args: {},
   handler: async (ctx) => {
     if (!(await isAdmin(ctx))) return null;
-    const [users, posts, replies, waitlist, upvotes] = await Promise.all([
-      ctx.db.query("userBoards").take(2000),
-      ctx.db.query("feedbackPosts").take(2000),
-      ctx.db.query("feedbackReplies").take(2000),
-      ctx.db.query("waitlist").take(2000),
-      ctx.db.query("feedbackUpvotes").take(2000),
-    ]);
-    return {
-      totalUsers: users.length,
-      totalPosts: posts.length,
-      totalReplies: replies.length,
-      totalWaitlist: waitlist.length,
-      totalUpvotes: upvotes.length,
+    const count = async (table: "userBoards" | "feedbackPosts" | "feedbackReplies" | "waitlist" | "feedbackUpvotes") => {
+      const rows = await ctx.db.query(table).collect();
+      return rows.length;
     };
+    const [totalUsers, totalPosts, totalReplies, totalWaitlist, totalUpvotes] = await Promise.all([
+      count("userBoards"),
+      count("feedbackPosts"),
+      count("feedbackReplies"),
+      count("waitlist"),
+      count("feedbackUpvotes"),
+    ]);
+    return { totalUsers, totalPosts, totalReplies, totalWaitlist, totalUpvotes };
   },
 });
 

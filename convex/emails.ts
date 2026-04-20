@@ -88,13 +88,13 @@ export const getUsersForDigest = internalQuery({
       }
 
       // Streak: consecutive days ending today
+      const activeDates = new Set(allRows.filter(r => r.totalMinutes > 0).map(r => r.date));
       let currentStreak = 0;
       for (let i = 0; ; i++) {
         const d = new Date();
         d.setUTCDate(d.getUTCDate() - i);
         const dateStr = d.toISOString().slice(0, 10);
-        const row = allRows.find(r => r.date === dateStr);
-        if (row && row.totalMinutes > 0) {
+        if (activeDates.has(dateStr)) {
           currentStreak++;
         } else {
           if (i === 0 && dateStr === today) continue;
@@ -283,11 +283,11 @@ export const sendDailyDigests = internalAction({
           `<p style="font-size:13px;color:#aaa;margin:16px 0 0;">${tasks.length} pending task${tasks.length !== 1 ? "s" : ""} total.</p>`;
       }
 
-      await sendEmail(
-        user.email,
-        subject,
-        emailWrapper("Daily Task Outline", dateLabel, body)
-      );
+      try {
+        await sendEmail(user.email, subject, emailWrapper("Daily Task Outline", dateLabel, body));
+      } catch (e) {
+        console.error(`Daily digest failed for ${user.email}:`, e);
+      }
     }
   },
 });
@@ -336,11 +336,11 @@ export const sendWeeklyDigests = internalAction({
           `<p style="font-size:13px;color:#aaa;margin:20px 0 0;">${tasks.length} pending task${tasks.length !== 1 ? "s" : ""} across all boards.</p>`;
       }
 
-      await sendEmail(
-        user.email,
-        subject,
-        emailWrapper("Weekly Task Outline", `Week of ${dateLabel}`, body)
-      );
+      try {
+        await sendEmail(user.email, subject, emailWrapper("Weekly Task Outline", `Week of ${dateLabel}`, body));
+      } catch (e) {
+        console.error(`Weekly digest failed for ${user.email}:`, e);
+      }
     }
   },
 });

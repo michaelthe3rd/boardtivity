@@ -9,7 +9,9 @@ export async function POST(req: NextRequest) {
   // customerId is looked up server-side to prevent IDOR attacks.
   void req;
 
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!.trim());
+  const stripeKey = process.env.STRIPE_SECRET_KEY?.trim();
+  if (!stripeKey) return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
+  const stripe = new Stripe(stripeKey);
 
   const { userId, getToken } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

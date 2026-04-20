@@ -3,16 +3,20 @@ import Stripe from "stripe";
 import { auth, currentUser } from "@clerk/nextjs/server";
 
 export async function POST(req: NextRequest) {
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!.trim());
+  const stripeKey = process.env.STRIPE_SECRET_KEY?.trim();
+  if (!stripeKey) return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
+
+  const priceMonthly = process.env.STRIPE_PRICE_MONTHLY?.trim();
+  const priceAnnual = process.env.STRIPE_PRICE_ANNUAL?.trim();
+  if (!priceMonthly || !priceAnnual) return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
+
+  const stripe = new Stripe(stripeKey);
 
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { plan } = await req.json() as { plan: "monthly" | "annual" };
-  const PRICES: Record<string, string> = {
-    monthly: process.env.STRIPE_PRICE_MONTHLY!.trim(),
-    annual: process.env.STRIPE_PRICE_ANNUAL!.trim(),
-  };
+  const PRICES: Record<string, string> = { monthly: priceMonthly, annual: priceAnnual };
   const priceId = PRICES[plan];
   if (!priceId) return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
 

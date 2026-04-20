@@ -9,8 +9,13 @@ http.route({
   path: "/stripe",
   method: "POST",
   handler: httpAction(async (ctx, req) => {
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!.trim());
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!.trim();
+    const stripeKey = process.env.STRIPE_SECRET_KEY?.trim();
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
+    if (!stripeKey || !webhookSecret) {
+      console.error("Stripe env vars not configured");
+      return new Response("Service misconfigured", { status: 503 });
+    }
+    const stripe = new Stripe(stripeKey);
 
     const body = await req.text();
     const sig = req.headers.get("stripe-signature");

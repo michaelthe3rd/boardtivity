@@ -812,6 +812,16 @@ export function HomeShell() {
   // pushToCloud() and the flush handler always save the LATEST state even when
   // called from a stale closure (e.g. the pagehide / visibilitychange handler).
   const latestBoardStateRef = useRef<string>("");
+  // Single-in-flight save guard: prevents two concurrent pushToCloud() calls from
+  // racing each other. If a save is already running, mark dirty so we re-push the
+  // latest state immediately after it completes.
+  const saveInFlightRef = useRef(false);
+  const saveDirtyRef = useRef(false);
+  // Deletion tombstones: IDs the user has explicitly deleted in this session.
+  // When a stale cloud save from another device "restores" a deleted item, the
+  // sync effect re-filters it out and re-pushes, so the deletion always wins.
+  const localDeletedNoteIdsRef = useRef<Set<number>>(new Set());
+  const localDeletedBoardIdsRef = useRef<Set<string>>(new Set());
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const bobUserInfoData  = useQuery(api.bob.getBobUserInfo);
@@ -1201,15 +1211,33 @@ export function HomeShell() {
   }
 
   function currentBoardState() {
-    return JSON.stringify({ boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom });
+    return JSON.stringify({
+      boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid,
+      taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx,
+      taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom,
+      // Persist tombstones so the server merge can union them — deletions survive
+      // stale saves from other devices even across page reloads.
+      deletedNoteIds: [...localDeletedNoteIdsRef.current],
+      deletedBoardIds: [...localDeletedBoardIdsRef.current],
+    });
   }
 
-  async function pushToCloud(retries = 3) {
+  async function pushToCloud() {
+    // Single-in-flight guard: if a save is already running, mark dirty so we
+    // re-push the latest state immediately after it completes. This prevents a
+    // stale in-flight save (e.g. captured before a deletion) from racing a newer one.
+    if (saveInFlightRef.current) {
+      saveDirtyRef.current = true;
+      return;
+    }
+    saveInFlightRef.current = true;
+    saveDirtyRef.current = false;
+
     // Read from ref so stale closures (e.g. pagehide flush) still save the latest state
     const stateToSave = latestBoardStateRef.current || currentBoardState();
     lastSavedStateRef.current = stateToSave;
     setCloudSyncState("saving");
-    for (let attempt = 0; attempt < retries; attempt++) {
+    for (let attempt = 0; attempt < 3; attempt++) {
       try {
         const id = savedBoardIdRef.current as import("convex/values").GenericId<"userBoards"> | undefined;
         const newId = await saveBoard({ boardState: stateToSave, id });
@@ -1222,15 +1250,23 @@ export function HomeShell() {
           localStorage.setItem("boardtivity", JSON.stringify({ ...existing, savedAt: Date.now() }));
         } catch {}
         setCloudSyncState("synced");
-        return;
+        break;
       } catch (e) {
-        if (attempt < retries - 1) {
+        if (attempt < 2) {
           await new Promise((r) => setTimeout(r, 1500 * Math.pow(2, attempt)));
         } else {
           console.error("[Boardtivity] Convex save failed after retries:", e);
           setCloudSyncState("error");
         }
       }
+    }
+
+    saveInFlightRef.current = false;
+    // If state changed while we were saving (e.g. user made another edit or
+    // deleted something), push the latest state now.
+    if (saveDirtyRef.current) {
+      saveDirtyRef.current = false;
+      pushToCloud();
     }
   }
 
@@ -1263,22 +1299,12 @@ export function HomeShell() {
       return;
     }
 
-    const cloudHasRealData = !isCloudDefaultOnly(savedBoard.boardState);
-    const localHasRealData = notes.length > 0 || boards.some(b => b.id !== "my-board" && b.id !== "my-thoughts");
-
-    if (!cloudHasRealData && localHasRealData) {
-      // Convex has no real data but local does — push local to migrate it.
-      pushToCloud();
-      return;
-    }
-
-    if (!cloudHasRealData) {
-      setCloudSyncState("synced");
-      return;
-    }
-
     // Cloud has real data — always apply it. Cloud is the sole source of truth.
+    // NOTE: We no longer skip "empty" cloud states. An empty cloud state can mean
+    // the user intentionally deleted everything on another device. Pushing stale
+    // local data back in that case would undo the deletion.
     lastAppliedCloudAtRef.current = savedBoard.updatedAt;
+    // Default: suppress push-back. Overridden below if pending local deletions need re-asserting.
     justAppliedCloudRef.current = true;
     // Cancel any pending debounced save so a stale timer can't fire and push
     // old settings (e.g. stale colors) over the cloud state we're about to apply.
@@ -1301,13 +1327,40 @@ export function HomeShell() {
         taskColorMode?: "priority" | "single"; taskHighColorIdx?: number;
         taskMedColorIdx?: number; taskLowColorIdx?: number; taskSingleColorIdx?: number;
         taskSingleCustom?: string; taskHighCustom?: string; taskMedCustom?: string; taskLowCustom?: string;
+        deletedNoteIds?: number[]; deletedBoardIds?: string[];
       };
-      if (Array.isArray(data.boards) && data.boards.length > 0) setBoards(data.boards);
+      // ── Merge deletion tombstones from cloud ─────────────────────────────────
+      // The server already performs a union merge on deletedNoteIds/deletedBoardIds,
+      // so the cloud snapshot always contains the superset of all deletions ever made
+      // on any device. We absorb those into our local refs so that future saves
+      // carry the full deletion history even if this device didn't originate them.
+      // We also check whether WE have local deletions the cloud hasn't confirmed yet
+      // (i.e., our last push is still in-flight or hasn't been picked up). If so,
+      // we allow a re-push so the server can merge them in.
+      const cloudDeletedNoteIds = new Set<number>(data.deletedNoteIds ?? []);
+      const cloudDeletedBoardIds = new Set<string>(data.deletedBoardIds ?? []);
+      const hadPendingNoteDeletes = [...localDeletedNoteIdsRef.current].some(id => !cloudDeletedNoteIds.has(id));
+      const hadPendingBoardDeletes = [...localDeletedBoardIdsRef.current].some(id => !cloudDeletedBoardIds.has(id));
+      // Absorb cloud deletions into local refs.
+      for (const id of cloudDeletedNoteIds) localDeletedNoteIdsRef.current.add(id);
+      for (const id of cloudDeletedBoardIds) localDeletedBoardIdsRef.current.add(id);
+
+      if (Array.isArray(data.boards) && data.boards.length > 0) {
+        // Server already filtered deleted boards from the notes array; filter
+        // client-side too as a belt-and-suspenders guard against races.
+        const filteredBoards = data.boards.filter(b => !localDeletedBoardIdsRef.current.has(b.id));
+        if (filteredBoards.length > 0) setBoards(filteredBoards);
+      }
       if (Array.isArray(data.notes)) {
+        // Server already filtered deleted notes; filter client-side for safety.
+        const cloudNotes = data.notes.filter(n =>
+          !localDeletedNoteIdsRef.current.has(n.id) &&
+          !localDeletedBoardIdsRef.current.has(n.boardId)
+        );
         // Merge focus-tracking fields: never let a cloud sync reduce time already
         // logged locally. Last-write-wins on the blob would otherwise clobber
         // totalTimeSpent when a save from another session (e.g. desktop) arrives.
-        setNotes(prev => data.notes!.map(cloudNote => {
+        setNotes(prev => cloudNotes.map(cloudNote => {
           const local = prev.find(n => n.id === cloudNote.id);
           return {
             ...cloudNote,
@@ -1331,6 +1384,15 @@ export function HomeShell() {
       if (typeof data.taskHighCustom   === "string") setTaskHighCustom(data.taskHighCustom);
       if (typeof data.taskMedCustom    === "string") setTaskMedCustom(data.taskMedCustom);
       if (typeof data.taskLowCustom    === "string") setTaskLowCustom(data.taskLowCustom);
+
+      // If local had deletions the cloud hasn't merged yet, allow one more push.
+      // Unlike the old "hasPendingDeletions" check, this is precise: it only
+      // fires when our local refs have IDs that aren't in the server's snapshot,
+      // meaning our deletion save is still in-flight. One push is all it takes —
+      // the server merge guarantees the deletion is permanent after that.
+      if (hadPendingNoteDeletes || hadPendingBoardDeletes) {
+        justAppliedCloudRef.current = false;
+      }
       setCloudSyncState("synced");
     } catch { setCloudSyncState("error"); }
   }, [isSignedIn, savedBoard]);
@@ -1362,7 +1424,11 @@ export function HomeShell() {
         return;
       }
 
-      // User made a change — debounce-save to Convex
+      // User made a change — debounce-save to Convex.
+      // When pending tombstones exist, the sync effect sets justAppliedCloudRef = false
+      // and calls setNotes(), which re-triggers this effect with a fresh 300ms timer.
+      // That re-schedule is sufficient to re-assert deletions without immediate-push
+      // ping-pong between devices.
       if (convexSaveTimerRef.current) clearTimeout(convexSaveTimerRef.current);
       convexSaveTimerRef.current = setTimeout(() => { pushToCloud(); }, 300);
     } else {
@@ -1629,9 +1695,12 @@ export function HomeShell() {
       // Last board of this type — clear notes and reset name instead of deleting
       const defaultName = board.type === "task" ? "My Board" : "My Ideas";
       setBoards((prev) => prev.map((b) => b.id === boardId ? { ...b, name: defaultName } : b));
+      // Track cleared notes as tombstones so a stale cloud sync can't restore them
+      notes.filter((n) => n.boardId === boardId).forEach((n) => localDeletedNoteIdsRef.current.add(n.id));
       setNotes((prev) => prev.filter((n) => n.boardId !== boardId));
       setActiveBoardId(boardId);
     } else {
+      localDeletedBoardIdsRef.current.add(boardId);
       const remaining = boards.filter((b) => b.id !== boardId);
       setBoards(remaining);
       setNotes((prev) => prev.filter((n) => n.boardId !== boardId));
@@ -1979,6 +2048,7 @@ export function HomeShell() {
   }
 
   function deleteTask(noteId: number) {
+    localDeletedNoteIdsRef.current.add(noteId);
     setNotes((prev) => prev.filter((n) => n.id !== noteId).map((n) => ({ ...n, linkedNoteIds: n.linkedNoteIds.filter((id) => id !== noteId) })));
     setDetailNoteId(null);
   }
