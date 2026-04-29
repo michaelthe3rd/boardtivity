@@ -1701,6 +1701,7 @@ export function HomeShell() {
       setActiveBoardId(boardId);
     } else {
       localDeletedBoardIdsRef.current.add(boardId);
+      notes.filter((n) => n.boardId === boardId).forEach((n) => localDeletedNoteIdsRef.current.add(n.id));
       const remaining = boards.filter((b) => b.id !== boardId);
       setBoards(remaining);
       setNotes((prev) => prev.filter((n) => n.boardId !== boardId));
@@ -2050,6 +2051,7 @@ export function HomeShell() {
   function deleteTask(noteId: number) {
     localDeletedNoteIdsRef.current.add(noteId);
     setNotes((prev) => prev.filter((n) => n.id !== noteId).map((n) => ({ ...n, linkedNoteIds: n.linkedNoteIds.filter((id) => id !== noteId) })));
+    cancelReminderMut({ noteId }).catch(() => {});
     setDetailNoteId(null);
   }
 
@@ -2067,7 +2069,8 @@ export function HomeShell() {
 
   function handleBobDeleteNotes(ids: number[]) {
     const idSet = new Set(ids);
-    setNotes(prev => prev.filter(n => !idSet.has(n.id)));
+    for (const id of ids) localDeletedNoteIdsRef.current.add(id);
+    setNotes(prev => prev.filter(n => !idSet.has(n.id)).map(n => ({ ...n, linkedNoteIds: n.linkedNoteIds.filter(id => !idSet.has(id)) })));
   }
 
   function handleBobHighlightNotes(ids: number[]) {
@@ -2239,7 +2242,7 @@ export function HomeShell() {
     });
     setNotes(updatedNotes);
     if (isSignedIn) {
-      const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom });
+      const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom, deletedNoteIds: [...localDeletedNoteIdsRef.current], deletedBoardIds: [...localDeletedBoardIdsRef.current] });
       latestBoardStateRef.current = freshState;
       pushToCloud();
     }
@@ -2272,7 +2275,7 @@ export function HomeShell() {
     });
     setNotes(updatedNotes);
     if (isSignedIn) {
-      const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom });
+      const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom, deletedNoteIds: [...localDeletedNoteIdsRef.current], deletedBoardIds: [...localDeletedBoardIdsRef.current] });
       latestBoardStateRef.current = freshState;
       pushToCloud();
       if (elapsedMin > 0) {
@@ -2530,7 +2533,7 @@ export function HomeShell() {
             setMobileAddColorIdx(undefined); setMobileAddRemindIn(null);
             // Build state with new note immediately and push — don't wait for debounce or effect timing
             if (isSignedIn) {
-              const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom });
+              const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom, deletedNoteIds: [...localDeletedNoteIdsRef.current], deletedBoardIds: [...localDeletedBoardIdsRef.current] });
               latestBoardStateRef.current = freshState;
               pushToCloud();
             }
@@ -3321,7 +3324,7 @@ export function HomeShell() {
                           setMobileActionNoteId(null);
                           setMobileDeleteConfirm(false);
                           if (isSignedIn) {
-                            const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom });
+                            const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom, deletedNoteIds: [...localDeletedNoteIdsRef.current], deletedBoardIds: [...localDeletedBoardIdsRef.current] });
                             latestBoardStateRef.current = freshState;
                             pushToCloud();
                           }
@@ -3330,7 +3333,7 @@ export function HomeShell() {
                       >Save</button>
                       {mobileDeleteConfirm ? (
                         <button
-                          onClick={() => { localDeletedNoteIdsRef.current.add(actionNote.id); const updatedNotes = notes.filter(n => n.id !== actionNote.id).map(n => ({ ...n, linkedNoteIds: n.linkedNoteIds.filter(id => id !== actionNote.id) })); setNotes(updatedNotes); setMobileActionNoteId(null); setMobileDeleteConfirm(false); if (isSignedIn) { const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom }); latestBoardStateRef.current = freshState; pushToCloud(); } }}
+                          onClick={() => { localDeletedNoteIdsRef.current.add(actionNote.id); const updatedNotes = notes.filter(n => n.id !== actionNote.id).map(n => ({ ...n, linkedNoteIds: n.linkedNoteIds.filter(id => id !== actionNote.id) })); setNotes(updatedNotes); setMobileActionNoteId(null); setMobileDeleteConfirm(false); if (isSignedIn) { const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom, deletedNoteIds: [...localDeletedNoteIdsRef.current], deletedBoardIds: [...localDeletedBoardIdsRef.current] }); latestBoardStateRef.current = freshState; pushToCloud(); } }}
                           style={{ height: 44, borderRadius: 12, backgroundColor: theme === "dark" ? "rgba(220,60,60,.18)" : "rgba(180,40,40,.1)", color: theme === "dark" ? "#ff8080" : "#c03030", border: `1.5px solid ${theme === "dark" ? "rgba(220,60,60,.5)" : "rgba(180,40,40,.4)"}`, padding: "0 16px", fontSize: 14, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" }}
                         >Confirm</button>
                       ) : (
