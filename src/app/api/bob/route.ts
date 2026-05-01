@@ -336,6 +336,10 @@ const SSE_HEADERS = {
 const RL = new Map<string, { count: number; resetAt: number }>();
 function checkRateLimit(userId: string): boolean {
   const now = Date.now();
+  // Purge expired entries to prevent unbounded growth
+  if (RL.size > 500) {
+    for (const [k, v] of RL) { if (now > v.resetAt) RL.delete(k); }
+  }
   const entry = RL.get(userId);
   if (!entry || now > entry.resetAt) {
     RL.set(userId, { count: 1, resetAt: now + 60_000 });
@@ -411,7 +415,6 @@ export async function POST(req: NextRequest) {
 
   const activeTasks = notes.filter(n => !n.completed && n.type === "task");
   const activeIdeas = notes.filter(n => !n.completed && n.type === "thought");
-  console.log(`[BOB] userId=${userId} mode=${mode} rawNotes=${rawNotes.length} filteredNotes=${notes.length} tasks=${activeTasks.length} ideas=${activeIdeas.length} activeBoardId=${rawActiveBoardId}`);
 
   const stream = makeSSE(async (push, signal) => {
     push({ type: "debug", rawNotes: rawNotes.length, filteredNotes: notes.length, tasks: activeTasks.length, ideas: activeIdeas.length, activeBoardId: rawActiveBoardId, noteTitles: notes.slice(0,5).map(n => n.title) });

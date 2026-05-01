@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import type { ThemeMode, BoardType, Importance, FlowMode, Board, Step, Note, Draft } from "@/lib/board";
 import BobAgent, { type BobNewNote, type BobSettings } from "@/components/BobAgent";
+import TourOverlay from "@/components/TourOverlay";
 import { useMutation, useQuery } from "convex/react";
 import { useUser, useClerk } from "@clerk/nextjs";
 import { api } from "../../convex/_generated/api";
@@ -772,6 +773,8 @@ export function HomeShell() {
   const { user, isSignedIn, isLoaded: clerkLoaded } = useUser();
   const { openSignIn, openSignUp, signOut } = useClerk();
 
+  const isNativeApp = typeof navigator !== "undefined" && navigator.userAgent.includes("BoardtivityApp");
+
   const [titleMounted, setTitleMounted] = useState(false);
   const [titleIn, setTitleIn] = useState(false);
   useEffect(() => {
@@ -925,6 +928,11 @@ export function HomeShell() {
   // In fullscreen, overflow:hidden clips fixed-position modals — override it
   const fullscreenOverride: CSSProperties = isFullscreen
     ? { borderRadius: 0, border: "none", minHeight: "100vh", overflow: "visible" }
+    : {};
+
+  // In native app, board always fills the screen (no fullscreen button needed)
+  const nativeAppOverride: CSSProperties = isNativeApp
+    ? { position: "fixed", inset: 0, width: "100%", height: "100%", borderRadius: 0, border: "none", minHeight: "unset", overflow: "visible", zIndex: 10 }
     : {};
 
   const taskBoards = boards.filter((b) => b.type === "task");
@@ -1720,6 +1728,7 @@ export function HomeShell() {
 
   function onViewportPointerDown(e: ReactPointerEvent<HTMLDivElement>) {
     if ((e.target as HTMLElement).closest("[data-note='true']") || (e.target as HTMLElement).closest("[data-step='true']")) return;
+    if (noteDragRef.current || stepDragRef.current) return;
 
     pointerMapRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -1853,6 +1862,7 @@ export function HomeShell() {
       return;
     }
 
+    if (noteDragRef.current || stepDragRef.current) return;
     if (!boardDragRef.current) return;
     const dx = e.clientX - boardDragRef.current.startX;
     const dy = e.clientY - boardDragRef.current.startY;
@@ -2050,6 +2060,7 @@ export function HomeShell() {
   function deleteTask(noteId: number) {
     localDeletedNoteIdsRef.current.add(noteId);
     setNotes((prev) => prev.filter((n) => n.id !== noteId).map((n) => ({ ...n, linkedNoteIds: n.linkedNoteIds.filter((id) => id !== noteId) })));
+    cancelReminderMut({ noteId }).catch(() => {});
     setDetailNoteId(null);
   }
 
@@ -2067,7 +2078,11 @@ export function HomeShell() {
 
   function handleBobDeleteNotes(ids: number[]) {
     const idSet = new Set(ids);
-    setNotes(prev => prev.filter(n => !idSet.has(n.id)));
+    for (const id of ids) localDeletedNoteIdsRef.current.add(id);
+    setNotes(prev => prev.filter(n => !idSet.has(n.id)).map(n => ({
+      ...n,
+      linkedNoteIds: n.linkedNoteIds.filter(id => !idSet.has(id)),
+    })));
   }
 
   function handleBobHighlightNotes(ids: number[]) {
@@ -2295,9 +2310,10 @@ export function HomeShell() {
 
   return (
     <main style={{ minHeight: "100vh", fontFamily: "'Satoshi', Arial, sans-serif" }}>
+      <TourOverlay isSignedIn={!!isSignedIn} isMobile={isMobile} />
 
 
-      <section style={{ padding: isMobile ? "10px 18px 0" : "24px 48px 0" }}>
+      <section style={{ padding: isMobile ? "10px 18px 0" : "24px 48px 0", display: isNativeApp ? "none" : undefined }}>
         <header style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", position: "relative" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
             <BoardtivityLogo size={isMobile ? 36 : 52} dark={theme === "dark"} />
@@ -2451,7 +2467,7 @@ export function HomeShell() {
       )}
 
       <section id="boardtivity-board" style={{ maxWidth: 1440, margin: "0 auto", padding: isMobile ? "0 0 24px" : "0 48px 24px" }}>
-        {isMobile && (() => {
+        {isMobile && !isNativeApp && (() => {
           const mobileBoardNotes = notes.filter(n => n.boardId === activeBoardId);
           const tasks = mobileBoardNotes.filter(n => n.type === "task");
           const thoughts = mobileBoardNotes.filter(n => n.type === "thought");
@@ -3330,7 +3346,7 @@ export function HomeShell() {
                       >Save</button>
                       {mobileDeleteConfirm ? (
                         <button
-                          onClick={() => { const updatedNotes = notes.filter(n => n.id !== actionNote.id); setNotes(updatedNotes); setMobileActionNoteId(null); setMobileDeleteConfirm(false); if (isSignedIn) { const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom }); latestBoardStateRef.current = freshState; pushToCloud(); } }}
+                          onClick={() => { deleteTask(actionNote.id); setMobileActionNoteId(null); setMobileDeleteConfirm(false); if (isSignedIn) pushToCloud(); }}
                           style={{ height: 44, borderRadius: 12, backgroundColor: theme === "dark" ? "rgba(220,60,60,.18)" : "rgba(180,40,40,.1)", color: theme === "dark" ? "#ff8080" : "#c03030", border: `1.5px solid ${theme === "dark" ? "rgba(220,60,60,.5)" : "rgba(180,40,40,.4)"}`, padding: "0 16px", fontSize: 14, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" }}
                         >Confirm</button>
                       ) : (
@@ -3473,7 +3489,7 @@ export function HomeShell() {
             </div>
           );
         })()}
-        <div id="board-shell" ref={boardContainerRef} style={{ ...boardStyle, ...fullscreenOverride, ...(isMobile ? { display: "none" } : {}) }}>
+        <div id="board-shell" ref={boardContainerRef} style={{ ...boardStyle, ...fullscreenOverride, ...nativeAppOverride, ...(isMobile && !isNativeApp ? { display: "none" } : {}) }}>
           <div
             style={{
               position: "absolute",
@@ -3836,7 +3852,7 @@ export function HomeShell() {
           {activeNotes.length === 0 && (
             <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", zIndex: 1, pointerEvents: "none" }}>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 28, textAlign: "center", maxWidth: 380, padding: "0 24px", pointerEvents: "auto" }}>
-                <img src="/logo-vertical.svg" alt="" style={{ width: 120, opacity: boardTheme === "dark" ? 0.45 : 0.35, filter: boardTheme === "dark" ? "invert(1)" : "none", pointerEvents: "none", userSelect: "none" }} />
+                <img src="/logo-icon.svg" alt="" style={{ width: 110, height: 90, opacity: boardTheme === "dark" ? 0.45 : 0.35, filter: boardTheme === "dark" ? "invert(1)" : "none", pointerEvents: "none", userSelect: "none" }} />
                 <div>
                   <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-.02em", color: boardTheme === "dark" ? "#e8e8e6" : "#2a2822", lineHeight: 1.2 }}>
                     {thoughtMode ? "Your idea board is empty" : "Your task board is empty"}
@@ -3873,7 +3889,7 @@ export function HomeShell() {
             </div>
           )}
 
-          <div style={{ position: "absolute", top: 12, left: 16, right: 16, zIndex: 3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ position: "absolute", top: isNativeApp ? "env(safe-area-inset-top, 12px)" : 12, left: 16, right: 16, zIndex: 3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             {/* BOB — visible to all, admin-gated features */}
             <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", top: 0 }}>
               <BobAgent
@@ -4023,7 +4039,7 @@ export function HomeShell() {
             }} onClick={() => setSettingsOpen(false)} />
           )}
           <div ref={settingsRef} style={{
-            position: "fixed", top: 0, right: 0, bottom: 0, width: 360,
+            position: "fixed", top: 0, right: 0, bottom: 0, width: "min(360px, 100vw)",
             zIndex: 31,
             backgroundColor: panel(boardTheme),
             borderLeft: `1px solid ${border(boardTheme)}`,
@@ -4463,7 +4479,7 @@ export function HomeShell() {
           {/* Fullscreen button — bottom left */}
           <button
             onClick={toggleFullscreen}
-            style={{ ...circleButton(boardTheme, 38), position: "absolute", left: 18, bottom: 18, zIndex: 3, boxShadow: "0 8px 16px rgba(89,72,48,.08)" }}
+            style={{ ...circleButton(boardTheme, 38), position: "absolute", left: 18, bottom: 18, zIndex: 3, boxShadow: "0 8px 16px rgba(89,72,48,.08)", display: isNativeApp ? "none" : undefined }}
             aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
           >
             {isFullscreen ? (
@@ -4612,7 +4628,7 @@ export function HomeShell() {
               </div>
             )}
 
-            <div style={{ display: "grid", gridTemplateColumns: thoughtMode ? "1fr" : "1fr 360px", gap: 16, padding: 18, alignItems: "start" }}>
+            <div style={{ display: "grid", gridTemplateColumns: (thoughtMode || isMobile) ? "1fr" : "1fr 360px", gap: 16, padding: 18, alignItems: "start" }}>
               <div style={{ display: "grid", gap: 12 }}>
                 <div
                   style={{
@@ -4941,7 +4957,7 @@ export function HomeShell() {
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: detailNote.type === "task" ? "1fr 272px" : "1fr", gap: 14, padding: 18, maxHeight: "calc(90vh - 96px)", overflow: "hidden" }}>
+            <div style={{ display: "grid", gridTemplateColumns: (detailNote.type === "task" && !isMobile) ? "1fr 272px" : "1fr", gap: 14, padding: 18, maxHeight: "calc(90vh - 96px)", overflow: "hidden" }}>
               {/* Left: focus card + subtasks */}
               {/* Left panel — green when completed OR all steps done */}
               {(() => {
