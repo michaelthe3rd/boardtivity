@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npx convex deploy --yes --cmd 'next build'",
+    "build": "if [ \"$VERCEL_ENV\" = 'production' ]; then npx convex deploy --yes --cmd 'next build'; else next build; fi",
     "start": "next start",
     "type-check": "tsc --noEmit"
   },
