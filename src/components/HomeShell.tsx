@@ -2284,13 +2284,13 @@ export function HomeShell() {
     }
   }
 
-  function scheduleDueDateReminder(noteId: number, noteTitle: string, dueDate: string | undefined, dueTimeVal: string | undefined) {
-    if (!isSignedIn || !dueDate || !dueTimeVal) {
+  function scheduleDueDateReminder(noteId: number, noteTitle: string, dueDate: string | undefined, _dueTimeVal?: string | undefined) {
+    if (!isSignedIn || !dueDate) {
       cancelReminderMut({ noteId }).catch(() => {});
       return;
     }
-    const dueDatetime = new Date(`${dueDate}T${dueTimeVal}:00`).getTime();
-    const remindAt = dueDatetime - 60 * 60 * 1000; // 1 hour before
+    const timeStr = emailPrefs?.reminderTime ?? "06:00";
+    const remindAt = new Date(`${dueDate}T${timeStr}:00`).getTime();
     const delayMs = remindAt - Date.now();
     if (delayMs <= 0) return;
     setReminderMut({ noteId, noteTitle, delayMs }).catch(() => {});
@@ -3072,6 +3072,18 @@ export function HomeShell() {
                               );
                             })}
                           </div>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, paddingTop: 14, paddingBottom: 14, borderBottom: `1px solid ${border(theme)}` }}>
+                              <span style={{ fontSize: 15, color: pageText(theme) }}>Task reminder time</span>
+                              <input
+                                type="time"
+                                value={emailPrefs?.reminderTime ?? "06:00"}
+                                onChange={e => {
+                                  const current = emailPrefs ?? { dailyDigest: true, weeklyDigest: true };
+                                  updateEmailPrefs({ ...current, reminderTime: e.target.value });
+                                }}
+                                style={{ fontSize: 15, fontWeight: 600, color: pageText(theme), backgroundColor: paper(theme), border: `1px solid ${border(theme)}`, borderRadius: 8, padding: "5px 8px", cursor: "pointer", colorScheme: theme === "dark" ? "dark" : "light" }}
+                              />
+                            </div>
                           <p style={{ fontSize: 12, color: muted(theme), margin: "12px 0 0", lineHeight: 1.5 }}>Sent to {user?.emailAddresses?.[0]?.emailAddress ?? "your email"}.</p>
                         </div>
                       )}
@@ -4256,6 +4268,18 @@ export function HomeShell() {
                       </div>
                     );
                   })}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                    <span style={{ fontSize: 13, color: pageText(boardTheme) }}>Task reminder time</span>
+                    <input
+                      type="time"
+                      value={emailPrefs?.reminderTime ?? "06:00"}
+                      onChange={e => {
+                        const current = emailPrefs ?? { dailyDigest: true, weeklyDigest: true };
+                        updateEmailPrefs({ ...current, reminderTime: e.target.value });
+                      }}
+                      style={{ fontSize: 13, fontWeight: 600, color: pageText(boardTheme), backgroundColor: paper(boardTheme), border: `1px solid ${border(boardTheme)}`, borderRadius: 8, padding: "4px 8px", cursor: "pointer", colorScheme: boardTheme === "dark" ? "dark" : "light" }}
+                    />
+                  </div>
                   <p style={{ fontSize: 11, color: muted(boardTheme), margin: 0, lineHeight: 1.5 }}>
                     Sent to {user?.emailAddresses?.[0]?.emailAddress ?? "your email"}.
                   </p>
