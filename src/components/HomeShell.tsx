@@ -1701,6 +1701,7 @@ export function HomeShell() {
       setActiveBoardId(boardId);
     } else {
       localDeletedBoardIdsRef.current.add(boardId);
+      notes.filter((n) => n.boardId === boardId).forEach((n) => localDeletedNoteIdsRef.current.add(n.id));
       const remaining = boards.filter((b) => b.id !== boardId);
       setBoards(remaining);
       setNotes((prev) => prev.filter((n) => n.boardId !== boardId));
@@ -2050,6 +2051,7 @@ export function HomeShell() {
   function deleteTask(noteId: number) {
     localDeletedNoteIdsRef.current.add(noteId);
     setNotes((prev) => prev.filter((n) => n.id !== noteId).map((n) => ({ ...n, linkedNoteIds: n.linkedNoteIds.filter((id) => id !== noteId) })));
+    cancelReminderMut({ noteId }).catch(() => {});
     setDetailNoteId(null);
   }
 
@@ -2067,7 +2069,8 @@ export function HomeShell() {
 
   function handleBobDeleteNotes(ids: number[]) {
     const idSet = new Set(ids);
-    setNotes(prev => prev.filter(n => !idSet.has(n.id)));
+    for (const id of ids) localDeletedNoteIdsRef.current.add(id);
+    setNotes(prev => prev.filter(n => !idSet.has(n.id)).map(n => ({ ...n, linkedNoteIds: n.linkedNoteIds.filter(id => !idSet.has(id)) })));
   }
 
   function handleBobHighlightNotes(ids: number[]) {
@@ -2239,7 +2242,7 @@ export function HomeShell() {
     });
     setNotes(updatedNotes);
     if (isSignedIn) {
-      const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom });
+      const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom, deletedNoteIds: [...localDeletedNoteIdsRef.current], deletedBoardIds: [...localDeletedBoardIdsRef.current] });
       latestBoardStateRef.current = freshState;
       pushToCloud();
     }
@@ -2272,7 +2275,7 @@ export function HomeShell() {
     });
     setNotes(updatedNotes);
     if (isSignedIn) {
-      const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom });
+      const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom, deletedNoteIds: [...localDeletedNoteIdsRef.current], deletedBoardIds: [...localDeletedBoardIdsRef.current] });
       latestBoardStateRef.current = freshState;
       pushToCloud();
       if (elapsedMin > 0) {
@@ -2281,13 +2284,13 @@ export function HomeShell() {
     }
   }
 
-  function scheduleDueDateReminder(noteId: number, noteTitle: string, dueDate: string | undefined, dueTimeVal: string | undefined) {
-    if (!isSignedIn || !dueDate || !dueTimeVal) {
+  function scheduleDueDateReminder(noteId: number, noteTitle: string, dueDate: string | undefined, _dueTimeVal?: string | undefined) {
+    if (!isSignedIn || !dueDate) {
       cancelReminderMut({ noteId }).catch(() => {});
       return;
     }
-    const dueDatetime = new Date(`${dueDate}T${dueTimeVal}:00`).getTime();
-    const remindAt = dueDatetime - 60 * 60 * 1000; // 1 hour before
+    const timeStr = emailPrefs?.reminderTime ?? "06:00";
+    const remindAt = new Date(`${dueDate}T${timeStr}:00`).getTime();
     const delayMs = remindAt - Date.now();
     if (delayMs <= 0) return;
     setReminderMut({ noteId, noteTitle, delayMs }).catch(() => {});
@@ -2530,7 +2533,7 @@ export function HomeShell() {
             setMobileAddColorIdx(undefined); setMobileAddRemindIn(null);
             // Build state with new note immediately and push — don't wait for debounce or effect timing
             if (isSignedIn) {
-              const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom });
+              const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom, deletedNoteIds: [...localDeletedNoteIdsRef.current], deletedBoardIds: [...localDeletedBoardIdsRef.current] });
               latestBoardStateRef.current = freshState;
               pushToCloud();
             }
@@ -3069,6 +3072,18 @@ export function HomeShell() {
                               );
                             })}
                           </div>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, paddingTop: 14, paddingBottom: 14, borderBottom: `1px solid ${border(theme)}` }}>
+                              <span style={{ fontSize: 15, color: pageText(theme) }}>Task reminder time</span>
+                              <input
+                                type="time"
+                                value={emailPrefs?.reminderTime ?? "06:00"}
+                                onChange={e => {
+                                  const current = emailPrefs ?? { dailyDigest: true, weeklyDigest: true };
+                                  updateEmailPrefs({ ...current, reminderTime: e.target.value });
+                                }}
+                                style={{ fontSize: 15, fontWeight: 600, color: pageText(theme), backgroundColor: paper(theme), border: `1px solid ${border(theme)}`, borderRadius: 8, padding: "5px 8px", cursor: "pointer", colorScheme: theme === "dark" ? "dark" : "light" }}
+                              />
+                            </div>
                           <p style={{ fontSize: 12, color: muted(theme), margin: "12px 0 0", lineHeight: 1.5 }}>Sent to {user?.emailAddresses?.[0]?.emailAddress ?? "your email"}.</p>
                         </div>
                       )}
@@ -3321,7 +3336,7 @@ export function HomeShell() {
                           setMobileActionNoteId(null);
                           setMobileDeleteConfirm(false);
                           if (isSignedIn) {
-                            const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom });
+                            const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom, deletedNoteIds: [...localDeletedNoteIdsRef.current], deletedBoardIds: [...localDeletedBoardIdsRef.current] });
                             latestBoardStateRef.current = freshState;
                             pushToCloud();
                           }
@@ -3330,7 +3345,7 @@ export function HomeShell() {
                       >Save</button>
                       {mobileDeleteConfirm ? (
                         <button
-                          onClick={() => { const updatedNotes = notes.filter(n => n.id !== actionNote.id); setNotes(updatedNotes); setMobileActionNoteId(null); setMobileDeleteConfirm(false); if (isSignedIn) { const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom }); latestBoardStateRef.current = freshState; pushToCloud(); } }}
+                          onClick={() => { localDeletedNoteIdsRef.current.add(actionNote.id); const updatedNotes = notes.filter(n => n.id !== actionNote.id).map(n => ({ ...n, linkedNoteIds: n.linkedNoteIds.filter(id => id !== actionNote.id) })); setNotes(updatedNotes); setMobileActionNoteId(null); setMobileDeleteConfirm(false); if (isSignedIn) { const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom, deletedNoteIds: [...localDeletedNoteIdsRef.current], deletedBoardIds: [...localDeletedBoardIdsRef.current] }); latestBoardStateRef.current = freshState; pushToCloud(); } }}
                           style={{ height: 44, borderRadius: 12, backgroundColor: theme === "dark" ? "rgba(220,60,60,.18)" : "rgba(180,40,40,.1)", color: theme === "dark" ? "#ff8080" : "#c03030", border: `1.5px solid ${theme === "dark" ? "rgba(220,60,60,.5)" : "rgba(180,40,40,.4)"}`, padding: "0 16px", fontSize: 14, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" }}
                         >Confirm</button>
                       ) : (
@@ -4253,6 +4268,18 @@ export function HomeShell() {
                       </div>
                     );
                   })}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                    <span style={{ fontSize: 13, color: pageText(boardTheme) }}>Task reminder time</span>
+                    <input
+                      type="time"
+                      value={emailPrefs?.reminderTime ?? "06:00"}
+                      onChange={e => {
+                        const current = emailPrefs ?? { dailyDigest: true, weeklyDigest: true };
+                        updateEmailPrefs({ ...current, reminderTime: e.target.value });
+                      }}
+                      style={{ fontSize: 13, fontWeight: 600, color: pageText(boardTheme), backgroundColor: paper(boardTheme), border: `1px solid ${border(boardTheme)}`, borderRadius: 8, padding: "4px 8px", cursor: "pointer", colorScheme: boardTheme === "dark" ? "dark" : "light" }}
+                    />
+                  </div>
                   <p style={{ fontSize: 11, color: muted(boardTheme), margin: 0, lineHeight: 1.5 }}>
                     Sent to {user?.emailAddresses?.[0]?.emailAddress ?? "your email"}.
                   </p>

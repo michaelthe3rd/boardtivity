@@ -65,9 +65,9 @@ export const save = mutation({
       //   • Any note in the merged deletedNoteIds is removed regardless of source.
       const incomingNoteIds = new Set((incoming.notes ?? []).map((n) => n.id));
       const mergedNotes = [
-        ...(incoming.notes ?? []).filter((n) => !deletedNoteSet.has(n.id)),
+        ...(incoming.notes ?? []).filter((n) => !deletedNoteSet.has(n.id) && !deletedBoardSet.has(n.boardId as string)),
         ...(current.notes ?? []).filter(
-          (n) => !incomingNoteIds.has(n.id) && !deletedNoteSet.has(n.id)
+          (n) => !incomingNoteIds.has(n.id) && !deletedNoteSet.has(n.id) && !deletedBoardSet.has(n.boardId as string)
         ),
       ];
 

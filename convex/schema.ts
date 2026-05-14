@@ -21,6 +21,7 @@ export default defineSchema({
     weeklyDigest: v.boolean(),
     dueSoonReminder: v.optional(v.boolean()),
     bobUserInfo: v.optional(v.string()),
+    reminderTime: v.optional(v.string()), // "HH:MM" in user's local time, default "06:00"
   }).index("by_token", ["tokenIdentifier"]),
 
   feedbackPosts: defineTable({

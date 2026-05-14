@@ -1,7 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
-const DEFAULTS = { dailyDigest: true, weeklyDigest: true };
+const DEFAULTS = { dailyDigest: true, weeklyDigest: true, reminderTime: "06:00" };
 
 export const get = query({
   args: {},
@@ -20,6 +20,7 @@ export const update = mutation({
   args: {
     dailyDigest: v.boolean(),
     weeklyDigest: v.boolean(),
+    reminderTime: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
