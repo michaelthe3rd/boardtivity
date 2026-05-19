@@ -3078,8 +3078,18 @@ export function HomeShell() {
                                 type="time"
                                 value={emailPrefs?.reminderTime ?? "06:00"}
                                 onChange={e => {
+                                  const newTime = e.target.value;
                                   const current = emailPrefs ?? { dailyDigest: true, weeklyDigest: true };
-                                  updateEmailPrefs({ ...current, reminderTime: e.target.value });
+                                  updateEmailPrefs({ ...current, reminderTime: newTime });
+                                  notes.forEach(note => {
+                                    if (!note.dueDate) return;
+                                    const delayMs = new Date(`${note.dueDate}T${newTime}:00`).getTime() - Date.now();
+                                    if (delayMs > 0) {
+                                      setReminderMut({ noteId: note.id, noteTitle: note.title, delayMs }).catch(() => {});
+                                    } else {
+                                      cancelReminderMut({ noteId: note.id }).catch(() => {});
+                                    }
+                                  });
                                 }}
                                 style={{ fontSize: 15, fontWeight: 600, color: pageText(theme), backgroundColor: paper(theme), border: `1px solid ${border(theme)}`, borderRadius: 8, padding: "5px 8px", cursor: "pointer", colorScheme: theme === "dark" ? "dark" : "light" }}
                               />
@@ -4274,8 +4284,18 @@ export function HomeShell() {
                       type="time"
                       value={emailPrefs?.reminderTime ?? "06:00"}
                       onChange={e => {
+                        const newTime = e.target.value;
                         const current = emailPrefs ?? { dailyDigest: true, weeklyDigest: true };
-                        updateEmailPrefs({ ...current, reminderTime: e.target.value });
+                        updateEmailPrefs({ ...current, reminderTime: newTime });
+                        notes.forEach(note => {
+                          if (!note.dueDate) return;
+                          const delayMs = new Date(`${note.dueDate}T${newTime}:00`).getTime() - Date.now();
+                          if (delayMs > 0) {
+                            setReminderMut({ noteId: note.id, noteTitle: note.title, delayMs }).catch(() => {});
+                          } else {
+                            cancelReminderMut({ noteId: note.id }).catch(() => {});
+                          }
+                        });
                       }}
                       style={{ fontSize: 13, fontWeight: 600, color: pageText(boardTheme), backgroundColor: paper(boardTheme), border: `1px solid ${border(boardTheme)}`, borderRadius: 8, padding: "4px 8px", cursor: "pointer", colorScheme: boardTheme === "dark" ? "dark" : "light" }}
                     />
