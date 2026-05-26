@@ -1,7 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
-const DEFAULTS = { dailyDigest: true, weeklyDigest: true, reminderTime: "06:00" };
+const DEFAULTS = { dailyDigest: true, weeklyDigest: true, reminderTime: "08:00" };
 
 export const get = query({
   args: {},

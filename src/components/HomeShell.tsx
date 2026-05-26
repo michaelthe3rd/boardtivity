@@ -2289,7 +2289,7 @@ export function HomeShell() {
       cancelReminderMut({ noteId }).catch(() => {});
       return;
     }
-    const timeStr = emailPrefs?.reminderTime ?? "06:00";
+    const timeStr = emailPrefs?.reminderTime ?? "08:00";
     const remindAt = new Date(`${dueDate}T${timeStr}:00`).getTime();
     const delayMs = remindAt - Date.now();
     if (delayMs <= 0) return;
@@ -3065,7 +3065,7 @@ export function HomeShell() {
                               return (
                                 <div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, paddingTop: 14, paddingBottom: 14, borderBottom: `1px solid ${border(theme)}` }}>
                                   <span style={{ fontSize: 15, color: pageText(theme) }}>{labels[key]}</span>
-                                  <button type="button" onClick={() => { const current = emailPrefs ?? { dailyDigest: true, weeklyDigest: true }; updateEmailPrefs({ ...current, [key]: !enabled }); }} style={{ flexShrink: 0, width: 46, height: 26, borderRadius: 999, border: "none", cursor: "pointer", backgroundColor: enabled ? (theme === "dark" ? "#4a9eff" : "#2563eb") : (theme === "dark" ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.12)"), position: "relative", transition: "background-color .18s" }}>
+                                  <button type="button" onClick={() => { const current = emailPrefs ?? { dailyDigest: true, weeklyDigest: true }; updateEmailPrefs({ dailyDigest: current.dailyDigest ?? true, weeklyDigest: current.weeklyDigest ?? true, reminderTime: current.reminderTime, [key]: !enabled }); }} style={{ flexShrink: 0, width: 46, height: 26, borderRadius: 999, border: "none", cursor: "pointer", backgroundColor: enabled ? (theme === "dark" ? "#4a9eff" : "#2563eb") : (theme === "dark" ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.12)"), position: "relative", transition: "background-color .18s" }}>
                                     <span style={{ position: "absolute", top: 4, left: enabled ? 23 : 4, width: 18, height: 18, borderRadius: "50%", backgroundColor: "#fff", transition: "left .18s", boxShadow: "0 1px 3px rgba(0,0,0,.2)" }} />
                                   </button>
                                 </div>
@@ -3076,11 +3076,11 @@ export function HomeShell() {
                               <span style={{ fontSize: 15, color: pageText(theme) }}>Task reminder time</span>
                               <input
                                 type="time"
-                                value={emailPrefs?.reminderTime ?? "06:00"}
+                                value={emailPrefs?.reminderTime ?? "08:00"}
                                 onChange={e => {
                                   const newTime = e.target.value;
                                   const current = emailPrefs ?? { dailyDigest: true, weeklyDigest: true };
-                                  updateEmailPrefs({ ...current, reminderTime: newTime });
+                                  updateEmailPrefs({ dailyDigest: current.dailyDigest ?? true, weeklyDigest: current.weeklyDigest ?? true, reminderTime: newTime });
                                   notes.forEach(note => {
                                     if (!note.dueDate) return;
                                     const delayMs = new Date(`${note.dueDate}T${newTime}:00`).getTime() - Date.now();
@@ -4259,7 +4259,7 @@ export function HomeShell() {
                           type="button"
                           onClick={() => {
                             const current = emailPrefs ?? { dailyDigest: true, weeklyDigest: true };
-                            updateEmailPrefs({ ...current, [key]: !enabled });
+                            updateEmailPrefs({ dailyDigest: current.dailyDigest ?? true, weeklyDigest: current.weeklyDigest ?? true, reminderTime: current.reminderTime, [key]: !enabled });
                           }}
                           style={{
                             flexShrink: 0,
@@ -4282,11 +4282,11 @@ export function HomeShell() {
                     <span style={{ fontSize: 13, color: pageText(boardTheme) }}>Task reminder time</span>
                     <input
                       type="time"
-                      value={emailPrefs?.reminderTime ?? "06:00"}
+                      value={emailPrefs?.reminderTime ?? "08:00"}
                       onChange={e => {
                         const newTime = e.target.value;
                         const current = emailPrefs ?? { dailyDigest: true, weeklyDigest: true };
-                        updateEmailPrefs({ ...current, reminderTime: newTime });
+                        updateEmailPrefs({ dailyDigest: current.dailyDigest ?? true, weeklyDigest: current.weeklyDigest ?? true, reminderTime: newTime });
                         notes.forEach(note => {
                           if (!note.dueDate) return;
                           const delayMs = new Date(`${note.dueDate}T${newTime}:00`).getTime() - Date.now();
