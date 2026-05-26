@@ -822,6 +822,7 @@ export function HomeShell() {
   // sync effect re-filters it out and re-pushes, so the deletion always wins.
   const localDeletedNoteIdsRef = useRef<Set<number>>(new Set());
   const localDeletedBoardIdsRef = useRef<Set<string>>(new Set());
+  const lastSyncedReminderTimeRef = useRef<string | null>(null);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const bobUserInfoData  = useQuery(api.bob.getBobUserInfo);
@@ -1505,6 +1506,23 @@ export function HomeShell() {
   useEffect(() => { focusNoteIdRef.current = focusNoteId; }, [focusNoteId]);
   useEffect(() => { focusStepIdRef.current = focusStepId; }, [focusStepId]);
   useEffect(() => { notesRef.current = notes; }, [notes]);
+
+  // Reschedule all task reminders whenever the reminder time preference changes
+  // (covers cross-device changes and jobs already queued at the old time)
+  useEffect(() => {
+    const timeStr = emailPrefs?.reminderTime ?? "08:00";
+    if (!isSignedIn || emailPrefs === undefined || lastSyncedReminderTimeRef.current === timeStr) return;
+    lastSyncedReminderTimeRef.current = timeStr;
+    notes.forEach(note => {
+      if (!note.dueDate) return;
+      const delayMs = new Date(`${note.dueDate}T${timeStr}:00`).getTime() - Date.now();
+      if (delayMs > 0) {
+        setReminderMut({ noteId: note.id, noteTitle: note.title, delayMs }).catch(() => {});
+      } else {
+        cancelReminderMut({ noteId: note.id }).catch(() => {});
+      }
+    });
+  }, [emailPrefs?.reminderTime, isSignedIn, emailPrefs]);
 
   // Warn on refresh/close while in focus mode
   useEffect(() => {
