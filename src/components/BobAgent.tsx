@@ -351,6 +351,12 @@ export default function BobAgent({
         body: JSON.stringify({ message: msg, notes: noteSnaps, activeBoardId, mode, history, userInfo, settings, focusStats }),
       });
 
+      if (!res.ok) {
+        const reason = res.status === 402 || res.status === 429 ? (await res.text().catch(() => "")) : "";
+        const refusal = new Error(reason || "Couldn't reach BOB right now.");
+        refusal.name = "BobRefusal";
+        throw refusal;
+      }
       if (!res.body) throw new Error("No stream");
       const reader  = res.body.getReader();
       const decoder = new TextDecoder();
@@ -404,13 +410,14 @@ export default function BobAgent({
           } catch { /* malformed SSE line */ }
         }
       }
-    } catch {
+    } catch (err) {
+      const errText = err instanceof Error && err.name === "BobRefusal" ? err.message : "Couldn't reach BOB right now.";
       setMessages(prev => {
         const next = [...prev];
-        next[next.length - 1] = { role: "bob", content: "Couldn't reach BOB right now.", streaming: false };
+        next[next.length - 1] = { role: "bob", content: errText, streaming: false };
         return next;
       });
-      bobText = "Couldn't reach BOB right now.";
+      bobText = errText;
     } finally {
       setStreaming(false);
       // Update rolling history (last 6 messages)
