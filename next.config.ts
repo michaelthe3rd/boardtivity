@@ -11,6 +11,8 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // A stray package.json in the home directory makes Next guess the wrong workspace root.
+  turbopack: { root: __dirname },
   headers() {
     return Promise.resolve([{ source: "/:path*", headers: securityHeaders }]);
   },

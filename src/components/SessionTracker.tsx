@@ -27,14 +27,20 @@ export function SessionTracker() {
 
     startSession({ sessionId: sid, isSignedIn: isSignedInRef.current });
 
-    const interval = setInterval(() => {
-      if (sessionIdRef.current) {
+    // Skip heartbeats while the tab is hidden; send one as soon as it becomes visible again.
+    const beat = () => {
+      if (sessionIdRef.current && document.visibilityState === "visible") {
         heartbeat({ sessionId: sessionIdRef.current, isSignedIn: isSignedInRef.current });
       }
-    }, 30000);
+    };
+    const interval = setInterval(beat, 30000);
+    document.addEventListener("visibilitychange", beat);
 
-    return () => clearInterval(interval);
-  }, [startSession]);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", beat);
+    };
+  }, [startSession, heartbeat]);
 
   return null;
 }

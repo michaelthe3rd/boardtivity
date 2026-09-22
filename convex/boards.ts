@@ -63,11 +63,14 @@ export const save = mutation({
       //   • Notes only in the existing DB record are preserved — they were added
       //     by another device and a stale save shouldn't silently drop them.
       //   • Any note in the merged deletedNoteIds is removed regardless of source.
+      //   • Notes belonging to a deleted board are also removed.
       const incomingNoteIds = new Set((incoming.notes ?? []).map((n) => n.id));
+      const isNoteDeleted = (n: StoredNote) =>
+        deletedNoteSet.has(n.id) || deletedBoardSet.has(n.boardId as string);
       const mergedNotes = [
-        ...(incoming.notes ?? []).filter((n) => !deletedNoteSet.has(n.id) && !deletedBoardSet.has(n.boardId as string)),
+        ...(incoming.notes ?? []).filter((n) => !isNoteDeleted(n)),
         ...(current.notes ?? []).filter(
-          (n) => !incomingNoteIds.has(n.id) && !deletedNoteSet.has(n.id) && !deletedBoardSet.has(n.boardId as string)
+          (n) => !incomingNoteIds.has(n.id) && !isNoteDeleted(n)
         ),
       ];
 

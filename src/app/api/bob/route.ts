@@ -1,5 +1,7 @@
 import { GoogleGenerativeAI, type FunctionDeclaration } from "@google/generative-ai";
 import { NextRequest } from "next/server";
+import { ConvexHttpClient } from "convex/browser";
+import { api } from "../../../../convex/_generated/api";
 
 type NoteSnap = {
   id: number; boardId?: string; type: string; title: string; body?: string;
@@ -336,6 +338,10 @@ const SSE_HEADERS = {
 const RL = new Map<string, { count: number; resetAt: number }>();
 function checkRateLimit(userId: string): boolean {
   const now = Date.now();
+  // Purge expired entries to prevent unbounded growth
+  if (RL.size > 500) {
+    for (const [k, v] of RL) { if (now > v.resetAt) RL.delete(k); }
+  }
   const entry = RL.get(userId);
   if (!entry || now > entry.resetAt) {
     RL.set(userId, { count: 1, resetAt: now + 60_000 });
@@ -349,11 +355,26 @@ function checkRateLimit(userId: string): boolean {
 // ── Handler ───────────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   const { auth } = await import("@clerk/nextjs/server");
-  const { userId } = await auth();
+  const { userId, getToken } = await auth();
   if (!userId) return new Response("Unauthorized", { status: 401 });
 
   if (!checkRateLimit(userId)) {
     return new Response("Rate limit exceeded — try again in a minute", { status: 429 });
+  }
+
+  // Enforce the Plus gate server-side; the client-side gate alone can be bypassed.
+  const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
+  const convexToken = await getToken({ template: "convex" });
+  if (!convexUrl || !convexToken) return new Response("Unauthorized", { status: 401 });
+  const convex = new ConvexHttpClient(convexUrl);
+  convex.setAuth(convexToken);
+  const [usage, isAdmin] = await Promise.all([
+    convex.query(api.bob.getUsage, {}),
+    convex.query(api.admin.checkAdmin, {}),
+  ]);
+  if (!isAdmin) {
+    if (!usage?.isPlus) return new Response("BOB is a Plus feature", { status: 402 });
+    if (usage.remaining <= 0) return new Response("Monthly BOB limit reached", { status: 429 });
   }
 
   let body: { message?: string; notes?: NoteSnap[]; activeBoardId?: string; mode?: Mode; history?: HistoryMsg[]; userInfo?: string; settings?: Settings; focusStats?: FocusStats };
@@ -411,7 +432,6 @@ export async function POST(req: NextRequest) {
 
   const activeTasks = notes.filter(n => !n.completed && n.type === "task");
   const activeIdeas = notes.filter(n => !n.completed && n.type === "thought");
-  console.log(`[BOB] userId=${userId} mode=${mode} rawNotes=${rawNotes.length} filteredNotes=${notes.length} tasks=${activeTasks.length} ideas=${activeIdeas.length} activeBoardId=${rawActiveBoardId}`);
 
   const stream = makeSSE(async (push, signal) => {
     push({ type: "debug", rawNotes: rawNotes.length, filteredNotes: notes.length, tasks: activeTasks.length, ideas: activeIdeas.length, activeBoardId: rawActiveBoardId, noteTitles: notes.slice(0,5).map(n => n.title) });

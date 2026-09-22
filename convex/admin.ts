@@ -49,7 +49,7 @@ export const getStats = query({
   handler: async (ctx) => {
     if (!(await isAdmin(ctx))) return null;
     const count = async (table: "userBoards" | "feedbackPosts" | "feedbackReplies" | "waitlist" | "feedbackUpvotes") => {
-      const rows = await ctx.db.query(table).collect();
+      const rows = await ctx.db.query(table).take(10000);
       return rows.length;
     };
     const [totalUsers, totalPosts, totalReplies, totalWaitlist, totalUpvotes] = await Promise.all([

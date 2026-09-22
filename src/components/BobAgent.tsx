@@ -52,6 +52,7 @@ interface Props {
   autoSend?: boolean;
   settings?: BobSettings;
   mobile?: boolean;
+  onUpgrade?: () => void;
   focusStats?: { currentStreak: number; totalMinutes: number; totalTasksCompleted: number; days: { date: string; totalMinutes: number; tasksCompleted: number }[] };
 }
 
@@ -149,7 +150,7 @@ export default function BobAgent({
   onHighlightNotes, onLaunchFocus, onSaveUndo, onUndo, isAdmin = true,
   userInfo = "", autoSend = false,
   onSetIdeaColor, onConfigureTaskColors, onConfigureBoard, settings,
-  mobile = false, focusStats,
+  mobile = false, focusStats, onUpgrade,
 }: Props) {
   const [open,    setOpen]    = useState(false);
   const [closing, setClosing] = useState(false);
@@ -344,13 +345,18 @@ export default function BobAgent({
     let toolsFired = 0;
 
     try {
-      console.log(`[BOB send] noteSnaps=${noteSnaps.length} activeBoardId=${activeBoardId} boardIds=${[...new Set(noteSnaps.map(n => n.boardId))].join(",")}`);
       const res = await fetch("/api/bob", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ message: msg, notes: noteSnaps, activeBoardId, mode, history, userInfo, settings, focusStats }),
       });
 
+      if (!res.ok) {
+        const reason = res.status === 402 || res.status === 429 ? (await res.text().catch(() => "")) : "";
+        const refusal = new Error(reason || "Couldn't reach BOB right now.");
+        refusal.name = "BobRefusal";
+        throw refusal;
+      }
       if (!res.body) throw new Error("No stream");
       const reader  = res.body.getReader();
       const decoder = new TextDecoder();
@@ -367,9 +373,7 @@ export default function BobAgent({
           if (!line.startsWith("data: ")) continue;
           try {
             const data = JSON.parse(line.slice(6));
-            if (data.type === "debug") {
-              console.log("[BOB debug]", data);
-            } else if (data.type === "token") {
+            if (data.type === "token") {
               bobText += data.text;
               setMessages(prev => {
                 const next = [...prev];
@@ -406,13 +410,14 @@ export default function BobAgent({
           } catch { /* malformed SSE line */ }
         }
       }
-    } catch {
+    } catch (err) {
+      const errText = err instanceof Error && err.name === "BobRefusal" ? err.message : "Couldn't reach BOB right now.";
       setMessages(prev => {
         const next = [...prev];
-        next[next.length - 1] = { role: "bob", content: "Couldn't reach BOB right now.", streaming: false };
+        next[next.length - 1] = { role: "bob", content: errText, streaming: false };
         return next;
       });
-      bobText = "Couldn't reach BOB right now.";
+      bobText = errText;
     } finally {
       setStreaming(false);
       // Update rolling history (last 6 messages)
@@ -572,15 +577,16 @@ export default function BobAgent({
                   Your AI board brain — smart prioritization, voice tasks, autopilot sweeps, and more.
                 </span>
               </div>
-              <a
-                href="/billing"
+              <button
+                type="button"
+                onClick={onUpgrade}
                 style={{
-                  display: "inline-block", padding: "7px 18px", borderRadius: 99,
+                  display: "inline-block", padding: "7px 18px", borderRadius: 99, border: "none", cursor: "pointer",
                   background: t === "dark" ? "rgba(255,255,255,.12)" : "rgba(17,19,21,.1)",
                   color: ic, fontSize: 12, fontWeight: 700,
                   textDecoration: "none", fontFamily: "'Satoshi', Arial, sans-serif",
                 }}
-              >Upgrade to Plus →</a>
+              >Upgrade to Plus →</button>
             </div>
           ) : (
             <>

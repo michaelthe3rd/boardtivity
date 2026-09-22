@@ -35,8 +35,6 @@ interface FocusData {
   weekMinutes: number;
 }
 
-type DigestType = "daily" | "weekly";
-
 // ─── Query: get users eligible for a given digest ────────────────────────────
 
 export const getUsersForDigest = internalQuery({
@@ -113,11 +111,6 @@ export const getUsersForDigest = internalQuery({
 
 function todayUTC() {
   return new Date().toISOString().slice(0, 10);
-}
-function tomorrowUTC() {
-  const d = new Date();
-  d.setUTCDate(d.getUTCDate() + 1);
-  return d.toISOString().slice(0, 10);
 }
 function formatDate(date: string) {
   const [y, m, d] = date.split("-").map(Number);
