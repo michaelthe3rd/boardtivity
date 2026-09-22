@@ -2,19 +2,19 @@
 
 import BoardtivityLogo from "@/components/BoardtivityLogo";
 import { NOTE_PALETTE, TASK_PALETTE} from "@/lib/colors";
-import { pageText, muted, border, panel, buttonStyle, circleButton} from "@/lib/ui";
+import { pageText, muted, border, panel, paper, buttonStyle, circleButton } from "@/lib/ui";
 import { useHome } from "@/components/home/HomeContext";
 
 // Slide-in board settings panel: theme, background, colors, account and data export.
 export default function SettingsPanel() {
   const {
-    boardTheme, notes, setUpgradeOpen, confirmSignOut, setConfirmSignOut, settingsOpen, setSettingsOpen, bobAutoSend,
-    setBobAutoSend, boardGrid, setBoardGrid, thoughtColorMode, setThoughtColorMode, thoughtFixedColorIdx, setThoughtFixedColorIdx, taskColorMode,
-    setTaskColorMode, taskHighColorIdx, setTaskHighColorIdx, taskMedColorIdx, setTaskMedColorIdx, taskLowColorIdx, setTaskLowColorIdx, taskSingleColorIdx,
-    setTaskSingleColorIdx, taskSingleCustom, setTaskSingleCustom, taskHighCustom, setTaskHighCustom, taskMedCustom, setTaskMedCustom, taskLowCustom,
-    setTaskLowCustom, cloudSyncState, setCloudSyncState, subscription, isPlus, emailPrefs, updateEmailPrefs, setBobUserInfoFn,
-    bobUserInfo, colorWheelSingleRef, colorWheelHighRef, colorWheelMedRef, colorWheelLowRef, settingsRef, startPortal, exportToIcs,
-    pushToCloud, user, isSignedIn, openSignIn, openSignUp, signOut,
+    updateReminderTime, toggleEmailPref, boardTheme, notes, setUpgradeOpen, confirmSignOut, setConfirmSignOut, settingsOpen,
+    setSettingsOpen, bobAutoSend, setBobAutoSend, boardGrid, setBoardGrid, thoughtColorMode, setThoughtColorMode, thoughtFixedColorIdx,
+    setThoughtFixedColorIdx, taskColorMode, setTaskColorMode, taskHighColorIdx, setTaskHighColorIdx, taskMedColorIdx, setTaskMedColorIdx, taskLowColorIdx,
+    setTaskLowColorIdx, taskSingleColorIdx, setTaskSingleColorIdx, taskSingleCustom, setTaskSingleCustom, taskHighCustom, setTaskHighCustom, taskMedCustom,
+    setTaskMedCustom, taskLowCustom, setTaskLowCustom, cloudSyncState, setCloudSyncState, subscription, isPlus, emailPrefs,
+    setBobUserInfoFn, bobUserInfo, colorWheelSingleRef, colorWheelHighRef, colorWheelMedRef, colorWheelLowRef, settingsRef, startPortal,
+    exportToIcs, pushToCloud, user, isSignedIn, openSignIn, openSignUp, signOut,
   } = useHome();
   return (
     <div ref={settingsRef} style={{
@@ -227,10 +227,7 @@ export default function SettingsPanel() {
                   <span style={{ fontSize: 13, color: pageText(boardTheme) }}>{labels[key]}</span>
                   <button
                     type="button"
-                    onClick={() => {
-                      const current = emailPrefs ?? { dailyDigest: true, weeklyDigest: true };
-                      updateEmailPrefs({ ...current, [key]: !enabled });
-                    }}
+                    onClick={() => toggleEmailPref(key, enabled)}
                     style={{
                       flexShrink: 0,
                       width: 42, height: 24, borderRadius: 999, border: "none", cursor: "pointer",
@@ -248,6 +245,15 @@ export default function SettingsPanel() {
                 </div>
               );
             })}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <span style={{ fontSize: 13, color: pageText(boardTheme) }}>Task reminder time</span>
+              <input
+                type="time"
+                value={emailPrefs?.reminderTime ?? "08:00"}
+                onChange={e => updateReminderTime(e.target.value)}
+                style={{ fontSize: 13, fontWeight: 600, color: pageText(boardTheme), backgroundColor: paper(boardTheme), border: `1px solid ${border(boardTheme)}`, borderRadius: 8, padding: "4px 8px", cursor: "pointer", colorScheme: boardTheme === "dark" ? "dark" : "light" }}
+              />
+            </div>
             <p style={{ fontSize: 11, color: muted(boardTheme), margin: 0, lineHeight: 1.5 }}>
               Sent to {user?.emailAddresses?.[0]?.emailAddress ?? "your email"}.
             </p>

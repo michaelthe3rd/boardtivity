@@ -13,26 +13,26 @@ import { useHome } from "@/components/home/HomeContext";
 // Phone layout: list-style board with bottom bar, sheets for add/edit/settings, and BOB.
 export default function MobileBoard() {
   const {
-    theme, setTheme, boards, setBoards, activeBoardId, setActiveBoardId, notes, setNotes,
-    focusOpen, setFocusOpen, focusNoteId, setFocusNoteId, focusStepId, setFocusStepId, focusSecondsLeft, setFocusSecondsLeft,
-    focusCompleted, setFocusCompleted, focusPaused, setFocusPaused, breakSecondsLeft, setBreakSecondsLeft, focusChainMode, setFocusChainMode,
-    focusNextStep, focusExitConfirm, setFocusExitConfirm, setProfileOpen, setUpgradeOpen, drafts, mobileExpandedIds, setMobileExpandedIds,
-    mobileAddMode, setMobileAddMode, mobileAddTitle, setMobileAddTitle, mobileAddBody, setMobileAddBody, mobileAddImportance, setMobileAddImportance,
-    mobileAddDueDate, setMobileAddDueDate, mobileAddDueTime, setMobileAddDueTime, mobileActionNoteId, setMobileActionNoteId, mobileEditTitle, setMobileEditTitle,
-    mobileEditDueDate, setMobileEditDueDate, mobileEditDueTime, setMobileEditDueTime, mobileEditImportance, setMobileEditImportance, mobileEditMinutes, setMobileEditMinutes,
-    mobileAddColorIdx, setMobileAddColorIdx, mobileEditColorIdx, setMobileEditColorIdx, mobileAddRemindIn, setMobileAddRemindIn, mobileEditSteps, setMobileEditSteps,
-    mobileDeleteConfirm, setMobileDeleteConfirm, mobileBoardTypePicker, setMobileBoardTypePicker, mobileBoardActionId, setMobileBoardActionId, mobileBoardRename, setMobileBoardRename,
-    mobileBoardRenaming, setMobileBoardRenaming, mobileFilterPriority, setMobileFilterPriority, mobileSortDate, setMobileSortDate, bobAutoSend, setBobAutoSend,
-    mobileSettingsOpen, setMobileSettingsOpen, boardGrid, setBoardGrid, thoughtColorMode, setThoughtColorMode, thoughtFixedColorIdx, setThoughtFixedColorIdx,
-    taskColorMode, setTaskColorMode, taskHighColorIdx, setTaskHighColorIdx, taskMedColorIdx, setTaskMedColorIdx, taskLowColorIdx, setTaskLowColorIdx,
-    taskSingleColorIdx, setTaskSingleColorIdx, taskSingleCustom, setTaskSingleCustom, taskHighCustom, setTaskHighCustom, taskMedCustom, setTaskMedCustom,
-    taskLowCustom, setTaskLowCustom, cloudSyncState, scale, pan, focusSessionStartRef, focusStartedAtRef, focusTotalSecsRef,
-    focusPausedSecsRef, viewportRef, isMobile, subscription, isPlus, isAdmin, isNativeApp, focusStatsData,
-    setReminderMut, emailPrefs, updateEmailPrefs, latestBoardStateRef, setBobUserInfoFn, bobUserInfo, activeBoard, taskPaletteEntry,
-    startPortal, findFreeSpot, exportToIcs, pushToCloud, advanceToNext, addBoard, deleteBoard, deleteTask,
-    handleBobSweep, handleBobEditNote, handleBobDeleteNotes, handleBobHighlightNotes, handleBobLaunchFocus, handleBobSaveUndo, handleBobUndo, handleBobSetIdeaColor,
-    handleBobConfigureTaskColors, handleBobConfigureBoard, handleBobAddNote, startFocus, closeFocusWithReview, scheduleDueDateReminder, user, isSignedIn,
-    clerkLoaded, signOut,
+    boardStateWith, updateReminderTime, toggleEmailPref, theme, setTheme, boards, setBoards, activeBoardId,
+    setActiveBoardId, notes, setNotes, focusOpen, setFocusOpen, focusNoteId, setFocusNoteId, focusStepId,
+    setFocusStepId, focusSecondsLeft, setFocusSecondsLeft, focusCompleted, setFocusCompleted, focusPaused, setFocusPaused, breakSecondsLeft,
+    setBreakSecondsLeft, focusChainMode, setFocusChainMode, focusNextStep, focusExitConfirm, setFocusExitConfirm, setProfileOpen, setUpgradeOpen,
+    mobileExpandedIds, setMobileExpandedIds, mobileAddMode, setMobileAddMode, mobileAddTitle, setMobileAddTitle, mobileAddBody, setMobileAddBody,
+    mobileAddImportance, setMobileAddImportance, mobileAddDueDate, setMobileAddDueDate, mobileAddDueTime, setMobileAddDueTime, mobileActionNoteId, setMobileActionNoteId,
+    mobileEditTitle, setMobileEditTitle, mobileEditDueDate, setMobileEditDueDate, mobileEditDueTime, setMobileEditDueTime, mobileEditImportance, setMobileEditImportance,
+    mobileEditMinutes, setMobileEditMinutes, mobileAddColorIdx, setMobileAddColorIdx, mobileEditColorIdx, setMobileEditColorIdx, mobileAddRemindIn, setMobileAddRemindIn,
+    mobileEditSteps, setMobileEditSteps, mobileDeleteConfirm, setMobileDeleteConfirm, mobileBoardTypePicker, setMobileBoardTypePicker, mobileBoardActionId, setMobileBoardActionId,
+    mobileBoardRename, setMobileBoardRename, mobileBoardRenaming, setMobileBoardRenaming, mobileFilterPriority, setMobileFilterPriority, mobileSortDate, setMobileSortDate,
+    bobAutoSend, setBobAutoSend, mobileSettingsOpen, setMobileSettingsOpen, boardGrid, setBoardGrid, thoughtColorMode, setThoughtColorMode,
+    thoughtFixedColorIdx, setThoughtFixedColorIdx, taskColorMode, setTaskColorMode, taskHighColorIdx, setTaskHighColorIdx, taskMedColorIdx, setTaskMedColorIdx,
+    taskLowColorIdx, setTaskLowColorIdx, taskSingleColorIdx, setTaskSingleColorIdx, taskSingleCustom, setTaskSingleCustom, taskHighCustom, setTaskHighCustom,
+    taskMedCustom, setTaskMedCustom, taskLowCustom, setTaskLowCustom, cloudSyncState, scale, pan, focusSessionStartRef,
+    focusStartedAtRef, focusTotalSecsRef, focusPausedSecsRef, viewportRef, isMobile, subscription, isPlus, isAdmin,
+    isNativeApp, focusStatsData, setReminderMut, emailPrefs, latestBoardStateRef, setBobUserInfoFn, bobUserInfo, activeBoard,
+    taskPaletteEntry, startPortal, findFreeSpot, exportToIcs, pushToCloud, advanceToNext, addBoard, deleteBoard,
+    deleteTask, handleBobSweep, handleBobEditNote, handleBobDeleteNotes, handleBobHighlightNotes, handleBobLaunchFocus, handleBobSaveUndo, handleBobUndo,
+    handleBobSetIdeaColor, handleBobConfigureTaskColors, handleBobConfigureBoard, handleBobAddNote, startFocus, closeFocusWithReview, scheduleDueDateReminder, user,
+    isSignedIn, clerkLoaded, signOut,
   } = useHome();
   if (!(isMobile && !isNativeApp)) return null;
   const mobileBoardNotes = notes.filter(n => n.boardId === activeBoardId);
@@ -107,8 +107,7 @@ export default function MobileBoard() {
     setMobileAddColorIdx(undefined); setMobileAddRemindIn(null);
     // Build state with new note immediately and push — don't wait for debounce or effect timing
     if (isSignedIn) {
-      const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom });
-      latestBoardStateRef.current = freshState;
+      latestBoardStateRef.current = boardStateWith(updatedNotes);
       pushToCloud();
     }
   }
@@ -636,12 +635,21 @@ export default function MobileBoard() {
                       return (
                         <div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, paddingTop: 14, paddingBottom: 14, borderBottom: `1px solid ${border(theme)}` }}>
                           <span style={{ fontSize: 15, color: pageText(theme) }}>{labels[key]}</span>
-                          <button type="button" onClick={() => { const current = emailPrefs ?? { dailyDigest: true, weeklyDigest: true }; updateEmailPrefs({ ...current, [key]: !enabled }); }} style={{ flexShrink: 0, width: 46, height: 26, borderRadius: 999, border: "none", cursor: "pointer", backgroundColor: enabled ? (theme === "dark" ? "#4a9eff" : "#2563eb") : (theme === "dark" ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.12)"), position: "relative", transition: "background-color .18s" }}>
+                          <button type="button" onClick={() => toggleEmailPref(key, enabled)} style={{ flexShrink: 0, width: 46, height: 26, borderRadius: 999, border: "none", cursor: "pointer", backgroundColor: enabled ? (theme === "dark" ? "#4a9eff" : "#2563eb") : (theme === "dark" ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.12)"), position: "relative", transition: "background-color .18s" }}>
                             <span style={{ position: "absolute", top: 4, left: enabled ? 23 : 4, width: 18, height: 18, borderRadius: "50%", backgroundColor: "#fff", transition: "left .18s", boxShadow: "0 1px 3px rgba(0,0,0,.2)" }} />
                           </button>
                         </div>
                       );
                     })}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, paddingTop: 14, paddingBottom: 14, borderBottom: `1px solid ${border(theme)}` }}>
+                      <span style={{ fontSize: 15, color: pageText(theme) }}>Task reminder time</span>
+                      <input
+                        type="time"
+                        value={emailPrefs?.reminderTime ?? "08:00"}
+                        onChange={e => updateReminderTime(e.target.value)}
+                        style={{ fontSize: 15, fontWeight: 600, color: pageText(theme), backgroundColor: paper(theme), border: `1px solid ${border(theme)}`, borderRadius: 8, padding: "5px 8px", cursor: "pointer", colorScheme: theme === "dark" ? "dark" : "light" }}
+                      />
+                    </div>
                   </div>
                   <p style={{ fontSize: 12, color: muted(theme), margin: "12px 0 0", lineHeight: 1.5 }}>Sent to {user?.emailAddresses?.[0]?.emailAddress ?? "your email"}.</p>
                 </div>
@@ -895,8 +903,7 @@ export default function MobileBoard() {
                   setMobileActionNoteId(null);
                   setMobileDeleteConfirm(false);
                   if (isSignedIn) {
-                    const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom });
-                    latestBoardStateRef.current = freshState;
+                    latestBoardStateRef.current = boardStateWith(updatedNotes);
                     pushToCloud();
                   }
                 }}
@@ -904,7 +911,17 @@ export default function MobileBoard() {
               >Save</button>
               {mobileDeleteConfirm ? (
                 <button
-                  onClick={() => { deleteTask(actionNote.id); setMobileActionNoteId(null); setMobileDeleteConfirm(false); if (isSignedIn) pushToCloud(); }}
+                  onClick={() => {
+                    deleteTask(actionNote.id);
+                    setMobileActionNoteId(null);
+                    setMobileDeleteConfirm(false);
+                    if (isSignedIn) {
+                      // Push immediately with the tombstone so another device can't resurrect the task.
+                      const updatedNotes = notes.filter(n => n.id !== actionNote.id).map(n => ({ ...n, linkedNoteIds: n.linkedNoteIds.filter(id => id !== actionNote.id) }));
+                      latestBoardStateRef.current = boardStateWith(updatedNotes);
+                      pushToCloud();
+                    }
+                  }}
                   style={{ height: 44, borderRadius: 12, backgroundColor: theme === "dark" ? "rgba(220,60,60,.18)" : "rgba(180,40,40,.1)", color: theme === "dark" ? "#ff8080" : "#c03030", border: `1.5px solid ${theme === "dark" ? "rgba(220,60,60,.5)" : "rgba(180,40,40,.4)"}`, padding: "0 16px", fontSize: 14, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" }}
                 >Confirm</button>
               ) : (

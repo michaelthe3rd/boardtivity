@@ -228,6 +228,7 @@ export function useHomeState() {
   // sync effect re-filters it out and re-pushes, so the deletion always wins.
   const localDeletedNoteIdsRef = useRef<Set<number>>(new Set());
   const localDeletedBoardIdsRef = useRef<Set<string>>(new Set());
+  const lastSyncedReminderTimeRef = useRef<string | null>(null);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const bobUserInfoData  = useQuery(api.bob.getBobUserInfo);
@@ -592,8 +593,13 @@ export function useHomeState() {
   }
 
   function currentBoardState() {
+    return boardStateWith(notes);
+  }
+
+  // Snapshot for an immediate push when `notes` state hasn't re-rendered yet.
+  function boardStateWith(notesSnapshot: Note[]) {
     return JSON.stringify({
-      boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid,
+      boards, notes: notesSnapshot, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid,
       taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx,
       taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom,
       // Persist tombstones so the server merge can union them — deletions survive
@@ -887,6 +893,41 @@ export function useHomeState() {
   useEffect(() => { focusStepIdRef.current = focusStepId; }, [focusStepId]);
   useEffect(() => { notesRef.current = notes; }, [notes]);
 
+  // Reschedule every dated task's reminder at the given time (or cancel it if that moment has passed).
+  function rescheduleAllReminders(timeStr: string) {
+    notes.forEach(note => {
+      if (!note.dueDate) return;
+      const delayMs = new Date(`${note.dueDate}T${timeStr}:00`).getTime() - Date.now();
+      if (delayMs > 0) {
+        setReminderMut({ noteId: note.id, noteTitle: note.title, delayMs }).catch(() => {});
+      } else {
+        cancelReminderMut({ noteId: note.id }).catch(() => {});
+      }
+    });
+  }
+
+  // Save a new reminder time and move already-queued reminders to it.
+  function updateReminderTime(newTime: string) {
+    const current = emailPrefs ?? { dailyDigest: true, weeklyDigest: true };
+    updateEmailPrefs({ dailyDigest: current.dailyDigest ?? true, weeklyDigest: current.weeklyDigest ?? true, reminderTime: newTime });
+    rescheduleAllReminders(newTime);
+  }
+
+  // Toggle one email digest without dropping the other prefs.
+  function toggleEmailPref(key: "dailyDigest" | "weeklyDigest", enabled: boolean) {
+    const current = emailPrefs ?? { dailyDigest: true, weeklyDigest: true };
+    updateEmailPrefs({ dailyDigest: current.dailyDigest ?? true, weeklyDigest: current.weeklyDigest ?? true, reminderTime: emailPrefs?.reminderTime, [key]: !enabled });
+  }
+
+  // Reschedule all task reminders whenever the reminder time preference changes
+  // (covers cross-device changes and jobs already queued at the old time)
+  useEffect(() => {
+    const timeStr = emailPrefs?.reminderTime ?? "08:00";
+    if (!isSignedIn || emailPrefs === undefined || lastSyncedReminderTimeRef.current === timeStr) return;
+    lastSyncedReminderTimeRef.current = timeStr;
+    rescheduleAllReminders(timeStr);
+  }, [emailPrefs?.reminderTime, isSignedIn, emailPrefs]);
+
   // Warn on refresh/close while in focus mode
   useEffect(() => {
     if (!focusOpen) return;
@@ -1060,6 +1101,7 @@ export function useHomeState() {
       setActiveBoardId(boardId);
     } else {
       localDeletedBoardIdsRef.current.add(boardId);
+      notes.filter((n) => n.boardId === boardId).forEach((n) => localDeletedNoteIdsRef.current.add(n.id));
       const remaining = boards.filter((b) => b.id !== boardId);
       setBoards(remaining);
       setNotes((prev) => prev.filter((n) => n.boardId !== boardId));
@@ -1583,8 +1625,7 @@ export function useHomeState() {
     });
     setNotes(updatedNotes);
     if (isSignedIn) {
-      const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom });
-      latestBoardStateRef.current = freshState;
+      latestBoardStateRef.current = boardStateWith(updatedNotes);
       pushToCloud();
     }
     // Log focus session to Convex (skip if less than 1 minute)
@@ -1596,13 +1637,14 @@ export function useHomeState() {
   }
 
 
-  function scheduleDueDateReminder(noteId: number, noteTitle: string, dueDate: string | undefined, dueTimeVal: string | undefined) {
-    if (!isSignedIn || !dueDate || !dueTimeVal) {
+  // Reminders fire on the due date at the user's chosen reminder time (default 08:00).
+  function scheduleDueDateReminder(noteId: number, noteTitle: string, dueDate: string | undefined, _dueTimeVal?: string | undefined) {
+    if (!isSignedIn || !dueDate) {
       cancelReminderMut({ noteId }).catch(() => {});
       return;
     }
-    const dueDatetime = new Date(`${dueDate}T${dueTimeVal}:00`).getTime();
-    const remindAt = dueDatetime - 60 * 60 * 1000; // 1 hour before
+    const timeStr = emailPrefs?.reminderTime ?? "08:00";
+    const remindAt = new Date(`${dueDate}T${timeStr}:00`).getTime();
     const delayMs = remindAt - Date.now();
     if (delayMs <= 0) return;
     setReminderMut({ noteId, noteTitle, delayMs }).catch(() => {});
@@ -1610,6 +1652,7 @@ export function useHomeState() {
 
 
   return {
+    boardStateWith, updateReminderTime, toggleEmailPref,
     theme, setTheme, boardTheme, setBoardTheme, boards, setBoards, activeBoardId, setActiveBoardId,
     boardsOpen, setBoardsOpen, notes, setNotes, highlightedNoteIds, setDetailNoteId, detailEditing, setDetailEditing,
     detailEditTitle, setDetailEditTitle, detailEditBody, setDetailEditBody, detailEditDueDate, setDetailEditDueDate, detailEditDueTime, setDetailEditDueTime,
