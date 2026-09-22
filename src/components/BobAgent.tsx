@@ -52,6 +52,7 @@ interface Props {
   autoSend?: boolean;
   settings?: BobSettings;
   mobile?: boolean;
+  onUpgrade?: () => void;
   focusStats?: { currentStreak: number; totalMinutes: number; totalTasksCompleted: number; days: { date: string; totalMinutes: number; tasksCompleted: number }[] };
 }
 
@@ -149,7 +150,7 @@ export default function BobAgent({
   onHighlightNotes, onLaunchFocus, onSaveUndo, onUndo, isAdmin = true,
   userInfo = "", autoSend = false,
   onSetIdeaColor, onConfigureTaskColors, onConfigureBoard, settings,
-  mobile = false, focusStats,
+  mobile = false, focusStats, onUpgrade,
 }: Props) {
   const [open,    setOpen]    = useState(false);
   const [closing, setClosing] = useState(false);
@@ -569,15 +570,16 @@ export default function BobAgent({
                   Your AI board brain — smart prioritization, voice tasks, autopilot sweeps, and more.
                 </span>
               </div>
-              <a
-                href="/billing"
+              <button
+                type="button"
+                onClick={onUpgrade}
                 style={{
-                  display: "inline-block", padding: "7px 18px", borderRadius: 99,
+                  display: "inline-block", padding: "7px 18px", borderRadius: 99, border: "none", cursor: "pointer",
                   background: t === "dark" ? "rgba(255,255,255,.12)" : "rgba(17,19,21,.1)",
                   color: ic, fontSize: 12, fontWeight: 700,
                   textDecoration: "none", fontFamily: "'Satoshi', Arial, sans-serif",
                 }}
-              >Upgrade to Plus →</a>
+              >Upgrade to Plus →</button>
             </div>
           ) : (
             <>

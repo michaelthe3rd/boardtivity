@@ -13,6 +13,6 @@ export const proxy = clerkMiddleware(async (auth, req) => {
   }
 });
 
-export const proxyConfig = {
+export const config = {
   matcher: ["/((?!.*\\..*|_next).*)", "/", "/(api|trpc)(.*)"],
 };

@@ -9,563 +9,14 @@ import TourOverlay from "@/components/TourOverlay";
 import { useMutation, useQuery } from "convex/react";
 import { useUser, useClerk } from "@clerk/nextjs";
 import { api } from "../../convex/_generated/api";
-
-const NOTE_PALETTE = [
-  { name: "Pink",    light: "#f5c1e4", dark: "#6b2358", halo: "rgba(220,60,155,.24)",  swatch: "#df3eaa" },
-  { name: "Purple",  light: "#f3e8ff", dark: "#2d0a4e", halo: "rgba(147,51,234,.22)",  swatch: "#9333ea" },
-  { name: "Indigo",  light: "#e0e7ff", dark: "#1e1a4e", halo: "rgba(99,102,241,.22)",  swatch: "#6366f1" },
-  { name: "Blue",    light: "#dbeafe", dark: "#0f1f4a", halo: "rgba(59,130,246,.20)",  swatch: "#3b82f6" },
-  { name: "Teal",    light: "#cffafe", dark: "#052a3a", halo: "rgba(8,145,178,.20)",   swatch: "#0891b2" },
-  { name: "Emerald", light: "#d1fae5", dark: "#052a1e", halo: "rgba(5,150,105,.20)",   swatch: "#059669" },
-  { name: "Lime",    light: "#ecfccb", dark: "#1a2a04", halo: "rgba(132,204,22,.20)",  swatch: "#84cc16" },
-  { name: "Orange",  light: "#fdf0e8", dark: "#2e1a0e", halo: "rgba(240,130,60,.20)",  swatch: "#f0854a" },
-  { name: "Yellow",  light: "#fdf8e0", dark: "#2a2208", halo: "rgba(210,185,40,.20)",  swatch: "#d4a017" },
-  { name: "Red",     light: "#fde8e8", dark: "#3a0e0e", halo: "rgba(220,50,50,.22)",   swatch: "#dc3535" },
-];
-
-// Task color palette: first 3 are priority defaults (red/orange/yellow), then idea colors minus orange/yellow/red
-const TASK_PALETTE = [
-  { light: "#fde8e8", dark: "#3d1515", halo: "rgba(215,60,60,.22)",   swatch: "#c03030" },  // red   (High default)
-  { light: "#fdeede", dark: "#3a2210", halo: "rgba(220,130,40,.22)",  swatch: "#d07030" },  // orange (Med default)
-  { light: "#fdfae0", dark: "#352c12", halo: "rgba(210,190,40,.22)",  swatch: "#c8960a" },  // yellow (Low default)
-  ...NOTE_PALETTE.slice(0, 7), // pink → lime only (no orange/yellow/red overlap)
-];
-
-function hexToRgba(hex: string, alpha: number): string {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `rgba(${r},${g},${b},${alpha})`;
-}
-
-// Blend a hex color into a background hex — returns a fully opaque rgb string.
-function blendHex(hex: string, bgHex: string, alpha: number): string {
-  const pr = parseInt(hex.slice(1,3),16), pg = parseInt(hex.slice(3,5),16), pb = parseInt(hex.slice(5,7),16);
-  const br = parseInt(bgHex.slice(1,3),16), bg2 = parseInt(bgHex.slice(3,5),16), bb = parseInt(bgHex.slice(5,7),16);
-  const r = Math.round(pr*alpha + br*(1-alpha));
-  const g = Math.round(pg*alpha + bg2*(1-alpha));
-  const b = Math.round(pb*alpha + bb*(1-alpha));
-  return `rgb(${r},${g},${b})`;
-}
-// Ensures the card background has at least `minDelta` average-RGB distance from the page background.
-// Prevents near-invisible cards when custom colors are very dark (dark mode) or very light (light mode).
-function clampCardBg(cssColor: string, pageBgHex: string, minDelta: number): string {
-  const m = cssColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-  if (!m) return cssColor;
-  let r = parseInt(m[1]), g = parseInt(m[2]), b = parseInt(m[3]);
-  const pr = parseInt(pageBgHex.slice(1,3),16), pg = parseInt(pageBgHex.slice(3,5),16), pb = parseInt(pageBgHex.slice(5,7),16);
-  const pageLum = (pr + pg + pb) / 3;
-  const cardLum = (r + g + b) / 3;
-  if (pageLum < 128) {
-    // Dark page: card must be brighter
-    const deficit = (pageLum + minDelta) - cardLum;
-    if (deficit > 0) { r = Math.min(255, Math.round(r + deficit)); g = Math.min(255, Math.round(g + deficit)); b = Math.min(255, Math.round(b + deficit)); }
-  } else {
-    // Light page: card must be darker
-    const excess = cardLum - (pageLum - minDelta);
-    if (excess > 0) { r = Math.max(0, Math.round(r - excess)); g = Math.max(0, Math.round(g - excess)); b = Math.max(0, Math.round(b - excess)); }
-  }
-  return `rgb(${r},${g},${b})`;
-}
-
-const PRIORITY_COLORS: Record<"High"|"Medium"|"Low", string> = { High: "#c03030", Medium: "#d07030", Low: "#c8960a" };
-
-function paletteBg(colorIdx: number | undefined, theme: ThemeMode): string {
-  const p = NOTE_PALETTE[(colorIdx ?? 0) % NOTE_PALETTE.length];
-  return theme === "dark" ? p.dark : p.light;
-}
-
-function paletteHalo(colorIdx: number | undefined): string {
-  return NOTE_PALETTE[(colorIdx ?? 0) % NOTE_PALETTE.length].halo;
-}
-
-function taskBg(importance: Importance | undefined, theme: ThemeMode): string {
-  if (theme === "dark") {
-    if (importance === "High") return "#3d1515";
-    if (importance === "Medium") return "#3a2210";
-    if (importance === "Low") return "#2e2a0a";
-    return "#323232";
-  }
-  if (importance === "High") return "#fde8e8";
-  if (importance === "Medium") return "#fdeede";
-  if (importance === "Low") return "#fdfae0";
-  return "#e8e8e8";
-}
-
-function taskHalo(importance: Importance | undefined): string {
-  if (importance === "High") return "rgba(215,60,60,.22)";
-  if (importance === "Medium") return "rgba(220,130,40,.22)";
-  if (importance === "Low") return "rgba(210,190,40,.22)";
-  return "rgba(140,140,140,.18)";
-}
-
-const BOARD_W = 6800;
-const BOARD_H = 4200;
-const NOTE_W = 228;
-const NOTE_H = 138;
-
-function noteCardWidth(title: string): number {
-  const len = title.length;
-  if (len <= 28) return 228;
-  if (len <= 52) return 268;
-  if (len <= 85) return 308;
-  return 344;
-}
-
-function titleFontSize(title: string): number {
-  const len = title.length;
-  if (len <= 40) return 17;
-  if (len <= 70) return 15;
-  return 13;
-}
-const STEP_W = 210;
-const STEP_H = 62;
-
-const INITIAL_BOARDS: Board[] = [
-  { id: "my-board", name: "My Board", type: "task" },
-  { id: "my-thoughts", name: "My Ideas", type: "thought" },
-];
-
-// Convert yyyy-mm-dd ↔ mm-dd-yyyy for display
-function isoToMDY(iso: string) {
-  if (!iso || iso.length !== 10) return "";
-  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  const [y, m, d] = iso.split("-").map(Number);
-  return `${months[m - 1]} ${d}, ${y}`;
-}
-function mdyToISO(mdy: string) {
-  const clean = mdy.replace(/\//g, "-");
-  const parts = clean.split("-");
-  if (parts.length === 3 && parts[2].length === 4) {
-    const [m, d, y] = parts;
-    return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
-  }
-  return "";
-}
-
-function formatDate(date?: string) {
-  if (!date) return "";
-  return new Date(date + "T12:00:00").toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-// Collision-resistant integer ID: millisecond timestamp × 1000 + random 0–999.
-// Safe up to year ~2255 within Number.MAX_SAFE_INTEGER.
-function genId(): number {
-  return Date.now() * 1000 + Math.floor(Math.random() * 1000);
-}
-
-function todayStr() {
-  const t = new Date();
-  return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
-}
-
-function tomorrowStr() {
-  const t = new Date();
-  t.setDate(t.getDate() + 1);
-  return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
-}
-
-function isDueToday(date?: string) {
-  return !!date && date === todayStr();
-}
-
-function formatDateShort(date?: string) {
-  if (!date) return "";
-  if (date === todayStr()) return "Today";
-  if (date === tomorrowStr()) return "Tomorrow";
-  return new Date(date + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
-}
-
-function fmtTime(t?: string): string {
-  if (!t) return "";
-  const [h, m] = t.split(":").map(Number);
-  const ampm = h >= 12 ? "pm" : "am";
-  return ` · ${h % 12 || 12}:${String(m).padStart(2, "0")}${ampm}`;
-}
-
-function fmtFocusTime(mins: number): string {
-  if (mins < 60) return `${mins}m`;
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return m > 0 ? `${h}h ${m}m` : `${h}h`;
-}
-
-function nextBoardName(existing: Board[], type: BoardType) {
-  const base = type === "task" ? "My Board" : "My Ideas";
-  const count = existing.filter((b) => b.type === type).length;
-  return count === 0 ? base : `${base} #${count + 1}`;
-}
-
-function estimateTime(title: string) {
-  const t = title.toLowerCase();
-  if (t.includes("essay") || t.includes("paper") || t.includes("thesis")) return 120;
-  if (t.includes("report") || t.includes("assignment") || t.includes("write")) return 90;
-  if (t.includes("exam") || t.includes("final") || t.includes("midterm")) return 120;
-  if (t.includes("study") || t.includes("chapter") || t.includes("review")) return 75;
-  if (t.includes("quiz") || t.includes("test")) return 60;
-  if (t.includes("presentation") || t.includes("slides") || t.includes("deck")) return 90;
-  if (t.includes("project") || t.includes("build") || t.includes("develop")) return 120;
-  if (t.includes("code") || t.includes("program") || t.includes("implement")) return 90;
-  if (t.includes("debug") || t.includes("fix") || t.includes("refactor")) return 60;
-  if (t.includes("resume") || t.includes("cover letter") || t.includes("apply")) return 75;
-  if (t.includes("read") || t.includes("article") || t.includes("book")) return 60;
-  if (t.includes("research") || t.includes("investigate") || t.includes("explore")) return 90;
-  if (t.includes("design") || t.includes("mockup") || t.includes("wireframe")) return 90;
-  if (t.includes("plan") || t.includes("outline") || t.includes("brainstorm")) return 45;
-  if (t.includes("email") || t.includes("reply") || t.includes("message")) return 20;
-  if (t.includes("meeting") || t.includes("call") || t.includes("interview")) return 60;
-  if (t.includes("cook") || t.includes("meal") || t.includes("bake")) return 60;
-  if (t.includes("clean") || t.includes("organize") || t.includes("tidy")) return 60;
-  if (t.includes("workout") || t.includes("exercise") || t.includes("gym")) return 60;
-  if (t.includes("shop") || t.includes("buy") || t.includes("order")) return 30;
-  return 60;
-}
-
-function buildBreakdown(title: string, body: string, total: number, variant = 0): Step[] {
-  const t = (title + " " + body).toLowerCase().trim();
-  let labels: string[];
-  let weights: number[];
-  const v = variant % 3;
-
-  if (t.includes("essay") || t.includes("paper") || t.includes("thesis")) {
-    const opts = [
-      { l: total >= 90 ? ["Gather sources", "Outline", "Write intro", "Write body", "Write conclusion", "Revise & edit"] : total >= 60 ? ["Outline", "Research", "Draft", "Revise"] : ["Outline", "Draft", "Revise"], w: total >= 90 ? [0.1, 0.1, 0.15, 0.3, 0.15, 0.2] : total >= 60 ? [0.15, 0.2, 0.4, 0.25] : [0.2, 0.5, 0.3] },
-      { l: total >= 60 ? ["Research & read", "Thesis & outline", "First draft", "Edit & polish"] : ["Outline", "Write", "Polish"], w: total >= 60 ? [0.25, 0.15, 0.4, 0.2] : [0.2, 0.5, 0.3] },
-      { l: total >= 60 ? ["Brainstorm angle", "Outline structure", "Draft body", "Intro & conclusion", "Proofread"] : ["Outline", "Draft", "Proofread"], w: total >= 60 ? [0.1, 0.15, 0.4, 0.2, 0.15] : [0.2, 0.5, 0.3] },
-    ];
-    ({ l: labels, w: weights } = opts[v]); weights = (opts[v] as any).w;
-  } else if (t.includes("exam") || t.includes("final") || t.includes("midterm")) {
-    const opts = [
-      { l: total >= 90 ? ["Review notes", "Study key concepts", "Practice problems", "Test yourself", "Review weak areas"] : ["Review notes", "Study concepts", "Practice & test"], w: total >= 90 ? [0.15, 0.25, 0.3, 0.2, 0.1] : [0.3, 0.45, 0.25] },
-      { l: total >= 90 ? ["Skim all notes", "Deep dive topics", "Flashcard drill", "Mock test", "Fix gaps"] : ["Skim notes", "Deep study", "Self-test"], w: total >= 90 ? [0.1, 0.3, 0.25, 0.25, 0.1] : [0.25, 0.45, 0.3] },
-      { l: total >= 90 ? ["Prioritize topics", "Review formulas", "Work examples", "Timed practice", "Weak spots"] : ["Prioritize", "Study", "Practice"], w: total >= 90 ? [0.1, 0.2, 0.3, 0.3, 0.1] : [0.2, 0.5, 0.3] },
-    ];
-    labels = opts[v].l; weights = opts[v].w;
-  } else if (t.includes("study") || t.includes("chapter") || t.includes("review")) {
-    const opts = [
-      { l: total >= 60 ? ["Skim & preview", "Read actively", "Take notes", "Review & summarize"] : ["Read", "Take notes", "Review"], w: total >= 60 ? [0.1, 0.35, 0.3, 0.25] : [0.4, 0.35, 0.25] },
-      { l: total >= 60 ? ["Preview headings", "Careful read", "Annotate key ideas", "Summarize"] : ["Read", "Annotate", "Summarize"], w: total >= 60 ? [0.1, 0.4, 0.25, 0.25] : [0.4, 0.35, 0.25] },
-      { l: total >= 60 ? ["Set goals", "Active reading", "Note key points", "Quiz yourself"] : ["Read", "Note", "Quiz"], w: total >= 60 ? [0.05, 0.4, 0.3, 0.25] : [0.4, 0.35, 0.25] },
-    ];
-    labels = opts[v].l; weights = opts[v].w;
-  } else if (t.includes("presentation") || t.includes("slides") || t.includes("deck")) {
-    const opts = [
-      { l: total >= 75 ? ["Research topic", "Outline structure", "Build slides", "Add visuals", "Practice delivery"] : ["Outline", "Build slides", "Practice"], w: total >= 75 ? [0.2, 0.15, 0.3, 0.15, 0.2] : [0.2, 0.5, 0.3] },
-      { l: total >= 75 ? ["Define message", "Draft outline", "Design slides", "Refine content", "Run through"] : ["Outline", "Design", "Practice"], w: total >= 75 ? [0.15, 0.15, 0.35, 0.15, 0.2] : [0.2, 0.5, 0.3] },
-      { l: total >= 75 ? ["Gather content", "Story structure", "Build deck", "Visual polish", "Practice aloud"] : ["Plan", "Build", "Polish"], w: total >= 75 ? [0.2, 0.1, 0.3, 0.2, 0.2] : [0.2, 0.5, 0.3] },
-    ];
-    labels = opts[v].l; weights = opts[v].w;
-  } else if (t.includes("code") || t.includes("program") || t.includes("implement") || t.includes("build") || t.includes("develop")) {
-    const opts = [
-      { l: total >= 90 ? ["Plan & design", "Set up", "Implement core", "Handle edge cases", "Test", "Review & clean up"] : total >= 60 ? ["Plan", "Implement", "Test", "Review"] : ["Plan", "Implement", "Test"], w: total >= 90 ? [0.12, 0.08, 0.35, 0.2, 0.15, 0.1] : total >= 60 ? [0.15, 0.45, 0.25, 0.15] : [0.2, 0.55, 0.25] },
-      { l: total >= 90 ? ["Define requirements", "Architecture", "Core logic", "UI/integration", "Tests", "Cleanup"] : total >= 60 ? ["Design", "Build", "Test", "Polish"] : ["Design", "Build", "Test"], w: total >= 90 ? [0.1, 0.12, 0.35, 0.2, 0.13, 0.1] : total >= 60 ? [0.15, 0.45, 0.25, 0.15] : [0.2, 0.55, 0.25] },
-      { l: total >= 90 ? ["Spec & pseudocode", "Scaffold", "Feature work", "Error handling", "Testing", "Review"] : total >= 60 ? ["Pseudocode", "Code", "Debug", "Refine"] : ["Spec", "Code", "Test"], w: total >= 90 ? [0.1, 0.1, 0.35, 0.18, 0.17, 0.1] : total >= 60 ? [0.1, 0.5, 0.25, 0.15] : [0.2, 0.55, 0.25] },
-    ];
-    labels = opts[v].l; weights = opts[v].w;
-  } else if (t.includes("debug") || t.includes("fix") || t.includes("refactor")) {
-    const opts = [
-      { l: ["Reproduce issue", "Identify root cause", "Fix", "Test fix"], w: [0.15, 0.3, 0.35, 0.2] },
-      { l: ["Isolate bug", "Trace cause", "Patch", "Verify & test"], w: [0.2, 0.25, 0.35, 0.2] },
-      { l: ["Read error logs", "Find source", "Apply fix", "Regression test"], w: [0.15, 0.3, 0.35, 0.2] },
-    ];
-    labels = opts[v].l; weights = opts[v].w;
-  } else if (t.includes("research") || t.includes("investigate") || t.includes("explore")) {
-    const opts = [
-      { l: total >= 75 ? ["Define scope", "Find sources", "Read & annotate", "Synthesize findings", "Summarize"] : ["Find sources", "Read & note", "Synthesize"], w: total >= 75 ? [0.1, 0.2, 0.35, 0.25, 0.1] : [0.25, 0.45, 0.3] },
-      { l: total >= 75 ? ["Frame question", "Search sources", "Deep read", "Extract insights", "Write up"] : ["Search", "Read & note", "Write up"], w: total >= 75 ? [0.1, 0.2, 0.35, 0.25, 0.1] : [0.2, 0.5, 0.3] },
-      { l: total >= 75 ? ["Set objectives", "Collect data", "Analyze", "Draw conclusions", "Document"] : ["Collect", "Analyze", "Document"], w: total >= 75 ? [0.1, 0.25, 0.35, 0.2, 0.1] : [0.3, 0.4, 0.3] },
-    ];
-    labels = opts[v].l; weights = opts[v].w;
-  } else if (t.includes("design") || t.includes("mockup") || t.includes("wireframe")) {
-    const opts = [
-      { l: ["Gather inspiration", "Wireframe", "Design", "Refine & review"], w: [0.15, 0.2, 0.45, 0.2] },
-      { l: ["Moodboard", "Low-fi sketch", "High-fi design", "Iterate"], w: [0.15, 0.2, 0.45, 0.2] },
-      { l: ["Define goals", "Rough layout", "Visual design", "Polish & export"], w: [0.1, 0.2, 0.5, 0.2] },
-    ];
-    labels = opts[v].l; weights = opts[v].w;
-  } else if (t.includes("resume") || t.includes("cover letter") || t.includes("apply")) {
-    const opts = [
-      { l: total >= 60 ? ["Research role", "Update resume", "Write cover letter", "Review & submit"] : ["Update resume", "Write cover letter", "Submit"], w: total >= 60 ? [0.2, 0.3, 0.3, 0.2] : [0.35, 0.4, 0.25] },
-      { l: total >= 60 ? ["Study job posting", "Tailor resume", "Draft cover letter", "Final review"] : ["Tailor resume", "Cover letter", "Submit"], w: total >= 60 ? [0.2, 0.3, 0.3, 0.2] : [0.35, 0.4, 0.25] },
-      { l: total >= 60 ? ["List requirements", "Edit experience", "Personalize letter", "Proofread & send"] : ["Edit resume", "Write letter", "Submit"], w: total >= 60 ? [0.15, 0.3, 0.35, 0.2] : [0.35, 0.4, 0.25] },
-    ];
-    labels = opts[v].l; weights = opts[v].w;
-  } else if (t.includes("read") || t.includes("article") || t.includes("book")) {
-    const opts = [
-      { l: total >= 60 ? ["Skim headings", "Read section 1", "Read section 2", "Summarize key points"] : ["Read", "Take notes", "Summarize"], w: total >= 60 ? [0.1, 0.35, 0.35, 0.2] : [0.5, 0.3, 0.2] },
-      { l: total >= 60 ? ["Preview structure", "Active reading", "Highlight & note", "Review takeaways"] : ["Read", "Highlight", "Review"], w: total >= 60 ? [0.1, 0.45, 0.25, 0.2] : [0.5, 0.3, 0.2] },
-      { l: total >= 60 ? ["Set intention", "First read-through", "Re-read key parts", "Synthesize"] : ["Read", "Re-read", "Synthesize"], w: total >= 60 ? [0.05, 0.4, 0.3, 0.25] : [0.5, 0.3, 0.2] },
-    ];
-    labels = opts[v].l; weights = opts[v].w;
-  } else if (t.includes("plan") || t.includes("outline") || t.includes("brainstorm")) {
-    const opts = [
-      { l: ["Brainstorm ideas", "Organize thoughts", "Draft plan", "Review & refine"], w: [0.25, 0.25, 0.3, 0.2] },
-      { l: ["Dump all ideas", "Group themes", "Prioritize", "Write action plan"], w: [0.25, 0.2, 0.25, 0.3] },
-      { l: ["Free-write", "Find patterns", "Structure plan", "Finalize"], w: [0.25, 0.2, 0.3, 0.25] },
-    ];
-    labels = opts[v].l; weights = opts[v].w;
-  } else if (t.includes("email") || t.includes("reply") || t.includes("message")) {
-    labels = ["Draft", "Review & send"]; weights = [0.65, 0.35];
-  } else if (t.includes("clean") || t.includes("organize") || t.includes("tidy")) {
-    const opts = [
-      { l: total >= 60 ? ["Clear surface", "Sort & declutter", "Clean", "Organize & put away"] : ["Declutter", "Clean", "Organize"], w: total >= 60 ? [0.2, 0.25, 0.3, 0.25] : [0.3, 0.4, 0.3] },
-      { l: total >= 60 ? ["Remove trash", "Category sort", "Wipe & clean", "Store neatly"] : ["Sort", "Clean", "Store"], w: total >= 60 ? [0.15, 0.25, 0.35, 0.25] : [0.3, 0.4, 0.3] },
-      { l: total >= 60 ? ["Purge extras", "Group by type", "Deep clean", "Final organize"] : ["Purge", "Clean", "Arrange"], w: total >= 60 ? [0.2, 0.2, 0.35, 0.25] : [0.3, 0.4, 0.3] },
-    ];
-    labels = opts[v].l; weights = opts[v].w;
-  } else if (total <= 20) {
-    labels = ["Start", "Finish"]; weights = [0.6, 0.4];
-  } else if (total <= 45) {
-    const opts = [
-      { l: ["Prepare", "Do", "Wrap up"], w: [0.2, 0.6, 0.2] },
-      { l: ["Set up", "Execute", "Finish"], w: [0.2, 0.6, 0.2] },
-      { l: ["Gather", "Work", "Review"], w: [0.2, 0.6, 0.2] },
-    ];
-    labels = opts[v].l; weights = opts[v].w;
-  } else {
-    const opts = [
-      { l: total >= 90 ? ["Prepare", "Start", "Do", "Review & finish"] : ["Prepare", "Do", "Review"], w: total >= 90 ? [0.15, 0.25, 0.4, 0.2] : [0.2, 0.55, 0.25] },
-      { l: total >= 90 ? ["Set up", "Build momentum", "Deep work", "Wrap up"] : ["Set up", "Execute", "Wrap up"], w: total >= 90 ? [0.1, 0.2, 0.5, 0.2] : [0.15, 0.6, 0.25] },
-      { l: total >= 90 ? ["Clarify", "Get started", "Main work", "Polish & close"] : ["Clarify", "Do", "Close"], w: total >= 90 ? [0.1, 0.2, 0.5, 0.2] : [0.15, 0.6, 0.25] },
-    ];
-    labels = opts[v].l; weights = opts[v].w;
-  }
-
-  const steps = labels.map((label, i) => ({
-    id: genId(),
-    title: label,
-    minutes: Math.max(5, Math.round((total * weights[i]) / 5) * 5),
-    done: false,
-    x: 0,
-    y: 0,
-  }));
-
-  const assigned = steps.reduce((sum, s) => sum + s.minutes, 0);
-  const diff = total - assigned;
-  if (diff !== 0) steps[steps.length - 1].minutes = Math.max(5, steps[steps.length - 1].minutes + diff);
-
-  return steps;
-}
-
-function layoutWeb(noteX: number, noteY: number, steps: Step[]) {
-  const cx = noteX + NOTE_W / 2 - STEP_W / 2;
-  const cy = noteY + NOTE_H / 2 - STEP_H / 2;
-  const spread = 260;
-  return steps.map((step, index) => {
-    const angle = (-Math.PI / 2) + (index - (steps.length - 1) / 2) * 0.82;
-    return {
-      ...step,
-      x: cx + Math.cos(angle) * spread,
-      y: cy + Math.sin(angle) * spread + index * 8,
-    };
-  });
-}
-
-function layoutChain(noteX: number, noteY: number, steps: Step[]) {
-  const startX = noteX + NOTE_W + 72;
-  const startY = noteY - 12;
-  return steps.map((step, index) => ({
-    ...step,
-    x: startX + index * 210,
-    y: startY + index * 24,
-  }));
-}
-
-function pageBg(theme: ThemeMode) {
-  return theme === "dark" ? "#0d0f12" : "#f3f1eb";
-}
-function pageText(theme: ThemeMode) {
-  return theme === "dark" ? "#f5f5f2" : "#171613";
-}
-function muted(theme: ThemeMode) {
-  return theme === "dark" ? "rgba(255,255,255,.72)" : "rgba(23,22,19,.62)";
-}
-function surface(theme: ThemeMode) {
-  return theme === "dark" ? "#17191d" : "#ffffff";
-}
-function border(theme: ThemeMode) {
-  return theme === "dark" ? "rgba(255,255,255,.08)" : "rgba(0,0,0,.08)";
-}
-function paper(theme: ThemeMode) {
-  return theme === "dark" ? "#2d3137" : "#fafaf7";
-}
-function grid(theme: ThemeMode) {
-  return theme === "dark" ? "rgba(255,255,255,.032)" : "rgba(78,78,78,.065)";
-}
-function panel(theme: ThemeMode) {
-  return theme === "dark" ? "#1f2329" : "#ffffff";
-}
-function inputBg(theme: ThemeMode) {
-  return theme === "dark" ? "#282c33" : "#ffffff";
-}
-function noteBg(type: BoardType, importance: Importance | undefined, theme: ThemeMode) {
-  if (theme === "dark") {
-    if (type === "thought") return "#3f444b";
-    if (importance === "High") return "#3d1515";
-    if (importance === "Medium") return "#3a2210";
-    if (importance === "Low") return "#2e2a0a";
-    return "#323232";
-  }
-  if (type === "thought") return "#e6e7ea";
-  if (importance === "High") return "#fde8e8";
-  if (importance === "Medium") return "#fdeede";
-  if (importance === "Low") return "#fdfae0";
-  return "#e8e8e8";
-}
-function noteText(theme: ThemeMode) {
-  return theme === "dark" ? "#f5f5f2" : "#1f1d1a";
-}
-function noteSub(theme: ThemeMode) {
-  return theme === "dark" ? "#d9d9d7" : "#696257";
-}
-function noteHalo(type: BoardType, importance: Importance | undefined) {
-  if (type === "thought") return "rgba(255,255,255,.10)";
-  if (importance === "High") return "rgba(215,60,60,.22)";
-  if (importance === "Medium") return "rgba(220,130,40,.22)";
-  if (importance === "Low") return "rgba(210,190,40,.22)";
-  return "rgba(145,126,88,.12)";
-}
-function noteAccent(type: BoardType, importance: Importance | undefined) {
-  if (type === "thought") return "rgba(130,130,200,.6)";
-  if (importance === "High") return "#d94040";
-  if (importance === "Medium") return "#d07030";
-  if (importance === "Low") return "#c8b820";
-  return "rgba(160,140,100,.45)";
-}
-function priorityColor(importance: Importance | undefined, theme: ThemeMode) {
-  if (importance === "High") return theme === "dark" ? "#ff8080" : "#c03030";
-  if (importance === "Medium") return theme === "dark" ? "#ffaa60" : "#b05a20";
-  if (importance === "Low") return theme === "dark" ? "#e8d840" : "#8a7a10";
-  return theme === "dark" ? "rgba(255,255,255,.45)" : "rgba(0,0,0,.38)";
-}
-function buttonStyle(theme: ThemeMode, dark = false, compact = false): CSSProperties {
-  return {
-    height: compact ? 36 : 40,
-    borderRadius: 999,
-    border: dark ? "1px solid #111315" : `1px solid ${border(theme)}`,
-    backgroundColor: dark ? "#111315" : theme === "dark" ? "#23262b" : "#ffffff",
-    color: dark ? "#f7f8fb" : theme === "dark" ? "#f5f5f2" : "#433d35",
-    padding: compact ? "0 12px" : "0 14px",
-    fontWeight: 700,
-    fontSize: 14,
-    cursor: "pointer",
-  };
-}
-function fieldStyle(theme: ThemeMode): CSSProperties {
-  return {
-    borderRadius: 10,
-    border: `1px solid ${border(theme)}`,
-    backgroundColor: inputBg(theme),
-    height: 52,
-    padding: "0 14px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: 14,
-    fontWeight: 600,
-    color: pageText(theme),
-    opacity: 1,
-  };
-}
-function circleButton(theme: ThemeMode, size = 40): CSSProperties {
-  return {
-    width: size,
-    height: size,
-    borderRadius: "50%",
-    border: `1px solid ${border(theme)}`,
-    backgroundColor: theme === "dark" ? "#23262b" : "#ffffff",
-    color: theme === "dark" ? "#f5f5f2" : "#433d35",
-    display: "grid",
-    placeItems: "center",
-    cursor: "pointer",
-    padding: 0,
-    flexShrink: 0,
-  };
-}
-function pill(theme: ThemeMode): CSSProperties {
-  return {
-    padding: "5px 9px",
-    borderRadius: 999,
-    border: `1px solid ${border(theme)}`,
-    backgroundColor: theme === "dark" ? "rgba(255,255,255,.08)" : "rgba(255,255,255,.82)",
-    fontSize: 11,
-    fontWeight: 700,
-    color: theme === "dark" ? "#eaeae8" : "#61594e",
-    whiteSpace: "nowrap",
-  };
-}
-
-function BoardtivityLogo({ size = 32, dark = false }: { size?: number; dark?: boolean }) {
-  const color = dark ? "#f5f5f2" : "#171613";
-  return (
-    <svg width={size} height={Math.round(size * 180 / 220)} viewBox="0 0 220 180" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: "block", flexShrink: 0 }}>
-      <rect x="15" y="15" width="190" height="150" rx="28" ry="28" stroke={color} strokeWidth="9"/>
-      <path d="M38 38 H58 M38 38 V58" stroke={color} strokeWidth="6" strokeLinecap="round"/>
-      <path d="M182 38 H162 M182 38 V58" stroke={color} strokeWidth="6" strokeLinecap="round"/>
-      <path d="M38 142 H58 M38 142 V122" stroke={color} strokeWidth="6" strokeLinecap="round"/>
-      <path d="M182 142 H162 M182 142 V122" stroke={color} strokeWidth="6" strokeLinecap="round"/>
-      <text x="110" y="118" fontFamily="Satoshi, Arial Black, sans-serif" fontWeight="900" fontSize="85" textAnchor="middle" fill={color}>B</text>
-    </svg>
-  );
-}
-
-function ThemeToggle({ theme, onToggle, size = 40 }: { theme: ThemeMode; onToggle: () => void; size?: number }) {
-  const [flicker, setFlicker] = useState(false);
-  function handleClick() {
-    setFlicker(true);
-    onToggle();
-  }
-  const isOn = theme === "light";
-  const glowColor = isOn ? "rgba(255,210,60,.55)" : "rgba(255,255,255,.12)";
-  return (
-    <button
-      onClick={handleClick}
-      onAnimationEnd={() => setFlicker(false)}
-      aria-label="Toggle theme"
-      style={{
-        ...circleButton(theme, size),
-        boxShadow: isOn ? `0 0 0 1px ${border(theme)}, 0 0 10px rgba(255,200,40,.35)` : undefined,
-      }}
-    >
-      <svg
-        width="16" height="16" viewBox="0 0 24 24" fill="none"
-        className={flicker ? "bulb-flicker" : undefined}
-      >
-        {/* bulb globe */}
-        <path d="M12 2C8.686 2 6 4.686 6 8c0 2.21 1.13 4.16 2.85 5.28V15a1 1 0 0 0 1 1h4.3a1 1 0 0 0 1-1v-1.72C16.87 12.16 18 10.21 18 8c0-3.314-2.686-6-6-6Z"
-          fill={isOn ? "rgba(255,210,60,.95)" : "currentColor"}
-          stroke={isOn ? "rgba(200,155,20,.7)" : "currentColor"}
-          strokeWidth={isOn ? "0" : "0.5"}
-          opacity={isOn ? 1 : 0.55}
-        />
-        {/* base bands */}
-        <line x1="9.5" y1="17" x2="14.5" y2="17" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity={isOn ? 0.8 : 0.5}/>
-        <line x1="10" y1="19" x2="14" y2="19" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity={isOn ? 0.8 : 0.5}/>
-        <line x1="10.5" y1="21" x2="13.5" y2="21" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity={isOn ? 0.6 : 0.35}/>
-        {/* glow rays — only when on */}
-        {isOn && [[-5,-5],[5,-5],[0,-7],[-7,0],[7,0]].map(([dx,dy],i) => (
-          <line key={i}
-            x1={12+dx*0.55} y1={8+dy*0.55}
-            x2={12+dx} y2={8+dy}
-            stroke="rgba(255,220,60,.7)" strokeWidth="1.3" strokeLinecap="round"
-          />
-        ))}
-      </svg>
-    </button>
-  );
-}
-
-function readLocal<T>(key: string, fallback: T): T {
-  try {
-    const s = localStorage.getItem("boardtivity");
-    if (s) { const d = JSON.parse(s); if (d[key] !== undefined) return d[key] as T; }
-  } catch {}
-  return fallback;
-}
+import BoardtivityLogo from "@/components/BoardtivityLogo";
+import ThemeToggle from "@/components/ThemeToggle";
+import DurationPicker from "@/components/focus/DurationPicker";
+import { NOTE_PALETTE, TASK_PALETTE, hexToRgba, blendHex, clampCardBg, PRIORITY_COLORS, paletteBg, paletteHalo, noteText, noteSub, priorityColor } from "@/lib/colors";
+import { pageBg, pageText, muted, surface, border, paper, grid, panel, buttonStyle, fieldStyle, circleButton, pill } from "@/lib/ui";
+import { isoToMDY, formatDate, todayStr, tomorrowStr, formatDateShort, fmtTime, fmtFocusTime } from "@/lib/dates";
+import { BOARD_W, BOARD_H, NOTE_W, NOTE_H, noteCardWidth, titleFontSize, STEP_W, STEP_H, INITIAL_BOARDS, genId, nextBoardName, layoutWeb, layoutChain, readLocal } from "@/lib/boardLayout";
+import { estimateTime, buildBreakdown } from "@/lib/breakdown";
 
 export function HomeShell() {
   const [theme, setTheme] = useState<ThemeMode>(() => readLocal("theme", "light"));
@@ -617,30 +68,13 @@ export function HomeShell() {
   const [focusNextStep, setFocusNextStep] = useState<{ id: number; title: string; minutes: number } | null>(null);
   const [focusExitConfirm, setFocusExitConfirm] = useState(false);
   // Duration picker (shown before focus starts)
-  const focusPickerPrompts = [
-    "How long are you committing to this?",
-    "What's a realistic block of time for this?",
-    "How long until you check back in?",
-    "Set a timer — even 15 minutes counts.",
-    "Pick a duration and lock in.",
-    "How much time can you give this right now?",
-    "Short burst or deep work — you decide.",
-    "What does focused look like for this task?",
-    "Name your time. Then own it.",
-    "No distractions. How long?",
-  ];
-  const [focusPickerPromptIdx] = useState(() => Math.floor(Math.random() * 10));
   const [focusPicker, setFocusPicker] = useState<{ noteId: number; chain: boolean } | null>(null);
-  const [focusCustomMin, setFocusCustomMin] = useState("");
-  const [focusPickerSelected, setFocusPickerSelected] = useState<number | null>(null);
-  const [focusPickerShowCustom, setFocusPickerShowCustom] = useState(false);
   // Session review (shown after focus ends)
   const [focusReview, setFocusReview] = useState<{ elapsedMin: number; noteId: number; stepId: number | null } | null>(null);
   const focusSessionStartRef = useRef<number>(0); // epoch ms when session started
   // Profile panel
   const [profileOpen, setProfileOpen] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
-  const [upgradeType, setUpgradeType] = useState<BoardType>("task");
   const [limitReachedOpen, setLimitReachedOpen] = useState(false);
   const [showSubscribedModal, setShowSubscribedModal] = useState(false);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
@@ -776,13 +210,10 @@ export function HomeShell() {
   const isNativeApp = typeof navigator !== "undefined" && navigator.userAgent.includes("BoardtivityApp");
 
   const [titleMounted, setTitleMounted] = useState(false);
-  const [titleIn, setTitleIn] = useState(false);
   useEffect(() => {
     if (isSignedIn) {
       setTitleMounted(true);
-      requestAnimationFrame(() => setTitleIn(true));
     } else {
-      setTitleIn(false);
       const t = setTimeout(() => setTitleMounted(false), 450);
       return () => clearTimeout(t);
     }
@@ -900,11 +331,6 @@ export function HomeShell() {
     const c = custom ? custom.swatch : PRIORITY_COLORS[importance as "High"|"Medium"|"Low"];
     return `1.5px solid ${hexToRgba(c, boardTheme === "dark" ? 0.28 : 0.42)}`;
   };
-  const getAccent = (importance: Importance | undefined) => {
-    if (!importance || importance === "none") return muted(boardTheme);
-    const custom = taskPaletteEntry(importance as "High"|"Medium"|"Low");
-    return custom ? custom.swatch : PRIORITY_COLORS[importance as "High"|"Medium"|"Low"];
-  };
   const detailNote = notes.find((n) => n.id === detailNoteId) ?? null;
   const stepModal = activeStep
     ? notes.find((n) => n.id === activeStep.noteId)?.steps.find((s) => s.id === activeStep.stepId) ?? null
@@ -1002,21 +428,6 @@ export function HomeShell() {
     return { x: px, y: py };
   }
 
-  function reorganizeBoard() {
-    const boardNotes = notes.filter(n => n.boardId === activeBoardId);
-    if (boardNotes.length === 0) return;
-    const margin = 28;
-    const colW = NOTE_W + margin;
-    const colH = NOTE_H + margin;
-    const cols = Math.max(1, Math.floor((BOARD_W - 80) / colW));
-    setNotes(prev => prev.map(n => {
-      if (n.boardId !== activeBoardId) return n;
-      const idx = boardNotes.findIndex(bn => bn.id === n.id);
-      const col = idx % cols;
-      const row = Math.floor(idx / cols);
-      return { ...n, x: 80 + col * colW, y: 80 + row * colH };
-    }));
-  }
 
   function zoomAt(clientX: number, clientY: number, nextScale: number) {
     const viewport = viewportRef.current;
@@ -1149,16 +560,6 @@ export function HomeShell() {
 
   // ── Cloud sync helpers ──────────────────────────────────────────────────────
 
-  // True if boardState only has the two factory-default boards and no notes.
-  // Guards against a previous bug that pushed INITIAL_BOARDS to Convex from a fresh device.
-  function isCloudDefaultOnly(boardState: string): boolean {
-    try {
-      const d = JSON.parse(boardState) as { boards?: Board[]; notes?: Note[] };
-      // Only check that there are no notes — don't rely on board count or order,
-      // as users may have renamed or reordered the default boards.
-      return (d.notes ?? []).length === 0;
-    } catch { return false; }
-  }
 
   function exportToIcs() {
     const dueTasks = notes.filter(n => n.dueDate && !n.completed);
@@ -1678,7 +1079,6 @@ export function HomeShell() {
       if (isPlus) {
         setLimitReachedOpen(true);
       } else {
-        setUpgradeType(type);
         setUpgradeOpen(true);
       }
       setBoardsOpen(false);
@@ -2000,22 +1400,7 @@ export function HomeShell() {
     setDrafts((prev) => prev.filter((d) => d.id !== draftId));
   }
 
-  function openBreakdownFromDetails(note: Note) {
-    const total = note.minutes ?? estimateTime(note.title);
-    const steps = buildBreakdown(note.title, note.body ?? "", total);
-    const laidOut = note.flowMode === "chain" ? layoutChain(note.x, note.y, steps) : layoutWeb(note.x, note.y, steps);
-    setNotes((prev) => prev.map((n) => (n.id === note.id ? { ...n, minutes: total, steps: laidOut } : n)));
-  }
 
-  function toggleStepDone(noteId: number, stepId: number) {
-    setNotes((prev) =>
-      prev.map((note) =>
-        note.id === noteId
-          ? { ...note, steps: note.steps.map((step) => (step.id === stepId ? { ...step, done: !step.done } : step)) }
-          : note
-      )
-    );
-  }
 
   function setFlowMode(note: Note, mode: FlowMode) {
     const steps = mode === "chain" ? layoutChain(note.x, note.y, note.steps) : layoutWeb(note.x, note.y, note.steps);
@@ -2051,11 +1436,6 @@ export function HomeShell() {
     );
   }
 
-  function completeTask(noteId: number) {
-    setNotes((prev) => prev.map((n) => (n.id === noteId ? { ...n, completed: true } : n)));
-    cancelReminderMut({ noteId }).catch(() => {});
-    setDetailNoteId(null);
-  }
 
   function deleteTask(noteId: number) {
     localDeletedNoteIdsRef.current.add(noteId);
@@ -2183,7 +1563,6 @@ export function HomeShell() {
   function startFocus(noteId: number, chain = false) {
     // Show duration picker first — actual timer starts after user commits
     setFocusPicker({ noteId, chain });
-    setFocusCustomMin("");
   }
 
   function commitFocus(noteId: number, chain: boolean, minutes: number) {
@@ -2194,7 +1573,6 @@ export function HomeShell() {
       const first = note.steps.find(s => !s.done);
       if (first) stepId = first.id;
     }
-    const step = stepId ? note.steps.find(s => s.id === stepId) : null;
     const totalSecs = minutes * 60;
     focusTotalSecsRef.current = totalSecs;
     focusStartedAtRef.current = Date.now();
@@ -2266,35 +1644,6 @@ export function HomeShell() {
     setFocusNoteId(null);
   }
 
-  async function logMobileFocusTime(noteId: number, stepId: number | null, markFinished: boolean) {
-    const elapsedMin = Math.floor((Date.now() - focusSessionStartRef.current) / 60000);
-    const _d = new Date();
-    const today = `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,"0")}-${String(_d.getDate()).padStart(2,"0")}`;
-    const updatedNotes = notes.map(n => {
-      if (n.id !== noteId) return n;
-      let updatedSteps = n.steps;
-      if (markFinished && stepId) {
-        updatedSteps = n.steps.map(s => s.id === stepId ? { ...s, done: true } : s);
-      }
-      const allStepsDone = updatedSteps.length > 0 && updatedSteps.every(s => s.done);
-      return {
-        ...n,
-        steps: updatedSteps,
-        totalTimeSpent: (n.totalTimeSpent ?? 0) + elapsedMin,
-        lastTackledAt: Date.now(),
-        completed: markFinished && (!stepId || allStepsDone) ? true : n.completed,
-      };
-    });
-    setNotes(updatedNotes);
-    if (isSignedIn) {
-      const freshState = JSON.stringify({ boards, notes: updatedNotes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom });
-      latestBoardStateRef.current = freshState;
-      pushToCloud();
-      if (elapsedMin > 0) {
-        await logFocusSession({ date: today, minutes: elapsedMin, taskCompleted: markFinished });
-      }
-    }
-  }
 
   function scheduleDueDateReminder(noteId: number, noteTitle: string, dueDate: string | undefined, dueTimeVal: string | undefined) {
     if (!isSignedIn || !dueDate || !dueTimeVal) {
@@ -2491,12 +1840,6 @@ export function HomeShell() {
             const c = entry ? entry.swatch : PRIORITY_COLORS[importance as "High"|"Medium"|"Low"];
             return `1.5px solid ${hexToRgba(c, theme === "dark" ? 0.28 : 0.42)}`;
           }
-          function mobileGetAccent(importance: Importance | undefined, done: boolean) {
-            if (done) return "#3db83d";
-            if (!importance || importance === "none") return theme === "dark" ? "rgba(255,255,255,.15)" : "rgba(0,0,0,.12)";
-            const entry = taskPaletteEntry(importance as "High"|"Medium"|"Low");
-            return entry ? entry.swatch : PRIORITY_COLORS[importance as "High"|"Medium"|"Low"];
-          }
 
           function dueLabelAndColor(dueDate: string | undefined, dueTime?: string): [string, string] {
             if (!dueDate) return ["", muted(theme)];
@@ -2584,10 +1927,6 @@ export function HomeShell() {
             const impColor = impEntry ? impEntry.swatch : priorityColor(imp, theme);
             const doneDots = note.steps.filter(s => s.done).length;
             const hasSteps = note.steps.length > 0;
-            const taskMins = note.steps.length > 0
-              ? note.steps.filter(s => !s.done).reduce((sum, s) => sum + (s.minutes ?? 25), 0)
-              : (note.minutes ?? estimateTime(note.title));
-            const timeLabel = taskMins >= 60 ? `${Math.floor(taskMins/60)}h${taskMins%60 ? ` ${taskMins%60}m` : ""}` : `${taskMins}m`;
 
             return (
               <div key={note.id} style={{ borderRadius: 14, backgroundColor: bg, border: bord, marginBottom: 9, ...(isOverdue ? { boxShadow: "0 0 0 3px rgba(210,50,50,.13)", animation: "overduePulse 1.6s ease-in-out infinite" } : dueToday ? { boxShadow: "0 0 0 3px rgba(200,130,20,.12)" } : {}) }}>
@@ -2693,6 +2032,7 @@ export function HomeShell() {
                   onSetIdeaColor={handleBobSetIdeaColor}
                   onConfigureTaskColors={handleBobConfigureTaskColors}
                   onConfigureBoard={handleBobConfigureBoard}
+                  onUpgrade={() => setUpgradeOpen(true)}
                   isAdmin={!!isAdmin}
                   userInfo={bobUserInfo}
                   autoSend={bobAutoSend}
@@ -3374,38 +2714,12 @@ export function HomeShell() {
                 const secs = focusSecondsLeft % 60;
                 const allSteps = fn.steps;
                 const hasChain = focusChainMode && allSteps.length > 1;
-                const currentStepSecs = (step?.minutes ?? fn.minutes ?? estimateTime(fn.title)) * 60;
-                const currentStepFill = Math.min(100, Math.max(0, (focusSecondsLeft / currentStepSecs) * 100));
-                const totalMinutes = hasChain ? allSteps.reduce((s, x) => s + (x.minutes ?? 25), 0) : (step?.minutes ?? fn.minutes ?? estimateTime(fn.title));
-                const totalSecs2 = totalMinutes * 60;
                 const currentIdx = step ? allSteps.findIndex(s => s.id === focusStepId) : -1;
-                const doneStepsSecs = hasChain && currentIdx > 0 ? allSteps.slice(0, currentIdx).reduce((s, x) => s + (x.minutes ?? 25) * 60, 0) : 0;
-                const overallFill = Math.min(100, Math.max(0, ((doneStepsSecs + (currentStepSecs - focusSecondsLeft)) / totalSecs2) * 100));
 
                 const btn: CSSProperties = { height: 48, padding: "0 24px", borderRadius: 999, border: "1px solid rgba(255,255,255,.14)", backgroundColor: "rgba(255,255,255,.09)", color: "rgba(247,248,251,.85)", fontSize: 15, fontWeight: 700, cursor: "pointer" };
                 const btnRed: CSSProperties = { ...btn, border: "1px solid rgba(220,60,60,.3)", backgroundColor: "rgba(220,60,60,.12)", color: "rgba(255,160,160,.8)" };
                 const btnGreen: CSSProperties = { ...btn, border: "1px solid rgba(100,210,120,.3)", backgroundColor: "rgba(80,180,100,.12)", color: "rgba(120,220,130,.9)", padding: "0 36px", height: 52, fontSize: 16 };
 
-                const progressBars = (dimmed = false) => {
-                  const barColor = dimmed ? "rgba(247,248,251,.22)" : "rgba(247,248,251,.9)";
-                  const trackColor = dimmed ? "rgba(255,255,255,.07)" : "rgba(255,255,255,.12)";
-                  return (
-                    <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: hasChain ? 14 : 0 }}>
-                      <div>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8, gap: 12 }}>
-                          <span style={{ fontSize: 14, fontWeight: 600, color: dimmed ? "rgba(247,248,251,.35)" : "rgba(247,248,251,.8)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {step ? step.title : fn.title}
-                          </span>
-                          {hasChain && step && (
-                            <span style={{ fontSize: 13, color: dimmed ? "rgba(247,248,251,.22)" : "rgba(247,248,251,.4)", flexShrink: 0 }}>
-                              {currentIdx + 1} / {allSteps.length}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                };
 
                 return (
                   <div style={{ position: "fixed", inset: 0, zIndex: 950, backgroundColor: focusCompleted ? "rgb(6,20,9)" : focusPaused ? "rgb(7,8,18)" : "rgb(6,7,10)", color: "#f7f8fb", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 24px", textAlign: "center", overflowY: "hidden", overscrollBehavior: "none" }}>
@@ -3907,6 +3221,7 @@ export function HomeShell() {
                 onSetIdeaColor={handleBobSetIdeaColor}
                 onConfigureTaskColors={handleBobConfigureTaskColors}
                 onConfigureBoard={handleBobConfigureBoard}
+                onUpgrade={() => setUpgradeOpen(true)}
                 isAdmin={!!isAdmin}
                 userInfo={bobUserInfo}
                 autoSend={bobAutoSend}
@@ -5495,18 +4810,6 @@ export function HomeShell() {
         const isLastSubtask = isSubtask && !focusNextStep && focusChainMode;
         const allSteps = focusNote?.steps ?? [];
 
-        // Progress bar math
-        const totalMinutes = focusChainMode && allSteps.length > 0
-          ? allSteps.reduce((sum, s) => sum + (s.minutes ?? 25), 0)
-          : (focusStep?.minutes ?? focusNote?.minutes ?? 60);
-        const totalSecs = totalMinutes * 60;
-        const currentStepSecs = (focusStep?.minutes ?? focusNote?.minutes ?? 60) * 60;
-        const currentIdx = focusStep ? allSteps.findIndex(s => s.id === focusStepId) : -1;
-        const doneStepsSecs = focusChainMode && currentIdx > 0
-          ? allSteps.slice(0, currentIdx).reduce((sum, s) => sum + (s.minutes ?? 25) * 60, 0)
-          : 0;
-        const elapsedSecs = doneStepsSecs + (currentStepSecs - focusSecondsLeft);
-        const progressPct = Math.min(100, Math.max(0, (elapsedSecs / totalSecs) * 100));
 
         const focusBtn: CSSProperties = {
           height: 40, borderRadius: 999,
@@ -5524,36 +4827,12 @@ export function HomeShell() {
           color: "rgba(255,160,160,.7)",
         };
 
-        // Per-step fill percentages
-        const stepFills = allSteps.map((s) => {
-          if (s.done) return 100;
-          if (s.id === focusStepId) {
-            const stepTotal = (s.minutes ?? 25) * 60;
-            return Math.min(100, Math.max(0, ((stepTotal - focusSecondsLeft) / stepTotal) * 100));
-          }
-          return 0;
-        });
 
-        // Segment geometry: each step's start% and width% of total bar
-        const segWidthPcts = allSteps.map(s =>
-          totalMinutes > 0 ? ((s.minutes ?? 25) / totalMinutes) * 100 : 0
-        );
-        const segStartPcts = allSteps.map((_, i) =>
-          segWidthPcts.slice(0, i).reduce((a, b) => a + b, 0)
-        );
 
-        // Current subtask fill (0–100% of just this step)
-        const currentStepFill = focusStep
-          ? Math.min(100, Math.max(0, (focusSecondsLeft / currentStepSecs) * 100))
-          : Math.min(100, Math.max(0, 100 - progressPct));
 
         // Shared progress bar sub-component (inline)
         const progressBar = (dimmed = false) => {
           const hasChain = focusChainMode && allSteps.length > 1;
-          const trackAlpha = dimmed ? ".07" : ".10";
-          const fillAlpha = dimmed ? ".22" : ".88";
-          const barColor = `rgba(247,248,251,${fillAlpha})`;
-          const trackColor = `rgba(255,255,255,${trackAlpha})`;
           return (
             <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: hasChain ? 16 : 0 }}>
             </div>
@@ -5772,145 +5051,14 @@ export function HomeShell() {
         </div>
       )}
 
-      {/* ── Duration Picker (inside board-shell, only shown in fullscreen — main-level copy handles mobile + non-fullscreen desktop) ── */}
+      {/* ── Duration Picker (inside board-shell so it shows in fullscreen) ── */}
       {isFullscreen && focusPicker && (() => {
         const pickerNote = notes.find(n => n.id === focusPicker.noteId);
         if (!pickerNote) return null;
-        const presets = [15, 30, 60, 120];
-        const overlay: CSSProperties = { position: "fixed", inset: 0, zIndex: 950, backgroundColor: "rgba(6,7,10,.92)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 };
-        const card: CSSProperties = { width: "min(400px,100%)", background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 20, padding: "32px 28px", display: "flex", flexDirection: "column", alignItems: "center", gap: 0, textAlign: "center" };
-        const presetBtn = (active: boolean): CSSProperties => ({
-          height: 56, flex: 1, borderRadius: 14,
-          border: active ? "1.5px solid rgba(255,255,255,.7)" : "1px solid rgba(255,255,255,.12)",
-          backgroundColor: active ? "rgba(255,255,255,.15)" : "rgba(255,255,255,.05)",
-          color: active ? "#f7f8fb" : "rgba(247,248,251,.55)", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-          transition: "background-color .15s, border-color .15s",
-        });
-        const customVal = parseInt(focusCustomMin, 10);
-        const customValid = !isNaN(customVal) && customVal >= 1 && customVal <= 480;
-        const effectiveSelected = focusPickerSelected ?? (focusPickerShowCustom && customValid ? customVal : null);
-        const canStart = effectiveSelected !== null;
-        const formatPreset = (m: number) => m >= 60 ? `${m / 60}hr` : `${m}`;
-        const formatPresetSub = (m: number) => m >= 60 ? "" : " min";
-        return (
-          <div style={overlay} onClick={() => { setFocusPicker(null); setFocusPickerSelected(null); setFocusCustomMin(""); setFocusPickerShowCustom(false); }}>
-            <div style={card} onClick={e => e.stopPropagation()}>
-              <div style={{ fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase", color: "rgba(247,248,251,.4)", fontWeight: 600, marginBottom: 14 }}>Focus Session</div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: "#f7f8fb", letterSpacing: "-.02em", lineHeight: 1.2, marginBottom: 6 }}>{pickerNote.title}</div>
-              {(pickerNote.totalTimeSpent ?? 0) > 0 && (
-                <div style={{ fontSize: 12, color: "rgba(247,248,251,.4)", marginBottom: 8 }}>
-                  {(pickerNote.totalTimeSpent ?? 0) >= 60
-                    ? `${Math.floor((pickerNote.totalTimeSpent ?? 0) / 60)}h ${(pickerNote.totalTimeSpent ?? 0) % 60}m already logged`
-                    : `${pickerNote.totalTimeSpent}m already logged`}
-                </div>
-              )}
-              <div style={{ fontSize: 13, color: "rgba(247,248,251,.35)", marginBottom: 28 }}>{focusPickerPrompts[focusPickerPromptIdx]}</div>
-              {/* Preset row */}
-              <div style={{ display: "flex", gap: 8, width: "100%", marginBottom: 12 }}>
-                {presets.map(m => (
-                  <button key={m} style={presetBtn(focusPickerSelected === m)} onClick={() => { setFocusPickerSelected(m); setFocusCustomMin(""); }}>
-                    {formatPreset(m)}<span style={{ fontSize: 11, opacity: .6 }}>{formatPresetSub(m)}</span>
-                  </button>
-                ))}
-                {/* Custom + button */}
-                <button
-                  style={{ ...presetBtn(focusPickerShowCustom && focusPickerSelected === null), flex: "0 0 auto", padding: "0 14px" }}
-                  onClick={() => { setFocusPickerSelected(null); setFocusPickerShowCustom(true); setTimeout(() => (document.getElementById("focus-custom-input") as HTMLInputElement | null)?.focus(), 50); }}
-                >
-                  +
-                </button>
-              </div>
-              {/* Custom input (shown only after + is clicked) */}
-              {focusPickerShowCustom && (
-                <div style={{ width: "100%", marginBottom: 12, display: "flex", gap: 8 }}>
-                  <input
-                    id="focus-custom-input"
-                    type="number" min={1} max={480} placeholder="Custom min"
-                    value={focusCustomMin}
-                    onChange={e => setFocusCustomMin(e.target.value)}
-                    style={{ flex: 1, height: 44, borderRadius: 12, border: `1px solid ${customValid ? "rgba(255,255,255,.35)" : "rgba(255,255,255,.15)"}`, background: "rgba(255,255,255,.06)", color: "#f7f8fb", fontSize: 14, padding: "0 12px", outline: "none", fontFamily: "inherit" }}
-                  />
-                </div>
-              )}
-              {/* Start button */}
-              <button
-                disabled={!canStart}
-                onClick={() => {
-                  if (!canStart) return;
-                  const mins = effectiveSelected!;
-                  setFocusPickerSelected(null);
-                  setFocusCustomMin("");
-                  setFocusPickerShowCustom(false);
-                  commitFocus(focusPicker.noteId, focusPicker.chain, mins);
-                }}
-                style={{ width: "100%", height: 50, borderRadius: 14, border: "none", backgroundColor: canStart ? "#f5f5f2" : "rgba(255,255,255,.08)", color: canStart ? "#111315" : "rgba(247,248,251,.25)", fontSize: 15, fontWeight: 700, cursor: canStart ? "pointer" : "default", fontFamily: "inherit", marginBottom: 16, transition: "background-color .15s, color .15s" }}
-              >
-                Start
-              </button>
-              <button onClick={() => { setFocusPicker(null); setFocusPickerSelected(null); setFocusCustomMin(""); setFocusPickerShowCustom(false); }} style={{ fontSize: 13, color: "rgba(247,248,251,.3)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
-            </div>
-          </div>
-        );
+        return <DurationPicker note={pickerNote} onCancel={() => setFocusPicker(null)} onStart={mins => commitFocus(focusPicker.noteId, focusPicker.chain, mins)} />;
       })()}
 
 
-      {/* ── Profile Panel — rendered outside board-shell so it works on mobile too ── */}
-      {false && (() => {
-        const stats = focusStatsData;
-        const streak = stats?.currentStreak ?? 0;
-        const totalMins = stats?.totalMinutes ?? 0;
-        const totalHoursDisplay = fmtFocusTime(totalMins);
-        const totalTasks = stats?.totalTasksCompleted ?? 0;
-        const days = stats?.days ?? [];
-        const maxMin = Math.max(...days.map(d => d.totalMinutes), 1);
-        const today = localToday;
-        const overlay: CSSProperties = { position: "fixed", inset: 0, zIndex: 800, backgroundColor: theme === "dark" ? "rgba(6,8,12,.7)" : "rgba(10,10,12,.36)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 };
-        const card: CSSProperties = { width: "min(380px,100%)", background: theme === "dark" ? "rgba(16,18,22,.98)" : "rgba(252,252,250,.99)", border: `1px solid ${border(theme)}`, borderRadius: 20, padding: "28px 24px", display: "flex", flexDirection: "column", gap: 24 };
-        const dayLabel = (date: string) => { const d = new Date(date + "T12:00:00"); return ["Su","Mo","Tu","We","Th","Fr","Sa"][d.getDay()]; };
-        return (
-          <div style={overlay} onClick={() => setProfileOpen(false)}>
-            <div style={card} onClick={e => e.stopPropagation()}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ fontSize: 16, fontWeight: 700, color: pageText(theme), letterSpacing: "-.01em" }}>Focus Stats</div>
-                <button onClick={() => setProfileOpen(false)} style={{ width: 28, height: 28, borderRadius: 8, border: "none", background: "transparent", color: muted(theme), fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
-              </div>
-              <div style={{ display: "flex", gap: 12 }}>
-                {[
-                  { label: "Streak", value: streak > 0 ? `${streak}d` : "–", sub: "days in a row", icon: streak > 0 ? (() => { const dur = Math.max(0.6, 2.4 - streak * 0.08); return <svg width="11" height="15" viewBox="0 0 11 15" fill="none" overflow="visible" style={{ animation: `boltSpark ${dur}s ease-in-out infinite` }}><path d="M7 1L1 8.5h4L3.5 14 10 6H6L7 1Z" fill="#facc15"/></svg>; })() : null },
-                  { label: "Total focused", value: totalHoursDisplay, sub: "all time" },
-                  { label: "Tasks done", value: String(totalTasks), sub: "tasks done" },
-                ].map(({ label, value, sub, icon }) => (
-                  <div key={label} style={{ flex: 1, background: theme === "dark" ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", borderRadius: 12, padding: "12px 10px", textAlign: "center" }}>
-                    <div style={{ fontSize: 20, fontWeight: 700, color: pageText(theme), display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
-                      {icon ?? null}{value}
-                    </div>
-                    <div style={{ fontSize: 10.5, color: muted(theme), marginTop: 3 }}>{sub}</div>
-                  </div>
-                ))}
-              </div>
-              <div>
-                <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 600, color: muted(theme), marginBottom: 12 }}>Last 7 days</div>
-                <div style={{ display: "flex", gap: 6, alignItems: "flex-end", height: 80 }}>
-                  {days.map(d => {
-                    const pct = d.totalMinutes / maxMin;
-                    const isToday = d.date === today;
-                    return (
-                      <div key={d.date} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, height: "100%", justifyContent: "flex-end" }}>
-                        <div style={{ fontSize: 9, color: muted(theme), opacity: .6 }}>{d.totalMinutes > 0 ? fmtFocusTime(d.totalMinutes) : ""}</div>
-                        <div style={{ width: "100%", borderRadius: 4, backgroundColor: d.totalMinutes > 0 ? (isToday ? "#6fc46b" : theme === "dark" ? "rgba(255,255,255,.35)" : "rgba(0,0,0,.25)") : (theme === "dark" ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.06)"), height: `${Math.max(pct * 56, d.totalMinutes > 0 ? 8 : 4)}px`, transition: "height .3s" }} />
-                        <div style={{ fontSize: 10, color: isToday ? pageText(theme) : muted(theme), fontWeight: isToday ? 700 : 400 }}>{dayLabel(d.date)}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-              <div style={{ fontSize: 13, color: muted(theme), textAlign: "center" }}>
-                {fmtFocusTime(days.reduce((s, d) => s + d.totalMinutes, 0))} this week · {days.filter(d => d.totalMinutes > 0).length} active days
-              </div>
-            </div>
-          </div>
-        );
-      })()}
       </div>
       </section>
 
@@ -6622,77 +5770,7 @@ export function HomeShell() {
       {!isFullscreen && focusPicker && (() => {
         const pickerNote = notes.find(n => n.id === focusPicker.noteId);
         if (!pickerNote) return null;
-        const presets = [15, 30, 60, 120];
-        const overlay: CSSProperties = { position: "fixed", inset: 0, zIndex: 950, backgroundColor: "rgba(6,7,10,.92)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 };
-        const card: CSSProperties = { width: "min(400px,100%)", background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 20, padding: "32px 28px", display: "flex", flexDirection: "column", alignItems: "center", gap: 0, textAlign: "center" };
-        const presetBtn = (active: boolean): CSSProperties => ({
-          height: 56, flex: 1, borderRadius: 14,
-          border: active ? "1.5px solid rgba(255,255,255,.7)" : "1px solid rgba(255,255,255,.12)",
-          backgroundColor: active ? "rgba(255,255,255,.15)" : "rgba(255,255,255,.05)",
-          color: active ? "#f7f8fb" : "rgba(247,248,251,.55)", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-          transition: "background-color .15s, border-color .15s",
-        });
-        const customVal = parseInt(focusCustomMin, 10);
-        const customValid = !isNaN(customVal) && customVal >= 1 && customVal <= 480;
-        const effectiveSelected = focusPickerSelected ?? (focusPickerShowCustom && customValid ? customVal : null);
-        const canStart = effectiveSelected !== null;
-        const formatPreset = (m: number) => m >= 60 ? `${m / 60}hr` : `${m}`;
-        const formatPresetSub = (m: number) => m >= 60 ? "" : " min";
-        return (
-          <div style={overlay} onClick={() => { setFocusPicker(null); setFocusPickerSelected(null); setFocusCustomMin(""); setFocusPickerShowCustom(false); }}>
-            <div style={card} onClick={e => e.stopPropagation()}>
-              <div style={{ fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase", color: "rgba(247,248,251,.4)", fontWeight: 600, marginBottom: 14 }}>Focus Session</div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: "#f7f8fb", letterSpacing: "-.02em", lineHeight: 1.2, marginBottom: 6 }}>{pickerNote.title}</div>
-              {(pickerNote.totalTimeSpent ?? 0) > 0 && (
-                <div style={{ fontSize: 12, color: "rgba(247,248,251,.4)", marginBottom: 8 }}>
-                  {(pickerNote.totalTimeSpent ?? 0) >= 60
-                    ? `${Math.floor((pickerNote.totalTimeSpent ?? 0) / 60)}h ${(pickerNote.totalTimeSpent ?? 0) % 60}m already logged`
-                    : `${pickerNote.totalTimeSpent}m already logged`}
-                </div>
-              )}
-              <div style={{ fontSize: 13, color: "rgba(247,248,251,.35)", marginBottom: 28 }}>{focusPickerPrompts[focusPickerPromptIdx]}</div>
-              <div style={{ display: "flex", gap: 8, width: "100%", marginBottom: 12 }}>
-                {presets.map(m => (
-                  <button key={m} style={presetBtn(focusPickerSelected === m)} onClick={() => { setFocusPickerSelected(m); setFocusCustomMin(""); }}>
-                    {formatPreset(m)}<span style={{ fontSize: 11, opacity: .6 }}>{formatPresetSub(m)}</span>
-                  </button>
-                ))}
-                <button
-                  style={{ ...presetBtn(focusPickerShowCustom && focusPickerSelected === null), flex: "0 0 auto", padding: "0 14px" }}
-                  onClick={() => { setFocusPickerSelected(null); setFocusPickerShowCustom(true); setTimeout(() => (document.getElementById("focus-custom-input") as HTMLInputElement | null)?.focus(), 50); }}
-                >
-                  +
-                </button>
-              </div>
-              {focusPickerShowCustom && (
-                <div style={{ width: "100%", marginBottom: 12, display: "flex", gap: 8 }}>
-                  <input
-                    id="focus-custom-input"
-                    type="number" min={1} max={480} placeholder="Custom min"
-                    value={focusCustomMin}
-                    onChange={e => setFocusCustomMin(e.target.value)}
-                    style={{ flex: 1, height: 44, borderRadius: 12, border: `1px solid ${customValid ? "rgba(255,255,255,.35)" : "rgba(255,255,255,.15)"}`, background: "rgba(255,255,255,.06)", color: "#f7f8fb", fontSize: 14, padding: "0 12px", outline: "none", fontFamily: "inherit" }}
-                  />
-                </div>
-              )}
-              <button
-                disabled={!canStart}
-                onClick={() => {
-                  if (!canStart) return;
-                  const mins = effectiveSelected!;
-                  setFocusPickerSelected(null);
-                  setFocusCustomMin("");
-                  setFocusPickerShowCustom(false);
-                  commitFocus(focusPicker.noteId, focusPicker.chain, mins);
-                }}
-                style={{ width: "100%", height: 50, borderRadius: 14, border: "none", backgroundColor: canStart ? "#f5f5f2" : "rgba(255,255,255,.08)", color: canStart ? "#111315" : "rgba(247,248,251,.25)", fontSize: 15, fontWeight: 700, cursor: canStart ? "pointer" : "default", fontFamily: "inherit", marginBottom: 16, transition: "background-color .15s, color .15s" }}
-              >
-                Start
-              </button>
-              <button onClick={() => { setFocusPicker(null); setFocusPickerSelected(null); setFocusCustomMin(""); setFocusPickerShowCustom(false); }} style={{ fontSize: 13, color: "rgba(247,248,251,.3)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
-            </div>
-          </div>
-        );
+        return <DurationPicker note={pickerNote} onCancel={() => setFocusPicker(null)} onStart={mins => commitFocus(focusPicker.noteId, focusPicker.chain, mins)} />;
       })()}
 
       {/* Footer */}
