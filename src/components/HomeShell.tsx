@@ -12,6 +12,10 @@ import { api } from "../../convex/_generated/api";
 import BoardtivityLogo from "@/components/BoardtivityLogo";
 import ThemeToggle from "@/components/ThemeToggle";
 import DurationPicker from "@/components/focus/DurationPicker";
+import FeedbackBoard from "@/components/landing/FeedbackBoard";
+import MarketingSections from "@/components/landing/MarketingSections";
+import { UpgradeModal, LimitReachedModal, SubscribedModal, WhatsNewModal, NamePromptModal } from "@/components/modals/AccountModals";
+import { useIsMobile, useRevealOnScroll } from "@/lib/hooks";
 import { NOTE_PALETTE, TASK_PALETTE, hexToRgba, blendHex, clampCardBg, PRIORITY_COLORS, paletteBg, paletteHalo, noteText, noteSub, priorityColor } from "@/lib/colors";
 import { pageBg, pageText, muted, surface, border, paper, grid, panel, buttonStyle, fieldStyle, circleButton, pill } from "@/lib/ui";
 import { isoToMDY, formatDate, todayStr, tomorrowStr, formatDateShort, fmtTime, fmtFocusTime } from "@/lib/dates";
@@ -79,9 +83,6 @@ export function HomeShell() {
   const [showSubscribedModal, setShowSubscribedModal] = useState(false);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [namePromptOpen, setNamePromptOpen] = useState(false);
-  const [namePromptFirst, setNamePromptFirst] = useState("");
-  const [namePromptLast, setNamePromptLast] = useState("");
-  const [namePromptSaving, setNamePromptSaving] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   const focusNoteIdRef = useRef<number | null>(null);
@@ -108,23 +109,9 @@ export function HomeShell() {
   const settingsButtonRef = useRef<HTMLButtonElement | null>(null);
   const userMenuRef = useRef<HTMLDivElement | null>(null);
   const dateInputRef = useRef<HTMLInputElement | null>(null);
-  const heroRef = useRef<HTMLDivElement | null>(null);
-  const whyRef = useRef<HTMLDivElement | null>(null);
-  const featuresRef = useRef<HTMLDivElement | null>(null);
-  const pricingRef = useRef<HTMLDivElement | null>(null);
+  const [heroRef, heroVisible] = useRevealOnScroll();
   const feedbackRef = useRef<HTMLDivElement | null>(null);
-  const [feedbackContent, setFeedbackContent] = useState("");
-  const [feedbackError, setFeedbackError] = useState<string | null>(null);
-  const [feedbackPosting, setFeedbackPosting] = useState(false);
-  const [replyingTo, setReplyingTo] = useState<string | null>(null);
-  const [replyContent, setReplyContent] = useState("");
-  const [replyError, setReplyError] = useState<string | null>(null);
-  const [replyPosting, setReplyPosting] = useState(false);
-  const [heroVisible, setHeroVisible] = useState(false);
-  const [whyVisible, setWhyVisible] = useState(false);
-  const [featuresVisible, setFeaturesVisible] = useState(false);
-  const [pricingVisible, setPricingVisible] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const isMobile = useIsMobile();
   const [mobileExpandedIds, setMobileExpandedIds] = useState<Set<number>>(new Set());
   const [mobileAddMode, setMobileAddMode] = useState<"task" | "thought" | null>(null);
   const [mobileAddTitle, setMobileAddTitle] = useState("");
@@ -198,12 +185,6 @@ export function HomeShell() {
   }
 
   const isAdmin = useQuery(api.admin.checkAdmin);
-  const feedbackPosts = useQuery(api.feedback.list);
-  const postFeedback = useMutation(api.feedback.post);
-  const voteFeedback = useMutation(api.feedback.vote);
-  const deleteFeedback = useMutation(api.feedback.remove);
-  const replyFeedback = useMutation(api.feedback.reply);
-  const deleteReplyFeedback = useMutation(api.feedback.removeReply);
   const { user, isSignedIn, isLoaded: clerkLoaded } = useUser();
   const { openSignIn, openSignUp, signOut } = useClerk();
 
@@ -939,27 +920,6 @@ export function HomeShell() {
       document.exitFullscreen();
     }
   }
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
-
-  useEffect(() => {
-    const observe = (el: HTMLDivElement | null, set: (v: boolean) => void) => {
-      if (!el) return;
-      const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) set(true); }, { threshold: 0.08 });
-      obs.observe(el);
-      return () => obs.disconnect();
-    };
-    const c0 = observe(heroRef.current, setHeroVisible);
-    const c1 = observe(whyRef.current, setWhyVisible);
-    const c2 = observe(featuresRef.current, setFeaturesVisible);
-    const c3 = observe(pricingRef.current, setPricingVisible);
-    return () => { c0?.(); c1?.(); c2?.(); c3?.(); };
-  }, []);
 
   // Wall-clock timer: tick every second, compute remaining from start time
   useEffect(() => {
@@ -1729,7 +1689,7 @@ export function HomeShell() {
                     </div>
                     {/* Edit name */}
                     <button
-                      onClick={() => { setUserMenuOpen(false); setNamePromptFirst(user?.firstName ?? ""); setNamePromptLast(user?.lastName ?? ""); setNamePromptOpen(true); }}
+                      onClick={() => { setUserMenuOpen(false); setNamePromptOpen(true); }}
                       style={{ width: "100%", textAlign: "left", padding: "8px 12px", borderRadius: 8, border: "none", background: "none", fontSize: 13, color: pageText(theme), cursor: "pointer", fontFamily: "inherit" }}
                     >
                       Edit name
@@ -5187,582 +5147,32 @@ export function HomeShell() {
         );
       })()}
 
-      <section style={{ maxWidth: 1100, margin: "0 auto", padding: isMobile ? "60px 20px 80px" : "100px 24px 140px" }}>
-
-        {/* Section label */}
-        <div style={{ textAlign: "center", marginBottom: 96 }}>
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: 28 }}>
-            <BoardtivityLogo size={80} dark={theme === "dark"} />
-          </div>
-          <div style={{ fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 16, opacity: .5 }}>Built for how you think</div>
-          <h2 style={{ margin: 0, fontSize: "clamp(22px,2.8vw,38px)", fontWeight: 900, letterSpacing: "-.05em", color: pageText(theme), lineHeight: 1.06 }}>Your Board, the Way You Need It.</h2>
-        </div>
-
-        {/* ── Focus Mode — full-width immersive ── */}
-        <div ref={whyRef} style={{ marginBottom: 100, opacity: whyVisible ? 1 : 0, transform: whyVisible ? "none" : "translateY(24px)", transition: "opacity .7s ease, transform .7s ease" }}>
-          <div style={{ maxWidth: 860, margin: "0 auto", borderRadius: 24, overflow: "hidden", backgroundColor: "#060708", position: "relative" }}>
-            <div style={{ position: "absolute", top: 0, left: "15%", right: "15%", height: 1, background: "linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent)", pointerEvents: "none" }}/>
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", minHeight: isMobile ? "auto" : 400 }}>
-              {/* Left: active focus session replica matching real UI */}
-              <div style={{ padding: isMobile ? "52px 24px 40px" : "56px 48px 52px", borderRight: isMobile ? "none" : "1px solid rgba(255,255,255,.05)", borderBottom: isMobile ? "1px solid rgba(255,255,255,.05)" : "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <div style={{ width: "100%", maxWidth: 300, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
-                  {/* Step counter */}
-                  <div style={{ fontSize: 13, letterSpacing: ".16em", color: "rgba(247,248,251,.45)", fontWeight: 600 }}>2 / 3</div>
-                  {/* Current step name */}
-                  <div style={{ marginTop: 12, fontSize: 19, fontWeight: 600, color: "rgba(247,248,251,.75)", letterSpacing: "-.01em", lineHeight: 1.35, maxWidth: 260 }}>
-                    Practice problems
-                  </div>
-                  {/* Big countdown — matches real 96px timer */}
-                  <div style={{ marginTop: 28, fontSize: isMobile ? 72 : 88, fontWeight: 700, letterSpacing: "-.04em", fontVariantNumeric: "tabular-nums", lineHeight: 1, color: "#f7f8fb" }}>
-                    24:00
-                  </div>
-                  {/* Single continuous progress bar — white fill, matches real UI */}
-                  <div style={{ marginTop: 36, width: "100%", height: 5, borderRadius: 999, backgroundColor: "rgba(255,255,255,.10)", overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: "38%", borderRadius: 999, backgroundColor: "rgba(247,248,251,.88)" }}/>
-                  </div>
-                  {/* Buttons — matches real active session: 5 min break + Exit */}
-                  <div style={{ marginTop: 32, display: "flex", gap: 10 }}>
-                    <div style={{ height: 38, borderRadius: 999, border: "1px solid rgba(255,255,255,.14)", backgroundColor: "rgba(255,255,255,.08)", color: "rgba(247,248,251,.75)", padding: "0 16px", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center" }}>5 min break</div>
-                    <div style={{ height: 38, borderRadius: 999, border: "1px solid rgba(220,60,60,.25)", backgroundColor: "rgba(220,60,60,.10)", color: "rgba(255,160,160,.7)", padding: "0 16px", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center" }}>Exit</div>
-                  </div>
-                  {/* Stats card — streak + hours preview */}
-                  <div style={{ marginTop: 24, width: "100%", backgroundColor: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 14, padding: "14px 16px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                      <div style={{ flex: 1, textAlign: "center" }}>
-                        <div style={{ fontSize: 18, fontWeight: 700, color: "#f7f8fb", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
-                          <svg width="9" height="13" viewBox="0 0 11 15" fill="none"><path d="M7 1L1 8.5h4L3.5 14 10 6H6L7 1Z" fill="#facc15"/></svg>
-                          5
-                        </div>
-                        <div style={{ fontSize: 10, color: "rgba(247,248,251,.35)", marginTop: 3 }}>day streak</div>
-                      </div>
-                      <div style={{ flex: 1, textAlign: "center" }}>
-                        <div style={{ fontSize: 18, fontWeight: 700, color: "#f7f8fb" }}>14h</div>
-                        <div style={{ fontSize: 10, color: "rgba(247,248,251,.35)", marginTop: 3 }}>total focused</div>
-                      </div>
-                      <div style={{ flex: 1, textAlign: "center" }}>
-                        <div style={{ fontSize: 18, fontWeight: 700, color: "#f7f8fb" }}>23</div>
-                        <div style={{ fontSize: 10, color: "rgba(247,248,251,.35)", marginTop: 3 }}>tasks done</div>
-                      </div>
-                    </div>
-                    {/* Mini bar chart — last 7 days */}
-                    <div style={{ marginTop: 14, display: "flex", gap: 4, alignItems: "flex-end", height: 36 }}>
-                      {[0.3, 0.6, 0.45, 1, 0.7, 0.55, 0.8].map((h, i) => (
-                        <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, height: "100%", justifyContent: "flex-end" }}>
-                          <div style={{ width: "100%", borderRadius: 3, backgroundColor: i === 6 ? "#6fc46b" : "rgba(255,255,255,.28)", height: `${h * 28}px` }}/>
-                          <div style={{ fontSize: 8, color: "rgba(247,248,251,.25)" }}>{["S","M","T","W","T","F","S"][i]}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              {/* Right: copy */}
-              <div style={{ padding: isMobile ? "32px 24px 44px" : "56px 48px 52px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                <h3 style={{ margin: "0 0 18px", fontSize: "clamp(22px,2.2vw,32px)", fontWeight: 800, letterSpacing: "-.04em", color: "#f7f8fb", lineHeight: 1.08 }}>Lock in.<br/>Build the streak.</h3>
-                <p style={{ margin: "0 0 36px", fontSize: 15, color: "rgba(255,255,255,.42)", lineHeight: 1.9 }}>
-                  Commit to a session and go. Boardtivity counts down, chains through your subtasks, and logs every minute — so your streak and stats grow automatically.
-                </p>
-                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                  {["Commit to a dedicated session — your call on how long", "Auto-chain through subtasks without losing focus", "Streak and total hours tracked across every session", "Session review screen after every finish"].map((f) => (
-                    <div key={f} style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 14, color: "rgba(255,255,255,.55)" }}>
-                      <div style={{ width: 4, height: 4, borderRadius: "50%", backgroundColor: "rgba(255,255,255,.22)", flexShrink: 0 }}/>
-                      {f}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Features — 4-col editorial ── */}
-        <div ref={featuresRef}>
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr 1fr", gap: isMobile ? 28 : 0, marginBottom: 88, opacity: featuresVisible ? 1 : 0, transform: featuresVisible ? "none" : "translateY(20px)", transition: "opacity .6s ease, transform .6s ease" }}>
-            {([
-              {
-                label: "Visual Boards",
-                heading: "Everything on\nyour board.",
-                body: "Drag tasks anywhere on your board. Arrange by project, urgency, or however your mind works — no rigid columns.",
-              },
-              {
-                label: "Taskweb & Taskchain",
-                heading: "Break any task\ninto steps.",
-                body: "Expand tasks into a subtask web you can see at once, or a sequential chain you step through one at a time.",
-              },
-              {
-                label: "Focus Sessions",
-                heading: "Timed sessions,\nyour way.",
-                body: "Pick 15m, 25m, 45m, 1hr, or a custom duration. Boardtivity counts down and auto-chains through subtasks.",
-              },
-              {
-                label: "Streaks & Stats",
-                heading: "Track your\nmomentum.",
-                body: "Every session logs time and builds your streak. See total hours focused, tasks completed, and daily activity.",
-              },
-            ] as const).map((f, i) => (
-              <div key={i} style={{ borderTop: `1px solid ${border(theme)}`, paddingTop: 28, paddingRight: isMobile ? 0 : (i < 3 ? 40 : 0), paddingBottom: 0 }}>
-                <div style={{ fontSize: 10, letterSpacing: ".18em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 20, opacity: .5 }}>{f.label}</div>
-                <h3 style={{ margin: "0 0 16px", fontSize: 19, fontWeight: 800, letterSpacing: "-.03em", color: pageText(theme), lineHeight: 1.22 }}>{f.heading.split("\n").map((line, j) => <span key={j}>{line}{j === 0 ? <br/> : null}</span>)}</h3>
-                <p style={{ margin: 0, fontSize: 14, color: muted(theme), lineHeight: 1.85, opacity: .68 }}>{f.body}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ── Pricing ── */}
-        <div ref={pricingRef} style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, maxWidth: 720, margin: "0 auto" }}>
-          {/* Free */}
-          <div style={{ position: "relative", overflow: "hidden", borderRadius: 18, border: `1px solid ${border(theme)}`, backgroundColor: panel(theme), padding: "36px 28px", display: "flex", flexDirection: "column", opacity: pricingVisible ? 1 : 0, transform: pricingVisible ? "none" : "translateY(28px)", transition: "opacity .65s ease 0s, transform .65s ease 0s" }}>
-            <div style={{ fontSize: 10, letterSpacing: ".16em", textTransform: "uppercase", fontWeight: 700, color: muted(theme), marginBottom: 16 }}>Free</div>
-            <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1.08, letterSpacing: "-.035em", color: pageText(theme), marginBottom: 14 }}>Free forever</div>
-            <div style={{ fontSize: 13, color: muted(theme), marginBottom: 18, lineHeight: 1.75, flexGrow: 1 }}>Full access to every feature — boards, tasks, subtasks, focus sessions, and idea notes. No credit card needed.</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 26 }}>
-              {["1 board per type", "1 idea per board", "Focus sessions & streak tracking", "Taskweb & Taskchain"].map((f) => (
-                <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: pageText(theme) }}>
-                  <div style={{ width: 16, height: 16, borderRadius: "50%", backgroundColor: hexToRgba("#6fc46b", .15), border: "1px solid rgba(111,196,107,.35)", display: "grid", placeItems: "center", flexShrink: 0 }}>
-                    <svg width="8" height="8" viewBox="0 0 10 10"><polyline points="2,5.5 4.2,7.5 8,3" stroke="#6fc46b" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  </div>
-                  {f}
-                </div>
-              ))}
-            </div>
-            <button onClick={() => !isSignedIn && openSignUp()} style={{ ...buttonStyle(theme, false), width: "100%", fontSize: 14, height: 42, cursor: isSignedIn ? "default" : "pointer", opacity: isSignedIn ? .5 : 1 }}>{isSignedIn ? "Signed in" : "Get started free"}</button>
-          </div>
-          {/* Plus */}
-          <div style={{ position: "relative", overflow: "hidden", borderRadius: 18, border: `1px solid ${theme === "dark" ? "rgba(255,255,255,.18)" : "rgba(0,0,0,.18)"}`, backgroundColor: theme === "dark" ? "#0d0f12" : "#111315", padding: "36px 28px", display: "flex", flexDirection: "column", opacity: pricingVisible ? 1 : 0, transform: pricingVisible ? "none" : "translateY(28px)", transition: "opacity .65s ease .1s, transform .65s ease .1s" }}>
-            <div style={{ position: "absolute", top: 0, left: "10%", right: "10%", height: 1, background: "linear-gradient(90deg,transparent,rgba(255,255,255,.12),transparent)", pointerEvents: "none" }}/>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-              <div style={{ fontSize: 10, letterSpacing: ".16em", textTransform: "uppercase", fontWeight: 700, color: "rgba(255,255,255,.45)" }}>Plus</div>
-              <div style={{ fontSize: 10, letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 700, color: "rgba(255,255,255,.38)", border: "1px solid rgba(255,255,255,.14)", borderRadius: 999, padding: "3px 8px" }}>Most popular</div>
-            </div>
-            <div style={{ marginBottom: 14 }}>
-              <span style={{ fontSize: 34, fontWeight: 800, lineHeight: 1.08, letterSpacing: "-.035em", color: "#f7f8fb" }}>$6</span>
-              <span style={{ fontSize: 16, fontWeight: 600, color: "rgba(255,255,255,.45)", marginLeft: 4 }}>/ mo</span>
-              <span style={{ fontSize: 12, color: "rgba(255,255,255,.35)", marginLeft: 10 }}>or $60 / yr</span>
-              <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", backgroundColor: "#6fc46b", color: "#fff", borderRadius: 99, padding: "2px 7px" }}>Save 17%</span>
-            </div>
-            <div style={{ fontSize: 13, lineHeight: 1.75, color: "rgba(255,255,255,.42)", marginBottom: 18, flexGrow: 1 }}>More boards, BOB AI assistant, and everything we build next.</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 26 }}>
-              {["Up to 10 task boards", "Up to 5 idea boards", "BOB AI assistant", "Early access to new features"].map((f) => (
-                <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "rgba(255,255,255,.72)" }}>
-                  <div style={{ width: 16, height: 16, borderRadius: "50%", backgroundColor: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.18)", display: "grid", placeItems: "center", flexShrink: 0 }}>
-                    <svg width="8" height="8" viewBox="0 0 10 10"><polyline points="2,5.5 4.2,7.5 8,3" stroke="rgba(255,255,255,.7)" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  </div>
-                  {f}
-                </div>
-              ))}
-            </div>
-            {isPlus ? (
-              <button disabled style={{ width: "100%", height: 42, borderRadius: 999, border: "1px solid rgba(255,255,255,.18)", backgroundColor: "transparent", color: "rgba(255,255,255,.55)", fontSize: 14, fontWeight: 700, cursor: "default" }}>✓ Current plan</button>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <button onClick={() => startCheckout("annual")} disabled={checkoutLoading} style={{ width: "100%", height: 42, borderRadius: 999, border: "none", backgroundColor: "#f7f8fb", color: "#111315", fontSize: 14, fontWeight: 700, cursor: "pointer", opacity: checkoutLoading ? 0.6 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                  {checkoutLoading ? "Loading…" : <><span>Get Plus — $60 / yr</span><span style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", backgroundColor: "#6fc46b", color: "#fff", borderRadius: 99, padding: "2px 7px" }}>Save 17%</span></>}
-                </button>
-                <button onClick={() => startCheckout("monthly")} disabled={checkoutLoading} style={{ width: "100%", height: 42, borderRadius: 999, border: "1px solid rgba(255,255,255,.2)", backgroundColor: "transparent", color: "rgba(255,255,255,.7)", fontSize: 14, fontWeight: 600, cursor: "pointer", opacity: checkoutLoading ? 0.6 : 1 }}>
-                  {checkoutLoading ? "Loading…" : "Get Plus — $6 / mo"}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
+      <MarketingSections theme={theme} isMobile={isMobile} isSignedIn={isSignedIn} isPlus={isPlus} checkoutLoading={checkoutLoading} onSignUp={() => openSignUp()} onCheckout={startCheckout} />
 
       {/* ── Feedback Board ── */}
-      <section ref={feedbackRef} id="feedback" style={{ maxWidth: 720, margin: "0 auto", padding: isMobile ? "60px 20px 80px" : "100px 32px 120px" }}>
-        <div style={{ marginBottom: 40 }}>
-          <div style={{ fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 10, opacity: .5 }}>Community</div>
-          <h2 style={{ margin: "0 0 8px", fontSize: "clamp(26px,3vw,38px)", fontWeight: 900, letterSpacing: "-.04em", color: pageText(theme), lineHeight: 1.1 }}>Feature Requests & Feedback</h2>
-          <p style={{ margin: 0, fontSize: 15, color: muted(theme), opacity: .6, lineHeight: 1.7 }}>Share what you'd like to see. Upvote ideas you care about.</p>
-        </div>
-
-        {/* Post form */}
-        {isSignedIn ? (
-          <div style={{ marginBottom: 28, backgroundColor: theme === "dark" ? "#17191d" : "#ffffff", border: `1px solid ${border(theme)}`, borderRadius: 14, padding: "18px 20px" }}>
-            <textarea
-              placeholder="Share feedback, request a feature, or report a bug…"
-              value={feedbackContent}
-              onChange={e => { setFeedbackContent(e.target.value); setFeedbackError(null); }}
-              maxLength={500}
-              rows={3}
-              style={{ width: "100%", background: "none", border: "none", outline: "none", resize: "none", fontSize: 14, color: pageText(theme), fontFamily: "inherit", lineHeight: 1.65, boxSizing: "border-box" }}
-            />
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10, gap: 12, borderTop: `1px solid ${border(theme)}`, paddingTop: 10 }}>
-              <div style={{ fontSize: 12, color: feedbackError ? "#c03030" : muted(theme), opacity: feedbackError ? 1 : .4 }}>
-                {feedbackError ?? `${feedbackContent.length}/500`}
-              </div>
-              <button
-                disabled={feedbackPosting || !feedbackContent.trim()}
-                onClick={async () => {
-                  setFeedbackPosting(true);
-                  setFeedbackError(null);
-                  try {
-                    await postFeedback({ content: feedbackContent });
-                    setFeedbackContent("");
-                  } catch (e: any) {
-                    const msg = e?.message ?? "";
-                    const rlMatch = msg.match(/rate_limit:(\d+)/);
-                    if (rlMatch) {
-                      setFeedbackError(`You already posted today. Try again in ${rlMatch[1]}h.`);
-                    } else {
-                      setFeedbackError("Something went wrong, try again.");
-                    }
-                  }
-                  setFeedbackPosting(false);
-                }}
-                style={{ height: 34, padding: "0 16px", borderRadius: 8, border: "none", backgroundColor: theme === "dark" ? "#f7f8fb" : "#111315", color: theme === "dark" ? "#111315" : "#f7f8fb", fontSize: 13, fontWeight: 700, cursor: feedbackPosting || !feedbackContent.trim() ? "not-allowed" : "pointer", opacity: feedbackPosting || !feedbackContent.trim() ? .4 : 1, fontFamily: "inherit" }}
-              >
-                {feedbackPosting ? "Posting…" : "Post"}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div style={{ marginBottom: 28, backgroundColor: theme === "dark" ? "#17191d" : "#ffffff", border: `1px solid ${border(theme)}`, borderRadius: 14, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-            <span style={{ fontSize: 14, color: muted(theme), opacity: .65 }}>Sign in to post or vote.</span>
-            <button onClick={() => openSignIn()} style={{ ...buttonStyle(theme, true), fontSize: 13, height: 34 }}>Sign in</button>
-          </div>
-        )}
-
-        {/* Posts list */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          {feedbackPosts === undefined ? (
-            <div style={{ textAlign: "center", padding: "60px 0", fontSize: 14, color: muted(theme), opacity: .4 }}>Loading…</div>
-          ) : feedbackPosts.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "60px 0", fontSize: 14, color: muted(theme), opacity: .4 }}>No posts yet — be the first!</div>
-          ) : feedbackPosts.map((p) => {
-            const score = p.upvotes - p.downvotes;
-            const isReplying = replyingTo === p._id;
-            return (
-              <div key={p._id} style={{ borderRadius: 12, overflow: "hidden" }}>
-                {/* Post row */}
-                <div style={{ display: "flex", gap: 0, backgroundColor: theme === "dark" ? "#17191d" : "#ffffff", border: `1px solid ${border(theme)}`, borderRadius: isReplying || (p.replies && p.replies.length > 0) ? "12px 12px 0 0" : 12, padding: "14px 16px", alignItems: "flex-start" }}>
-                  {/* Vote column */}
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, flexShrink: 0, marginRight: 12, paddingTop: 1 }}>
-                    <button
-                      onClick={async () => { if (isSignedIn) await voteFeedback({ postId: p._id, direction: "up" }); else openSignIn(); }}
-                      style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 26, height: 26, borderRadius: 6, border: "none", backgroundColor: p.userVote === "up" ? (theme === "dark" ? "rgba(111,196,107,.18)" : "rgba(60,180,90,.12)") : "transparent", cursor: "pointer", transition: "all .1s" }}
-                    >
-                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1.5L10.5 8H1.5L6 1.5Z" fill={p.userVote === "up" ? "#6fc46b" : muted(theme)} opacity={p.userVote === "up" ? 1 : 0.45}/></svg>
-                    </button>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: score > 0 ? "#6fc46b" : score < 0 ? "#c03030" : muted(theme), lineHeight: 1, minWidth: 16, textAlign: "center" }}>{score}</span>
-                    <button
-                      onClick={async () => { if (isSignedIn) await voteFeedback({ postId: p._id, direction: "down" }); else openSignIn(); }}
-                      style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 26, height: 26, borderRadius: 6, border: "none", backgroundColor: p.userVote === "down" ? (theme === "dark" ? "rgba(200,60,60,.18)" : "rgba(180,40,40,.1)") : "transparent", cursor: "pointer", transition: "all .1s" }}
-                    >
-                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 10.5L1.5 4H10.5L6 10.5Z" fill={p.userVote === "down" ? "#c03030" : muted(theme)} opacity={p.userVote === "down" ? 1 : 0.45}/></svg>
-                    </button>
-                  </div>
-                  {/* Content */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, color: muted(theme), opacity: .5, marginBottom: 6 }}>
-                      {p.authorName} · {new Date(p.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                    </div>
-                    <div style={{ fontSize: 15, color: pageText(theme), lineHeight: 1.7, marginBottom: 10, wordBreak: "break-word" }}>{p.content}</div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <button
-                        onClick={() => { setReplyingTo(isReplying ? null : p._id); setReplyContent(""); setReplyError(null); }}
-                        style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, color: muted(theme), opacity: .55, padding: 0, fontFamily: "inherit" }}
-                        onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
-                        onMouseLeave={e => (e.currentTarget.style.opacity = "0.55")}
-                      >
-                        {isReplying ? "Cancel" : `Reply${p.replies && p.replies.length > 0 ? ` (${p.replies.length})` : ""}`}
-                      </button>
-                      {p.isOwner && (
-                        <button
-                          onClick={async () => { await deleteFeedback({ postId: p._id }); }}
-                          style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "#c03030", opacity: .5, padding: 0, fontFamily: "inherit" }}
-                          onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
-                          onMouseLeave={e => (e.currentTarget.style.opacity = "0.5")}
-                        >
-                          Delete
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Replies */}
-                {(p.replies && p.replies.length > 0) && (
-                  <div style={{ backgroundColor: theme === "dark" ? "#13151a" : "#f8f8f9", border: `1px solid ${border(theme)}`, borderTop: "none", borderRadius: isReplying ? "0" : "0 0 12px 12px" }}>
-                    {p.replies.map((r, i) => (
-                      <div key={r._id} style={{ display: "flex", gap: 10, padding: "12px 16px 12px 52px", borderTop: i > 0 ? `1px solid ${border(theme)}` : "none" }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 12, color: muted(theme), opacity: .45, marginBottom: 4 }}>
-                            {r.authorName} · {new Date(r.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                          </div>
-                          <div style={{ fontSize: 14, color: pageText(theme), lineHeight: 1.65, wordBreak: "break-word", opacity: .85 }}>{r.content}</div>
-                        </div>
-                        {r.isOwner && (
-                          <button
-                            onClick={async () => { await deleteReplyFeedback({ replyId: r._id }); }}
-                            style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, fontWeight: 600, color: "#c03030", opacity: .4, padding: 0, fontFamily: "inherit", flexShrink: 0, alignSelf: "flex-start", marginTop: 2 }}
-                            onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
-                            onMouseLeave={e => (e.currentTarget.style.opacity = "0.4")}
-                          >
-                            Delete
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Reply form */}
-                {isReplying && (
-                  <div style={{ backgroundColor: theme === "dark" ? "#13151a" : "#f8f8f9", border: `1px solid ${border(theme)}`, borderTop: "none", borderRadius: "0 0 12px 12px", padding: "12px 16px 12px 52px" }}>
-                    <textarea
-                      autoFocus
-                      placeholder="Write a reply…"
-                      value={replyContent}
-                      onChange={e => { setReplyContent(e.target.value); setReplyError(null); }}
-                      maxLength={300}
-                      rows={2}
-                      style={{ width: "100%", background: theme === "dark" ? "rgba(255,255,255,.04)" : "rgba(0,0,0,.03)", border: `1px solid ${border(theme)}`, borderRadius: 8, outline: "none", resize: "none", fontSize: 13, color: pageText(theme), fontFamily: "inherit", lineHeight: 1.6, boxSizing: "border-box", padding: "8px 12px" }}
-                    />
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8, gap: 8 }}>
-                      <div style={{ fontSize: 11, color: replyError ? "#c03030" : muted(theme), opacity: replyError ? 1 : .4 }}>
-                        {replyError ?? `${replyContent.length}/300`}
-                      </div>
-                      <button
-                        disabled={replyPosting || !replyContent.trim()}
-                        onClick={async () => {
-                          setReplyPosting(true);
-                          setReplyError(null);
-                          try {
-                            await replyFeedback({ postId: p._id, content: replyContent });
-                            setReplyContent("");
-                            setReplyingTo(null);
-                          } catch (e: any) {
-                            const msg = e?.message ?? "";
-                            if (msg.includes("reply_rate_limit")) {
-                              setReplyError("You've replied 5 times today. Try again tomorrow.");
-                            } else {
-                              setReplyError("Something went wrong, try again.");
-                            }
-                          }
-                          setReplyPosting(false);
-                        }}
-                        style={{ height: 30, padding: "0 14px", borderRadius: 7, border: "none", backgroundColor: theme === "dark" ? "#f7f8fb" : "#111315", color: theme === "dark" ? "#111315" : "#f7f8fb", fontSize: 12, fontWeight: 700, cursor: replyPosting || !replyContent.trim() ? "not-allowed" : "pointer", opacity: replyPosting || !replyContent.trim() ? .4 : 1, fontFamily: "inherit" }}
-                      >
-                        {replyPosting ? "…" : "Reply"}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </section>
+      <FeedbackBoard theme={theme} isMobile={isMobile} isSignedIn={isSignedIn} onSignIn={() => openSignIn()} sectionRef={feedbackRef} />
 
       {/* ── Upgrade modal ── */}
-      {upgradeOpen && (
-        <div
-          style={{ position: "fixed", inset: 0, zIndex: 60, backgroundColor: theme === "dark" ? "rgba(6,8,12,.7)" : "rgba(10,10,12,.32)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
-          onClick={(e) => { if (e.target === e.currentTarget) setUpgradeOpen(false); }}
-        >
-          <div style={{ width: "min(400px,100%)", backgroundColor: theme === "dark" ? "#1a1d22" : "#fbf8f1", borderRadius: 20, boxShadow: "0 30px 80px rgba(0,0,0,.28)", border: `1px solid ${border(theme)}`, padding: "28px 26px 22px", fontFamily: "inherit" }}>
-            {/* Label */}
-            <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", fontWeight: 700, color: muted(theme), marginBottom: 14 }}>Boardtivity Plus</div>
-            <div style={{ fontSize: 21, fontWeight: 800, letterSpacing: "-.03em", color: pageText(theme), marginBottom: 8, lineHeight: 1.2 }}>
-              Unlock more with Plus
-            </div>
-            <div style={{ fontSize: 14, color: muted(theme), lineHeight: 1.65, marginBottom: 22 }}>
-              More boards, BOB AI assistant, and everything we build next.
-            </div>
-            {/* Feature list */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 9, marginBottom: 24 }}>
-              {[
-                "Up to 10 task boards",
-                "Up to 5 idea boards",
-                "BOB AI assistant",
-                "Early access to new features",
-              ].map((f) => (
-                <div key={f} style={{ display: "flex", alignItems: "flex-start", gap: 9, fontSize: 13.5, color: pageText(theme) }}>
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0, marginTop: 2 }}><polyline points="2,7 5.5,10.5 12,3.5" stroke="#6fc46b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  {f}
-                </div>
-              ))}
-            </div>
-            {/* Divider */}
-            <div style={{ height: 1, backgroundColor: border(theme), marginBottom: 18 }} />
-            {/* CTA */}
-            {checkoutError && <div style={{ fontSize: 12, color: "#c03030", marginBottom: 10, textAlign: "center" }}>{checkoutError}</div>}
-            {/* Annual */}
-            <button
-              onClick={() => { setUpgradeOpen(false); startCheckout("annual"); }}
-              disabled={checkoutLoading}
-              style={{ width: "100%", padding: "13px 16px", borderRadius: 11, border: "none", backgroundColor: pageText(theme), color: pageBg(theme), fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-.02em", marginBottom: 8, opacity: checkoutLoading ? 0.6 : 1, display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative" }}
-            >
-              <span>{checkoutLoading ? "Loading…" : "Annual — $60 / yr"}</span>
-              <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", backgroundColor: "#6fc46b", color: "#fff", borderRadius: 99, padding: "2px 8px" }}>Save 17%</span>
-            </button>
-            {/* Monthly */}
-            <button
-              onClick={() => { setUpgradeOpen(false); startCheckout("monthly"); }}
-              disabled={checkoutLoading}
-              style={{ width: "100%", padding: "13px 16px", borderRadius: 11, border: `1px solid ${border(theme)}`, background: "none", color: pageText(theme), fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-.02em", marginBottom: 8, opacity: checkoutLoading ? 0.6 : 1, display: "flex", alignItems: "center", justifyContent: "space-between" }}
-            >
-              <span>{checkoutLoading ? "Loading…" : "Monthly — $6 / mo"}</span>
-              <span style={{ fontSize: 12, color: muted(theme) }}>→</span>
-            </button>
-            <button
-              onClick={() => setUpgradeOpen(false)}
-              style={{ width: "100%", padding: "10px 0", borderRadius: 11, border: "none", background: "none", color: muted(theme), fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
-            >
-              Maybe later
-            </button>
-            <div style={{ textAlign: "center", marginTop: 10, fontSize: 11, color: muted(theme) }}>
-              <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: muted(theme), textDecoration: "none" }}>Terms</a>
-              <span style={{ margin: "0 6px" }}>·</span>
-              <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: muted(theme), textDecoration: "none" }}>Privacy</a>
-            </div>
-          </div>
-        </div>
-      )}
+      {upgradeOpen && <UpgradeModal theme={theme} onClose={() => setUpgradeOpen(false)} onCheckout={startCheckout} checkoutLoading={checkoutLoading} checkoutError={checkoutError} />}
 
       {/* ── Limit reached modal (Plus users at max) ── */}
-      {limitReachedOpen && (
-        <div
-          style={{ position: "fixed", inset: 0, zIndex: 60, backgroundColor: theme === "dark" ? "rgba(6,8,12,.7)" : "rgba(10,10,12,.32)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
-          onClick={(e) => { if (e.target === e.currentTarget) setLimitReachedOpen(false); }}
-        >
-          <div style={{ width: "min(360px,100%)", backgroundColor: theme === "dark" ? "#1a1d22" : "#fbf8f1", borderRadius: 20, boxShadow: "0 30px 80px rgba(0,0,0,.28)", border: `1px solid ${border(theme)}`, padding: "28px 26px 22px", fontFamily: "inherit", textAlign: "center" }}>
-            <div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }}>
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={pageText(theme)} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            </div>
-            <div style={{ fontSize: 19, fontWeight: 800, letterSpacing: "-.03em", color: pageText(theme), marginBottom: 8 }}>You've hit the limit</div>
-            <div style={{ fontSize: 14, color: muted(theme), lineHeight: 1.65, marginBottom: 22 }}>
-              Plus accounts support up to 10 task boards and 5 idea boards. You've reached the maximum.
-            </div>
-            <button
-              onClick={() => setLimitReachedOpen(false)}
-              style={{ width: "100%", padding: "12px 0", borderRadius: 11, border: "none", backgroundColor: pageText(theme), color: pageBg(theme), fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}
-            >
-              Got it
-            </button>
-          </div>
-        </div>
-      )}
+      {limitReachedOpen && <LimitReachedModal theme={theme} onClose={() => setLimitReachedOpen(false)} />}
 
       {/* ── Post-purchase thank you modal ── */}
-      {showSubscribedModal && (
-        <div
-          style={{ position: "fixed", inset: 0, zIndex: 60, backgroundColor: theme === "dark" ? "rgba(6,8,12,.8)" : "rgba(10,10,12,.4)", backdropFilter: "blur(12px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
-          onClick={(e) => { if (e.target === e.currentTarget) setShowSubscribedModal(false); }}
-        >
-          <div style={{ width: "min(400px,100%)", backgroundColor: theme === "dark" ? "#1a1d22" : "#fbf8f1", borderRadius: 22, boxShadow: "0 40px 100px rgba(0,0,0,.32)", border: `1px solid ${border(theme)}`, padding: "36px 30px 26px", fontFamily: "inherit", textAlign: "center" }}>
-            <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
-              <span style={{ fontSize: 13, letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 700, color: theme === "dark" ? "rgba(255,255,255,.65)" : "rgba(0,0,0,.5)", background: theme === "dark" ? "rgba(255,255,255,.08)" : "rgba(0,0,0,.06)", border: `1px solid ${border(theme)}`, borderRadius: 999, padding: "6px 16px" }}>
-                Plus
-              </span>
-            </div>
-            <div style={{ fontSize: 11, letterSpacing: ".16em", textTransform: "uppercase", fontWeight: 700, color: muted(theme), marginBottom: 10 }}>Now on your account</div>
-            <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: "-.04em", color: pageText(theme), marginBottom: 10 }}>You're all set</div>
-            <div style={{ fontSize: 14, color: muted(theme), lineHeight: 1.7, marginBottom: 28 }}>
-              Your subscription is active. You now have access to up to 10 task boards, 5 idea boards, BOB AI assistant, and more features to come. Thank you for your support!
-            </div>
-            <button
-              onClick={() => setShowSubscribedModal(false)}
-              style={{ width: "100%", padding: "14px 0", borderRadius: 12, border: "none", background: theme === "dark" ? "#f7f8fb" : "#111315", color: theme === "dark" ? "#111315" : "#f7f8fb", fontSize: 15, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-.02em" }}
-            >
-              Jump back in →
-            </button>
-          </div>
-        </div>
-      )}
+      {showSubscribedModal && <SubscribedModal theme={theme} onClose={() => setShowSubscribedModal(false)} />}
 
       {/* ── Sync overhaul update notice ── */}
-      {showUpdateModal && (
-        <div
-          style={{ position: "fixed", inset: 0, zIndex: 60, backgroundColor: theme === "dark" ? "rgba(6,8,12,.8)" : "rgba(10,10,12,.4)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
-          onClick={(e) => { if (e.target === e.currentTarget) { setShowUpdateModal(false); try { localStorage.setItem("boardtivity_update_sync_v1_seen", "1"); } catch {} } }}
-        >
-          <div style={{ width: "min(420px,100%)", backgroundColor: theme === "dark" ? "#1a1d22" : "#fbf8f1", borderRadius: 22, boxShadow: "0 40px 100px rgba(0,0,0,.35)", border: `1px solid ${border(theme)}`, padding: "36px 30px 28px", fontFamily: "inherit", textAlign: "center" }}>
-            <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
-              <span style={{ fontSize: 12, letterSpacing: ".14em", textTransform: "uppercase", fontWeight: 700, color: theme === "dark" ? "rgba(255,255,255,.65)" : "rgba(0,0,0,.5)", background: theme === "dark" ? "rgba(255,255,255,.08)" : "rgba(0,0,0,.06)", border: `1px solid ${border(theme)}`, borderRadius: 999, padding: "6px 16px" }}>
-                What&apos;s new
-              </span>
-            </div>
-            <div style={{ fontSize: 24, fontWeight: 900, letterSpacing: "-.04em", color: pageText(theme), marginBottom: 8, lineHeight: 1.2 }}>
-              Boardtivity just got a major upgrade ✦
-            </div>
-            <div style={{ fontSize: 14, color: muted(theme), lineHeight: 1.75, marginBottom: 24, textAlign: "left" }}>
-              <div style={{ marginBottom: 10 }}>We&apos;ve been heads down building — here&apos;s what&apos;s new:</div>
-              {[
-                ["Real-time sync", "your board now stays in perfect sync across all your devices, instantly"],
-                ["One step closer to BOB", "our AI agent is coming, and it\u2019s going to change how you work"],
-                ["Subtasks revamped", "cleaner flow for building out your tasks step by step"],
-                ["Stability improvements", "a ton of under-the-hood fixes for a smoother experience"],
-              ].map(([title, desc]) => (
-                <div key={title} style={{ display: "flex", gap: 10, marginBottom: 8, alignItems: "flex-start" }}>
-                  <span style={{ marginTop: 2, flexShrink: 0, width: 6, height: 6, borderRadius: "50%", background: theme === "dark" ? "rgba(255,255,255,.35)" : "rgba(0,0,0,.25)", display: "inline-block" }} />
-                  <span><strong style={{ color: pageText(theme) }}>{title}</strong> — {desc}</span>
-                </div>
-              ))}
-            </div>
-            <div style={{ fontSize: 13, color: muted(theme), lineHeight: 1.6, marginBottom: 22, padding: "12px 14px", borderRadius: 10, background: theme === "dark" ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", border: `1px solid ${border(theme)}`, textAlign: "left" }}>
-              Unfortunately, this update may have caused some tasks or ideas to not carry over. We&apos;re sorry for the disruption — everything will sync perfectly from here.
-            </div>
-            <button
-              onClick={() => { setShowUpdateModal(false); try { localStorage.setItem("boardtivity_update_sync_v1_seen", "1"); } catch {} }}
-              style={{ width: "100%", padding: "14px 0", borderRadius: 12, border: "none", background: theme === "dark" ? "#f7f8fb" : "#111315", color: theme === "dark" ? "#111315" : "#f7f8fb", fontSize: 15, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-.02em" }}
-            >
-              Let&apos;s go →
-            </button>
-            <div style={{ marginTop: 12, fontSize: 12, color: muted(theme) }}>— The Boardtivity Team</div>
-          </div>
-        </div>
-      )}
+      {showUpdateModal && <WhatsNewModal theme={theme} onClose={() => { setShowUpdateModal(false); try { localStorage.setItem("boardtivity_update_sync_v1_seen", "1"); } catch {} }} />}
 
       {/* ── Name prompt modal ── */}
       {namePromptOpen && (
-        <div
-          style={{ position: "fixed", inset: 0, zIndex: 60, backgroundColor: theme === "dark" ? "rgba(6,8,12,.7)" : "rgba(10,10,12,.32)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
-        >
-          <div style={{ width: "min(380px,100%)", backgroundColor: theme === "dark" ? "#1a1d22" : "#fbf8f1", borderRadius: 20, boxShadow: "0 30px 80px rgba(0,0,0,.28)", border: `1px solid ${border(theme)}`, padding: "28px 26px 22px", fontFamily: "inherit" }}>
-            <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", fontWeight: 700, color: muted(theme), marginBottom: 12 }}>Quick setup</div>
-            <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: "-.03em", color: pageText(theme), marginBottom: 8 }}>What's your name?</div>
-            <div style={{ fontSize: 14, color: muted(theme), lineHeight: 1.6, marginBottom: 22 }}>Add your name so we can personalize your experience.</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 18 }}>
-              {[
-                { placeholder: "First name", value: namePromptFirst, setter: setNamePromptFirst },
-                { placeholder: "Last name (optional)", value: namePromptLast, setter: setNamePromptLast },
-              ].map(({ placeholder, value, setter }) => (
-                <input
-                  key={placeholder}
-                  type="text"
-                  placeholder={placeholder}
-                  value={value}
-                  onChange={e => setter(e.target.value)}
-                  style={{ width: "100%", height: 42, borderRadius: 10, border: `1px solid ${border(theme)}`, backgroundColor: theme === "dark" ? "rgba(255,255,255,.05)" : "#fff", color: pageText(theme), fontSize: 14, padding: "0 14px", fontFamily: "inherit", outline: "none", boxSizing: "border-box" }}
-                />
-              ))}
-            </div>
-            <button
-              disabled={!namePromptFirst.trim() || namePromptSaving}
-              onClick={async () => {
-                if (!namePromptFirst.trim() || !user) return;
-                setNamePromptSaving(true);
-                try {
-                  await user.update({ firstName: namePromptFirst.trim(), lastName: namePromptLast.trim() || undefined });
-                  setNamePromptOpen(false);
-                  localStorage.setItem("boardtivity_name_prompt_dismissed", "1");
-                } catch {}
-                setNamePromptSaving(false);
-              }}
-              style={{ width: "100%", padding: "13px 0", borderRadius: 11, border: "none", backgroundColor: pageText(theme), color: pageBg(theme), fontSize: 14, fontWeight: 800, cursor: namePromptFirst.trim() ? "pointer" : "not-allowed", fontFamily: "inherit", marginBottom: 8, opacity: !namePromptFirst.trim() || namePromptSaving ? 0.5 : 1 }}
-            >
-              {namePromptSaving ? "Saving…" : "Save name"}
-            </button>
-            <button
-              onClick={() => { setNamePromptOpen(false); try { localStorage.setItem("boardtivity_name_prompt_dismissed", "1"); } catch {} }}
-              style={{ width: "100%", padding: "10px 0", borderRadius: 11, border: "none", background: "none", color: muted(theme), fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
-            >
-              Skip for now
-            </button>
-          </div>
-        </div>
+        <NamePromptModal
+          theme={theme}
+          initialFirst={user?.firstName ?? ""}
+          initialLast={user?.lastName ?? ""}
+          onSave={async (first, last) => { if (user) await user.update({ firstName: first, lastName: last || undefined }); }}
+          onDismiss={() => { setNamePromptOpen(false); try { localStorage.setItem("boardtivity_name_prompt_dismissed", "1"); } catch {} }}
+        />
       )}
 
 
