@@ -25,6 +25,7 @@ Visual task + idea board with focus sessions and an AI assistant (BOB). Live at 
 - `src/components/modals/AccountModals.tsx`: Upgrade, LimitReached, Subscribed, WhatsNew, NamePrompt. All use `src/components/ui/Modal.tsx`.
 - `src/lib/`: `board.ts` (types), `ui.ts` (theme tokens + style builders like `buttonStyle`, `pageText`), `colors.ts` (note/task palettes), `dates.ts`, `boardLayout.ts` (canvas sizes, ids, subtask layout), `breakdown.ts` (offline subtask heuristics), `hooks.ts` (`useIsMobile`, `useRevealOnScroll`).
 - For new UI, reuse `src/lib/ui.ts` tokens and `Modal` instead of hand-writing colors and overlays.
+- Every pop-up (dialogs, focus screens, panels) must render inside `<OverlayLayer>` at the end of `HomeShell`. It portals into the fullscreen board when fullscreen is on (the browser only paints that element) and into `<body>` otherwise. Anything rendered elsewhere disappears in fullscreen. Clerk modals can't be portaled, so `openSignIn`/`openSignUp` from `useHome()` exit fullscreen first.
 - BOB access is enforced server-side in `api/bob/route.ts` (Plus status + remaining tokens via Convex). Usage is still recorded from the client (`recordUsage` in BobAgent).
 - Convex tables: `convex/schema.ts` (userBoards, focusStats, reminders, subscriptions, feedback*, bobUsage, sessions, waitlist, emailPrefs).
 

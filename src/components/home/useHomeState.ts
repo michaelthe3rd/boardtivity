@@ -177,7 +177,19 @@ export function useHomeState() {
 
   const isAdmin = useQuery(api.admin.checkAdmin);
   const { user, isSignedIn, isLoaded: clerkLoaded } = useUser();
-  const { openSignIn, openSignUp, signOut } = useClerk();
+  const clerk = useClerk();
+  const { signOut } = clerk;
+  // Clerk renders its modals at the page level, which the browser hides while the board is
+  // fullscreen — so leave fullscreen first.
+  function leaveFullscreenThen(fn: () => void) {
+    if (typeof document !== "undefined" && document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {}).finally(fn);
+    } else {
+      fn();
+    }
+  }
+  const openSignIn = (...args: Parameters<typeof clerk.openSignIn>) => leaveFullscreenThen(() => clerk.openSignIn(...args));
+  const openSignUp = (...args: Parameters<typeof clerk.openSignUp>) => leaveFullscreenThen(() => clerk.openSignUp(...args));
 
   const isNativeApp = typeof navigator !== "undefined" && navigator.userAgent.includes("BoardtivityApp");
 
@@ -330,7 +342,7 @@ export function useHomeState() {
     [boardTheme]
   );
 
-  // In fullscreen, overflow:hidden clips fixed-position modals — override it
+  // Fullscreen board: square edges, full height, and no clipping of overlays portaled into it (see OverlayLayer)
   const fullscreenOverride: CSSProperties = isFullscreen
     ? { borderRadius: 0, border: "none", minHeight: "100vh", overflow: "visible" }
     : {};

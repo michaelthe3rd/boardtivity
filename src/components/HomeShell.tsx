@@ -6,6 +6,7 @@ import TourOverlay from "@/components/TourOverlay";
 import { useHomeState } from "@/components/home/useHomeState";
 import { HomeContext } from "@/components/home/HomeContext";
 import LockIcon from "@/components/ui/LockIcon";
+import OverlayLayer from "@/components/ui/OverlayLayer";
 import RenameBoardModal from "@/components/board/RenameBoardModal";
 import DraftPromptModal from "@/components/board/DraftPromptModal";
 import StepModal from "@/components/board/StepModal";
@@ -846,70 +847,64 @@ export function HomeShell() {
             </svg>
             {thoughtMode ? "Add Idea" : "Add Task"}
           </button>
-      <RenameBoardModal />
 
-      <TaskComposer />
-
-      <NoteDetailModal />
-
-      <StepModal />
-
-      <FocusOverlay />
-
-      <DraftPromptModal />
-
-      {/* ── Duration Picker (inside board-shell so it shows in fullscreen) ── */}
-      {isFullscreen && focusPicker && (() => {
-        const pickerNote = notes.find(n => n.id === focusPicker.noteId);
-        if (!pickerNote) return null;
-        return <DurationPicker note={pickerNote} onCancel={() => setFocusPicker(null)} onStart={mins => commitFocus(focusPicker.noteId, focusPicker.chain, mins)} />;
-      })()}
 
 
       </div>
       </section>
 
-      {/* ── Session Review Modal — outside board-shell so position:fixed works on mobile ── */}
-      <SessionReviewModal />
 
-      {/* ── Profile Panel — outside board-shell so position:fixed works on mobile ── */}
-      <ProfilePanel />
 
       <MarketingSections theme={theme} isMobile={isMobile} isSignedIn={isSignedIn} isPlus={isPlus} checkoutLoading={checkoutLoading} onSignUp={() => openSignUp()} onCheckout={startCheckout} />
 
       {/* ── Feedback Board ── */}
       <FeedbackBoard theme={theme} isMobile={isMobile} isSignedIn={isSignedIn} onSignIn={() => openSignIn()} sectionRef={feedbackRef} />
 
-      {/* ── Upgrade modal ── */}
-      {upgradeOpen && <UpgradeModal theme={theme} onClose={() => setUpgradeOpen(false)} onCheckout={startCheckout} checkoutLoading={checkoutLoading} checkoutError={checkoutError} />}
 
-      {/* ── Limit reached modal (Plus users at max) ── */}
-      {limitReachedOpen && <LimitReachedModal theme={theme} onClose={() => setLimitReachedOpen(false)} />}
+      {/* ── Every pop-up lives here. OverlayLayer portals into the fullscreen board when fullscreen
+           is on (the browser only shows that element), otherwise into <body>. ── */}
+      <OverlayLayer>
+        {/* Desktop-board dialogs: phones use MobileBoard's own sheets and focus screen instead */}
+        {(!isMobile || isNativeApp) && (
+          <>
+            <RenameBoardModal />
+            <TaskComposer />
+            <NoteDetailModal />
+            <StepModal />
+            <FocusOverlay />
+            <DraftPromptModal />
+          </>
+        )}
+        {focusPicker && (() => {
+          const pickerNote = notes.find(n => n.id === focusPicker.noteId);
+          if (!pickerNote) return null;
+          return <DurationPicker note={pickerNote} onCancel={() => setFocusPicker(null)} onStart={mins => commitFocus(focusPicker.noteId, focusPicker.chain, mins)} />;
+        })()}
+        <SessionReviewModal />
+        <ProfilePanel />
+        {/* ── Upgrade modal ── */}
+        {upgradeOpen && <UpgradeModal theme={theme} onClose={() => setUpgradeOpen(false)} onCheckout={startCheckout} checkoutLoading={checkoutLoading} checkoutError={checkoutError} />}
 
-      {/* ── Post-purchase thank you modal ── */}
-      {showSubscribedModal && <SubscribedModal theme={theme} onClose={() => setShowSubscribedModal(false)} />}
+        {/* ── Limit reached modal (Plus users at max) ── */}
+        {limitReachedOpen && <LimitReachedModal theme={theme} onClose={() => setLimitReachedOpen(false)} />}
 
-      {/* ── Sync overhaul update notice ── */}
-      {showUpdateModal && <WhatsNewModal theme={theme} onClose={() => { setShowUpdateModal(false); try { localStorage.setItem("boardtivity_update_sync_v1_seen", "1"); } catch {} }} />}
+        {/* ── Post-purchase thank you modal ── */}
+        {showSubscribedModal && <SubscribedModal theme={theme} onClose={() => setShowSubscribedModal(false)} />}
 
-      {/* ── Name prompt modal ── */}
-      {namePromptOpen && (
-        <NamePromptModal
-          theme={theme}
-          initialFirst={user?.firstName ?? ""}
-          initialLast={user?.lastName ?? ""}
-          onSave={async (first, last) => { if (user) await user.update({ firstName: first, lastName: last || undefined }); }}
-          onDismiss={() => { setNamePromptOpen(false); try { localStorage.setItem("boardtivity_name_prompt_dismissed", "1"); } catch {} }}
-        />
-      )}
+        {/* ── Sync overhaul update notice ── */}
+        {showUpdateModal && <WhatsNewModal theme={theme} onClose={() => { setShowUpdateModal(false); try { localStorage.setItem("boardtivity_update_sync_v1_seen", "1"); } catch {} }} />}
 
-
-      {/* ── Duration Picker (main level — mobile + non-fullscreen desktop) ── */}
-      {!isFullscreen && focusPicker && (() => {
-        const pickerNote = notes.find(n => n.id === focusPicker.noteId);
-        if (!pickerNote) return null;
-        return <DurationPicker note={pickerNote} onCancel={() => setFocusPicker(null)} onStart={mins => commitFocus(focusPicker.noteId, focusPicker.chain, mins)} />;
-      })()}
+        {/* ── Name prompt modal ── */}
+        {namePromptOpen && (
+          <NamePromptModal
+            theme={theme}
+            initialFirst={user?.firstName ?? ""}
+            initialLast={user?.lastName ?? ""}
+            onSave={async (first, last) => { if (user) await user.update({ firstName: first, lastName: last || undefined }); }}
+            onDismiss={() => { setNamePromptOpen(false); try { localStorage.setItem("boardtivity_name_prompt_dismissed", "1"); } catch {} }}
+          />
+        )}
+      </OverlayLayer>
 
       {/* Footer */}
       <footer style={{ textAlign: "center", padding: "24px 16px", borderTop: `1px solid ${border(theme)}`, marginTop: 40 }}>
