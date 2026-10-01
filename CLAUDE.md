@@ -19,7 +19,8 @@ Visual task + idea board with focus sessions and an AI assistant (BOB). Live at 
 ## Where things live
 - `src/components/home/useHomeState.ts`: all app state, effects and handlers (board data, sync, focus timer, billing). Its return object is shared through `HomeContext` (`src/components/home/HomeContext.tsx`); components read it with `const { ... } = useHome()`. To expose something new to a view, add it to the hook's `return { ... }`.
 - `src/components/HomeShell.tsx`: page layout only (header, hero, desktop board canvas and toolbar), composing the pieces below.
-- `src/components/board/`: MobileBoard (phone layout), SettingsPanel, TaskComposer, NoteDetailModal, StepModal, DraftPromptModal, RenameBoardModal.
+- `src/components/board/`: MobileBoard (phone layout), SettingsPanel, TaskComposer, NoteDetailModal, StepModal, DraftPromptModal, RenameBoardModal, DrawingLayer (arrows between cards, stickers, draw toolbar).
+- Drawing data (`arrows`, `stickers`) lives in the board JSON next to `notes`, with its own tombstones (`deletedArrowIds`, `deletedStickerIds`) merged server-side in `convex/boards.ts` (`mergeById`). Cards can be `locked` (right-click / long-press).
 - `src/components/focus/`: DurationPicker, FocusOverlay, SessionReviewModal, ProfilePanel.
 - `src/components/landing/`: MarketingSections (focus showcase, features, pricing), FeedbackBoard.
 - `src/components/modals/AccountModals.tsx`: Upgrade, LimitReached, Subscribed, WhatsNew, NamePrompt. All use `src/components/ui/Modal.tsx`.
