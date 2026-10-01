@@ -8,6 +8,7 @@ import { NOTE_PALETTE, TASK_PALETTE, hexToRgba, blendHex, clampCardBg, PRIORITY_
 import { pageText, muted, surface, border, paper} from "@/lib/ui";
 import { isoToMDY, todayStr, tomorrowStr, fmtTime, fmtFocusTime } from "@/lib/dates";
 import { BOARD_W, BOARD_H, NOTE_W, NOTE_H, genId} from "@/lib/boardLayout";
+import DateField from "@/components/ui/DateField";
 import { useHome } from "@/components/home/HomeContext";
 
 // Phone layout: list-style board with bottom bar, sheets for add/edit/settings, and BOB.
@@ -731,17 +732,11 @@ export default function MobileBoard() {
                 </div>
                 <div style={{ display: "flex", alignItems: "center", height: 44, backgroundColor: paper(theme), border: `1.5px solid ${mobileAddDueDate ? border(theme) : (theme === "dark" ? "#8b3a3a" : "#d06060")}`, borderRadius: 12, padding: "0 14px", gap: 8 }}>
                   <span style={{ fontSize: 13, fontWeight: 600, color: muted(theme), flex: 1 }}>Due date</span>
-                  <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+                  <DateField value={mobileAddDueDate} onChange={setMobileAddDueDate} style={{ display: "inline-flex", alignItems: "center" }}>
                     <span style={{ fontSize: 14, fontWeight: 600, color: mobileAddDueDate ? pageText(theme) : (theme === "dark" ? "#ff8080" : "#c05050"), pointerEvents: "none" }}>
                       {mobileAddDueDate ? isoToMDY(mobileAddDueDate) : "Required"}
                     </span>
-                    <input
-                      type="date"
-                      value={mobileAddDueDate}
-                      onChange={e => setMobileAddDueDate(e.target.value)}
-                      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer", zIndex: 1 }}
-                    />
-                  </div>
+                  </DateField>
                 </div>
                 {mobileAddDueDate && (
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
@@ -852,17 +847,11 @@ export default function MobileBoard() {
                   {mobileEditDueDate && (
                     <button type="button" onClick={() => setMobileEditDueDate("")} style={{ background: "none", border: "none", color: muted(theme), fontSize: 13, opacity: .5, cursor: "pointer", padding: "0 2px" }}>✕</button>
                   )}
-                  <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+                  <DateField value={mobileEditDueDate} onChange={setMobileEditDueDate} style={{ display: "inline-flex", alignItems: "center" }}>
                     <span style={{ fontSize: 14, fontWeight: 600, color: mobileEditDueDate ? pageText(theme) : muted(theme), pointerEvents: "none" }}>
                       {mobileEditDueDate ? isoToMDY(mobileEditDueDate) : "mm-dd-yyyy"}
                     </span>
-                    <input
-                      type="date"
-                      value={mobileEditDueDate}
-                      onChange={e => setMobileEditDueDate(e.target.value)}
-                      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer", zIndex: 1 }}
-                    />
-                  </div>
+                  </DateField>
                 </div>
                 {mobileEditDueDate && (
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>

@@ -52,6 +52,8 @@ export type Note = {
   flowMode: FlowMode;
   linkedNoteIds: number[];
   colorIdx?: number;
+  // Locked cards can't be dragged or auto-arranged (toggle: right-click / long-press)
+  locked?: boolean;
   // Focus tracking
   totalTimeSpent?: number;   // minutes focused on this task (all time)
   lastTackledAt?: number;    // epoch ms of last focus session

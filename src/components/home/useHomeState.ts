@@ -265,6 +265,12 @@ export function useHomeState() {
   const pointerMapRef = useRef<Map<number, { x: number; y: number }>>(new Map());
   const pinchRef = useRef<null | { distance: number; scale: number }>(null);
   const draggedRef = useRef(false);
+  // Long-press (touch/pen) toggles a card's lock; right-click does the same with a mouse.
+  const longPressRef = useRef<{ timer: ReturnType<typeof setTimeout>; startX: number; startY: number } | null>(null);
+  const lastPointerTypeRef = useRef<string>("mouse");
+  const lockedPressRef = useRef<{ startX: number; startY: number; hinted: boolean } | null>(null);
+  const [lockToast, setLockToast] = useState<{ text: string; locked: boolean; key: number } | null>(null);
+  const lockToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dragThresholdRef = useRef(6);
 
   const [scale, setScale] = useState(0.82);
@@ -1437,10 +1443,65 @@ export function useHomeState() {
     setDetailNoteId(null);
   }
 
+  function toggleNoteLock(noteId: number) {
+    const note = notes.find(n => n.id === noteId);
+    if (!note) return;
+    const locked = !note.locked;
+    setNotes(prev => prev.map(n => n.id === noteId ? { ...n, locked } : n));
+    showLockToast(locked ? "Locked in place" : "Unlocked", locked);
+  }
+
+  function showLockToast(text: string, locked = true) {
+    if (lockToastTimerRef.current) clearTimeout(lockToastTimerRef.current);
+    setLockToast({ text, locked, key: Date.now() });
+    lockToastTimerRef.current = setTimeout(() => setLockToast(null), 1600);
+  }
+
+  function cancelLongPress() {
+    if (longPressRef.current) { clearTimeout(longPressRef.current.timer); longPressRef.current = null; }
+    lockedPressRef.current = null;
+  }
+
+  // Call from a card's onPointerDown. On touch/pen, holding still for 500ms toggles the lock.
+  function startLongPress(e: ReactPointerEvent, noteId: number, isLocked: boolean) {
+    lastPointerTypeRef.current = e.pointerType;
+    cancelLongPress();
+    if (isLocked) lockedPressRef.current = { startX: e.clientX, startY: e.clientY, hinted: false };
+    if (e.pointerType === "mouse") return;
+    longPressRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      timer: setTimeout(() => {
+        longPressRef.current = null;
+        noteDragRef.current = null;
+        stepDragRef.current = null;
+        draggedRef.current = true; // swallow the click that follows so the detail view doesn't open
+        try { navigator.vibrate?.(15); } catch { /* not supported */ }
+        toggleNoteLock(noteId);
+      }, 500),
+    };
+  }
+
+  // Call from onPointerMove: moving more than a few pixels means the user is dragging, not holding.
+  function trackLongPress(e: ReactPointerEvent) {
+    const lockedPress = lockedPressRef.current;
+    const lp = longPressRef.current;
+    if (lp && Math.hypot(e.clientX - lp.startX, e.clientY - lp.startY) > 8) {
+      clearTimeout(lp.timer);
+      longPressRef.current = null;
+    }
+    if (lockedPress && !lockedPress.hinted && Math.hypot(e.clientX - lockedPress.startX, e.clientY - lockedPress.startY) > 8) {
+      // Tried to drag a locked card: don't open it on release, and explain why it won't move.
+      lockedPress.hinted = true;
+      draggedRef.current = true;
+      showLockToast(lastPointerTypeRef.current === "mouse" ? "Locked — right-click to unlock" : "Locked — hold to unlock");
+    }
+  }
+
   function handleBobSweep(positions: { id: number; x: number; y: number }[]) {
     setNotes(prev => prev.map(n => {
       const pos = positions.find(p => p.id === n.id);
-      return pos ? { ...n, x: pos.x, y: pos.y } : n;
+      return pos && !n.locked ? { ...n, x: pos.x, y: pos.y } : n;
     }));
     // Don't reset the viewport — leave the user where they are.
   }
@@ -1653,6 +1714,7 @@ export function useHomeState() {
 
   return {
     boardStateWith, updateReminderTime, toggleEmailPref,
+    toggleNoteLock, startLongPress, trackLongPress, cancelLongPress, lastPointerTypeRef, lockToast,
     theme, setTheme, boardTheme, setBoardTheme, boards, setBoards, activeBoardId, setActiveBoardId,
     boardsOpen, setBoardsOpen, notes, setNotes, highlightedNoteIds, setDetailNoteId, detailEditing, setDetailEditing,
     detailEditTitle, setDetailEditTitle, detailEditBody, setDetailEditBody, detailEditDueDate, setDetailEditDueDate, detailEditDueTime, setDetailEditDueTime,
