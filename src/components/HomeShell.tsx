@@ -6,6 +6,7 @@ import TourOverlay from "@/components/TourOverlay";
 import { useHomeState } from "@/components/home/useHomeState";
 import { HomeContext } from "@/components/home/HomeContext";
 import LockIcon from "@/components/ui/LockIcon";
+import { ArrowsLayer, StickersLayer, DrawToolbar } from "@/components/board/DrawingLayer";
 import RenameBoardModal from "@/components/board/RenameBoardModal";
 import DraftPromptModal from "@/components/board/DraftPromptModal";
 import StepModal from "@/components/board/StepModal";
@@ -31,6 +32,7 @@ export function HomeShell() {
   const home = useHomeState();
   const {
     toggleNoteLock, startLongPress, trackLongPress, cancelLongPress, lastPointerTypeRef, lockToast,
+    drawMode, setDrawModeOn, drawTool, connectFromId, setConnectFromId, setDrawSelection, connectCard, placeSticker,
     theme, setTheme, boardTheme, setBoardTheme, boards, activeBoardId, setActiveBoardId, boardsOpen,
     setBoardsOpen, notes, highlightedNoteIds, setDetailNoteId, setDetailEditing, setActiveStep, setComposerOpen, setRenameBoardId,
     setRenameValue, focusPicker, setFocusPicker, setProfileOpen, upgradeOpen, setUpgradeOpen, limitReachedOpen, setLimitReachedOpen,
@@ -259,14 +261,19 @@ export function HomeShell() {
               overflow: "hidden",
               touchAction: "none",
               userSelect: "none",
-              cursor: boardDragRef.current ? "grabbing" : "grab",
+              cursor: boardDragRef.current ? "grabbing" : drawMode && drawTool.type === "sticker" ? "copy" : "grab",
             }}
             onPointerDown={onViewportPointerDown}
             onPointerMove={onViewportPointerMove}
             onPointerUp={onViewportPointerUp}
             onPointerCancel={onViewportPointerUp}
-            onClick={() => {
+            onClick={(e) => {
+              const wasDrag = draggedRef.current;
               draggedRef.current = false;
+              if (wasDrag) return;
+              // Click on empty board: place the active sticker, or clear the drawing selection.
+              if (drawMode && drawTool.type === "sticker") placeSticker(drawTool.kind, e.clientX, e.clientY);
+              else { setDrawSelection(null); setConnectFromId(null); }
             }}
           >
             <div
@@ -344,6 +351,8 @@ export function HomeShell() {
                     ));
                   })}
               </svg>
+
+              <ArrowsLayer boardW={BOARD_W} boardH={BOARD_H} />
 
               {activeNotes
                 .filter((n) => n.showFlow && n.steps.length > 0)
@@ -461,6 +470,7 @@ export function HomeShell() {
                       draggedRef.current = false;
                       return;
                     }
+                    if (drawMode && drawTool.type === "connect") { connectCard(note.id); return; }
                     setDetailNoteId(note.id); setDetailEditing(false);
                   }}
                   style={{
@@ -491,7 +501,7 @@ export function HomeShell() {
                         : note.colorIdx !== undefined
                           ? paletteBg(note.colorIdx, boardTheme)
                           : (boardTheme === "dark" ? "#2a2d32" : "#ebebeb"),
-                    boxShadow: highlightedNoteIds.has(note.id)
+                    boxShadow: highlightedNoteIds.has(note.id) || connectFromId === note.id
                       ? `0 0 0 3px rgba(99,160,255,.7), 0 0 28px rgba(99,160,255,.45), 0 10px 18px rgba(0,0,0,.1)`
                       : thoughtDropTarget === note.id
                         ? `0 0 0 4px ${boardTheme === "dark" ? "rgba(140,150,230,.28)" : "rgba(100,110,200,.18)"}, 0 0 20px ${boardTheme === "dark" ? "rgba(140,150,230,.22)" : "rgba(100,110,200,.16)"}, 0 10px 18px rgba(59,43,16,.06)`
@@ -505,7 +515,7 @@ export function HomeShell() {
                                 ? `0 0 0 3px ${paletteHalo(note.colorIdx)}, 0 10px 18px rgba(59,43,16,.06)`
                                 : `0 0 0 3px ${boardTheme === "dark" ? "rgba(140,140,140,.18)" : "rgba(0,0,0,.10)"}, 0 10px 18px rgba(59,43,16,.06)`,
                     textAlign: "left",
-                    cursor: "pointer",
+                    cursor: drawMode && drawTool.type === "connect" ? "crosshair" : "pointer",
                     transition: "box-shadow .22s ease, border-color .22s ease",
                     // No iOS callout or text selection while long-pressing to lock
                     WebkitTouchCallout: "none",
@@ -591,6 +601,8 @@ export function HomeShell() {
                   )}
                 </button>
               ))}
+
+              <StickersLayer />
             </div>
           </div>
 
@@ -711,6 +723,19 @@ export function HomeShell() {
                 />
               )}
 
+              {/* Draw mode — arrows between cards + stickers */}
+              <button
+                onClick={() => setDrawModeOn(!drawMode)}
+                style={{ ...circleButton(boardTheme), ...(drawMode ? { backgroundColor: pageText(boardTheme), color: panel(boardTheme), border: "none" } : {}) }}
+                aria-label={drawMode ? "Exit draw mode" : "Draw: connect cards and add stickers"}
+                aria-pressed={drawMode}
+                title={drawMode ? "Exit draw mode (Esc)" : "Draw: connect cards and add stickers"}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4Z" /><path d="m13.5 6.5 4 4" />
+                </svg>
+              </button>
+
               {/* Settings button — gear */}
               <button ref={settingsButtonRef} onClick={() => { setSettingsOpen(v => !v); setBoardsOpen(false); }} style={{ ...circleButton(boardTheme), ...(settingsOpen ? { backgroundColor: boardTheme === "dark" ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.07)", border: `1px solid ${boardTheme === "dark" ? "rgba(255,255,255,.2)" : "rgba(0,0,0,.15)"}` } : {}) }} aria-label="Settings" title="Settings">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
@@ -786,6 +811,8 @@ export function HomeShell() {
             }} onClick={() => setSettingsOpen(false)} />
           )}
           <SettingsPanel />
+
+          <DrawToolbar />
 
           {/* Lock / unlock confirmation */}
           {lockToast && (

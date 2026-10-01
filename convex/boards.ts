@@ -4,12 +4,36 @@ import { v } from "convex/values";
 // Minimal shapes needed for server-side merge — only the fields we inspect.
 interface StoredNote { id: number; [key: string]: unknown }
 interface StoredBoard { id: string; [key: string]: unknown }
+interface StoredArrow { id: number; boardId?: string; fromNoteId?: number; toNoteId?: number; [key: string]: unknown }
+interface StoredSticker { id: number; boardId?: string; [key: string]: unknown }
 interface BoardData {
   notes?: StoredNote[];
   boards?: StoredBoard[];
+  arrows?: StoredArrow[];
+  stickers?: StoredSticker[];
   deletedNoteIds?: number[];
   deletedBoardIds?: string[];
+  deletedArrowIds?: number[];
+  deletedStickerIds?: number[];
   [key: string]: unknown;
+}
+
+// Incoming items win on edits; items that only exist in the DB (added on another
+// device) are kept; anything tombstoned or otherwise dead is dropped.
+function mergeById<T extends { id: number | string }>(
+  incoming: T[] | undefined,
+  current: T[] | undefined,
+  isDead: (item: T) => boolean,
+): T[] {
+  const incomingIds = new Set((incoming ?? []).map((i) => i.id));
+  return [
+    ...(incoming ?? []).filter((i) => !isDead(i)),
+    ...(current ?? []).filter((i) => !incomingIds.has(i.id) && !isDead(i)),
+  ];
+}
+
+function unionIds<T>(a: T[] | undefined, b: T[] | undefined): T[] {
+  return [...new Set([...(a ?? []), ...(b ?? [])])];
 }
 
 export const save = mutation({
@@ -49,46 +73,39 @@ export const save = mutation({
       const current = JSON.parse(existing.boardState) as BoardData;
 
       // Union of deleted ID sets — once deleted, always deleted.
-      const mergedDeletedNoteIds = [
-        ...new Set([...(current.deletedNoteIds ?? []), ...(incoming.deletedNoteIds ?? [])]),
-      ];
-      const mergedDeletedBoardIds = [
-        ...new Set([...(current.deletedBoardIds ?? []), ...(incoming.deletedBoardIds ?? [])]),
-      ];
+      const mergedDeletedNoteIds = unionIds(current.deletedNoteIds, incoming.deletedNoteIds);
+      const mergedDeletedBoardIds = unionIds(current.deletedBoardIds, incoming.deletedBoardIds);
+      const mergedDeletedArrowIds = unionIds(current.deletedArrowIds, incoming.deletedArrowIds);
+      const mergedDeletedStickerIds = unionIds(current.deletedStickerIds, incoming.deletedStickerIds);
       const deletedNoteSet = new Set(mergedDeletedNoteIds);
       const deletedBoardSet = new Set(mergedDeletedBoardIds);
+      const deletedArrowSet = new Set(mergedDeletedArrowIds);
+      const deletedStickerSet = new Set(mergedDeletedStickerIds);
 
-      // Notes merge:
-      //   • Incoming is authoritative for edits (client editing device wins).
-      //   • Notes only in the existing DB record are preserved — they were added
-      //     by another device and a stale save shouldn't silently drop them.
-      //   • Any note in the merged deletedNoteIds is removed regardless of source.
-      //   • Notes belonging to a deleted board are also removed.
-      const incomingNoteIds = new Set((incoming.notes ?? []).map((n) => n.id));
-      const isNoteDeleted = (n: StoredNote) =>
-        deletedNoteSet.has(n.id) || deletedBoardSet.has(n.boardId as string);
-      const mergedNotes = [
-        ...(incoming.notes ?? []).filter((n) => !isNoteDeleted(n)),
-        ...(current.notes ?? []).filter(
-          (n) => !incomingNoteIds.has(n.id) && !isNoteDeleted(n)
-        ),
-      ];
+      // Notes and boards: incoming wins on edits, DB-only items (added on another
+      // device) are kept, tombstoned items and notes on deleted boards are dropped.
+      const mergedNotes = mergeById(incoming.notes, current.notes, (n) =>
+        deletedNoteSet.has(n.id) || deletedBoardSet.has(n.boardId as string));
+      const mergedBoards = mergeById(incoming.boards, current.boards, (b) => deletedBoardSet.has(b.id));
 
-      // Boards merge: same strategy.
-      const incomingBoardIds = new Set((incoming.boards ?? []).map((b) => b.id));
-      const mergedBoards = [
-        ...(incoming.boards ?? []).filter((b) => !deletedBoardSet.has(b.id)),
-        ...(current.boards ?? []).filter(
-          (b) => !incomingBoardIds.has(b.id) && !deletedBoardSet.has(b.id)
-        ),
-      ];
+      // Drawings follow the same rules; an arrow also dies with either of its cards.
+      const liveNoteIds = new Set(mergedNotes.map((n) => n.id));
+      const mergedArrows = mergeById(incoming.arrows, current.arrows, (a) =>
+        deletedArrowSet.has(a.id) || deletedBoardSet.has(a.boardId as string) ||
+        !liveNoteIds.has(a.fromNoteId as number) || !liveNoteIds.has(a.toNoteId as number));
+      const mergedStickers = mergeById(incoming.stickers, current.stickers, (s) =>
+        deletedStickerSet.has(s.id) || deletedBoardSet.has(s.boardId as string));
 
       mergedState = JSON.stringify({
         ...incoming,
         notes: mergedNotes,
         boards: mergedBoards,
+        arrows: mergedArrows,
+        stickers: mergedStickers,
         deletedNoteIds: mergedDeletedNoteIds,
         deletedBoardIds: mergedDeletedBoardIds,
+        deletedArrowIds: mergedDeletedArrowIds,
+        deletedStickerIds: mergedDeletedStickerIds,
       });
     } catch {
       // Malformed JSON — fall back to storing the incoming state as-is.

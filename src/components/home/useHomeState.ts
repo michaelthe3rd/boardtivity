@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
-import type { ThemeMode, BoardType, Importance, FlowMode, Board, Step, Note, Draft } from "@/lib/board";
+import type { ThemeMode, BoardType, Importance, FlowMode, Board, Step, Note, Draft, BoardArrow, BoardSticker, StickerKind, DrawTool, DrawSelection } from "@/lib/board";
 import type { BobNewNote, BobSettings } from "@/components/BobAgent";
 import { useMutation, useQuery } from "convex/react";
 import { useUser, useClerk } from "@clerk/nextjs";
@@ -229,6 +229,17 @@ export function useHomeState() {
   const localDeletedNoteIdsRef = useRef<Set<number>>(new Set());
   const localDeletedBoardIdsRef = useRef<Set<string>>(new Set());
   const lastSyncedReminderTimeRef = useRef<string | null>(null);
+
+  // ── Drawing layer: arrows between cards + stickers ─────────────────────────
+  const [arrows, setArrows] = useState<BoardArrow[]>([]);
+  const [stickers, setStickers] = useState<BoardSticker[]>([]);
+  const [drawMode, setDrawMode] = useState(false);
+  const [drawTool, setDrawTool] = useState<DrawTool>({ type: "connect" });
+  const [connectFromId, setConnectFromId] = useState<number | null>(null);
+  const [drawSelection, setDrawSelection] = useState<DrawSelection>(null);
+  // Same tombstone pattern as notes so a stale device can't resurrect erased drawings.
+  const localDeletedArrowIdsRef = useRef<Set<number>>(new Set());
+  const localDeletedStickerIdsRef = useRef<Set<number>>(new Set());
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const bobUserInfoData  = useQuery(api.bob.getBobUserInfo);
@@ -481,6 +492,8 @@ export function useHomeState() {
     if (prevSignedInRef.current === true && isSignedIn === false) {
       setBoards(INITIAL_BOARDS);
       setNotes([]);
+      setArrows([]);
+      setStickers([]);
       setActiveBoardId(INITIAL_BOARDS[0].id);
     }
     if (isSignedIn !== undefined) prevSignedInRef.current = isSignedIn;
@@ -501,12 +514,15 @@ export function useHomeState() {
           thoughtFixedColorIdx?: number; boardGrid?: "grid" | "dots" | "blank";
           taskColorMode?: "priority" | "single"; taskHighColorIdx?: number;
           taskMedColorIdx?: number; taskLowColorIdx?: number; taskSingleColorIdx?: number;
+          arrows?: BoardArrow[]; stickers?: BoardSticker[];
         };
         if (data.theme) setTheme(data.theme);
         if (data.boardTheme) setBoardTheme(data.boardTheme);
         if (isSignedIn) {
           if (Array.isArray(data.boards) && data.boards.length > 0) setBoards(data.boards);
           if (Array.isArray(data.notes)) setNotes(data.notes);
+          if (Array.isArray(data.arrows)) setArrows(data.arrows);
+          if (Array.isArray(data.stickers)) setStickers(data.stickers);
           if (data.activeBoardId) setActiveBoardId(data.activeBoardId);
           if (Array.isArray(data.drafts)) setDrafts(data.drafts);
           if (data.thoughtColorMode) setThoughtColorMode(data.thoughtColorMode);
@@ -604,14 +620,20 @@ export function useHomeState() {
 
   // Snapshot for an immediate push when `notes` state hasn't re-rendered yet.
   function boardStateWith(notesSnapshot: Note[]) {
+    const noteIds = new Set(notesSnapshot.map(n => n.id));
     return JSON.stringify({
       boards, notes: notesSnapshot, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid,
       taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx,
       taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom,
+      // Arrows whose cards are gone are dropped rather than saved.
+      arrows: arrows.filter(a => noteIds.has(a.fromNoteId) && noteIds.has(a.toNoteId)),
+      stickers,
       // Persist tombstones so the server merge can union them — deletions survive
       // stale saves from other devices even across page reloads.
       deletedNoteIds: [...localDeletedNoteIdsRef.current],
       deletedBoardIds: [...localDeletedBoardIdsRef.current],
+      deletedArrowIds: [...localDeletedArrowIdsRef.current],
+      deletedStickerIds: [...localDeletedStickerIdsRef.current],
     });
   }
 
@@ -721,6 +743,8 @@ export function useHomeState() {
         taskMedColorIdx?: number; taskLowColorIdx?: number; taskSingleColorIdx?: number;
         taskSingleCustom?: string; taskHighCustom?: string; taskMedCustom?: string; taskLowCustom?: string;
         deletedNoteIds?: number[]; deletedBoardIds?: string[];
+        arrows?: BoardArrow[]; stickers?: BoardSticker[];
+        deletedArrowIds?: number[]; deletedStickerIds?: number[];
       };
       // ── Merge deletion tombstones from cloud ─────────────────────────────────
       // The server already performs a union merge on deletedNoteIds/deletedBoardIds,
@@ -734,9 +758,18 @@ export function useHomeState() {
       const cloudDeletedBoardIds = new Set<string>(data.deletedBoardIds ?? []);
       const hadPendingNoteDeletes = [...localDeletedNoteIdsRef.current].some(id => !cloudDeletedNoteIds.has(id));
       const hadPendingBoardDeletes = [...localDeletedBoardIdsRef.current].some(id => !cloudDeletedBoardIds.has(id));
+      const cloudDeletedArrowIds = new Set<number>(data.deletedArrowIds ?? []);
+      const cloudDeletedStickerIds = new Set<number>(data.deletedStickerIds ?? []);
+      const hadPendingDrawingDeletes =
+        [...localDeletedArrowIdsRef.current].some(id => !cloudDeletedArrowIds.has(id)) ||
+        [...localDeletedStickerIdsRef.current].some(id => !cloudDeletedStickerIds.has(id));
       // Absorb cloud deletions into local refs.
       for (const id of cloudDeletedNoteIds) localDeletedNoteIdsRef.current.add(id);
       for (const id of cloudDeletedBoardIds) localDeletedBoardIdsRef.current.add(id);
+      for (const id of cloudDeletedArrowIds) localDeletedArrowIdsRef.current.add(id);
+      for (const id of cloudDeletedStickerIds) localDeletedStickerIdsRef.current.add(id);
+      if (Array.isArray(data.arrows)) setArrows(data.arrows.filter(a => !localDeletedArrowIdsRef.current.has(a.id)));
+      if (Array.isArray(data.stickers)) setStickers(data.stickers.filter(s => !localDeletedStickerIdsRef.current.has(s.id)));
 
       if (Array.isArray(data.boards) && data.boards.length > 0) {
         // Server already filtered deleted boards from the notes array; filter
@@ -783,7 +816,7 @@ export function useHomeState() {
       // fires when our local refs have IDs that aren't in the server's snapshot,
       // meaning our deletion save is still in-flight. One push is all it takes —
       // the server merge guarantees the deletion is permanent after that.
-      if (hadPendingNoteDeletes || hadPendingBoardDeletes) {
+      if (hadPendingNoteDeletes || hadPendingBoardDeletes || hadPendingDrawingDeletes) {
         justAppliedCloudRef.current = false;
       }
       setCloudSyncState("synced");
@@ -806,7 +839,7 @@ export function useHomeState() {
       // freshly-opened stale tab is newer than a recent save from another device.
       try {
         const existing = (() => { try { const r = localStorage.getItem("boardtivity"); return r ? JSON.parse(r) : {}; } catch { return {}; } })();
-        localStorage.setItem("boardtivity", JSON.stringify({ ...existing, theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom }));
+        localStorage.setItem("boardtivity", JSON.stringify({ ...existing, theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom, arrows, stickers }));
       } catch {}
 
       if (!convexReadyRef.current) return;
@@ -827,7 +860,7 @@ export function useHomeState() {
     } else {
       try { localStorage.setItem("boardtivity", JSON.stringify({ theme, boardTheme })); } catch {}
     }
-  }, [isHydrated, isSignedIn, theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom]);
+  }, [isHydrated, isSignedIn, theme, boardTheme, boards, notes, activeBoardId, drafts, thoughtColorMode, thoughtFixedColorIdx, boardGrid, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx, taskSingleColorIdx, taskSingleCustom, taskHighCustom, taskMedCustom, taskLowCustom, arrows, stickers]);
 
   // ── Flush any pending debounced save when tab hides or closes ────────────────
   useEffect(() => {
@@ -924,6 +957,26 @@ export function useHomeState() {
     const current = emailPrefs ?? { dailyDigest: true, weeklyDigest: true };
     updateEmailPrefs({ dailyDigest: current.dailyDigest ?? true, weeklyDigest: current.weeklyDigest ?? true, reminderTime: emailPrefs?.reminderTime, [key]: !enabled });
   }
+
+  // Drawing keyboard shortcuts: Esc steps back (cancel connect → deselect → leave draw mode),
+  // Delete/Backspace removes the selected arrow or sticker.
+  useEffect(() => {
+    if (!drawMode && !drawSelection) return;
+    function onKey(e: KeyboardEvent) {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      if (e.key === "Escape") {
+        if (connectFromId !== null) setConnectFromId(null);
+        else if (drawSelection) setDrawSelection(null);
+        else setDrawModeOn(false);
+      } else if ((e.key === "Delete" || e.key === "Backspace") && drawSelection) {
+        e.preventDefault();
+        deleteDrawSelection();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
 
   // Reschedule all task reminders whenever the reminder time preference changes
   // (covers cross-device changes and jobs already queued at the old time)
@@ -1126,7 +1179,8 @@ export function useHomeState() {
   }
 
   function onViewportPointerDown(e: ReactPointerEvent<HTMLDivElement>) {
-    if ((e.target as HTMLElement).closest("[data-note='true']") || (e.target as HTMLElement).closest("[data-step='true']")) return;
+    const target = e.target as Element;
+    if (target.closest("[data-note='true']") || target.closest("[data-step='true']") || target.closest("[data-drawing='true']")) return;
     if (noteDragRef.current || stepDragRef.current) return;
 
     pointerMapRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -1267,6 +1321,8 @@ export function useHomeState() {
     const dy = e.clientY - boardDragRef.current.startY;
     if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
       setPan(clampPan(boardDragRef.current.panX + dx, boardDragRef.current.panY + dy, scale));
+      // A real pan, not a click: don't let the following click place a sticker or deselect.
+      if (Math.abs(dx) > 5 || Math.abs(dy) > 5) draggedRef.current = true;
     }
   }
 
@@ -1449,6 +1505,71 @@ export function useHomeState() {
     const locked = !note.locked;
     setNotes(prev => prev.map(n => n.id === noteId ? { ...n, locked } : n));
     showLockToast(locked ? "Locked in place" : "Unlocked", locked);
+  }
+
+  // ── Drawing actions ──────────────────────────────────────────────────────────
+  function setDrawModeOn(on: boolean) {
+    setDrawMode(on);
+    setConnectFromId(null);
+    setDrawSelection(null);
+  }
+
+  // Screen point → board coordinates (accounts for pan and zoom).
+  function clientToBoard(clientX: number, clientY: number) {
+    const rect = viewportRef.current?.getBoundingClientRect();
+    return {
+      x: (clientX - (rect?.left ?? 0) - pan.x) / scale,
+      y: (clientY - (rect?.top ?? 0) - pan.y) / scale,
+    };
+  }
+
+  // Connect tool: first click picks the source card, second click draws the arrow to the target.
+  function connectCard(noteId: number) {
+    if (connectFromId === null) { setConnectFromId(noteId); return; }
+    const from = connectFromId;
+    setConnectFromId(null);
+    if (from === noteId) return;
+    if (arrows.some(a => a.fromNoteId === from && a.toNoteId === noteId)) return;
+    const arrow: BoardArrow = { id: genId(), boardId: activeBoardId, fromNoteId: from, toNoteId: noteId };
+    setArrows(prev => [...prev, arrow]);
+    setDrawSelection({ type: "arrow", id: arrow.id });
+  }
+
+  function updateArrow(id: number, patch: Partial<BoardArrow>) {
+    setArrows(prev => prev.map(a => a.id === id ? { ...a, ...patch } : a));
+  }
+
+  function reverseArrow(id: number) {
+    setArrows(prev => prev.map(a => a.id === id ? { ...a, fromNoteId: a.toNoteId, toNoteId: a.fromNoteId } : a));
+  }
+
+  function deleteArrow(id: number) {
+    localDeletedArrowIdsRef.current.add(id);
+    setArrows(prev => prev.filter(a => a.id !== id));
+    setDrawSelection(null);
+  }
+
+  function placeSticker(kind: StickerKind, clientX: number, clientY: number) {
+    const p = clientToBoard(clientX, clientY);
+    const sticker: BoardSticker = { id: genId(), boardId: activeBoardId, kind, x: Math.round(p.x), y: Math.round(p.y), rotation: 0 };
+    setStickers(prev => [...prev, sticker]);
+    setDrawSelection({ type: "sticker", id: sticker.id });
+  }
+
+  function updateSticker(id: number, patch: Partial<BoardSticker>) {
+    setStickers(prev => prev.map(s => s.id === id ? { ...s, ...patch } : s));
+  }
+
+  function deleteSticker(id: number) {
+    localDeletedStickerIdsRef.current.add(id);
+    setStickers(prev => prev.filter(s => s.id !== id));
+    setDrawSelection(null);
+  }
+
+  function deleteDrawSelection() {
+    if (!drawSelection) return;
+    if (drawSelection.type === "arrow") deleteArrow(drawSelection.id);
+    else deleteSticker(drawSelection.id);
   }
 
   function showLockToast(text: string, locked = true) {
@@ -1715,6 +1836,9 @@ export function useHomeState() {
   return {
     boardStateWith, updateReminderTime, toggleEmailPref,
     toggleNoteLock, startLongPress, trackLongPress, cancelLongPress, lastPointerTypeRef, lockToast,
+    arrows, stickers, drawMode, setDrawModeOn, drawTool, setDrawTool, connectFromId, setConnectFromId,
+    drawSelection, setDrawSelection, connectCard, updateArrow, reverseArrow, deleteArrow,
+    placeSticker, updateSticker, deleteSticker, clientToBoard,
     theme, setTheme, boardTheme, setBoardTheme, boards, setBoards, activeBoardId, setActiveBoardId,
     boardsOpen, setBoardsOpen, notes, setNotes, highlightedNoteIds, setDetailNoteId, detailEditing, setDetailEditing,
     detailEditTitle, setDetailEditTitle, detailEditBody, setDetailEditBody, detailEditDueDate, setDetailEditDueDate, detailEditDueTime, setDetailEditDueTime,
