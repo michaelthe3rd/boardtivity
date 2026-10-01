@@ -1,16 +1,20 @@
 "use client";
 
-import type { Importance} from "@/lib/board";
+import type { CSSProperties } from "react";
+import type { Importance } from "@/lib/board";
 import { NOTE_PALETTE, paletteBg} from "@/lib/colors";
 import { pageText, muted, border, panel, buttonStyle, circleButton, pill } from "@/lib/ui";
 import { isoToMDY, formatDate, todayStr, fmtTime} from "@/lib/dates";
 import { genId, layoutWeb, layoutChain } from "@/lib/boardLayout";
 import { buildBreakdown } from "@/lib/breakdown";
+import DateField from "@/components/ui/DateField";
+import LockIcon from "@/components/ui/LockIcon";
 import { useHome } from "@/components/home/HomeContext";
 
 // Task/idea detail: view and edit fields, subtasks, focus launch and actions.
 export default function NoteDetailModal() {
   const {
+    toggleNoteLock,
     boardTheme, setNotes, setDetailNoteId, detailEditing, setDetailEditing, detailEditTitle, setDetailEditTitle, detailEditBody,
     setDetailEditBody, detailEditDueDate, setDetailEditDueDate, detailEditDueTime, setDetailEditDueTime, detailEditImportance, setDetailEditImportance, detailEditMinutes,
     setDetailEditMinutes, detailEditSteps, setDetailEditSteps, detailEditColorIdx, setDetailEditColorIdx, detailBreakdownVariant, setDetailBreakdownVariant, confirmDeleteId,
@@ -18,6 +22,11 @@ export default function NoteDetailModal() {
     startFocus, scheduleDueDateReminder,
   } = useHome();
   if (!(detailNote)) return null;
+  // Shared look for the editable due date, time and priority fields so they all read as inputs.
+  const editField: CSSProperties = {
+    width: "100%", minHeight: 34, background: panel(boardTheme), border: `1px solid ${border(boardTheme)}`, borderRadius: 8,
+    padding: "6px 10px", fontSize: 13, color: pageText(boardTheme), fontFamily: "inherit", boxSizing: "border-box", outline: "none",
+  };
   return (
     <div
       style={{
@@ -67,6 +76,7 @@ export default function NoteDetailModal() {
                   setDetailEditTitle(detailNote.title);
                   setDetailEditBody(detailNote.body ?? "");
                   setDetailEditDueDate(detailNote.dueDate ?? "");
+                  setDetailEditDueTime(detailNote.dueTime ?? "");
                   setDetailEditImportance(detailNote.importance ?? "none");
                   setDetailEditMinutes(detailNote.minutes ?? 60);
                   setDetailEditSteps(detailNote.steps.map(s => ({ ...s })));
@@ -76,6 +86,20 @@ export default function NoteDetailModal() {
                 style={{ ...circleButton(boardTheme, 36), fontSize: 14 }}
                 title={detailNote.type === "task" ? "Edit task" : "Edit idea"}
               >✎</button>
+            )}
+            {!detailEditing && (
+              <button
+                onClick={() => toggleNoteLock(detailNote.id)}
+                style={{
+                  ...circleButton(boardTheme, 36),
+                  ...(detailNote.locked ? { backgroundColor: pageText(boardTheme), color: panel(boardTheme), border: "none" } : {}),
+                }}
+                title={detailNote.locked ? "Unlock position (or right-click / long-press the card)" : "Lock position (or right-click / long-press the card)"}
+                aria-pressed={!!detailNote.locked}
+                aria-label={detailNote.locked ? "Unlock position" : "Lock position"}
+              >
+                <LockIcon locked={!!detailNote.locked} size={15} />
+              </button>
             )}
             <button onClick={() => { setDetailNoteId(null); setDetailEditing(false); }} style={circleButton(boardTheme, 36)}>✕</button>
           </div>
@@ -114,25 +138,27 @@ export default function NoteDetailModal() {
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, alignItems: "start" }}>
                     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                       <div style={{ fontSize: 11, letterSpacing: ".1em", textTransform: "uppercase", color: muted(boardTheme), marginBottom: 1 }}>Due date</div>
-                      <div style={{ position: "relative", width: "100%", border: `1px solid ${border(boardTheme)}`, borderRadius: 8, padding: "6px 10px", boxSizing: "border-box", display: "flex", alignItems: "center" }}>
+                      <DateField
+                        value={detailEditDueDate}
+                        onChange={setDetailEditDueDate}
+                        style={{ ...editField, display: "flex", alignItems: "center", gap: 8 }}
+                      >
                         <span style={{ fontSize: 13, color: detailEditDueDate ? pageText(boardTheme) : muted(boardTheme), flex: 1, pointerEvents: "none" }}>
-                          {detailEditDueDate ? isoToMDY(detailEditDueDate) : "mm-dd-yyyy"}
+                          {detailEditDueDate ? isoToMDY(detailEditDueDate) : "Pick a date"}
                         </span>
-                        <input
-                          type="date"
-                          value={detailEditDueDate}
-                          onChange={e => setDetailEditDueDate(e.target.value)}
-                          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer", zIndex: 1 }}
-                        />
-                      </div>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={muted(boardTheme)} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0, pointerEvents: "none" }}>
+                          <rect x="3.5" y="5" width="17" height="15.5" rx="2.5" /><path d="M3.5 10h17M8 3v4M16 3v4" />
+                        </svg>
+                      </DateField>
                       {detailEditDueDate && (
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                           <input
                             type="time"
                             value={detailEditDueTime}
                             onChange={e => setDetailEditDueTime(e.target.value)}
-                            placeholder="Time (optional)"
-                            style={{ flex: 1, height: 32, borderRadius: 8, border: `1px solid ${border(boardTheme)}`, background: boardTheme === "dark" ? "rgba(255,255,255,.06)" : "#fff", color: detailEditDueTime ? pageText(boardTheme) : muted(boardTheme), fontSize: 13, padding: "0 8px", fontFamily: "inherit", outline: "none", colorScheme: boardTheme === "dark" ? "dark" : "light" }}
+                            onClick={e => { try { e.currentTarget.showPicker(); } catch { /* unsupported or already open */ } }}
+                            aria-label="Due time (optional)"
+                            style={{ ...editField, flex: 1, color: detailEditDueTime ? pageText(boardTheme) : muted(boardTheme), cursor: "pointer", colorScheme: boardTheme === "dark" ? "dark" : "light" }}
                           />
                           {detailEditDueTime && (
                             <button type="button" onClick={() => setDetailEditDueTime("")} style={{ background: "none", border: "none", color: muted(boardTheme), fontSize: 14, opacity: .6, cursor: "pointer", padding: "0 2px", lineHeight: 1 }}>✕</button>
@@ -145,7 +171,7 @@ export default function NoteDetailModal() {
                       <select
                         value={detailEditImportance}
                         onChange={e => setDetailEditImportance(e.target.value as Importance)}
-                        style={{ width: "100%", background: panel(boardTheme), border: `1px solid ${border(boardTheme)}`, borderRadius: 8, padding: "6px 10px", fontSize: 13, color: pageText(boardTheme), fontFamily: "inherit", boxSizing: "border-box", outline: "none" }}
+                        style={{ ...editField, cursor: "pointer" }}
                       >
                         <option value="none">No priority</option>
                         <option value="Low">Low</option>

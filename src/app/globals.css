@@ -88,3 +88,10 @@ textarea{resize:none}
 }
 .title-slide-in{animation:titleSlideIn .45s cubic-bezier(.22,1,.36,1) both}
 .title-slide-out{animation:titleSlideOut .35s cubic-bezier(.4,0,1,1) both}
+
+/* Lock/unlock toast on the board */
+@keyframes lockToastIn {
+  from { opacity: 0; transform: translate(-50%, 6px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+.lock-toast { animation: lockToastIn .18s ease-out; }

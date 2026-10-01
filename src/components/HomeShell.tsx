@@ -5,6 +5,8 @@ import BobAgent from "@/components/BobAgent";
 import TourOverlay from "@/components/TourOverlay";
 import { useHomeState } from "@/components/home/useHomeState";
 import { HomeContext } from "@/components/home/HomeContext";
+import LockIcon from "@/components/ui/LockIcon";
+import OverlayLayer from "@/components/ui/OverlayLayer";
 import RenameBoardModal from "@/components/board/RenameBoardModal";
 import DraftPromptModal from "@/components/board/DraftPromptModal";
 import StepModal from "@/components/board/StepModal";
@@ -29,6 +31,7 @@ import { BOARD_W, BOARD_H, NOTE_W, NOTE_H, noteCardWidth, titleFontSize, STEP_W,
 export function HomeShell() {
   const home = useHomeState();
   const {
+    toggleNoteLock, startLongPress, trackLongPress, cancelLongPress, lastPointerTypeRef, lockToast,
     theme, setTheme, boardTheme, setBoardTheme, boards, activeBoardId, setActiveBoardId, boardsOpen,
     setBoardsOpen, notes, highlightedNoteIds, setDetailNoteId, setDetailEditing, setActiveStep, setComposerOpen, setRenameBoardId,
     setRenameValue, focusPicker, setFocusPicker, setProfileOpen, upgradeOpen, setUpgradeOpen, limitReachedOpen, setLimitReachedOpen,
@@ -352,6 +355,7 @@ export function HomeShell() {
                       data-step="true"
                       onPointerDown={(e) => {
                         e.stopPropagation();
+                        if (note.locked) { draggedRef.current = false; return; }
                         e.currentTarget.setPointerCapture(e.pointerId);
                         stepDragRef.current = {
                           pointerId: e.pointerId,
@@ -415,7 +419,11 @@ export function HomeShell() {
                   data-note="true"
                   onPointerDown={(e) => {
                     e.stopPropagation();
+                    if (e.button === 2) return; // right-click is handled by onContextMenu
                     e.currentTarget.setPointerCapture(e.pointerId);
+                    draggedRef.current = false;
+                    startLongPress(e, note.id, !!note.locked);
+                    if (note.locked) return;
                     noteDragRef.current = {
                       pointerId: e.pointerId,
                       noteId: note.id,
@@ -426,10 +434,18 @@ export function HomeShell() {
                       noteX: note.x,
                       noteY: note.y,
                     };
-                    draggedRef.current = false;
+                  }}
+                  onPointerMove={trackLongPress}
+                  onPointerCancel={cancelLongPress}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    // Touch browsers also fire contextmenu on long-press; the long-press timer handles those.
+                    if (lastPointerTypeRef.current === "mouse") toggleNoteLock(note.id);
                   }}
                   onPointerUp={(e) => {
                     e.stopPropagation();
+                    cancelLongPress();
                     const drag = noteDragRef.current;
                     const linkTarget = thoughtDropTargetRef.current;
                     if (drag && drag.noteType === "thought" && linkTarget !== null && linkTarget !== drag.noteId) {
@@ -492,11 +508,23 @@ export function HomeShell() {
                     textAlign: "left",
                     cursor: "pointer",
                     transition: "box-shadow .22s ease, border-color .22s ease",
+                    // No iOS callout or text selection while long-pressing to lock
+                    WebkitTouchCallout: "none",
+                    WebkitUserSelect: "none",
+                    userSelect: "none",
                   }}
+                  title={note.locked ? "Locked — right-click or long-press to unlock" : undefined}
                   className={thoughtUnlinkTarget === note.id ? "thought-vibrate" : undefined}
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                    <div style={pill(boardTheme)}>{note.type === "task" ? "Task" : "Idea"}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                      <div style={pill(boardTheme)}>{note.type === "task" ? "Task" : "Idea"}</div>
+                      {note.locked && (
+                        <div style={{ ...pill(boardTheme), padding: "4px 6px", display: "grid", placeItems: "center" }} aria-label="Locked">
+                          <LockIcon locked size={11} />
+                        </div>
+                      )}
+                    </div>
 
                     {note.type === "task" && (note.dueDate || note.completed || note.steps.every(s => s.done && s.id)) && (() => {
                       const done = note.completed || (note.steps.length > 0 && note.steps.every(s => s.done));
@@ -760,6 +788,24 @@ export function HomeShell() {
           )}
           <SettingsPanel />
 
+          {/* Lock / unlock confirmation */}
+          {lockToast && (
+            <div
+              key={lockToast.key}
+              role="status"
+              className="lock-toast"
+              style={{
+                position: "absolute", left: "50%", bottom: 24, transform: "translateX(-50%)", zIndex: 4,
+                display: "flex", alignItems: "center", gap: 7, padding: "8px 14px", borderRadius: 999,
+                backgroundColor: boardTheme === "dark" ? "#f5f5f2" : "#171613", color: boardTheme === "dark" ? "#171613" : "#f5f5f2",
+                fontSize: 13, fontWeight: 700, boxShadow: "0 8px 24px rgba(0,0,0,.18)", pointerEvents: "none",
+              }}
+            >
+              <LockIcon locked={lockToast.locked} size={13} />
+              {lockToast.text}
+            </div>
+          )}
+
           {/* Fullscreen button — bottom left */}
           <button
             onClick={toggleFullscreen}
@@ -801,70 +847,64 @@ export function HomeShell() {
             </svg>
             {thoughtMode ? "Add Idea" : "Add Task"}
           </button>
-      <RenameBoardModal />
 
-      <TaskComposer />
-
-      <NoteDetailModal />
-
-      <StepModal />
-
-      <FocusOverlay />
-
-      <DraftPromptModal />
-
-      {/* ── Duration Picker (inside board-shell so it shows in fullscreen) ── */}
-      {isFullscreen && focusPicker && (() => {
-        const pickerNote = notes.find(n => n.id === focusPicker.noteId);
-        if (!pickerNote) return null;
-        return <DurationPicker note={pickerNote} onCancel={() => setFocusPicker(null)} onStart={mins => commitFocus(focusPicker.noteId, focusPicker.chain, mins)} />;
-      })()}
 
 
       </div>
       </section>
 
-      {/* ── Session Review Modal — outside board-shell so position:fixed works on mobile ── */}
-      <SessionReviewModal />
 
-      {/* ── Profile Panel — outside board-shell so position:fixed works on mobile ── */}
-      <ProfilePanel />
 
       <MarketingSections theme={theme} isMobile={isMobile} isSignedIn={isSignedIn} isPlus={isPlus} checkoutLoading={checkoutLoading} onSignUp={() => openSignUp()} onCheckout={startCheckout} />
 
       {/* ── Feedback Board ── */}
       <FeedbackBoard theme={theme} isMobile={isMobile} isSignedIn={isSignedIn} onSignIn={() => openSignIn()} sectionRef={feedbackRef} />
 
-      {/* ── Upgrade modal ── */}
-      {upgradeOpen && <UpgradeModal theme={theme} onClose={() => setUpgradeOpen(false)} onCheckout={startCheckout} checkoutLoading={checkoutLoading} checkoutError={checkoutError} />}
 
-      {/* ── Limit reached modal (Plus users at max) ── */}
-      {limitReachedOpen && <LimitReachedModal theme={theme} onClose={() => setLimitReachedOpen(false)} />}
+      {/* ── Every pop-up lives here. OverlayLayer portals into the fullscreen board when fullscreen
+           is on (the browser only shows that element), otherwise into <body>. ── */}
+      <OverlayLayer>
+        {/* Desktop-board dialogs: phones use MobileBoard's own sheets and focus screen instead */}
+        {(!isMobile || isNativeApp) && (
+          <>
+            <RenameBoardModal />
+            <TaskComposer />
+            <NoteDetailModal />
+            <StepModal />
+            <FocusOverlay />
+            <DraftPromptModal />
+          </>
+        )}
+        {focusPicker && (() => {
+          const pickerNote = notes.find(n => n.id === focusPicker.noteId);
+          if (!pickerNote) return null;
+          return <DurationPicker note={pickerNote} onCancel={() => setFocusPicker(null)} onStart={mins => commitFocus(focusPicker.noteId, focusPicker.chain, mins)} />;
+        })()}
+        <SessionReviewModal />
+        <ProfilePanel />
+        {/* ── Upgrade modal ── */}
+        {upgradeOpen && <UpgradeModal theme={theme} onClose={() => setUpgradeOpen(false)} onCheckout={startCheckout} checkoutLoading={checkoutLoading} checkoutError={checkoutError} />}
 
-      {/* ── Post-purchase thank you modal ── */}
-      {showSubscribedModal && <SubscribedModal theme={theme} onClose={() => setShowSubscribedModal(false)} />}
+        {/* ── Limit reached modal (Plus users at max) ── */}
+        {limitReachedOpen && <LimitReachedModal theme={theme} onClose={() => setLimitReachedOpen(false)} />}
 
-      {/* ── Sync overhaul update notice ── */}
-      {showUpdateModal && <WhatsNewModal theme={theme} onClose={() => { setShowUpdateModal(false); try { localStorage.setItem("boardtivity_update_sync_v1_seen", "1"); } catch {} }} />}
+        {/* ── Post-purchase thank you modal ── */}
+        {showSubscribedModal && <SubscribedModal theme={theme} onClose={() => setShowSubscribedModal(false)} />}
 
-      {/* ── Name prompt modal ── */}
-      {namePromptOpen && (
-        <NamePromptModal
-          theme={theme}
-          initialFirst={user?.firstName ?? ""}
-          initialLast={user?.lastName ?? ""}
-          onSave={async (first, last) => { if (user) await user.update({ firstName: first, lastName: last || undefined }); }}
-          onDismiss={() => { setNamePromptOpen(false); try { localStorage.setItem("boardtivity_name_prompt_dismissed", "1"); } catch {} }}
-        />
-      )}
+        {/* ── Sync overhaul update notice ── */}
+        {showUpdateModal && <WhatsNewModal theme={theme} onClose={() => { setShowUpdateModal(false); try { localStorage.setItem("boardtivity_update_sync_v1_seen", "1"); } catch {} }} />}
 
-
-      {/* ── Duration Picker (main level — mobile + non-fullscreen desktop) ── */}
-      {!isFullscreen && focusPicker && (() => {
-        const pickerNote = notes.find(n => n.id === focusPicker.noteId);
-        if (!pickerNote) return null;
-        return <DurationPicker note={pickerNote} onCancel={() => setFocusPicker(null)} onStart={mins => commitFocus(focusPicker.noteId, focusPicker.chain, mins)} />;
-      })()}
+        {/* ── Name prompt modal ── */}
+        {namePromptOpen && (
+          <NamePromptModal
+            theme={theme}
+            initialFirst={user?.firstName ?? ""}
+            initialLast={user?.lastName ?? ""}
+            onSave={async (first, last) => { if (user) await user.update({ firstName: first, lastName: last || undefined }); }}
+            onDismiss={() => { setNamePromptOpen(false); try { localStorage.setItem("boardtivity_name_prompt_dismissed", "1"); } catch {} }}
+          />
+        )}
+      </OverlayLayer>
 
       {/* Footer */}
       <footer style={{ textAlign: "center", padding: "24px 16px", borderTop: `1px solid ${border(theme)}`, marginTop: 40 }}>
