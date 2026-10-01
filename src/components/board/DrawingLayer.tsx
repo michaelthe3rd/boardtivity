@@ -5,6 +5,7 @@ import type { CSSProperties, ReactNode } from "react";
 import type { BoardArrow, BoardSticker, Note, StickerKind, ThemeMode } from "@/lib/board";
 import { NOTE_H, noteCardWidth } from "@/lib/boardLayout";
 import { border, muted, pageText, panel } from "@/lib/ui";
+import { NOTE_PALETTE } from "@/lib/colors";
 import LockIcon from "@/components/ui/LockIcon";
 import { useHome } from "@/components/home/HomeContext";
 
@@ -20,23 +21,54 @@ export const STICKER_KINDS: { kind: StickerKind; label: string }[] = [
   { kind: "pin", label: "Pin" },
 ];
 
-const STICKER_EMOJI: Partial<Record<StickerKind, string>> = {
-  star: "⭐", alert: "❗", question: "❓", check: "✅", heart: "❤️", fire: "🔥", pin: "📌",
-};
-
 const STICKER_SIZE = 48;
 
+// Each badge sticker borrows a card palette color so it sits naturally next to tasks and ideas.
+const STICKER_PALETTE: Record<Exclude<StickerKind, "arrow">, string> = {
+  star: "Yellow", alert: "Red", question: "Indigo", check: "Emerald", heart: "Pink", fire: "Orange", pin: "Blue",
+};
+
+// Icon artwork on a 48×48 grid, centered on (24, 24). `c` is the icon color.
+function stickerIcon(kind: Exclude<StickerKind, "arrow">, c: string) {
+  const line = { fill: "none", stroke: c, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  switch (kind) {
+    case "star":
+      return <path d="M24 13.5l3.2 6.6 7.2 1-5.2 5 1.3 7.2L24 29.9l-6.5 3.4 1.3-7.2-5.2-5 7.2-1z" fill={c} stroke={c} strokeWidth="2.2" strokeLinejoin="round" />;
+    case "alert":
+      return <><path d="M24 15v11.5" {...line} strokeWidth="4.4" /><circle cx="24" cy="33" r="2.7" fill={c} /></>;
+    case "question":
+      return <><path d="M18.8 19.6a5.4 5.4 0 1 1 7.7 4.9c-1.6.8-2.5 1.8-2.5 3.6v.4" {...line} strokeWidth="3.8" /><circle cx="24" cy="33.4" r="2.5" fill={c} /></>;
+    case "check":
+      return <path d="M16 24.6l5.6 5.6L32.4 18.6" {...line} strokeWidth="4.4" />;
+    case "heart":
+      return <path d="M24 34.5s-10.5-6.3-10.5-13.4A5.6 5.6 0 0 1 24 18a5.6 5.6 0 0 1 10.5 3.1c0 7.1-10.5 13.4-10.5 13.4z" fill={c} stroke={c} strokeWidth="1.6" strokeLinejoin="round" />;
+    case "fire":
+      return <path d="M24.6 12.5c1.2 4.6 7.4 7.4 7.4 14.1a8 8 0 0 1-16 0c0-3.3 1.6-5.6 3.4-7.2.3 2.4 1.5 3.8 3.2 4.4-1.1-4 0-8 2-11.3z" fill={c} stroke={c} strokeWidth="1.4" strokeLinejoin="round" />;
+    case "pin":
+      return <><path d="M24 36.5v-7" {...line} strokeWidth="3" /><path d="M24 12.5a6.3 6.3 0 0 1 6.3 6.3c0 2.4-1.3 4.2-2.8 5.2v3.6h-7v-3.6c-1.5-1-2.8-2.8-2.8-5.2a6.3 6.3 0 0 1 6.3-6.3z" fill={c} stroke={c} strokeWidth="1.4" strokeLinejoin="round" /></>;
+  }
+}
+
+// Die-cut stickers: tinted badge + white (or panel) cut edge, matching card colors and halos.
 export function StickerGlyph({ kind, size = STICKER_SIZE, theme }: { kind: StickerKind; size?: number; theme: ThemeMode }) {
+  const dark = theme === "dark";
+  const edge = dark ? "#2a2e35" : "#ffffff";
   if (kind === "arrow") {
-    // A chunky right-pointing arrow; rotate the sticker to aim it.
-    const fill = theme === "dark" ? "#f5f5f2" : "#171613";
+    // Chunky right-pointing arrow in ink; rotate the sticker to aim it.
     return (
       <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden="true" style={{ display: "block" }}>
-        <path d="M6 19h22v-9l15 14-15 14v-9H6z" fill={fill} stroke={theme === "dark" ? "#171613" : "#fff"} strokeWidth="2.5" strokeLinejoin="round" />
+        <path d="M7 20.5h19.5v-7.2a1.6 1.6 0 0 1 2.7-1.2l12.4 10.7a1.6 1.6 0 0 1 0 2.4L29.2 35.9a1.6 1.6 0 0 1-2.7-1.2v-7.2H7a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2z" fill={dark ? "#f5f5f2" : "#171613"} stroke={edge} strokeWidth="3" strokeLinejoin="round" paintOrder="stroke" />
       </svg>
     );
   }
-  return <span style={{ fontSize: size * 0.78, lineHeight: `${size}px`, display: "block", textAlign: "center", width: size, height: size }} aria-hidden="true">{STICKER_EMOJI[kind]}</span>;
+  const p = NOTE_PALETTE.find(x => x.name === STICKER_PALETTE[kind]) ?? NOTE_PALETTE[0];
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden="true" style={{ display: "block" }}>
+      <circle cx="24" cy="24" r="20.5" fill={edge} />
+      <circle cx="24" cy="24" r="18" fill={dark ? p.dark : p.light} stroke={p.halo.replace(/[\d.]+\)$/, dark ? "0.55)" : "0.45)")} strokeWidth="1.2" />
+      {stickerIcon(kind, p.swatch)}
+    </svg>
+  );
 }
 
 // ── Geometry ──────────────────────────────────────────────────────────────────
