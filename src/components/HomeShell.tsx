@@ -161,7 +161,7 @@ export function HomeShell() {
           <>
             <h1 style={{ margin: "0 0 28px", fontSize: "clamp(34px,5.4vw,70px)", lineHeight: 1.22, fontWeight: 800, letterSpacing: "-.04em", color: pageText(theme) }}>
               {/* "Board" and "tivity" sit on task cards, like notes on the board */}
-              <span style={{ whiteSpace: isMobile ? undefined : "nowrap" }}>The <HeroCard theme={theme} tilt={-2.5}>Board</HeroCard> and the</span><br/>
+              <span style={{ whiteSpace: isMobile ? undefined : "nowrap" }}>The<HeroCard theme={theme} tilt={-2.5}>Board</HeroCard>and the</span><br/>
               Produc<HeroCard theme={theme} tilt={2} attached>tivity</HeroCard><br/>
               <span style={{ display: "inline-block", marginTop: ".08em", fontWeight: 500, color: muted(theme) }}>in one.</span>
             </h1>
@@ -925,11 +925,12 @@ export function HomeShell() {
 }
 
 // A word in the landing headline drawn as a small tilted task card.
-// `attached` drops the left gap so the card joins the letters before it ("Produc|tivity").
+// Cards sit .1em from neighbouring words (no text spaces around them) so the gap is the same everywhere.
+// `attached` is for a card that ends its line ("Produc|tivity"), so it only needs the left gap.
 function HeroCard({ theme, tilt, attached, children }: { theme: ThemeMode; tilt: number; attached?: boolean; children: React.ReactNode }) {
   return (
     <span style={{
-      display: "inline-block", padding: attached ? ".04em .2em .1em .08em" : ".04em .2em .1em", margin: attached ? "0 0 0 .02em" : "0 .1em",
+      display: "inline-block", padding: ".04em .2em .1em", margin: attached ? "0 0 0 .1em" : "0 .1em",
       backgroundColor: panel(theme), border: `1px solid ${border(theme)}`, borderRadius: ".2em",
       transform: `rotate(${tilt}deg)`,
       boxShadow: theme === "dark" ? "0 .1em .35em rgba(0,0,0,.45)" : "0 .1em .35em rgba(89,72,48,.12)",
