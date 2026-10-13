@@ -137,12 +137,15 @@ function StepIcon({ icon, theme, size }: { icon: Step["icon"]; theme: ThemeMode;
 export default function Tutorial() {
   const home = useHome();
   const { tutorialOpen, closeTutorial, theme, isMobile, isNativeApp } = home;
+  // `index` is the step being loaded; `shown` is the step on screen. They differ only for the
+  // moment it takes to find the next control, so content and spotlight always switch together.
   const [index, setIndex] = useState(0);
+  const [shown, setShown] = useState(0);
   const [rect, setRect] = useState<Rect | null>(null);
   const [searching, setSearching] = useState(false);
-  const [found, setFound] = useState(false);
   const [tipPos, setTipPos] = useState<{ top: number; left: number } | null>(null);
   const targetRef = useRef<HTMLElement | null>(null);
+  const targetIdRef = useRef<string | null>(null);
   const directionRef = useRef<1 | -1>(1);
   const tipRef = useRef<HTMLDivElement | null>(null);
   const primaryRef = useRef<HTMLButtonElement | null>(null);
@@ -154,11 +157,12 @@ export default function Tutorial() {
     : typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches ? "touch" : "desktop";
   const steps = STEPS.filter(s => !s.only || s.only.includes(layout));
   const step = steps[Math.min(index, steps.length - 1)];
-  const advance = typeof step.advance === "function" ? step.advance(layout) : step.advance ?? "next";
-  const isLast = index >= steps.length - 1;
+  const shownStep = steps[Math.min(shown, steps.length - 1)];
+  const advance = typeof shownStep.advance === "function" ? shownStep.advance(layout) : shownStep.advance ?? "next";
+  const isLast = shown >= steps.length - 1;
 
   function go(next: number) {
-    directionRef.current = next >= index ? 1 : -1;
+    directionRef.current = next >= shown ? 1 : -1;
     if (next >= steps.length) { finish(); return; }
     setIndex(Math.max(0, next));
   }
@@ -167,68 +171,81 @@ export default function Tutorial() {
   }
 
   // (Re)start from the top whenever the tour opens.
-  useEffect(() => { if (tutorialOpen) { setIndex(0); directionRef.current = 1; } }, [tutorialOpen]);
+  useEffect(() => { if (tutorialOpen) { setIndex(0); setShown(0); directionRef.current = 1; } }, [tutorialOpen]);
 
-  // Enter a step: tidy up, then find its control (waiting briefly for dialogs to open).
+  // Enter a step: tidy up, then find its control. The previous spotlight stays on screen
+  // while we look, so the ring glides to the new control instead of blinking out and back.
   useEffect(() => {
     if (!tutorialOpen) return;
     step.enter?.(homeRef.current);
-    targetRef.current = null;
-    setFound(false);
-    setRect(null);
-    setTipPos(null);
-    if (!step.target) { setSearching(false); return; }
+    if (!step.target) {
+      targetRef.current = null; targetIdRef.current = null;
+      setRect(null); setTipPos(null); setSearching(false); setShown(index);
+      return;
+    }
+
+    const attach = (el: HTMLElement) => {
+      targetRef.current = el;
+      targetIdRef.current = step.target!;
+      setSearching(false);
+      setShown(index);
+      const r = el.getBoundingClientRect();
+      if (r.top < 70 || r.bottom > window.innerHeight - 70) el.scrollIntoView({ block: "center", behavior: "smooth" });
+    };
+
+    // Usually the control is already there: attach in the same frame, no waiting.
+    const now = findTarget(step.target);
+    if (now) { attach(now); return; }
+
+    // Otherwise it's appearing (a dialog opening, a card being created): attach the moment it
+    // shows up in the DOM, and give up after ~1.5s.
     setSearching(true);
-    let tries = 0;
-    const timer = setInterval(() => {
+    let done = false;
+    const observer = new MutationObserver(() => {
+      if (done) return;
       const el = findTarget(step.target!);
-      if (el) {
-        clearInterval(timer);
-        targetRef.current = el;
-        setFound(true);
-        setSearching(false);
-        const r = el.getBoundingClientRect();
-        if (r.top < 70 || r.bottom > window.innerHeight - 70) el.scrollIntoView({ block: "center", behavior: "smooth" });
-      } else if (++tries > 15) {
-        // Not on screen in this layout/state: skip in the direction the user was going.
-        clearInterval(timer);
-        setSearching(false);
-        const next = index + directionRef.current;
-        if (next < 0) setIndex(0);
-        else if (next >= steps.length) finish();
-        else setIndex(next);
-      }
-    }, 100);
-    return () => clearInterval(timer);
+      if (el) { done = true; observer.disconnect(); clearTimeout(giveUp); attach(el); }
+    });
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["style", "class", "data-tour"] });
+    const giveUp = setTimeout(() => {
+      if (done) return;
+      done = true;
+      observer.disconnect();
+      const el = findTarget(step.target!);
+      if (el) { attach(el); return; }
+      // Not on screen in this layout/state: skip in the direction the user was going.
+      setSearching(false);
+      const next = index + directionRef.current;
+      if (next < 0) setIndex(0);
+      else if (next >= steps.length) finish();
+      else setIndex(next);
+    }, 1500);
+    return () => { done = true; observer.disconnect(); clearTimeout(giveUp); };
   }, [tutorialOpen, index, layout]);
 
   // Keep the spotlight glued to its control through scrolling, panning, resizing and animations.
   useEffect(() => {
-    if (!tutorialOpen || !step.target) return;
+    if (!tutorialOpen) return;
     let frame = 0;
     const tick = () => {
       let el = targetRef.current;
-      if (el && !el.isConnected) { el = findTarget(step.target!); targetRef.current = el; }
+      if (el && !el.isConnected && targetIdRef.current) { el = findTarget(targetIdRef.current); targetRef.current = el; }
       if (el) {
         const r = el.getBoundingClientRect();
         const radius = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 8;
         const next: Rect = { top: Math.round(r.top), left: Math.round(r.left), width: Math.round(r.width), height: Math.round(r.height), radius: Math.min(radius, 28) };
         setRect(prev => (sameRect(prev, next) ? prev : next));
-      } else {
-        setRect(prev => (prev ? null : prev));
       }
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [tutorialOpen, index, step.target]);
+  }, [tutorialOpen]);
 
   // Interactive steps finish themselves once the user does the thing.
-  const actionDone = tutorialOpen && advance === "action" && !!step.done?.(home) && !searching;
+  const actionDone = tutorialOpen && shown === index && advance === "action" && !!shownStep.done?.(home) && !searching;
   useEffect(() => {
-    if (!actionDone) return;
-    const t = setTimeout(() => go(index + 1), 280);
-    return () => clearTimeout(t);
+    if (actionDone) go(shown + 1); // runs after the UI has committed, so the next control is already there
   }, [actionDone]);
 
   // Place the tooltip next to the spotlight, flipping/clamping to stay on screen.
@@ -249,7 +266,7 @@ export default function Tutorial() {
     left = Math.max(m, Math.min(left, vw - tip.width - m));
     top = Math.max(m, Math.min(top, vh - tip.height - m));
     setTipPos(prev => (prev && Math.abs(prev.top - top) < 1 && Math.abs(prev.left - left) < 1 ? prev : { top, left }));
-  }, [tutorialOpen, rect, index]);
+  }, [tutorialOpen, rect, shown]);
 
   // Keyboard: Esc ends; arrows move between steps unless the user is typing in a field.
   useEffect(() => {
@@ -259,23 +276,23 @@ export default function Tutorial() {
       const typing = !!t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable);
       if (e.key === "Escape") { e.preventDefault(); finish(); }
       else if (typing) return;
-      else if (e.key === "ArrowRight" && advance === "next") go(index + 1);
-      else if (e.key === "ArrowLeft" && index > 0) go(index - 1);
+      else if (e.key === "ArrowRight" && advance === "next") go(shown + 1);
+      else if (e.key === "ArrowLeft" && shown > 0) go(shown - 1);
     }
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
   });
 
   // Centered cards take keyboard focus; spotlight steps leave focus where the user is working.
-  useEffect(() => { if (tutorialOpen && !step.target) primaryRef.current?.focus(); }, [tutorialOpen, index, step.target]);
+  useEffect(() => { if (tutorialOpen && !shownStep.target) primaryRef.current?.focus(); }, [tutorialOpen, shown, shownStep.target]);
 
   if (!tutorialOpen) return null;
 
   const dark = theme === "dark";
   const dim = dark ? "rgba(6,8,12,.66)" : "rgba(12,12,14,.5)";
   const cardBg = dark ? "#1a1d22" : "#fbf8f1";
-  const title = typeof step.title === "function" ? step.title(layout, home) : step.title;
-  const centered = !step.target || (!found && !searching);
+  const title = typeof shownStep.title === "function" ? shownStep.title(layout, home) : shownStep.title;
+  const centered = !shownStep.target;
   const pad = 6;
   const hole = rect ? { top: rect.top - pad, left: rect.left - pad, width: rect.width + pad * 2, height: rect.height + pad * 2 } : null;
 
@@ -285,16 +302,16 @@ export default function Tutorial() {
 
   const footer = (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 16 }}>
-      {isLast || index === 0 ? <span /> : (
+      {isLast || shown === 0 ? <span /> : (
         <button type="button" onClick={finish} style={{ border: "none", background: "none", color: muted(theme), fontSize: 13, fontWeight: 600, cursor: "pointer", padding: "6px 2px", fontFamily: "inherit" }}>
           End tour
         </button>
       )}
       <div style={{ display: "flex", gap: 8 }}>
-        {index > 0 && !isLast && <button type="button" onClick={() => go(index - 1)} style={secondaryBtn}>Back</button>}
+        {shown > 0 && !isLast && <button type="button" onClick={() => go(shown - 1)} style={secondaryBtn}>Back</button>}
         {advance === "action"
-          ? <button type="button" onClick={() => go(index + 1)} style={secondaryBtn}>Skip</button>
-          : <button ref={primaryRef} type="button" onClick={() => (isLast ? finish() : go(index + 1))} style={primaryBtn}>{index === 0 ? "Start the tour" : isLast ? "Finish" : "Next"}</button>}
+          ? <button type="button" onClick={() => go(shown + 1)} style={secondaryBtn}>Skip</button>
+          : <button ref={primaryRef} type="button" onClick={() => (isLast ? finish() : go(shown + 1))} style={primaryBtn}>{shown === 0 ? "Start the tour" : isLast ? "Finish" : "Next"}</button>}
       </div>
     </div>
   );
@@ -303,24 +320,24 @@ export default function Tutorial() {
   const textLink: CSSProperties = { border: "none", background: "none", color: muted(theme), fontSize: 13, fontWeight: 600, cursor: "pointer", padding: "6px 8px", fontFamily: "inherit" };
   const centeredFooter = (
     <div style={{ marginTop: 22, display: "grid", gap: 8 }}>
-      {index > 0 && !isLast ? (
+      {shown > 0 && !isLast ? (
         <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 8 }}>
-          <button type="button" onClick={() => go(index - 1)} style={{ ...secondaryBtn, height: 46 }}>Back</button>
-          <button ref={primaryRef} type="button" onClick={() => go(index + 1)} style={{ ...primaryBtn, height: 46 }}>Next</button>
+          <button type="button" onClick={() => go(shown - 1)} style={{ ...secondaryBtn, height: 46 }}>Back</button>
+          <button ref={primaryRef} type="button" onClick={() => go(shown + 1)} style={{ ...primaryBtn, height: 46 }}>Next</button>
         </div>
       ) : (
-        <button ref={primaryRef} type="button" onClick={() => (isLast ? finish() : go(index + 1))} style={{ ...primaryBtn, height: 46, width: "100%" }}>
+        <button ref={primaryRef} type="button" onClick={() => (isLast ? finish() : go(shown + 1))} style={{ ...primaryBtn, height: 46, width: "100%" }}>
           {isLast ? "Finish" : "Start the tour"}
         </button>
       )}
-      {index === 0 && <button type="button" onClick={finish} style={textLink}>Not now</button>}
-      {index > 0 && !isLast && <button type="button" onClick={finish} style={textLink}>End tour</button>}
+      {shown === 0 && <button type="button" onClick={finish} style={textLink}>Not now</button>}
+      {shown > 0 && !isLast && <button type="button" onClick={finish} style={textLink}>End tour</button>}
     </div>
   );
 
   const progress = (
     <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", fontWeight: 700, color: muted(theme) }}>
-      Step {index + 1} of {steps.length}
+      Step {shown + 1} of {steps.length}
     </div>
   );
 
@@ -328,16 +345,16 @@ export default function Tutorial() {
   if (centered) {
     const phone = layout === "phone";
     return (
-      <div role="dialog" aria-modal="true" aria-labelledby="bt-tour-title" style={{ position: "fixed", inset: 0, zIndex: 10000, display: "flex", alignItems: phone ? "flex-end" : "center", justifyContent: "center", padding: phone ? 0 : 20, backgroundColor: dim, backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }}>
-        <div style={{ width: phone ? "100%" : "min(420px, 100%)", boxSizing: "border-box", padding: phone ? "30px 24px calc(24px + env(safe-area-inset-bottom))" : "36px 32px 26px", borderRadius: phone ? "22px 22px 0 0" : 22, backgroundColor: cardBg, border: `1px solid ${border(theme)}`, boxShadow: "0 30px 80px rgba(0,0,0,.3)", color: pageText(theme), textAlign: "center" }}>
-          {step.icon && (
+      <div role="dialog" aria-modal="true" aria-labelledby="bt-tour-title" style={{ position: "fixed", inset: 0, zIndex: 10000, display: "flex", alignItems: phone ? "flex-end" : "center", justifyContent: "center", padding: phone ? 0 : 20, backgroundColor: dim }}>
+        <div key={shown} className={phone ? "tour-sheet-in" : "tour-card-in"} style={{ width: phone ? "100%" : "min(420px, 100%)", boxSizing: "border-box", padding: phone ? "30px 24px calc(24px + env(safe-area-inset-bottom))" : "36px 32px 26px", borderRadius: phone ? "22px 22px 0 0" : 22, backgroundColor: cardBg, border: `1px solid ${border(theme)}`, boxShadow: "0 30px 80px rgba(0,0,0,.3)", color: pageText(theme), textAlign: "center" }}>
+          {shownStep.icon && (
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: 64, marginBottom: 18 }}>
-              <StepIcon icon={step.icon} theme={theme} size={step.icon === "logo" ? 72 : step.icon === "bob" ? 64 : 56} />
+              <StepIcon icon={shownStep.icon} theme={theme} size={shownStep.icon === "logo" ? 72 : shownStep.icon === "bob" ? 64 : 56} />
             </div>
           )}
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 10 }}>{progress}</div>
           <h2 id="bt-tour-title" style={{ margin: "0 0 10px", fontSize: 22, fontWeight: 800, letterSpacing: "-.03em", lineHeight: 1.2 }}>{title}</h2>
-          <p aria-live="polite" style={{ margin: 0, fontSize: 15, lineHeight: 1.65, color: muted(theme) }}>{step.body(layout, home)}</p>
+          <p aria-live="polite" style={{ margin: 0, fontSize: 15, lineHeight: 1.65, color: muted(theme) }}>{shownStep.body(layout, home)}</p>
           {centeredFooter}
         </div>
       </div>
@@ -362,7 +379,7 @@ export default function Tutorial() {
             style={{
               position: "fixed", top: hole.top, left: hole.left, width: hole.width, height: hole.height,
               borderRadius: (rect?.radius ?? 8) + pad, boxShadow: `0 0 0 9999px ${dim}`, pointerEvents: "none",
-              transition: "top .25s ease, left .25s ease, width .25s ease, height .25s ease",
+              transition: "top .38s cubic-bezier(.22,1,.36,1), left .38s cubic-bezier(.22,1,.36,1), width .38s cubic-bezier(.22,1,.36,1), height .38s cubic-bezier(.22,1,.36,1), border-radius .38s cubic-bezier(.22,1,.36,1)",
             }}
           />
         </>
@@ -375,22 +392,24 @@ export default function Tutorial() {
           position: "fixed", top: tipPos?.top ?? -9999, left: tipPos?.left ?? -9999, width: tipWidth, boxSizing: "border-box",
           padding: "18px 18px 14px", borderRadius: 16, backgroundColor: cardBg, border: `1px solid ${border(theme)}`,
           boxShadow: "0 18px 50px rgba(0,0,0,.28)", color: pageText(theme), pointerEvents: "auto",
-          opacity: tipPos ? 1 : 0, transition: "opacity .15s ease, top .25s ease, left .25s ease",
+          opacity: tipPos ? 1 : 0, transition: "opacity .18s ease, top .38s cubic-bezier(.22,1,.36,1), left .38s cubic-bezier(.22,1,.36,1)",
         }}
       >
+        <div key={shown} className="tour-swap">
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-          {step.icon && <StepIcon icon={step.icon} theme={theme} size={26} />}
+          {shownStep.icon && <StepIcon icon={shownStep.icon} theme={theme} size={26} />}
           {progress}
         </div>
         <h2 id="bt-tour-title" style={{ margin: "0 0 6px", fontSize: 17, fontWeight: 800, letterSpacing: "-.02em", lineHeight: 1.25 }}>{title}</h2>
-        <p aria-live="polite" style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: muted(theme) }}>{step.body(layout, home)}</p>
+        <p aria-live="polite" style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: muted(theme) }}>{shownStep.body(layout, home)}</p>
         {advance === "action" && (
           <div style={{ marginTop: 10, fontSize: 12, fontWeight: 700, color: dark ? "#8ab4ff" : "#2563eb", display: "flex", alignItems: "center", gap: 6 }}>
             <span className="tour-dot" aria-hidden="true" style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: "currentColor", display: "inline-block" }} />
-            {layout === "desktop" ? "Click" : "Tap"} the highlighted {step.id === "card" ? "card" : "button"} to continue
+            {layout === "desktop" ? "Click" : "Tap"} the highlighted {shownStep.id === "card" ? "card" : "button"} to continue
           </div>
         )}
         {footer}
+        </div>
       </div>
     </div>
   );
