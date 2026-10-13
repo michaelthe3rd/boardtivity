@@ -100,7 +100,7 @@ export default function SettingsPanel() {
           <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), fontWeight: 700 }}>Idea Colors</div>
           <div style={{ display: "grid", gap: 10 }}>
             <div style={{ fontSize: 12, color: muted(boardTheme), lineHeight: 1.5 }}>
-              Default color for new ideas. Pick one below, or use the shuffle to randomize. You can always change color per-card using the circle in the corner.
+              Pick a color for new ideas, or use the shuffle for a random color. You can change any idea&apos;s color later with the circle in its corner.
             </div>
             <div style={{ display: "flex", gap: 6, flexWrap: "nowrap", overflowX: "auto", alignItems: "center", padding: 6, margin: -6 }}>
               {/* Shuffle / randomize */}
@@ -345,7 +345,7 @@ export default function SettingsPanel() {
             }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: pageText(boardTheme) }}>BOB is a Plus feature</div>
               <p style={{ margin: 0, fontSize: 12, color: muted(boardTheme), lineHeight: 1.55, maxWidth: 220 }}>
-                Your AI board brain — personalized context, voice commands, autopilot, and more.
+                An AI helper that plans your day, adds tasks for you, and keeps your board in order.
               </p>
               <button onClick={() => { setSettingsOpen(false); setUpgradeOpen(true); }} style={{
                 padding: "7px 18px", borderRadius: 99, border: "none", cursor: "pointer",

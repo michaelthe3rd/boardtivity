@@ -16,15 +16,15 @@ export function UpgradeModal({ theme, onClose, onCheckout, checkoutLoading, chec
         Unlock more with Plus
       </div>
       <div style={{ fontSize: 14, color: muted(theme), lineHeight: 1.65, marginBottom: 22 }}>
-        More boards, BOB AI assistant, and everything we build next.
+        More boards, the BOB AI helper, and new features first.
       </div>
       {/* Feature list */}
       <div style={{ display: "flex", flexDirection: "column", gap: 9, marginBottom: 24 }}>
         {[
           "Up to 10 task boards",
           "Up to 5 idea boards",
-          "BOB AI assistant",
-          "Early access to new features",
+          "BOB AI helper",
+          "Get new features first",
         ].map((f) => (
           <div key={f} style={{ display: "flex", alignItems: "flex-start", gap: 9, fontSize: 13.5, color: pageText(theme) }}>
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0, marginTop: 2 }}><polyline points="2,7 5.5,10.5 12,3.5" stroke="#6fc46b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -102,7 +102,7 @@ export function SubscribedModal({ theme, onClose }: Base) {
       <div style={{ fontSize: 11, letterSpacing: ".16em", textTransform: "uppercase", fontWeight: 700, color: muted(theme), marginBottom: 10 }}>Now on your account</div>
       <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: "-.04em", color: pageText(theme), marginBottom: 10 }}>You're all set</div>
       <div style={{ fontSize: 14, color: muted(theme), lineHeight: 1.7, marginBottom: 28 }}>
-        Your subscription is active. You now have access to up to 10 task boards, 5 idea boards, BOB AI assistant, and more features to come. Thank you for your support!
+        Your Plus plan is active. You can now make up to 10 task boards and 5 idea boards, and use the BOB AI helper. Thank you for your support!
       </div>
       <button
         onClick={onClose}

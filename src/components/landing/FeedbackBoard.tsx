@@ -33,15 +33,15 @@ export default function FeedbackBoard({ theme, isMobile, isSignedIn, onSignIn, s
       <section ref={sectionRef} id="feedback" style={{ maxWidth: 720, margin: "0 auto", padding: isMobile ? "60px 20px 80px" : "100px 32px 120px" }}>
         <div style={{ marginBottom: 40 }}>
           <div style={{ fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 10, opacity: .5 }}>Community</div>
-          <h2 style={{ margin: "0 0 8px", fontSize: "clamp(26px,3vw,38px)", fontWeight: 900, letterSpacing: "-.04em", color: pageText(theme), lineHeight: 1.1 }}>Feature Requests & Feedback</h2>
-          <p style={{ margin: 0, fontSize: 15, color: muted(theme), opacity: .6, lineHeight: 1.7 }}>Share what you'd like to see. Upvote ideas you care about.</p>
+          <h2 style={{ margin: "0 0 8px", fontSize: "clamp(26px,3vw,38px)", fontWeight: 900, letterSpacing: "-.04em", color: pageText(theme), lineHeight: 1.1 }}>Ideas and feedback</h2>
+          <p style={{ margin: 0, fontSize: 15, color: muted(theme), opacity: .6, lineHeight: 1.7 }}>Tell us what you'd like to see. Vote for the ideas you like.</p>
         </div>
 
         {/* Post form */}
         {isSignedIn ? (
           <div style={{ marginBottom: 28, backgroundColor: theme === "dark" ? "#17191d" : "#ffffff", border: `1px solid ${border(theme)}`, borderRadius: 14, padding: "18px 20px" }}>
             <textarea
-              placeholder="Share feedback, request a feature, or report a bug…"
+              placeholder="Share an idea, ask for a feature, or tell us about a problem…"
               value={feedbackContent}
               onChange={e => { setFeedbackContent(e.target.value); setFeedbackError(null); }}
               maxLength={500}
@@ -89,7 +89,7 @@ export default function FeedbackBoard({ theme, isMobile, isSignedIn, onSignIn, s
           {feedbackPosts === undefined ? (
             <div style={{ textAlign: "center", padding: "60px 0", fontSize: 14, color: muted(theme), opacity: .4 }}>Loading…</div>
           ) : feedbackPosts.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "60px 0", fontSize: 14, color: muted(theme), opacity: .4 }}>No posts yet — be the first!</div>
+            <div style={{ textAlign: "center", padding: "60px 0", fontSize: 14, color: muted(theme), opacity: .4 }}>No posts yet. Be the first!</div>
           ) : feedbackPosts.map((p) => {
             const score = p.upvotes - p.downvotes;
             const isReplying = replyingTo === p._id;

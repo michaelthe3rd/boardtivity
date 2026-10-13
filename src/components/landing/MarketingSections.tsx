@@ -6,7 +6,8 @@ import { useRevealOnScroll } from "@/lib/hooks";
 import { hexToRgba } from "@/lib/colors";
 import BoardtivityLogo from "@/components/BoardtivityLogo";
 
-// Signed-out landing content below the demo board: focus mode showcase, features, pricing.
+// Landing content below the board. Signed out: focus showcase, features, pricing.
+// Signed in: only the upgrade (pricing) section, and nothing for Plus members, so the board stays the focus.
 export default function MarketingSections({ theme, isMobile, isSignedIn, isPlus, checkoutLoading, onSignUp, onCheckout }: {
   theme: ThemeMode;
   isMobile: boolean;
@@ -20,16 +21,19 @@ export default function MarketingSections({ theme, isMobile, isSignedIn, isPlus,
   const [featuresRef, featuresVisible] = useRevealOnScroll();
   const [pricingRef, pricingVisible] = useRevealOnScroll();
 
-  return (
-      <section style={{ maxWidth: 1100, margin: "0 auto", padding: isMobile ? "60px 20px 80px" : "100px 24px 140px" }}>
+  if (isSignedIn && isPlus) return null;
 
+  return (
+      <section style={{ maxWidth: 1100, margin: "0 auto", padding: isSignedIn ? (isMobile ? "32px 20px 48px" : "56px 24px 72px") : (isMobile ? "60px 20px 80px" : "100px 24px 140px") }}>
+
+        {!isSignedIn && <>
         {/* Section label */}
         <div style={{ textAlign: "center", marginBottom: 96 }}>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 28 }}>
             <BoardtivityLogo size={80} dark={theme === "dark"} />
           </div>
-          <div style={{ fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 16, opacity: .5 }}>Built for how you think</div>
-          <h2 style={{ margin: 0, fontSize: "clamp(22px,2.8vw,38px)", fontWeight: 900, letterSpacing: "-.05em", color: pageText(theme), lineHeight: 1.06 }}>Your Board, the Way You Need It.</h2>
+          <div style={{ fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 16, opacity: .5 }}>What you can do</div>
+          <h2 style={{ margin: 0, fontSize: "clamp(22px,2.8vw,38px)", fontWeight: 900, letterSpacing: "-.05em", color: pageText(theme), lineHeight: 1.06 }}>Everything you need, on one board.</h2>
         </div>
 
         {/* ── Focus Mode — full-width immersive ── */}
@@ -92,12 +96,12 @@ export default function MarketingSections({ theme, isMobile, isSignedIn, isPlus,
               </div>
               {/* Right: copy */}
               <div style={{ padding: isMobile ? "32px 24px 44px" : "56px 48px 52px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                <h3 style={{ margin: "0 0 18px", fontSize: "clamp(22px,2.2vw,32px)", fontWeight: 800, letterSpacing: "-.04em", color: "#f7f8fb", lineHeight: 1.08 }}>Lock in.<br/>Build the streak.</h3>
+                <h3 style={{ margin: "0 0 18px", fontSize: "clamp(22px,2.2vw,32px)", fontWeight: 800, letterSpacing: "-.04em", color: "#f7f8fb", lineHeight: 1.08 }}>Focus with a timer.<br/>Keep your streak going.</h3>
                 <p style={{ margin: "0 0 36px", fontSize: 15, color: "rgba(255,255,255,.42)", lineHeight: 1.9 }}>
-                  Commit to a session and go. Boardtivity counts down, chains through your subtasks, and logs every minute — so your streak and stats grow automatically.
+                  Pick a task and start the timer. When you finish one step, Boardtivity moves you to the next. Every minute you focus is saved, so you can see your progress.
                 </p>
                 <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                  {["Commit to a dedicated session — your call on how long", "Auto-chain through subtasks without losing focus", "Streak and total hours tracked across every session", "Session review screen after every finish"].map((f) => (
+                  {["Choose 15 min, 30 min, 1 hour, 2 hours, or your own time", "Moves you to the next step for you", "See your streak and total focus time", "See what you finished after each session"].map((f) => (
                     <div key={f} style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 14, color: "rgba(255,255,255,.55)" }}>
                       <div style={{ width: 4, height: 4, borderRadius: "50%", backgroundColor: "rgba(255,255,255,.22)", flexShrink: 0 }}/>
                       {f}
@@ -111,30 +115,40 @@ export default function MarketingSections({ theme, isMobile, isSignedIn, isPlus,
 
         {/* ── Features — 4-col editorial ── */}
         <div ref={featuresRef}>
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr 1fr", gap: isMobile ? 28 : 0, marginBottom: 88, opacity: featuresVisible ? 1 : 0, transform: featuresVisible ? "none" : "translateY(20px)", transition: "opacity .6s ease, transform .6s ease" }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", rowGap: isMobile ? 28 : 56, columnGap: 0, marginBottom: 88, opacity: featuresVisible ? 1 : 0, transform: featuresVisible ? "none" : "translateY(20px)", transition: "opacity .6s ease, transform .6s ease" }}>
             {([
               {
-                label: "Visual Boards",
-                heading: "Everything on\nyour board.",
-                body: "Drag tasks anywhere on your board. Arrange by project, urgency, or however your mind works — no rigid columns.",
+                label: "Your board",
+                heading: "Put tasks\nanywhere.",
+                body: "Move tasks around your board however you like. Lock a task so it stays in place. Add grid lines, or go full screen.",
               },
               {
                 label: "Taskweb & Taskchain",
-                heading: "Break any task\ninto steps.",
-                body: "Expand tasks into a subtask web you can see at once, or a sequential chain you step through one at a time.",
+                heading: "Split big tasks\ninto steps.",
+                body: "Break a task into smaller steps. See all the steps at once, or do them one at a time.",
               },
               {
-                label: "Focus Sessions",
-                heading: "Timed sessions,\nyour way.",
-                body: "Pick 15m, 25m, 45m, 1hr, or a custom duration. Boardtivity counts down and auto-chains through subtasks.",
+                label: "Idea boards",
+                heading: "Save your\nideas.",
+                body: "Keep ideas on their own board, away from your tasks. Connect ideas that go together.",
               },
               {
-                label: "Streaks & Stats",
-                heading: "Track your\nmomentum.",
-                body: "Every session logs time and builds your streak. See total hours focused, tasks completed, and daily activity.",
+                label: "Focus timer",
+                heading: "Focus and\nbuild a streak.",
+                body: "Start a timer on any task. Each minute adds to your streak and your total focus time.",
+              },
+              {
+                label: "Due dates",
+                heading: "Don't miss\na deadline.",
+                body: "Add a due date and time to a task. We'll email you a reminder before it's due.",
+              },
+              {
+                label: "BOB, your AI helper",
+                heading: "Get help\nfrom BOB.",
+                body: "Tell BOB what you need to do. BOB adds the tasks, splits them into steps, and sets up your board. Comes with Plus.",
               },
             ] as const).map((f, i) => (
-              <div key={i} style={{ borderTop: `1px solid ${border(theme)}`, paddingTop: 28, paddingRight: isMobile ? 0 : (i < 3 ? 40 : 0), paddingBottom: 0 }}>
+              <div key={i} style={{ borderTop: `1px solid ${border(theme)}`, paddingTop: 28, paddingRight: isMobile ? 0 : (i % 3 < 2 ? 40 : 0), paddingBottom: 0 }}>
                 <div style={{ fontSize: 10, letterSpacing: ".18em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 20, opacity: .5 }}>{f.label}</div>
                 <h3 style={{ margin: "0 0 16px", fontSize: 19, fontWeight: 800, letterSpacing: "-.03em", color: pageText(theme), lineHeight: 1.22 }}>{f.heading.split("\n").map((line, j) => <span key={j}>{line}{j === 0 ? <br/> : null}</span>)}</h3>
                 <p style={{ margin: 0, fontSize: 14, color: muted(theme), lineHeight: 1.85, opacity: .68 }}>{f.body}</p>
@@ -143,15 +157,21 @@ export default function MarketingSections({ theme, isMobile, isSignedIn, isPlus,
           </div>
         </div>
 
+        </>}
+
         {/* ── Pricing ── */}
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
+          <div style={{ fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 12, opacity: .5 }}>{isSignedIn ? "Boardtivity Plus" : "Pricing"}</div>
+          <h2 style={{ margin: 0, fontSize: "clamp(22px,2.4vw,32px)", fontWeight: 900, letterSpacing: "-.045em", color: pageText(theme), lineHeight: 1.1 }}>{isSignedIn ? "Need more room? Upgrade to Plus." : "Free to start. Plus when you need more."}</h2>
+        </div>
         <div ref={pricingRef} style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, maxWidth: 720, margin: "0 auto" }}>
           {/* Free */}
           <div style={{ position: "relative", overflow: "hidden", borderRadius: 18, border: `1px solid ${border(theme)}`, backgroundColor: panel(theme), padding: "36px 28px", display: "flex", flexDirection: "column", opacity: pricingVisible ? 1 : 0, transform: pricingVisible ? "none" : "translateY(28px)", transition: "opacity .65s ease 0s, transform .65s ease 0s" }}>
             <div style={{ fontSize: 10, letterSpacing: ".16em", textTransform: "uppercase", fontWeight: 700, color: muted(theme), marginBottom: 16 }}>Free</div>
             <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1.08, letterSpacing: "-.035em", color: pageText(theme), marginBottom: 14 }}>Free forever</div>
-            <div style={{ fontSize: 13, color: muted(theme), marginBottom: 18, lineHeight: 1.75, flexGrow: 1 }}>Full access to every feature — boards, tasks, subtasks, focus sessions, and idea notes. No credit card needed.</div>
+            <div style={{ fontSize: 13, color: muted(theme), marginBottom: 18, lineHeight: 1.75, flexGrow: 1 }}>Plan your tasks, save ideas, and focus with a timer. No credit card needed.</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 26 }}>
-              {["1 board per type", "1 idea per board", "Focus sessions & streak tracking", "Taskweb & Taskchain"].map((f) => (
+              {["1 task board and 1 idea board", "Split tasks into steps", "Focus timer and streaks", "Due dates and email reminders", "Works on all your devices"].map((f) => (
                 <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: pageText(theme) }}>
                   <div style={{ width: 16, height: 16, borderRadius: "50%", backgroundColor: hexToRgba("#6fc46b", .15), border: "1px solid rgba(111,196,107,.35)", display: "grid", placeItems: "center", flexShrink: 0 }}>
                     <svg width="8" height="8" viewBox="0 0 10 10"><polyline points="2,5.5 4.2,7.5 8,3" stroke="#6fc46b" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -160,7 +180,7 @@ export default function MarketingSections({ theme, isMobile, isSignedIn, isPlus,
                 </div>
               ))}
             </div>
-            <button onClick={() => !isSignedIn && onSignUp()} style={{ ...buttonStyle(theme, false), width: "100%", fontSize: 14, height: 42, cursor: isSignedIn ? "default" : "pointer", opacity: isSignedIn ? .5 : 1 }}>{isSignedIn ? "Signed in" : "Get started free"}</button>
+            <button onClick={() => !isSignedIn && onSignUp()} style={{ ...buttonStyle(theme, false), width: "100%", fontSize: 14, height: 42, cursor: isSignedIn ? "default" : "pointer", opacity: isSignedIn ? .5 : 1 }}>{isSignedIn ? "Current plan" : "Get started free"}</button>
           </div>
           {/* Plus */}
           <div style={{ position: "relative", overflow: "hidden", borderRadius: 18, border: `1px solid ${theme === "dark" ? "rgba(255,255,255,.18)" : "rgba(0,0,0,.18)"}`, backgroundColor: theme === "dark" ? "#0d0f12" : "#111315", padding: "36px 28px", display: "flex", flexDirection: "column", opacity: pricingVisible ? 1 : 0, transform: pricingVisible ? "none" : "translateY(28px)", transition: "opacity .65s ease .1s, transform .65s ease .1s" }}>
@@ -175,9 +195,9 @@ export default function MarketingSections({ theme, isMobile, isSignedIn, isPlus,
               <span style={{ fontSize: 12, color: "rgba(255,255,255,.35)", marginLeft: 10 }}>or $60 / yr</span>
               <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", backgroundColor: "#6fc46b", color: "#fff", borderRadius: 99, padding: "2px 7px" }}>Save 17%</span>
             </div>
-            <div style={{ fontSize: 13, lineHeight: 1.75, color: "rgba(255,255,255,.42)", marginBottom: 18, flexGrow: 1 }}>More boards, BOB AI assistant, and everything we build next.</div>
+            <div style={{ fontSize: 13, lineHeight: 1.75, color: "rgba(255,255,255,.42)", marginBottom: 18, flexGrow: 1 }}>Everything in Free, plus more boards, the BOB AI helper, and new features first.</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 26 }}>
-              {["Up to 10 task boards", "Up to 5 idea boards", "BOB AI assistant", "Early access to new features"].map((f) => (
+              {["Up to 10 task boards", "Up to 5 idea boards", "BOB AI helper", "Get new features first"].map((f) => (
                 <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "rgba(255,255,255,.72)" }}>
                   <div style={{ width: 16, height: 16, borderRadius: "50%", backgroundColor: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.18)", display: "grid", placeItems: "center", flexShrink: 0 }}>
                     <svg width="8" height="8" viewBox="0 0 10 10"><polyline points="2,5.5 4.2,7.5 8,3" stroke="rgba(255,255,255,.7)" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>

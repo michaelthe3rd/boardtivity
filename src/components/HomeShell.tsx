@@ -24,6 +24,7 @@ import FeedbackBoard from "@/components/landing/FeedbackBoard";
 import MarketingSections from "@/components/landing/MarketingSections";
 import { UpgradeModal, LimitReachedModal, SubscribedModal, WhatsNewModal, NamePromptModal } from "@/components/modals/AccountModals";
 import { NOTE_PALETTE, paletteBg, paletteHalo, noteText, noteSub} from "@/lib/colors";
+import type { ThemeMode } from "@/lib/board";
 import { pageText, muted, border, paper, grid, panel, buttonStyle, circleButton, pill } from "@/lib/ui";
 import { todayStr, formatDateShort, fmtTime} from "@/lib/dates";
 import { BOARD_W, BOARD_H, NOTE_W, NOTE_H, noteCardWidth, titleFontSize, STEP_W, STEP_H} from "@/lib/boardLayout";
@@ -150,7 +151,7 @@ export function HomeShell() {
 
       {/* ── HERO ── */}
       <section ref={heroRef} style={{
-        maxWidth: 560, margin: "0 auto", padding: isMobile ? (isSignedIn ? "16px 0 0" : isSignedIn === false ? `48px 20px 48px` : "0") : `80px 24px ${isSignedIn && !showSyncPill ? "16px" : "72px"}`,
+        maxWidth: 760, margin: "0 auto", padding: isMobile ? (isSignedIn ? "16px 0 0" : isSignedIn === false ? `48px 20px 48px` : "0") : `80px 24px ${isSignedIn && !showSyncPill ? "16px" : "72px"}`,
         textAlign: "center",
         opacity: heroVisible ? 1 : 0,
         transform: heroVisible ? "none" : "translateY(20px)",
@@ -158,11 +159,14 @@ export function HomeShell() {
       }}>
         {!isSignedIn && (
           <>
-            <h1 style={{ margin: "0 0 24px", fontSize: "clamp(34px,4.8vw,64px)", lineHeight: 1.0, fontWeight: 900, letterSpacing: "-.055em", color: pageText(theme) }}>
-              The <span className="hue-rotate">Board</span> and the Produc<span className="hue-rotate">tivity</span><br/>in one.
+            <h1 style={{ margin: "0 0 28px", fontSize: "clamp(34px,5.4vw,70px)", lineHeight: 1.22, fontWeight: 800, letterSpacing: "-.04em", color: pageText(theme) }}>
+              {/* "Board" and "tivity" sit on task cards, like notes on the board */}
+              <span style={{ whiteSpace: isMobile ? undefined : "nowrap" }}>The<HeroCard theme={theme} tilt={-2.5}>Board</HeroCard>and the</span><br/>
+              Produc<HeroCard theme={theme} tilt={2} attached>tivity</HeroCard>
+              <span style={{ display: "block", lineHeight: 1, marginTop: "-.02em", fontStyle: "italic" }}>in one.</span>
             </h1>
-            <p style={{ margin: "0 auto 40px", maxWidth: 460, fontSize: 17, color: muted(theme), lineHeight: 1.82, opacity: .7 }}>
-              Boardtivity is a freeform visual board for your tasks, ideas, and focus. Drag tasks anywhere, let AI break them down into steps, link ideas, chain subtasks, and lock into focus mode — all in one place.
+            <p style={{ margin: "0 auto 36px", maxWidth: 480, fontSize: 17, color: muted(theme), lineHeight: 1.75, opacity: .75 }}>
+              One place for your tasks and ideas. Split big tasks into small steps, add due dates, and use a timer to stay focused. Works on all your devices.
             </p>
           </>
         )}
@@ -184,29 +188,25 @@ export function HomeShell() {
             </div>
           </div>
         ) : clerkLoaded ? (
-          <div style={{ maxWidth: 400, margin: "0 auto" }}>
-            <div style={{ marginBottom: 12, fontSize: 13, color: muted(theme), opacity: .6, letterSpacing: "-.01em" }}>
-              Sign up to sync your board across devices and access Boardtivity anywhere.
+          <div style={{ maxWidth: 420, margin: "0 auto" }}>
+            <div style={{ display: "flex", gap: 10, flexDirection: isMobile ? "column" : "row" }}>
+              <button
+                onClick={() => openSignUp()}
+                style={{ flex: isMobile ? undefined : 1, height: 48, borderRadius: 10, border: "none", backgroundColor: theme === "dark" ? "#f7f8fb" : "#111315", color: theme === "dark" ? "#111315" : "#f7f8fb", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-.01em" }}
+              >
+                Sign up free
+              </button>
+              <button
+                onClick={() => document.getElementById("boardtivity-board")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                style={{ flex: isMobile ? undefined : 1, height: 48, borderRadius: 10, border: `1px solid ${border(theme)}`, backgroundColor: "transparent", color: pageText(theme), fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-.01em" }}
+              >
+                Try the board
+              </button>
             </div>
-            <button
-              onClick={() => openSignUp()}
-              style={{ width: "100%", height: 48, borderRadius: 10, border: "none", backgroundColor: theme === "dark" ? "#f7f8fb" : "#111315", color: theme === "dark" ? "#111315" : "#f7f8fb", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-.01em" }}
-            >
-              Sign up free
-            </button>
-            <div style={{ marginTop: 10, fontSize: 12, color: muted(theme), opacity: .4 }}>Free · No credit card needed</div>
+            <div style={{ marginTop: 12, fontSize: 12, color: muted(theme), opacity: .5 }}>Free forever · No credit card needed</div>
           </div>
         ) : null}
         </section>
-
-      {!isSignedIn && (
-        <section style={{ maxWidth: 1440, margin: "0 auto", padding: "0 48px 16px", textAlign: "center" }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 700, letterSpacing: ".14em", textTransform: "uppercase", color: muted(theme), opacity: .55 }}>
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="7" y1="2" x2="7" y2="12"/><polyline points="3,8 7,12 11,8"/></svg>
-            {isMobile ? "See your work" : "Try the board"}
-          </div>
-        </section>
-      )}
 
       <section id="boardtivity-board" style={{ maxWidth: 1440, margin: "0 auto", padding: isMobile ? "0 0 24px" : "0 48px 24px" }}>
         <MobileBoard />
@@ -605,19 +605,19 @@ export function HomeShell() {
                     {thoughtMode ? "Your idea board is empty" : "Your task board is empty"}
                   </div>
                   <div style={{ marginTop: 6, fontSize: 14, color: boardTheme === "dark" ? "rgba(255,255,255,.38)" : "rgba(0,0,0,.38)" }}>
-                    {thoughtMode ? "Start capturing and connecting your ideas" : "Start adding tasks and breaking them down"}
+                    {thoughtMode ? "Add your ideas and connect them" : "Add a task to get started"}
                   </div>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%", textAlign: "left" }}>
                   {(thoughtMode ? [
-                    { icon: "✦", text: "Click + to add an idea card to the board" },
-                    { icon: "⇄", text: "Drag one idea over another to link them together" },
-                    { icon: "⊙", text: "Hold over a linked idea to unlink it" },
-                    { icon: "✎", text: "Click an idea card to view, edit, or add a note" },
+                    { icon: "✦", text: "Click + to add an idea" },
+                    { icon: "⇄", text: "Drag one idea onto another to connect them" },
+                    { icon: "⊙", text: "Hold an idea over a connected one to disconnect them" },
+                    { icon: "✎", text: "Click an idea to see it, change it, or add a note" },
                   ] : [
-                    { icon: "✦", text: "Click + to create a task — name it, set priority & due date" },
-                    { icon: "≡", text: "Open a task to add subtasks and break down the work" },
-                    { icon: "◎", text: "Hit Start Focus Mode to work through subtasks with a timer" },
+                    { icon: "✦", text: "Click + to add a task. Give it a name, a priority, and a due date" },
+                    { icon: "≡", text: "Open a task to split it into smaller steps" },
+                    { icon: "◎", text: "Click Start focus to work on it with a timer" },
                   ]).map(({ icon, text }) => (
                     <div key={text} style={{ display: "flex", alignItems: "flex-start", gap: 10, backgroundColor: boardTheme === "dark" ? "rgba(255,255,255,.04)" : "rgba(0,0,0,.04)", borderRadius: 10, padding: "10px 14px" }}>
                       <span style={{ fontSize: 13, color: boardTheme === "dark" ? "rgba(255,255,255,.35)" : "rgba(0,0,0,.3)", flexShrink: 0, marginTop: 1 }}>{icon}</span>
@@ -921,5 +921,22 @@ export function HomeShell() {
 
     </main>
     </HomeContext.Provider>
+  );
+}
+
+// A word in the landing headline drawn as a small tilted task card.
+// Right padding is .04em larger to make up for the headline's -.04em letter-spacing after the last letter.
+// Cards sit .1em from neighbouring words (no text spaces around them) so the gap is the same everywhere.
+// `attached` is for a card that ends its line ("Produc|tivity"), so it only needs the left gap.
+function HeroCard({ theme, tilt, attached, children }: { theme: ThemeMode; tilt: number; attached?: boolean; children: React.ReactNode }) {
+  return (
+    <span style={{
+      display: "inline-block", padding: ".04em .24em .1em .2em", margin: attached ? "0 0 0 .1em" : "0 .1em",
+      backgroundColor: panel(theme), border: `1px solid ${border(theme)}`, borderRadius: ".2em",
+      transform: `rotate(${tilt}deg)`,
+      boxShadow: theme === "dark" ? "0 .1em .35em rgba(0,0,0,.45)" : "0 .1em .35em rgba(89,72,48,.12)",
+    }}>
+      {children}
+    </span>
   );
 }

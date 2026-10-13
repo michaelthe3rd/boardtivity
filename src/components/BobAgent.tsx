@@ -574,7 +574,7 @@ export default function BobAgent({
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 <span style={{ fontSize: 13, fontWeight: 700, color: ic, fontFamily: "'Satoshi', Arial, sans-serif" }}>BOB is a Plus feature</span>
                 <span style={{ fontSize: 12, color: mu, lineHeight: 1.55, maxWidth: 260, fontFamily: "'Satoshi', Arial, sans-serif" }}>
-                  Your AI board brain — smart prioritization, voice tasks, autopilot sweeps, and more.
+                  An AI helper that plans your day, adds tasks for you, and keeps your board in order.
                 </span>
               </div>
               <button

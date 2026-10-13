@@ -12,6 +12,8 @@ import { useHome } from "@/components/home/HomeContext";
 // Each step spotlights a real control (found by its data-tour="…" attribute), explains it,
 // and either waits for Next or for the user to actually do the thing. Steps whose control
 // isn't on screen (e.g. desktop-only buttons on a phone) are skipped automatically.
+// While the tour is open, only the tour card and (on interactive steps) the highlighted
+// control respond to clicks and keys, so stray input can't open panels behind the spotlight.
 
 type Home = ReturnType<typeof useHome>;
 type Layout = "phone" | "desktop" | "touch";
@@ -25,6 +27,9 @@ type Step = {
   only?: Layout[];
   // "action": the step completes when `done` turns true (user clicked the highlighted control)
   advance?: "next" | "action" | ((l: Layout) => "next" | "action");
+  // The highlighted control can be used on "action" steps and on steps marked interactive
+  // (typing a name, picking a date). On every other step it's look-only.
+  interactive?: boolean;
   done?: (h: Home) => boolean;
   enter?: (h: Home) => void; // tidy up before showing this step (e.g. close dialogs)
   reset?: (h: Home) => void; // undo this step's action when returning to it with Back, so it can be redone
@@ -35,8 +40,24 @@ const isFocusing = (h: Home) => h.focusPicker !== null || h.focusOpen || h.focus
 const taskWord = (h: Home) => (h.activeBoard?.type === "thought" ? "idea" : "task");
 const verb = (l: Layout) => (l === "desktop" ? "Click" : "Tap");
 
+// Panels a stray click or the focus-mode pause might have left open. Closed on every step.
+function closeStrayPanels(h: Home) {
+  if (h.settingsOpen) h.setSettingsOpen(false);
+  if (h.mobileSettingsOpen) h.setMobileSettingsOpen(false);
+  if (h.boardsOpen) h.setBoardsOpen(false);
+  if (h.profileOpen) h.setProfileOpen(false);
+  if (h.userMenuOpen) h.setUserMenuOpen(false);
+  if (h.upgradeOpen) h.setUpgradeOpen(false);
+  if (h.limitReachedOpen) h.setLimitReachedOpen(false);
+  if (h.mobileBoardTypePicker) h.setMobileBoardTypePicker(false);
+  if (h.draftPromptOpen) h.setDraftPromptOpen(false);
+}
+
+// Closes the tour's own dialogs without asking. (closeComposer() would pop the "save draft?"
+// prompt, which belongs to the user's flow, not the tour's.)
 function closeOpenPanels(h: Home) {
-  if (h.composerOpen) h.closeComposer();
+  if (h.composerOpen) { h.resetComposer(); h.setComposerOpen(false); }
+  if (h.draftPromptOpen) h.setDraftPromptOpen(false);
   if (h.mobileAddMode !== null) h.setMobileAddMode(null);
   if (h.detailNoteId !== null) { h.setDetailNoteId(null); h.setDetailEditing(false); }
 }
@@ -44,20 +65,22 @@ function closeOpenPanels(h: Home) {
 const STEPS: Step[] = [
   {
     id: "welcome", icon: "logo", title: "Welcome to Boardtivity",
+    enter: closeOpenPanels,
     body: () => <>Let&apos;s set up your first task together and take a quick look around. It takes about a minute.</>,
   },
   {
     id: "add", target: "add-task", advance: "action", title: (_, h) => `Add your first ${taskWord(h)}`,
+    enter: closeOpenPanels,
     done: h => isComposing(h),
-    reset: h => { if (h.composerOpen) h.closeComposer(); if (h.mobileAddMode !== null) h.setMobileAddMode(null); },
+    reset: closeOpenPanels,
     body: (l, h) => <>{verb(l)} <strong>Add {taskWord(h) === "idea" ? "Idea" : "Task"}</strong> to start.</>,
   },
   {
-    id: "name", target: "composer-title", title: "Name it",
+    id: "name", target: "composer-title", title: "Name it", interactive: true,
     body: (_, h) => <>Type what you need to do{taskWord(h) === "task" ? <>, like <em>&ldquo;Finish essay draft&rdquo;</em></> : ""}.</>,
   },
   {
-    id: "details", target: "composer-details", title: "Due date and priority",
+    id: "details", target: "composer-details", title: "Due date and priority", interactive: true,
     body: l => l === "phone"
       ? <>Set a due date here (required), and pick a priority with the buttons just above. The color shows how urgent it is.</>
       : <>Pick a due date and a priority. Both are required for tasks, and the card&apos;s color shows how urgent it is.</>,
@@ -119,6 +142,12 @@ function findTarget(id: string): HTMLElement | null {
 
 type Rect = { top: number; left: number; width: number; height: number; radius: number };
 
+function measure(el: HTMLElement): Rect {
+  const r = el.getBoundingClientRect();
+  const radius = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 8;
+  return { top: Math.round(r.top), left: Math.round(r.left), width: Math.round(r.width), height: Math.round(r.height), radius: Math.min(radius, 28) };
+}
+
 function sameRect(a: Rect | null, b: Rect | null) {
   return !!a && !!b && a.top === b.top && a.left === b.left && a.width === b.width && a.height === b.height && a.radius === b.radius;
 }
@@ -169,6 +198,7 @@ export default function Tutorial() {
   const step = steps[Math.min(index, steps.length - 1)];
   const shownStep = steps[Math.min(shown, steps.length - 1)];
   const advance = typeof shownStep.advance === "function" ? shownStep.advance(layout) : shownStep.advance ?? "next";
+  const interactive = advance === "action" || !!shownStep.interactive;
   const isLast = shown >= steps.length - 1;
 
   function go(next: number) {
@@ -177,6 +207,13 @@ export default function Tutorial() {
     setIndex(Math.max(0, next));
   }
   function finish() {
+    // Leave the board tidy. A half-written task goes through the normal close, so the user is
+    // asked whether to keep it as a draft instead of losing it.
+    const h = homeRef.current;
+    closeStrayPanels(h);
+    if (h.composerOpen) h.closeComposer();
+    if (h.mobileAddMode !== null) h.setMobileAddMode(null);
+    if (h.detailNoteId !== null) { h.setDetailNoteId(null); h.setDetailEditing(false); }
     closeTutorial();
   }
 
@@ -196,6 +233,7 @@ export default function Tutorial() {
     const justActed = afterActionRef.current; // consume the flag for this step only
     afterActionRef.current = false;
     if (directionRef.current === -1) step.reset?.(homeRef.current);
+    closeStrayPanels(homeRef.current);
     step.enter?.(homeRef.current);
     if (!step.target) {
       targetRef.current = null; targetIdRef.current = null;
@@ -208,8 +246,17 @@ export default function Tutorial() {
       targetIdRef.current = step.target!;
       setSearching(false);
       setShown(index);
+      // Move the spotlight (and its click shields) now, in the same render as the new step,
+      // so there's never a frame where the open hole is still over the previous control.
+      const m = measure(el);
+      setRect(prev => (sameRect(prev, m) ? prev : m));
       const r = el.getBoundingClientRect();
       if (r.top < 70 || r.bottom > window.innerHeight - 70) el.scrollIntoView({ block: "center", behavior: "smooth" });
+      // Fill-in steps put the cursor in their field (the focus guard may have moved it to the card).
+      if (step.interactive) {
+        const field = el.matches("input,textarea") ? el : el.querySelector<HTMLElement>("input,textarea");
+        field?.focus({ preventScroll: true });
+      }
     };
 
     // Usually the control is already there: attach in the same frame, no waiting.
@@ -256,9 +303,7 @@ export default function Tutorial() {
       let el = targetRef.current;
       if (el && !el.isConnected && targetIdRef.current) { el = findTarget(targetIdRef.current); targetRef.current = el; }
       if (el) {
-        const r = el.getBoundingClientRect();
-        const radius = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 8;
-        const next: Rect = { top: Math.round(r.top), left: Math.round(r.left), width: Math.round(r.width), height: Math.round(r.height), radius: Math.min(radius, 28) };
+        const next = measure(el);
         setRect(prev => (sameRect(prev, next) ? prev : next));
       }
       frame = requestAnimationFrame(tick);
@@ -299,23 +344,67 @@ export default function Tutorial() {
   }, [tutorialOpen, rect, shown]);
 
   // Keyboard: Esc ends; arrows move between steps unless the user is typing in a field.
+  // Keys aimed anywhere except the tour card or a usable highlighted control are swallowed,
+  // so app shortcuts and Enter/Space on a focused button behind the dimmer do nothing.
+  const allowedTarget = (t: EventTarget | null) => {
+    const node = t instanceof Node ? t : null;
+    if (!node) return false;
+    if (tipRef.current?.contains(node)) return true;
+    return interactive && !!targetRef.current?.contains(node);
+  };
   useEffect(() => {
     if (!tutorialOpen) return;
     function onKey(e: KeyboardEvent) {
+      if (paused) return;
       const t = e.target as HTMLElement | null;
       const typing = !!t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable);
-      if (paused) return;
-      if (e.key === "Escape") { e.preventDefault(); finish(); }
-      else if (typing) return;
-      else if (e.key === "ArrowRight" && !waitingForAction) go(shown + 1);
+      if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); finish(); return; }
+      if (e.key === "Tab") return; // focus is kept inside the tour by the focusin guard below
+      if (!allowedTarget(e.target)) {
+        e.preventDefault(); e.stopPropagation();
+        if (e.key === "ArrowRight" && !waitingForAction) go(shown + 1);
+        else if (e.key === "ArrowLeft" && shown > 0) go(shown - 1);
+        return;
+      }
+      if (typing) return;
+      if (e.key === "ArrowRight" && !waitingForAction) go(shown + 1);
       else if (e.key === "ArrowLeft" && shown > 0) go(shown - 1);
     }
+    // If focus wanders behind the tour (Tab, or a click that slipped through), bring it back.
+    function onFocusIn(e: FocusEvent) {
+      if (paused || allowedTarget(e.target)) return;
+      (primaryRef.current ?? tipRef.current?.querySelector<HTMLElement>("button"))?.focus({ preventScroll: true });
+    }
     window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
+    document.addEventListener("focusin", onFocusIn, true);
+    return () => { window.removeEventListener("keydown", onKey, true); document.removeEventListener("focusin", onFocusIn, true); };
+  });
+
+  // Freeze the page while the tour is up: wheel, trackpad and touch scrolling (and the board's own
+  // wheel-panning) would slide controls out from under the spotlight. Only the tour card, and the
+  // highlighted control on fill-in steps, can still scroll. The tour's own scrollIntoView still works.
+  useEffect(() => {
+    if (!tutorialOpen || paused) return;
+    const root = document.documentElement;
+    const prevOverflow = root.style.overflow;
+    root.style.overflow = "hidden";
+    const block = (e: Event) => { if (!allowedTarget(e.target)) e.preventDefault(); };
+    const keys = (e: KeyboardEvent) => {
+      if ([" ", "PageUp", "PageDown", "Home", "End", "ArrowUp", "ArrowDown"].includes(e.key) && !allowedTarget(e.target)) e.preventDefault();
+    };
+    window.addEventListener("wheel", block, { passive: false, capture: true });
+    window.addEventListener("touchmove", block, { passive: false, capture: true });
+    window.addEventListener("keydown", keys, true);
+    return () => {
+      root.style.overflow = prevOverflow;
+      window.removeEventListener("wheel", block, { capture: true });
+      window.removeEventListener("touchmove", block, { capture: true });
+      window.removeEventListener("keydown", keys, true);
+    };
   });
 
   // Centered cards take keyboard focus; spotlight steps leave focus where the user is working.
-  useEffect(() => { if (tutorialOpen && !shownStep.target) primaryRef.current?.focus(); }, [tutorialOpen, shown, shownStep.target]);
+  useEffect(() => { if (tutorialOpen && !shownStep.target) primaryRef.current?.focus({ preventScroll: true }); }, [tutorialOpen, shown, shownStep.target]);
 
   if (!tutorialOpen || paused) return null;
 
@@ -377,7 +466,7 @@ export default function Tutorial() {
     const phone = layout === "phone";
     return (
       <div role="dialog" aria-modal="true" aria-labelledby="bt-tour-title" style={{ position: "fixed", inset: 0, zIndex: 10000, display: "flex", alignItems: phone ? "flex-end" : "center", justifyContent: "center", padding: phone ? 0 : 20, backgroundColor: dim }}>
-        <div key={shown} className={phone ? "tour-sheet-in" : "tour-card-in"} style={{ width: phone ? "100%" : "min(420px, 100%)", boxSizing: "border-box", padding: phone ? "30px 24px calc(24px + env(safe-area-inset-bottom))" : "36px 32px 26px", borderRadius: phone ? "22px 22px 0 0" : 22, backgroundColor: cardBg, border: `1px solid ${border(theme)}`, boxShadow: "0 30px 80px rgba(0,0,0,.3)", color: pageText(theme), textAlign: "center" }}>
+        <div ref={tipRef} key={shown} className={phone ? "tour-sheet-in" : "tour-card-in"} style={{ width: phone ? "100%" : "min(420px, 100%)", boxSizing: "border-box", padding: phone ? "30px 24px calc(24px + env(safe-area-inset-bottom))" : "36px 32px 26px", borderRadius: phone ? "22px 22px 0 0" : 22, backgroundColor: cardBg, border: `1px solid ${border(theme)}`, boxShadow: "0 30px 80px rgba(0,0,0,.3)", color: pageText(theme), textAlign: "center" }}>
           {shownStep.icon && (
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: 64, marginBottom: 18 }}>
               <StepIcon icon={shownStep.icon} theme={theme} size={shownStep.icon === "logo" ? 72 : shownStep.icon === "bob" ? 64 : 56} />
@@ -397,14 +486,21 @@ export default function Tutorial() {
   const tipWidth = Math.min(340, vwFull - 24);
   return (
     <div role="dialog" aria-modal="false" aria-labelledby="bt-tour-title" style={{ position: "fixed", inset: 0, zIndex: 10000, pointerEvents: "none" }}>
-      {/* Click shields around the hole: only the highlighted control can be used */}
+      {/* Click shields. Interactive steps leave exactly the control's own box open (not the glow
+          around it, which could reach a neighbouring button); look-only steps cover everything. */}
+      {hole && rect && (interactive ? (
+        <>
+          <div style={{ position: "fixed", left: 0, top: 0, right: 0, height: Math.max(0, rect.top), pointerEvents: "auto" }} />
+          <div style={{ position: "fixed", left: 0, top: rect.top + rect.height, right: 0, bottom: 0, pointerEvents: "auto" }} />
+          <div style={{ position: "fixed", left: 0, top: rect.top, width: Math.max(0, rect.left), height: rect.height, pointerEvents: "auto" }} />
+          <div style={{ position: "fixed", left: rect.left + rect.width, top: rect.top, right: 0, height: rect.height, pointerEvents: "auto" }} />
+        </>
+      ) : (
+        <div style={{ position: "fixed", inset: 0, pointerEvents: "auto" }} />
+      ))}
       {hole && (
         <>
-          <div style={{ position: "fixed", left: 0, top: 0, right: 0, height: Math.max(0, hole.top), pointerEvents: "auto" }} />
-          <div style={{ position: "fixed", left: 0, top: hole.top + hole.height, right: 0, bottom: 0, pointerEvents: "auto" }} />
-          <div style={{ position: "fixed", left: 0, top: hole.top, width: Math.max(0, hole.left), height: hole.height, pointerEvents: "auto" }} />
-          <div style={{ position: "fixed", left: hole.left + hole.width, top: hole.top, right: 0, height: hole.height, pointerEvents: "auto" }} />
-          {/* Dimmed backdrop with a rounded cut-out and a pulsing ring */}
+      {/* Dimmed backdrop with a rounded cut-out and a pulsing ring */}
           <div
             className="tour-ring"
             style={{
@@ -423,7 +519,8 @@ export default function Tutorial() {
           position: "fixed", top: tipPos?.top ?? -9999, left: tipPos?.left ?? -9999, width: tipWidth, boxSizing: "border-box",
           padding: "18px 18px 14px", borderRadius: 16, backgroundColor: cardBg, border: `1px solid ${border(theme)}`,
           boxShadow: "0 18px 50px rgba(0,0,0,.28)", color: pageText(theme), pointerEvents: "auto",
-          opacity: tipPos ? 1 : 0, transition: "opacity .18s ease, top .38s cubic-bezier(.22,1,.36,1), left .38s cubic-bezier(.22,1,.36,1)",
+          // Glide between controls, but appear in place the first time (no sweep in from off-screen).
+          opacity: tipPos ? 1 : 0, transition: tipPos ? "opacity .18s ease, top .38s cubic-bezier(.22,1,.36,1), left .38s cubic-bezier(.22,1,.36,1)" : "none",
         }}
       >
         <div key={shown} className="tour-swap">
