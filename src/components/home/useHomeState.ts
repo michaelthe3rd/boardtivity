@@ -1751,7 +1751,7 @@ export function useHomeState() {
 
 
   return {
-    tutorialOpen, openTutorial, closeTutorial,
+    tutorialOpen, openTutorial, closeTutorial, detailNoteId,
     boardStateWith, updateReminderTime, toggleEmailPref,
     toggleNoteLock, startLongPress, trackLongPress, cancelLongPress, lastPointerTypeRef, lockToast,
     theme, setTheme, boardTheme, setBoardTheme, boards, setBoards, activeBoardId, setActiveBoardId,

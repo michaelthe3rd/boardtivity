@@ -477,6 +477,7 @@ export default function NoteDetailModal() {
                             </div>
                           )}
                           <button
+                            data-tour="focus-button"
                             onClick={() => startFocus(detailNote.id, detailNote.steps.length > 0)}
                             style={{
                               width: "100%", height: 50, borderRadius: 999, border: "none",

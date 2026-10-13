@@ -1,211 +1,396 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import type { ThemeMode } from "@/lib/board";
-import { NOTE_PALETTE } from "@/lib/colors";
 import { border, muted, pageText, panel } from "@/lib/ui";
+import BoardtivityLogo from "@/components/BoardtivityLogo";
+import { BobIcon } from "@/components/BobAgent";
 import { useHome } from "@/components/home/HomeContext";
 
-type Layout = "phone" | "desktop" | "touch"; // touch = tablet-sized board on a touch screen
+// ── Interactive tour ──────────────────────────────────────────────────────────
+// Each step spotlights a real control (found by its data-tour="…" attribute), explains it,
+// and either waits for Next or for the user to actually do the thing. Steps whose control
+// isn't on screen (e.g. desktop-only buttons on a phone) are skipped automatically.
+
+type Home = ReturnType<typeof useHome>;
+type Layout = "phone" | "desktop" | "touch";
 
 type Step = {
-  key: string;
-  color: string; // NOTE_PALETTE name
-  icon: (c: string) => ReactNode;
-  title: string;
-  body: ReactNode;
+  id: string;
+  target?: string; // data-tour id; omit for a centered card
+  icon?: "logo" | "bob" | "done";
+  title: string | ((l: Layout, h: Home) => string);
+  body: (l: Layout, h: Home) => ReactNode;
   only?: Layout[];
+  // "action": the step completes when `done` turns true (user clicked the highlighted control)
+  advance?: "next" | "action" | ((l: Layout) => "next" | "action");
+  done?: (h: Home) => boolean;
+  enter?: (h: Home) => void; // tidy up before showing this step (e.g. close dialogs)
 };
 
-const line = (c: string, w = 2.6) => ({ fill: "none", stroke: c, strokeWidth: w, strokeLinecap: "round" as const, strokeLinejoin: "round" as const });
+const isComposing = (h: Home) => h.composerOpen || h.mobileAddMode !== null;
+const taskWord = (h: Home) => (h.activeBoard?.type === "thought" ? "idea" : "task");
+const verb = (l: Layout) => (l === "desktop" ? "Click" : "Tap");
 
-function steps(layout: Layout): Step[] {
-  const tap = layout === "desktop" ? "Click" : "Tap";
-  const lockHow = layout === "desktop" ? "Right-click a card" : "Press and hold a card";
-  const all: Step[] = [
-    {
-      key: "welcome", color: "Indigo", title: "Welcome to Boardtivity",
-      icon: c => (<><rect x="12" y="13" width="24" height="22" rx="5" {...line(c)} /><path d="M17 18h3M17 18v3M31 18h-3M31 18v3M17 30h3M17 30v-3M31 30h-3M31 30v-3" {...line(c, 2)} /></>),
-      body: <>Your tasks, ideas and focus sessions, all on one board. This quick tour takes about a minute, and you can replay it anytime from <strong>Settings</strong>.</>,
-    },
-    {
-      key: "add", color: "Red", title: "Add your tasks",
-      icon: c => (<><rect x="11" y="13" width="26" height="20" rx="4" {...line(c)} /><path d="M24 18v10M19 23h10" {...line(c)} /></>),
-      body: <>{tap} <strong>Add Task</strong> to create one. Give it a due date and a priority; the card&apos;s color shows how urgent it is.</>,
-    },
-    {
-      key: "boards", color: "Yellow", title: "Boards for tasks and ideas",
-      icon: c => (<><rect x="13" y="16" width="20" height="17" rx="4" {...line(c)} /><path d="M17 12h15a3 3 0 0 1 3 3v12" {...line(c)} /></>),
-      body: layout === "phone"
-        ? <>Switch boards with the tabs at the top, and use <strong>+</strong> to add a new task or idea board. Ideas are free-form notes for anything that isn&apos;t a task.</>
-        : <>Open <strong>Boards</strong> (top right) to switch between task boards and idea boards. Drag one idea onto another to link them.</>,
-    },
-    {
-      key: "subtasks", color: "Teal", title: "Break big tasks down",
-      icon: c => (<><circle cx="16" cy="24" r="4" {...line(c)} /><circle cx="32" cy="15" r="3.5" {...line(c)} /><circle cx="32" cy="33" r="3.5" {...line(c)} /><path d="M19.5 22l9-5M19.5 26l9 5" {...line(c, 2.2)} /></>),
-      body: layout === "phone"
-        ? <>Tap <strong>⋯</strong> on a task to edit it and add subtasks, or let <strong>BOB Breakdown</strong> split it into steps for you.</>
-        : <>Open a task to add subtasks, or press <strong>BOB Breakdown</strong> to split it into steps. Show them on the board as a web or a step-by-step chain.</>,
-    },
-    {
-      key: "lock", color: "Purple", title: "Arrange and lock",
-      only: ["desktop", "touch"],
-      icon: c => (<><rect x="14" y="22" width="20" height="14" rx="3.5" {...line(c)} /><path d="M18 22v-4a6 6 0 0 1 12 0v4" {...line(c)} /></>),
-      body: <>Drag cards anywhere on the board. {lockHow} to lock it in place so it can&apos;t be moved by accident. Do it again to unlock.</>,
-    },
-    {
-      key: "focus", color: "Emerald", title: "Focus mode",
-      icon: c => (<><circle cx="24" cy="26" r="10" {...line(c)} /><path d="M24 21v5l3 2M21 12h6" {...line(c)} /></>),
-      body: <>{tap} <strong>{layout === "phone" ? "Focus" : "Start focus"}</strong> on a task, pick how long, and work through it distraction-free. Every session counts toward your streak.</>,
-    },
-    {
-      key: "bob", color: "Blue", title: "Meet BOB",
-      icon: c => (<><rect x="12" y="16" width="24" height="18" rx="6" {...line(c)} /><circle cx="19.5" cy="25" r="2" fill={c} /><circle cx="28.5" cy="25" r="2" fill={c} /><path d="M24 16v-4" {...line(c)} /></>),
-      body: <>BOB is your AI assistant on Boardtivity Plus. Ask it to plan your day, sort your board or add tasks for you. {tap} <strong>BOB</strong> at the top of your board.</>,
-    },
-    {
-      key: "settings", color: "Orange", title: "Make it yours",
-      icon: c => (<><circle cx="24" cy="24" r="4" {...line(c)} /><path d="M24 12v4M24 32v4M12 24h4M32 24h4M15.5 15.5l2.8 2.8M29.7 29.7l2.8 2.8M15.5 32.5l2.8-2.8M29.7 18.3l2.8-2.8" {...line(c)} /></>),
-      body: layout === "phone"
-        ? <>Open <strong>Settings</strong> to switch light or dark mode, change colors and set email reminders. You can replay this tour there too.</>
-        : <>Open <strong>Settings</strong> (the gear) for themes, colors and email reminders. Use the button at the bottom left for a fullscreen board. You can replay this tour from Settings.</>,
-    },
-    {
-      key: "done", color: "Pink", title: "You're all set",
-      icon: c => <path d="M15 24.5l6 6L33 18" {...line(c, 3.4)} />,
-      body: <>Start with one thing you need to get done today.</>,
-    },
-  ];
-  return all.filter(s => !s.only || s.only.includes(layout));
+function closeOpenPanels(h: Home) {
+  if (h.composerOpen) h.closeComposer();
+  if (h.mobileAddMode !== null) h.setMobileAddMode(null);
+  if (h.detailNoteId !== null) { h.setDetailNoteId(null); h.setDetailEditing(false); }
 }
 
-function Badge({ step, theme }: { step: Step; theme: ThemeMode }) {
-  const p = NOTE_PALETTE.find(x => x.name === step.color) ?? NOTE_PALETTE[0];
+const STEPS: Step[] = [
+  {
+    id: "welcome", icon: "logo", title: "Welcome to Boardtivity",
+    body: () => <>Let&apos;s set up your first task together and take a quick look around. It takes about a minute.</>,
+  },
+  {
+    id: "add", target: "add-task", advance: "action", title: (_, h) => `Add your first ${taskWord(h)}`,
+    done: h => isComposing(h),
+    body: (l, h) => <>{verb(l)} <strong>Add {taskWord(h) === "idea" ? "Idea" : "Task"}</strong> to start.</>,
+  },
+  {
+    id: "name", target: "composer-title", title: "Name it",
+    body: (_, h) => <>Type what you need to do{taskWord(h) === "task" ? <>, like <em>&ldquo;Finish essay draft&rdquo;</em></> : ""}.</>,
+  },
+  {
+    id: "details", target: "composer-details", title: "Due date and priority",
+    body: l => l === "phone"
+      ? <>Set a due date here (required), and pick a priority with the buttons just above. The color shows how urgent it is.</>
+      : <>Pick a due date and a priority. Both are required for tasks, and the card&apos;s color shows how urgent it is.</>,
+  },
+  {
+    id: "breakdown", target: "composer-bob", icon: "bob", title: "Let BOB break it down",
+    body: () => <>Optional: <strong>BOB Breakdown</strong> splits a big task into smaller steps you can check off.</>,
+  },
+  {
+    id: "create", target: "composer-create", advance: "action", title: "Create it",
+    done: h => !isComposing(h),
+    body: (l, h) => <>{verb(l)} <strong>{l === "phone" ? `Add ${taskWord(h) === "idea" ? "Idea" : "Task"}` : `Create ${taskWord(h)}`}</strong> when you&apos;re ready.</>,
+  },
+  {
+    id: "card", target: "newest-card", title: (_, h) => `Here's your ${taskWord(h)}`,
+    enter: h => { if (isComposing(h)) closeOpenPanels(h); },
+    advance: l => (l === "phone" ? "next" : "action"),
+    done: h => h.detailNoteId !== null,
+    body: l => l === "phone"
+      ? <>Tap <strong>⋯</strong> on a card to edit it or add subtasks.</>
+      : <>Drag it anywhere on the board. {l === "touch" ? "Press and hold" : "Right-click"} to lock it in place. <strong>{verb(l)} it</strong> to open the details.</>,
+  },
+  {
+    id: "focus", target: "focus-button", title: "Focus mode",
+    body: l => <>{verb(l)} <strong>{l === "phone" ? "Focus" : "Start focus"}</strong> to work on it with a timer. Every session builds your streak.</>,
+  },
+  {
+    id: "bob", target: "bob", icon: "bob", title: "Meet BOB",
+    enter: closeOpenPanels,
+    body: () => <>Your AI assistant (Plus). Ask BOB to plan your day, sort your board or add tasks for you.</>,
+  },
+  {
+    id: "boards", target: "boards", title: "Your boards",
+    body: l => l === "phone"
+      ? <>Switch between your task and idea boards here, and tap <strong>+</strong> to add one.</>
+      : <>Switch between task boards and idea boards, or create new ones.</>,
+  },
+  {
+    id: "settings", target: "settings", title: "Settings",
+    body: () => <>Themes, colors and email reminders. You can replay this tour anytime under <strong>Help</strong>.</>,
+  },
+  {
+    id: "fullscreen", target: "fullscreen", only: ["desktop", "touch"], title: "Go fullscreen",
+    body: () => <>Fill the screen with your board when you want zero distractions.</>,
+  },
+  {
+    id: "done", icon: "done", title: "You're all set",
+    enter: closeOpenPanels,
+    body: () => <>That&apos;s everything you need to get going. Replay this tour from <strong>Settings → Help</strong> anytime.</>,
+  },
+];
+
+function findTarget(id: string): HTMLElement | null {
+  const els = Array.from(document.querySelectorAll<HTMLElement>(`[data-tour="${id}"]`));
+  return els.find(el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; }) ?? null;
+}
+
+type Rect = { top: number; left: number; width: number; height: number; radius: number };
+
+function sameRect(a: Rect | null, b: Rect | null) {
+  return !!a && !!b && a.top === b.top && a.left === b.left && a.width === b.width && a.height === b.height && a.radius === b.radius;
+}
+
+function StepIcon({ icon, theme, size }: { icon: Step["icon"]; theme: ThemeMode; size: number }) {
   const dark = theme === "dark";
-  return (
-    <svg width="64" height="64" viewBox="0 0 48 48" aria-hidden="true" style={{ display: "block" }}>
-      <circle cx="24" cy="24" r="22" fill={dark ? "#2a2e35" : "#ffffff"} />
-      <circle cx="24" cy="24" r="19.5" fill={dark ? p.dark : p.light} stroke={p.halo.replace(/[\d.]+\)$/, dark ? "0.55)" : "0.45)")} strokeWidth="1.2" />
-      {step.icon(p.swatch)}
-    </svg>
-  );
+  const ink = dark ? "#f5f5f2" : "#171613";
+  if (icon === "logo") return <BoardtivityLogo size={size} dark={dark} />;
+  if (icon === "bob") return <BobIcon size={size} color={ink} />;
+  if (icon === "done") {
+    return (
+      <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden="true" style={{ display: "block" }}>
+        <circle cx="24" cy="24" r="21" fill={dark ? "#0e2e18" : "#e6f9ee"} stroke="rgba(60,180,90,.45)" strokeWidth="1.5" />
+        <path d="M15 24.5l6 6L33 18" fill="none" stroke="#3db83d" strokeWidth="3.6" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  return null;
 }
 
 export default function Tutorial() {
-  const { tutorialOpen, closeTutorial, theme, isMobile, isNativeApp, setComposerOpen, setMobileAddMode, activeBoard } = useHome();
+  const home = useHome();
+  const { tutorialOpen, closeTutorial, theme, isMobile, isNativeApp } = home;
   const [index, setIndex] = useState(0);
+  const [rect, setRect] = useState<Rect | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [found, setFound] = useState(false);
+  const [tipPos, setTipPos] = useState<{ top: number; left: number } | null>(null);
+  const targetRef = useRef<HTMLElement | null>(null);
+  const directionRef = useRef<1 | -1>(1);
+  const tipRef = useRef<HTMLDivElement | null>(null);
   const primaryRef = useRef<HTMLButtonElement | null>(null);
+  const homeRef = useRef(home);
+  homeRef.current = home;
 
   const layout: Layout = isMobile && !isNativeApp
     ? "phone"
     : typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches ? "touch" : "desktop";
-  const list = steps(layout);
-  const step = list[Math.min(index, list.length - 1)];
-  const isFirst = index === 0;
-  const isLast = index >= list.length - 1;
+  const steps = STEPS.filter(s => !s.only || s.only.includes(layout));
+  const step = steps[Math.min(index, steps.length - 1)];
+  const advance = typeof step.advance === "function" ? step.advance(layout) : step.advance ?? "next";
+  const isLast = index >= steps.length - 1;
 
-  // Always start from the first step when (re)opened.
-  useEffect(() => { if (tutorialOpen) setIndex(0); }, [tutorialOpen]);
-  useEffect(() => { if (tutorialOpen) primaryRef.current?.focus(); }, [tutorialOpen, index]);
+  function go(next: number) {
+    directionRef.current = next >= index ? 1 : -1;
+    if (next >= steps.length) { finish(); return; }
+    setIndex(Math.max(0, next));
+  }
+  function finish() {
+    closeTutorial();
+  }
 
+  // (Re)start from the top whenever the tour opens.
+  useEffect(() => { if (tutorialOpen) { setIndex(0); directionRef.current = 1; } }, [tutorialOpen]);
+
+  // Enter a step: tidy up, then find its control (waiting briefly for dialogs to open).
+  useEffect(() => {
+    if (!tutorialOpen) return;
+    step.enter?.(homeRef.current);
+    targetRef.current = null;
+    setFound(false);
+    setRect(null);
+    setTipPos(null);
+    if (!step.target) { setSearching(false); return; }
+    setSearching(true);
+    let tries = 0;
+    const timer = setInterval(() => {
+      const el = findTarget(step.target!);
+      if (el) {
+        clearInterval(timer);
+        targetRef.current = el;
+        setFound(true);
+        setSearching(false);
+        const r = el.getBoundingClientRect();
+        if (r.top < 70 || r.bottom > window.innerHeight - 70) el.scrollIntoView({ block: "center", behavior: "smooth" });
+      } else if (++tries > 15) {
+        // Not on screen in this layout/state: skip in the direction the user was going.
+        clearInterval(timer);
+        setSearching(false);
+        const next = index + directionRef.current;
+        if (next < 0) setIndex(0);
+        else if (next >= steps.length) finish();
+        else setIndex(next);
+      }
+    }, 100);
+    return () => clearInterval(timer);
+  }, [tutorialOpen, index, layout]);
+
+  // Keep the spotlight glued to its control through scrolling, panning, resizing and animations.
+  useEffect(() => {
+    if (!tutorialOpen || !step.target) return;
+    let frame = 0;
+    const tick = () => {
+      let el = targetRef.current;
+      if (el && !el.isConnected) { el = findTarget(step.target!); targetRef.current = el; }
+      if (el) {
+        const r = el.getBoundingClientRect();
+        const radius = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 8;
+        const next: Rect = { top: Math.round(r.top), left: Math.round(r.left), width: Math.round(r.width), height: Math.round(r.height), radius: Math.min(radius, 28) };
+        setRect(prev => (sameRect(prev, next) ? prev : next));
+      } else {
+        setRect(prev => (prev ? null : prev));
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [tutorialOpen, index, step.target]);
+
+  // Interactive steps finish themselves once the user does the thing.
+  const actionDone = tutorialOpen && advance === "action" && !!step.done?.(home) && !searching;
+  useEffect(() => {
+    if (!actionDone) return;
+    const t = setTimeout(() => go(index + 1), 280);
+    return () => clearTimeout(t);
+  }, [actionDone]);
+
+  // Place the tooltip next to the spotlight, flipping/clamping to stay on screen.
+  useLayoutEffect(() => {
+    if (!tutorialOpen || !rect || !tipRef.current) return;
+    const tip = tipRef.current.getBoundingClientRect();
+    const vw = window.innerWidth, vh = window.innerHeight, gap = 14, m = 12;
+    const pad = 6;
+    const below = rect.top + rect.height + pad + gap;
+    const above = rect.top - pad - gap - tip.height;
+    let top: number;
+    let left: number;
+    if (below + tip.height <= vh - m) { top = below; left = rect.left + rect.width / 2 - tip.width / 2; }
+    else if (above >= m) { top = above; left = rect.left + rect.width / 2 - tip.width / 2; }
+    else if (rect.left + rect.width + pad + gap + tip.width <= vw - m) { left = rect.left + rect.width + pad + gap; top = rect.top + rect.height / 2 - tip.height / 2; }
+    else if (rect.left - pad - gap - tip.width >= m) { left = rect.left - pad - gap - tip.width; top = rect.top + rect.height / 2 - tip.height / 2; }
+    else { top = vh - tip.height - m; left = vw / 2 - tip.width / 2; }
+    left = Math.max(m, Math.min(left, vw - tip.width - m));
+    top = Math.max(m, Math.min(top, vh - tip.height - m));
+    setTipPos(prev => (prev && Math.abs(prev.top - top) < 1 && Math.abs(prev.left - left) < 1 ? prev : { top, left }));
+  }, [tutorialOpen, rect, index]);
+
+  // Keyboard: Esc ends; arrows move between steps unless the user is typing in a field.
   useEffect(() => {
     if (!tutorialOpen) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") closeTutorial();
-      else if (e.key === "ArrowRight") setIndex(i => Math.min(i + 1, list.length - 1));
-      else if (e.key === "ArrowLeft") setIndex(i => Math.max(i - 1, 0));
+      const t = e.target as HTMLElement | null;
+      const typing = !!t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable);
+      if (e.key === "Escape") { e.preventDefault(); finish(); }
+      else if (typing) return;
+      else if (e.key === "ArrowRight" && advance === "next") go(index + 1);
+      else if (e.key === "ArrowLeft" && index > 0) go(index - 1);
     }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [tutorialOpen, list.length, closeTutorial]);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  });
+
+  // Centered cards take keyboard focus; spotlight steps leave focus where the user is working.
+  useEffect(() => { if (tutorialOpen && !step.target) primaryRef.current?.focus(); }, [tutorialOpen, index, step.target]);
 
   if (!tutorialOpen) return null;
 
   const dark = theme === "dark";
-  const isPhone = layout === "phone";
-  const primaryBg = dark ? "#f5f5f2" : "#171613";
-  const primaryFg = dark ? "#171613" : "#f5f5f2";
+  const dim = dark ? "rgba(6,8,12,.66)" : "rgba(12,12,14,.5)";
+  const cardBg = dark ? "#1a1d22" : "#fbf8f1";
+  const title = typeof step.title === "function" ? step.title(layout, home) : step.title;
+  const centered = !step.target || (!found && !searching);
+  const pad = 6;
+  const hole = rect ? { top: rect.top - pad, left: rect.left - pad, width: rect.width + pad * 2, height: rect.height + pad * 2 } : null;
 
-  function startFirstTask() {
-    closeTutorial();
-    if (isPhone) setMobileAddMode(activeBoard?.type === "thought" ? "thought" : "task");
-    else setComposerOpen(true);
+  const btnBase: CSSProperties = { height: 40, borderRadius: 11, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", padding: "0 16px" };
+  const primaryBtn: CSSProperties = { ...btnBase, border: "none", backgroundColor: dark ? "#f5f5f2" : "#171613", color: dark ? "#171613" : "#f5f5f2" };
+  const secondaryBtn: CSSProperties = { ...btnBase, border: `1px solid ${border(theme)}`, backgroundColor: panel(theme), color: pageText(theme) };
+
+  const footer = (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 16 }}>
+      {isLast || index === 0 ? <span /> : (
+        <button type="button" onClick={finish} style={{ border: "none", background: "none", color: muted(theme), fontSize: 13, fontWeight: 600, cursor: "pointer", padding: "6px 2px", fontFamily: "inherit" }}>
+          End tour
+        </button>
+      )}
+      <div style={{ display: "flex", gap: 8 }}>
+        {index > 0 && !isLast && <button type="button" onClick={() => go(index - 1)} style={secondaryBtn}>Back</button>}
+        {advance === "action"
+          ? <button type="button" onClick={() => go(index + 1)} style={secondaryBtn}>Skip</button>
+          : <button ref={primaryRef} type="button" onClick={() => (isLast ? finish() : go(index + 1))} style={primaryBtn}>{index === 0 ? "Start the tour" : isLast ? "Finish" : "Next"}</button>}
+      </div>
+    </div>
+  );
+
+  // Centered cards: one full-width primary action, with quieter secondary actions underneath.
+  const textLink: CSSProperties = { border: "none", background: "none", color: muted(theme), fontSize: 13, fontWeight: 600, cursor: "pointer", padding: "6px 8px", fontFamily: "inherit" };
+  const centeredFooter = (
+    <div style={{ marginTop: 22, display: "grid", gap: 8 }}>
+      {index > 0 && !isLast ? (
+        <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 8 }}>
+          <button type="button" onClick={() => go(index - 1)} style={{ ...secondaryBtn, height: 46 }}>Back</button>
+          <button ref={primaryRef} type="button" onClick={() => go(index + 1)} style={{ ...primaryBtn, height: 46 }}>Next</button>
+        </div>
+      ) : (
+        <button ref={primaryRef} type="button" onClick={() => (isLast ? finish() : go(index + 1))} style={{ ...primaryBtn, height: 46, width: "100%" }}>
+          {isLast ? "Finish" : "Start the tour"}
+        </button>
+      )}
+      {index === 0 && <button type="button" onClick={finish} style={textLink}>Not now</button>}
+      {index > 0 && !isLast && <button type="button" onClick={finish} style={textLink}>End tour</button>}
+    </div>
+  );
+
+  const progress = (
+    <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", fontWeight: 700, color: muted(theme) }}>
+      Step {index + 1} of {steps.length}
+    </div>
+  );
+
+  // ── Centered card (welcome, wrap-up, or a control that's hidden right now) ──
+  if (centered) {
+    const phone = layout === "phone";
+    return (
+      <div role="dialog" aria-modal="true" aria-labelledby="bt-tour-title" style={{ position: "fixed", inset: 0, zIndex: 10000, display: "flex", alignItems: phone ? "flex-end" : "center", justifyContent: "center", padding: phone ? 0 : 20, backgroundColor: dim, backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }}>
+        <div style={{ width: phone ? "100%" : "min(420px, 100%)", boxSizing: "border-box", padding: phone ? "30px 24px calc(24px + env(safe-area-inset-bottom))" : "36px 32px 26px", borderRadius: phone ? "22px 22px 0 0" : 22, backgroundColor: cardBg, border: `1px solid ${border(theme)}`, boxShadow: "0 30px 80px rgba(0,0,0,.3)", color: pageText(theme), textAlign: "center" }}>
+          {step.icon && (
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: 64, marginBottom: 18 }}>
+              <StepIcon icon={step.icon} theme={theme} size={step.icon === "logo" ? 72 : step.icon === "bob" ? 64 : 56} />
+            </div>
+          )}
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 10 }}>{progress}</div>
+          <h2 id="bt-tour-title" style={{ margin: "0 0 10px", fontSize: 22, fontWeight: 800, letterSpacing: "-.03em", lineHeight: 1.2 }}>{title}</h2>
+          <p aria-live="polite" style={{ margin: 0, fontSize: 15, lineHeight: 1.65, color: muted(theme) }}>{step.body(layout, home)}</p>
+          {centeredFooter}
+        </div>
+      </div>
+    );
   }
 
+  // ── Spotlight on a real control ──
+  const vwFull = typeof window !== "undefined" ? window.innerWidth : 1200;
+  const tipWidth = Math.min(340, vwFull - 24);
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="bt-tutorial-title"
-      onClick={e => { if (e.target === e.currentTarget) closeTutorial(); }}
-      style={{
-        position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: isPhone ? "flex-end" : "center", justifyContent: "center",
-        padding: isPhone ? 0 : 20, backgroundColor: dark ? "rgba(6,8,12,.72)" : "rgba(10,10,12,.38)",
-        backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
-      }}
-    >
-      <div style={{
-        position: "relative", width: isPhone ? "100%" : "min(440px, 100%)", boxSizing: "border-box",
-        padding: isPhone ? "28px 24px calc(28px + env(safe-area-inset-bottom))" : "36px 34px 26px",
-        borderRadius: isPhone ? "22px 22px 0 0" : 22, backgroundColor: dark ? "#1a1d22" : "#fbf8f1",
-        border: `1px solid ${border(theme)}`, boxShadow: "0 30px 80px rgba(0,0,0,.28)", color: pageText(theme), fontFamily: "inherit",
-      }}>
-        {!isLast && (
-          <button
-            type="button"
-            onClick={closeTutorial}
-            style={{ position: "absolute", top: 16, right: 16, border: "none", background: "none", color: muted(theme), fontSize: 13, fontWeight: 600, cursor: "pointer", padding: "6px 8px", fontFamily: "inherit" }}
-          >
-            Skip tour
-          </button>
-        )}
+    <div role="dialog" aria-modal="false" aria-labelledby="bt-tour-title" style={{ position: "fixed", inset: 0, zIndex: 10000, pointerEvents: "none" }}>
+      {/* Click shields around the hole: only the highlighted control can be used */}
+      {hole && (
+        <>
+          <div style={{ position: "fixed", left: 0, top: 0, right: 0, height: Math.max(0, hole.top), pointerEvents: "auto" }} />
+          <div style={{ position: "fixed", left: 0, top: hole.top + hole.height, right: 0, bottom: 0, pointerEvents: "auto" }} />
+          <div style={{ position: "fixed", left: 0, top: hole.top, width: Math.max(0, hole.left), height: hole.height, pointerEvents: "auto" }} />
+          <div style={{ position: "fixed", left: hole.left + hole.width, top: hole.top, right: 0, height: hole.height, pointerEvents: "auto" }} />
+          {/* Dimmed backdrop with a rounded cut-out and a pulsing ring */}
+          <div
+            className="tour-ring"
+            style={{
+              position: "fixed", top: hole.top, left: hole.left, width: hole.width, height: hole.height,
+              borderRadius: (rect?.radius ?? 8) + pad, boxShadow: `0 0 0 9999px ${dim}`, pointerEvents: "none",
+              transition: "top .25s ease, left .25s ease, width .25s ease, height .25s ease",
+            }}
+          />
+        </>
+      )}
+      {!hole && <div style={{ position: "fixed", inset: 0, backgroundColor: dim, pointerEvents: "auto" }} />}
 
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
-          <Badge step={step} theme={theme} />
+      <div
+        ref={tipRef}
+        style={{
+          position: "fixed", top: tipPos?.top ?? -9999, left: tipPos?.left ?? -9999, width: tipWidth, boxSizing: "border-box",
+          padding: "18px 18px 14px", borderRadius: 16, backgroundColor: cardBg, border: `1px solid ${border(theme)}`,
+          boxShadow: "0 18px 50px rgba(0,0,0,.28)", color: pageText(theme), pointerEvents: "auto",
+          opacity: tipPos ? 1 : 0, transition: "opacity .15s ease, top .25s ease, left .25s ease",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+          {step.icon && <StepIcon icon={step.icon} theme={theme} size={26} />}
+          {progress}
         </div>
-
-        <div aria-live="polite" style={{ textAlign: "center", marginBottom: 24 }}>
-          <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", fontWeight: 700, color: muted(theme), marginBottom: 10 }}>
-            Step {index + 1} of {list.length}
+        <h2 id="bt-tour-title" style={{ margin: "0 0 6px", fontSize: 17, fontWeight: 800, letterSpacing: "-.02em", lineHeight: 1.25 }}>{title}</h2>
+        <p aria-live="polite" style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: muted(theme) }}>{step.body(layout, home)}</p>
+        {advance === "action" && (
+          <div style={{ marginTop: 10, fontSize: 12, fontWeight: 700, color: dark ? "#8ab4ff" : "#2563eb", display: "flex", alignItems: "center", gap: 6 }}>
+            <span className="tour-dot" aria-hidden="true" style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: "currentColor", display: "inline-block" }} />
+            {layout === "desktop" ? "Click" : "Tap"} the highlighted {step.id === "card" ? "card" : "button"} to continue
           </div>
-          <h2 id="bt-tutorial-title" style={{ margin: "0 0 10px", fontSize: 22, fontWeight: 800, letterSpacing: "-.03em", lineHeight: 1.2 }}>{step.title}</h2>
-          <p style={{ margin: 0, fontSize: 15, lineHeight: 1.65, color: muted(theme) }}>{step.body}</p>
-        </div>
-
-        <div role="tablist" aria-label="Tutorial steps" style={{ display: "flex", justifyContent: "center", gap: 6, marginBottom: 22 }}>
-          {list.map((s, i) => (
-            <button
-              key={s.key}
-              type="button"
-              role="tab"
-              aria-selected={i === index}
-              aria-label={`Step ${i + 1}: ${s.title}`}
-              onClick={() => setIndex(i)}
-              style={{ width: i === index ? 20 : 7, height: 7, borderRadius: 4, border: "none", padding: 0, cursor: "pointer", backgroundColor: i === index ? pageText(theme) : (dark ? "rgba(255,255,255,.16)" : "rgba(0,0,0,.12)"), transition: "width .2s, background-color .2s" }}
-            />
-          ))}
-        </div>
-
-        <div style={{ display: "flex", gap: 10 }}>
-          {isLast ? (
-            <button type="button" onClick={closeTutorial} style={{ flex: 1, height: 48, borderRadius: 13, border: `1px solid ${border(theme)}`, backgroundColor: panel(theme), color: pageText(theme), fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
-              Done
-            </button>
-          ) : !isFirst && (
-            <button type="button" onClick={() => setIndex(i => i - 1)} style={{ flex: "0 0 auto", height: 48, padding: "0 20px", borderRadius: 13, border: `1px solid ${border(theme)}`, backgroundColor: panel(theme), color: pageText(theme), fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
-              Back
-            </button>
-          )}
-          <button
-            ref={primaryRef}
-            type="button"
-            onClick={() => (isLast ? startFirstTask() : setIndex(i => i + 1))}
-            style={{ flex: 1, height: 48, borderRadius: 13, border: "none", backgroundColor: primaryBg, color: primaryFg, fontSize: 15, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-.01em" }}
-          >
-            {isFirst ? "Show me around" : isLast ? (activeBoard?.type === "thought" ? "Add my first idea" : "Add my first task") : "Next"}
-          </button>
-        </div>
+        )}
+        {footer}
       </div>
     </div>
   );

@@ -95,3 +95,13 @@ textarea{resize:none}
   to   { opacity: 1; transform: translate(-50%, 0); }
 }
 .lock-toast { animation: lockToastIn .18s ease-out; }
+
+/* Interactive tutorial spotlight */
+@keyframes tourPulse {
+  0%, 100% { outline-color: rgba(99,160,255,.95); outline-offset: 0px; }
+  50%      { outline-color: rgba(99,160,255,.35); outline-offset: 5px; }
+}
+.tour-ring { outline: 2.5px solid rgba(99,160,255,.95); animation: tourPulse 1.6s ease-in-out infinite; }
+@keyframes tourDot { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+.tour-dot { animation: tourDot 1.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .tour-ring, .tour-dot { animation: none; } }

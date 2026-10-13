@@ -128,6 +128,9 @@ export default function MobileBoard() {
     setMobileEditColorIdx(note.colorIdx);
   }
 
+  // The tour points at the most recently created card on this board (ids are timestamps).
+  const newestNoteId = notes.filter(n => n.boardId === activeBoardId).reduce<number | null>((max, n) => (max === null || n.id > max ? n.id : max), null);
+
   function renderTaskCard(note: Note) {
     const isDone = note.completed || (note.steps.length > 0 && note.steps.every(s => s.done));
     const imp = note.importance === "none" ? undefined : note.importance;
@@ -148,7 +151,7 @@ export default function MobileBoard() {
     const hasSteps = note.steps.length > 0;
 
     return (
-      <div key={note.id} style={{ borderRadius: 14, backgroundColor: bg, border: bord, marginBottom: 9, ...(isOverdue ? { boxShadow: "0 0 0 3px rgba(210,50,50,.13)", animation: "overduePulse 1.6s ease-in-out infinite" } : dueToday ? { boxShadow: "0 0 0 3px rgba(200,130,20,.12)" } : {}) }}>
+      <div key={note.id} data-tour={note.id === newestNoteId ? "newest-card" : undefined} style={{ borderRadius: 14, backgroundColor: bg, border: bord, marginBottom: 9, ...(isOverdue ? { boxShadow: "0 0 0 3px rgba(210,50,50,.13)", animation: "overduePulse 1.6s ease-in-out infinite" } : dueToday ? { boxShadow: "0 0 0 3px rgba(200,130,20,.12)" } : {}) }}>
         {/* Top meta row */}
         <div style={{ padding: "10px 12px 0", display: "flex", alignItems: "center", gap: 6 }}>
           <span style={{ flex: 1, fontSize: 10, fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: isDone ? (theme === "dark" ? "rgba(100,220,120,.8)" : "rgba(30,120,60,.7)") : (imp ? impColor : muted(theme)), opacity: isDone ? 1 : 0.75 }}>
@@ -184,6 +187,7 @@ export default function MobileBoard() {
           {!isDone && (
             <button
               type="button"
+              data-tour={note.id === newestNoteId ? "focus-button" : undefined}
               onClick={() => startFocus(note.id, note.steps.length > 0)}
               style={{ flexShrink: 0, height: 34, borderRadius: 999, backgroundColor: theme === "dark" ? "#111315" : "#171613", color: "#f7f8fb", border: "none", padding: "0 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", marginTop: 2 }}
             >
@@ -235,7 +239,7 @@ export default function MobileBoard() {
   return (
     <div style={{ padding: "0 0 100px" }}>
       {/* BOB — above board switcher */}
-      <div style={{ padding: "8px 16px 4px" }}>
+      <div data-tour="bob" style={{ padding: "8px 16px 4px" }}>
         <BobAgent
           theme={theme}
           notes={notes}
@@ -262,7 +266,7 @@ export default function MobileBoard() {
       </div>
 
       {/* Board switcher */}
-      <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 10, paddingTop: 8, paddingLeft: 16, paddingRight: 16, scrollbarWidth: "none" }}>
+      <div data-tour="boards" style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 10, paddingTop: 8, paddingLeft: 16, paddingRight: 16, scrollbarWidth: "none" }}>
         {boards.map(b => {
           const isActive = b.id === activeBoardId;
           return (
@@ -299,6 +303,7 @@ export default function MobileBoard() {
         <ThemeToggle theme={theme} onToggle={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} size={38} />
         {isSignedIn && (
           <button
+            data-tour="settings"
             onClick={() => setMobileSettingsOpen(true)}
             style={{ flexShrink: 0, width: 38, height: 38, borderRadius: 999, border: `1px solid ${border(theme)}`, backgroundColor: theme === "dark" ? "#1e2126" : "#ffffff", color: muted(theme), cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
           >
@@ -720,6 +725,7 @@ export default function MobileBoard() {
               {mobileAddMode === "task" ? "New Task" : "New Idea"}
             </div>
             <textarea
+              data-tour="composer-title"
               autoFocus
               rows={1}
               value={mobileAddTitle}
@@ -742,7 +748,7 @@ export default function MobileBoard() {
                     );
                   })}
                 </div>
-                <div style={{ display: "flex", alignItems: "center", height: 44, backgroundColor: paper(theme), border: `1.5px solid ${mobileAddDueDate ? border(theme) : (theme === "dark" ? "#8b3a3a" : "#d06060")}`, borderRadius: 12, padding: "0 14px", gap: 8 }}>
+                <div data-tour="composer-details" style={{ display: "flex", alignItems: "center", height: 44, backgroundColor: paper(theme), border: `1.5px solid ${mobileAddDueDate ? border(theme) : (theme === "dark" ? "#8b3a3a" : "#d06060")}`, borderRadius: 12, padding: "0 14px", gap: 8 }}>
                   <span style={{ fontSize: 13, fontWeight: 600, color: muted(theme), flex: 1 }}>Due date</span>
                   <DateField value={mobileAddDueDate} onChange={setMobileAddDueDate} style={{ display: "inline-flex", alignItems: "center" }}>
                     <span style={{ fontSize: 14, fontWeight: 600, color: mobileAddDueDate ? pageText(theme) : (theme === "dark" ? "#ff8080" : "#c05050"), pointerEvents: "none" }}>
@@ -804,6 +810,7 @@ export default function MobileBoard() {
               </>
             )}
             <button
+              data-tour="composer-create"
               onClick={mobileCreateNote}
               style={{ height: 44, borderRadius: 12, backgroundColor: theme === "dark" ? "#f5f5f2" : "#171613", color: theme === "dark" ? "#171613" : "#f7f8fb", border: "none", fontSize: 15, fontWeight: 700, cursor: "pointer" }}
             >
@@ -1030,6 +1037,7 @@ export default function MobileBoard() {
 
       {/* FAB */}
       <button
+        data-tour="add-task"
         onClick={() => { setMobileAddMode(isThoughtBoard ? "thought" : "task"); setMobileAddTitle(""); setMobileAddBody(""); setMobileAddImportance("Low"); setMobileAddDueDate(""); setMobileAddColorIdx(undefined); setMobileAddRemindIn(null); }}
         style={{ position: "fixed", bottom: 24, right: 20, height: 42, borderRadius: 999, backgroundColor: theme === "dark" ? "#23262b" : "#ffffff", color: theme === "dark" ? "#f5f5f2" : "#433d35", border: `1px solid ${border(theme)}`, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, padding: "0 18px 0 14px", boxShadow: "0 4px 20px rgba(0,0,0,.22)", zIndex: 100, fontSize: 14, fontWeight: 600, fontFamily: "inherit" }}
       >
