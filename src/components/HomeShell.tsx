@@ -24,6 +24,7 @@ import FeedbackBoard from "@/components/landing/FeedbackBoard";
 import MarketingSections from "@/components/landing/MarketingSections";
 import { UpgradeModal, LimitReachedModal, SubscribedModal, WhatsNewModal, NamePromptModal } from "@/components/modals/AccountModals";
 import { NOTE_PALETTE, paletteBg, paletteHalo, noteText, noteSub} from "@/lib/colors";
+import type { ThemeMode } from "@/lib/board";
 import { pageText, muted, border, paper, grid, panel, buttonStyle, circleButton, pill } from "@/lib/ui";
 import { todayStr, formatDateShort, fmtTime} from "@/lib/dates";
 import { BOARD_W, BOARD_H, NOTE_W, NOTE_H, noteCardWidth, titleFontSize, STEP_W, STEP_H} from "@/lib/boardLayout";
@@ -158,13 +159,11 @@ export function HomeShell() {
       }}>
         {!isSignedIn && (
           <>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 24, padding: "6px 14px", borderRadius: 999, border: `1px solid ${border(theme)}`, backgroundColor: panel(theme), fontSize: 12, fontWeight: 600, color: muted(theme), letterSpacing: ".01em" }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: theme === "dark" ? "#6aa3f0" : "#2f6fd6" }} />
-              Tasks, ideas and focus in one workspace
-            </div>
-            <h1 style={{ margin: "0 0 24px", fontSize: "clamp(34px,5vw,64px)", lineHeight: 1.06, fontWeight: 700, letterSpacing: "-.04em", color: pageText(theme) }}>
-              <span style={{ whiteSpace: isMobile ? undefined : "nowrap" }}>The <span style={{ color: theme === "dark" ? "#6aa3f0" : "#2f6fd6" }}>Board</span> and the</span><br/>
-              Produc<span style={{ color: theme === "dark" ? "#6aa3f0" : "#2f6fd6" }}>tivity</span> in one.
+            <h1 style={{ margin: "0 0 28px", fontSize: "clamp(34px,5.4vw,70px)", lineHeight: 1.22, fontWeight: 800, letterSpacing: "-.04em", color: pageText(theme) }}>
+              {/* "Board" and "tivity" sit on task cards, like notes on the board */}
+              <span style={{ whiteSpace: isMobile ? undefined : "nowrap" }}>The <HeroCard theme={theme} tilt={-2.5}>Board</HeroCard> and the</span><br/>
+              Produc<HeroCard theme={theme} tilt={2} attached>tivity</HeroCard><br/>
+              <span style={{ display: "inline-block", marginTop: ".08em", fontWeight: 500, color: muted(theme) }}>in one.</span>
             </h1>
             <p style={{ margin: "0 auto 36px", maxWidth: 480, fontSize: 17, color: muted(theme), lineHeight: 1.75, opacity: .75 }}>
               A freeform board for your tasks and ideas, with focus sessions built in. Break big tasks into steps, set due dates, and lock in with a timer. Synced on every device.
@@ -922,5 +921,20 @@ export function HomeShell() {
 
     </main>
     </HomeContext.Provider>
+  );
+}
+
+// A word in the landing headline drawn as a small tilted task card.
+// `attached` drops the left gap so the card joins the letters before it ("Produc|tivity").
+function HeroCard({ theme, tilt, attached, children }: { theme: ThemeMode; tilt: number; attached?: boolean; children: React.ReactNode }) {
+  return (
+    <span style={{
+      display: "inline-block", padding: attached ? ".04em .2em .1em .08em" : ".04em .2em .1em", margin: attached ? "0 0 0 .02em" : "0 .1em",
+      backgroundColor: panel(theme), border: `1px solid ${border(theme)}`, borderRadius: ".2em",
+      transform: `rotate(${tilt}deg)`,
+      boxShadow: theme === "dark" ? "0 .1em .35em rgba(0,0,0,.45)" : "0 .1em .35em rgba(89,72,48,.12)",
+    }}>
+      {children}
+    </span>
   );
 }
