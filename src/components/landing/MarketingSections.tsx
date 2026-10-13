@@ -32,8 +32,8 @@ export default function MarketingSections({ theme, isMobile, isSignedIn, isPlus,
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 28 }}>
             <BoardtivityLogo size={80} dark={theme === "dark"} />
           </div>
-          <div style={{ fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 16, opacity: .5 }}>Built for how you think</div>
-          <h2 style={{ margin: 0, fontSize: "clamp(22px,2.8vw,38px)", fontWeight: 900, letterSpacing: "-.05em", color: pageText(theme), lineHeight: 1.06 }}>Your Board, the Way You Need It.</h2>
+          <div style={{ fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 16, opacity: .5 }}>What you can do</div>
+          <h2 style={{ margin: 0, fontSize: "clamp(22px,2.8vw,38px)", fontWeight: 900, letterSpacing: "-.05em", color: pageText(theme), lineHeight: 1.06 }}>Everything you need, on one board.</h2>
         </div>
 
         {/* ── Focus Mode — full-width immersive ── */}
@@ -96,12 +96,12 @@ export default function MarketingSections({ theme, isMobile, isSignedIn, isPlus,
               </div>
               {/* Right: copy */}
               <div style={{ padding: isMobile ? "32px 24px 44px" : "56px 48px 52px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                <h3 style={{ margin: "0 0 18px", fontSize: "clamp(22px,2.2vw,32px)", fontWeight: 800, letterSpacing: "-.04em", color: "#f7f8fb", lineHeight: 1.08 }}>Lock in.<br/>Build the streak.</h3>
+                <h3 style={{ margin: "0 0 18px", fontSize: "clamp(22px,2.2vw,32px)", fontWeight: 800, letterSpacing: "-.04em", color: "#f7f8fb", lineHeight: 1.08 }}>Focus with a timer.<br/>Keep your streak going.</h3>
                 <p style={{ margin: "0 0 36px", fontSize: 15, color: "rgba(255,255,255,.42)", lineHeight: 1.9 }}>
-                  Pick a task and start a timer. Boardtivity counts down, moves through your steps one by one, and logs every minute, so your streak and stats build on their own.
+                  Pick a task and start the timer. When you finish one step, Boardtivity moves you to the next. Every minute you focus is saved, so you can see your progress.
                 </p>
                 <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                  {["15m, 30m, 1h, 2h, or any custom length", "Auto-chain through subtasks without losing focus", "Streak, total hours and daily activity tracked", "Review what you got done after every session"].map((f) => (
+                  {["Choose 15 min, 30 min, 1 hour, 2 hours, or your own time", "Moves you to the next step for you", "See your streak and total focus time", "See what you finished after each session"].map((f) => (
                     <div key={f} style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 14, color: "rgba(255,255,255,.55)" }}>
                       <div style={{ width: 4, height: 4, borderRadius: "50%", backgroundColor: "rgba(255,255,255,.22)", flexShrink: 0 }}/>
                       {f}
@@ -118,34 +118,34 @@ export default function MarketingSections({ theme, isMobile, isSignedIn, isPlus,
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", rowGap: isMobile ? 28 : 56, columnGap: 0, marginBottom: 88, opacity: featuresVisible ? 1 : 0, transform: featuresVisible ? "none" : "translateY(20px)", transition: "opacity .6s ease, transform .6s ease" }}>
             {([
               {
-                label: "Visual Boards",
-                heading: "Everything on\nyour board.",
-                body: "Drag tasks anywhere and arrange them however your mind works. Lock cards in place, switch between grid and dots, or go fullscreen.",
+                label: "Your board",
+                heading: "Put tasks\nanywhere.",
+                body: "Move tasks around your board however you like. Lock a task so it stays in place. Add grid lines, or go full screen.",
               },
               {
                 label: "Taskweb & Taskchain",
-                heading: "Break any task\ninto steps.",
-                body: "Expand a task into a web of subtasks you can see at once, or a chain you work through one step at a time.",
+                heading: "Split big tasks\ninto steps.",
+                body: "Break a task into smaller steps. See all the steps at once, or do them one at a time.",
               },
               {
-                label: "Idea Boards",
-                heading: "Capture ideas,\nthen connect them.",
-                body: "Keep ideas on their own board, separate from your tasks. Link related ideas together to see how they fit.",
+                label: "Idea boards",
+                heading: "Save your\nideas.",
+                body: "Keep ideas on their own board, away from your tasks. Connect ideas that go together.",
               },
               {
-                label: "Focus Sessions",
-                heading: "Lock in and\nbuild a streak.",
-                body: "Time a session on any task. Every minute counts toward your streak, total hours focused and tasks completed.",
+                label: "Focus timer",
+                heading: "Focus and\nbuild a streak.",
+                body: "Start a timer on any task. Each minute adds to your streak and your total focus time.",
               },
               {
-                label: "Due Dates & Reminders",
-                heading: "Never miss\na deadline.",
-                body: "Give a task a due date and time and get an email reminder before it's due. Pick what time reminders arrive in Settings.",
+                label: "Due dates",
+                heading: "Don't miss\na deadline.",
+                body: "Add a due date and time to a task. We'll email you a reminder before it's due.",
               },
               {
-                label: "BOB · AI Assistant",
-                heading: "Plan out loud\nwith BOB.",
-                body: "Tell BOB what's on your plate and it adds the tasks, breaks them into steps, and sets up your board. Included with Plus.",
+                label: "BOB, your AI helper",
+                heading: "Get help\nfrom BOB.",
+                body: "Tell BOB what you need to do. BOB adds the tasks, splits them into steps, and sets up your board. Comes with Plus.",
               },
             ] as const).map((f, i) => (
               <div key={i} style={{ borderTop: `1px solid ${border(theme)}`, paddingTop: 28, paddingRight: isMobile ? 0 : (i % 3 < 2 ? 40 : 0), paddingBottom: 0 }}>
@@ -169,9 +169,9 @@ export default function MarketingSections({ theme, isMobile, isSignedIn, isPlus,
           <div style={{ position: "relative", overflow: "hidden", borderRadius: 18, border: `1px solid ${border(theme)}`, backgroundColor: panel(theme), padding: "36px 28px", display: "flex", flexDirection: "column", opacity: pricingVisible ? 1 : 0, transform: pricingVisible ? "none" : "translateY(28px)", transition: "opacity .65s ease 0s, transform .65s ease 0s" }}>
             <div style={{ fontSize: 10, letterSpacing: ".16em", textTransform: "uppercase", fontWeight: 700, color: muted(theme), marginBottom: 16 }}>Free</div>
             <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1.08, letterSpacing: "-.035em", color: pageText(theme), marginBottom: 14 }}>Free forever</div>
-            <div style={{ fontSize: 13, color: muted(theme), marginBottom: 18, lineHeight: 1.75, flexGrow: 1 }}>Everything you need to plan and focus: tasks, subtasks, ideas, focus sessions and reminders. No credit card needed.</div>
+            <div style={{ fontSize: 13, color: muted(theme), marginBottom: 18, lineHeight: 1.75, flexGrow: 1 }}>Plan your tasks, save ideas, and focus with a timer. No credit card needed.</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 26 }}>
-              {["1 task board + 1 idea board", "Taskweb & Taskchain", "Focus sessions & streaks", "Due dates & email reminders", "Syncs across your devices"].map((f) => (
+              {["1 task board and 1 idea board", "Split tasks into steps", "Focus timer and streaks", "Due dates and email reminders", "Works on all your devices"].map((f) => (
                 <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: pageText(theme) }}>
                   <div style={{ width: 16, height: 16, borderRadius: "50%", backgroundColor: hexToRgba("#6fc46b", .15), border: "1px solid rgba(111,196,107,.35)", display: "grid", placeItems: "center", flexShrink: 0 }}>
                     <svg width="8" height="8" viewBox="0 0 10 10"><polyline points="2,5.5 4.2,7.5 8,3" stroke="#6fc46b" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -195,9 +195,9 @@ export default function MarketingSections({ theme, isMobile, isSignedIn, isPlus,
               <span style={{ fontSize: 12, color: "rgba(255,255,255,.35)", marginLeft: 10 }}>or $60 / yr</span>
               <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", backgroundColor: "#6fc46b", color: "#fff", borderRadius: 99, padding: "2px 7px" }}>Save 17%</span>
             </div>
-            <div style={{ fontSize: 13, lineHeight: 1.75, color: "rgba(255,255,255,.42)", marginBottom: 18, flexGrow: 1 }}>Everything in Free, plus more boards, BOB AI assistant, and everything we build next.</div>
+            <div style={{ fontSize: 13, lineHeight: 1.75, color: "rgba(255,255,255,.42)", marginBottom: 18, flexGrow: 1 }}>Everything in Free, plus more boards, the BOB AI helper, and new features first.</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 26 }}>
-              {["Up to 10 task boards", "Up to 5 idea boards", "BOB AI assistant", "Early access to new features"].map((f) => (
+              {["Up to 10 task boards", "Up to 5 idea boards", "BOB AI helper", "Get new features first"].map((f) => (
                 <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "rgba(255,255,255,.72)" }}>
                   <div style={{ width: 16, height: 16, borderRadius: "50%", backgroundColor: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.18)", display: "grid", placeItems: "center", flexShrink: 0 }}>
                     <svg width="8" height="8" viewBox="0 0 10 10"><polyline points="2,5.5 4.2,7.5 8,3" stroke="rgba(255,255,255,.7)" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>

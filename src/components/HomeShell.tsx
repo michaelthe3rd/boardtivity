@@ -166,7 +166,7 @@ export function HomeShell() {
               <span style={{ display: "block", lineHeight: 1, marginTop: "-.02em", fontStyle: "italic" }}>in one.</span>
             </h1>
             <p style={{ margin: "0 auto 36px", maxWidth: 480, fontSize: 17, color: muted(theme), lineHeight: 1.75, opacity: .75 }}>
-              A freeform board for your tasks and ideas, with focus sessions built in. Break big tasks into steps, set due dates, and lock in with a timer. Synced on every device.
+              One place for your tasks and ideas. Split big tasks into small steps, add due dates, and use a timer to stay focused. Works on all your devices.
             </p>
           </>
         )}
@@ -605,19 +605,19 @@ export function HomeShell() {
                     {thoughtMode ? "Your idea board is empty" : "Your task board is empty"}
                   </div>
                   <div style={{ marginTop: 6, fontSize: 14, color: boardTheme === "dark" ? "rgba(255,255,255,.38)" : "rgba(0,0,0,.38)" }}>
-                    {thoughtMode ? "Start capturing and connecting your ideas" : "Start adding tasks and breaking them down"}
+                    {thoughtMode ? "Add your ideas and connect them" : "Add a task to get started"}
                   </div>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%", textAlign: "left" }}>
                   {(thoughtMode ? [
-                    { icon: "✦", text: "Click + to add an idea card to the board" },
-                    { icon: "⇄", text: "Drag one idea over another to link them together" },
-                    { icon: "⊙", text: "Hold over a linked idea to unlink it" },
-                    { icon: "✎", text: "Click an idea card to view, edit, or add a note" },
+                    { icon: "✦", text: "Click + to add an idea" },
+                    { icon: "⇄", text: "Drag one idea onto another to connect them" },
+                    { icon: "⊙", text: "Hold an idea over a connected one to disconnect them" },
+                    { icon: "✎", text: "Click an idea to see it, change it, or add a note" },
                   ] : [
-                    { icon: "✦", text: "Click + to create a task — name it, set priority & due date" },
-                    { icon: "≡", text: "Open a task to add subtasks and break down the work" },
-                    { icon: "◎", text: "Hit Start Focus Mode to work through subtasks with a timer" },
+                    { icon: "✦", text: "Click + to add a task. Give it a name, a priority, and a due date" },
+                    { icon: "≡", text: "Open a task to split it into smaller steps" },
+                    { icon: "◎", text: "Click Start focus to work on it with a timer" },
                   ]).map(({ icon, text }) => (
                     <div key={text} style={{ display: "flex", alignItems: "flex-start", gap: 10, backgroundColor: boardTheme === "dark" ? "rgba(255,255,255,.04)" : "rgba(0,0,0,.04)", borderRadius: 10, padding: "10px 14px" }}>
                       <span style={{ fontSize: 13, color: boardTheme === "dark" ? "rgba(255,255,255,.35)" : "rgba(0,0,0,.3)", flexShrink: 0, marginTop: 1 }}>{icon}</span>

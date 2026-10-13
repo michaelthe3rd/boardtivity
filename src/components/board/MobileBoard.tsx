@@ -638,7 +638,7 @@ export default function MobileBoard() {
                 ) : (
                   <div style={{ background: theme === "dark" ? "rgba(255,255,255,.04)" : "rgba(0,0,0,.025)", border: `1px solid ${border(theme)}`, borderRadius: 12, padding: "16px 14px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, textAlign: "center" }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: pageText(theme) }}>BOB is a Plus feature</div>
-                    <p style={{ margin: 0, fontSize: 12, color: muted(theme), lineHeight: 1.55 }}>AI board brain — voice, autopilot, smart prioritization.</p>
+                    <p style={{ margin: 0, fontSize: 12, color: muted(theme), lineHeight: 1.55 }}>An AI helper that plans your day and adds tasks for you.</p>
                     <button onClick={() => { setMobileSettingsOpen(false); setUpgradeOpen(true); }} style={{ padding: "7px 18px", borderRadius: 99, border: "none", cursor: "pointer", background: theme === "dark" ? "rgba(255,255,255,.1)" : "rgba(0,0,0,.08)", color: pageText(theme), fontSize: 12, fontWeight: 700 }}>Upgrade to Plus →</button>
                   </div>
                 )}
