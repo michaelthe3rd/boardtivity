@@ -178,6 +178,15 @@ export default function Tutorial() {
   const [rect, setRect] = useState<Rect | null>(null);
   const [searching, setSearching] = useState(false);
   const [tipPos, setTipPos] = useState<{ top: number; left: number } | null>(null);
+  // How the spotlight moves to the next control. Short hops glide; long jumps (or ones that need
+  // the page to scroll) hide the spotlight under a plain dim layer, move it, then fade it back in,
+  // so it never chases a scrolling target across the screen. Between steps it follows its control
+  // exactly, with no easing, so scrolling or panning can't make it wobble.
+  const [glide, setGlide] = useState(false);
+  const [veil, setVeil] = useState(false);
+  const moveTimersRef = useRef<number[]>([]);
+  const rectRef = useRef<Rect | null>(null);
+  rectRef.current = rect;
   const targetRef = useRef<HTMLElement | null>(null);
   const targetIdRef = useRef<string | null>(null);
   // An action step only completes when its action happens *while it's showing*. If it's already
@@ -221,7 +230,8 @@ export default function Tutorial() {
   // Reset on close (not on open) so a reopened tour never flashes the step it ended on.
   useEffect(() => {
     if (tutorialOpen) return;
-    setIndex(0); setShown(0); setRect(null); setTipPos(null); setSearching(false);
+    setIndex(0); setShown(0); setRect(null); setTipPos(null); setSearching(false); setGlide(false); setVeil(false);
+    moveTimersRef.current.forEach(clearTimeout); moveTimersRef.current = [];
     directionRef.current = 1; targetRef.current = null; targetIdRef.current = null;
   }, [tutorialOpen]);
 
@@ -229,6 +239,8 @@ export default function Tutorial() {
   // while we look, so the ring glides to the new control instead of blinking out and back.
   useEffect(() => {
     if (!tutorialOpen) return;
+    moveTimersRef.current.forEach(clearTimeout); moveTimersRef.current = [];
+    setVeil(false);
     sawNotDoneRef.current = false;
     const justActed = afterActionRef.current; // consume the flag for this step only
     afterActionRef.current = false;
@@ -237,26 +249,39 @@ export default function Tutorial() {
     step.enter?.(homeRef.current);
     if (!step.target) {
       targetRef.current = null; targetIdRef.current = null;
-      setRect(null); setTipPos(null); setSearching(false); setShown(index);
+      setRect(null); setTipPos(null); setSearching(false); setGlide(false); setShown(index);
       return;
     }
 
     const attach = (el: HTMLElement) => {
-      targetRef.current = el;
-      targetIdRef.current = step.target!;
       setSearching(false);
-      setShown(index);
-      // Move the spotlight (and its click shields) now, in the same render as the new step,
-      // so there's never a frame where the open hole is still over the previous control.
-      const m = measure(el);
-      setRect(prev => (sameRect(prev, m) ? prev : m));
+      const later = (fn: () => void, ms: number) => { moveTimersRef.current.push(window.setTimeout(fn, ms)); };
+      const commit = (scroll: boolean) => {
+        targetRef.current = el;
+        targetIdRef.current = step.target!;
+        setShown(index);
+        if (scroll) el.scrollIntoView({ block: "center", behavior: "instant" });
+        // Move the spotlight (and its click shields) in the same render as the new step.
+        const m = measure(el);
+        setRect(prev => (sameRect(prev, m) ? prev : m));
+        // Fill-in steps put the cursor in their field (the focus guard may have moved it to the card).
+        if (step.interactive) {
+          const field = el.matches("input,textarea") ? el : el.querySelector<HTMLElement>("input,textarea");
+          field?.focus({ preventScroll: true });
+        }
+      };
       const r = el.getBoundingClientRect();
-      if (r.top < 70 || r.bottom > window.innerHeight - 70) el.scrollIntoView({ block: "center", behavior: "smooth" });
-      // Fill-in steps put the cursor in their field (the focus guard may have moved it to the card).
-      if (step.interactive) {
-        const field = el.matches("input,textarea") ? el : el.querySelector<HTMLElement>("input,textarea");
-        field?.focus({ preventScroll: true });
+      const needsScroll = r.top < 70 || r.bottom > window.innerHeight - 70;
+      const prev = rectRef.current;
+      if (!prev) { setGlide(false); commit(needsScroll); return; } // coming from a centered card: just appear
+      const dist = Math.hypot(r.left + r.width / 2 - (prev.left + prev.width / 2), r.top + r.height / 2 - (prev.top + prev.height / 2));
+      if (!needsScroll && dist <= 260) {
+        setGlide(true); commit(false);
+        later(() => setGlide(false), 420);
+        return;
       }
+      setGlide(false); setVeil(true);
+      later(() => { commit(needsScroll); later(() => setVeil(false), 40); }, 170);
     };
 
     // Usually the control is already there: attach in the same frame, no waiting.
@@ -456,8 +481,11 @@ export default function Tutorial() {
   );
 
   const progress = (
-    <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", fontWeight: 700, color: muted(theme) }}>
-      Step {shown + 1} of {steps.length}
+    <div
+      role="progressbar" aria-label="Tour progress" aria-valuemin={1} aria-valuemax={steps.length} aria-valuenow={shown + 1}
+      style={{ width: centered ? 120 : 72, height: 4, borderRadius: 999, overflow: "hidden", backgroundColor: dark ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.08)" }}
+    >
+      <div style={{ width: `${((shown + 1) / steps.length) * 100}%`, height: "100%", borderRadius: 999, backgroundColor: "#3db83d", transition: "width .3s cubic-bezier(.22,1,.36,1)" }} />
     </div>
   );
 
@@ -506,12 +534,14 @@ export default function Tutorial() {
             style={{
               position: "fixed", top: hole.top, left: hole.left, width: hole.width, height: hole.height,
               borderRadius: (rect?.radius ?? 8) + pad, boxShadow: `0 0 0 9999px ${dim}`, pointerEvents: "none",
-              transition: "top .38s cubic-bezier(.22,1,.36,1), left .38s cubic-bezier(.22,1,.36,1), width .38s cubic-bezier(.22,1,.36,1), height .38s cubic-bezier(.22,1,.36,1), border-radius .38s cubic-bezier(.22,1,.36,1)",
+              transition: glide ? "top .38s cubic-bezier(.22,1,.36,1), left .38s cubic-bezier(.22,1,.36,1), width .38s cubic-bezier(.22,1,.36,1), height .38s cubic-bezier(.22,1,.36,1), border-radius .38s cubic-bezier(.22,1,.36,1)" : "none",
             }}
           />
         </>
       )}
       {!hole && <div style={{ position: "fixed", inset: 0, backgroundColor: dim, pointerEvents: "auto" }} />}
+      {/* Plain dim layer that covers the spotlight while it jumps a long way */}
+      <div aria-hidden="true" style={{ position: "fixed", inset: 0, backgroundColor: dim, opacity: veil ? 1 : 0, transition: "opacity .16s ease", pointerEvents: veil ? "auto" : "none" }} />
 
       <div
         ref={tipRef}
@@ -519,15 +549,13 @@ export default function Tutorial() {
           position: "fixed", top: tipPos?.top ?? -9999, left: tipPos?.left ?? -9999, width: tipWidth, boxSizing: "border-box",
           padding: "18px 18px 14px", borderRadius: 16, backgroundColor: cardBg, border: `1px solid ${border(theme)}`,
           boxShadow: "0 18px 50px rgba(0,0,0,.28)", color: pageText(theme), pointerEvents: "auto",
-          // Glide between controls, but appear in place the first time (no sweep in from off-screen).
-          opacity: tipPos ? 1 : 0, transition: tipPos ? "opacity .18s ease, top .38s cubic-bezier(.22,1,.36,1), left .38s cubic-bezier(.22,1,.36,1)" : "none",
+          // Glides with the spotlight on short hops; otherwise fades out, moves, and fades back in.
+          opacity: tipPos && !veil ? 1 : 0, transition: glide ? "opacity .16s ease, top .38s cubic-bezier(.22,1,.36,1), left .38s cubic-bezier(.22,1,.36,1)" : "opacity .16s ease",
         }}
       >
+        <div style={{ marginBottom: 12 }}>{progress}</div>
         <div key={shown} className="tour-swap">
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-          {shownStep.icon && <StepIcon icon={shownStep.icon} theme={theme} size={26} />}
-          {progress}
-        </div>
+        {shownStep.icon && <div style={{ marginBottom: 8 }}><StepIcon icon={shownStep.icon} theme={theme} size={26} /></div>}
         <h2 id="bt-tour-title" style={{ margin: "0 0 6px", fontSize: 17, fontWeight: 800, letterSpacing: "-.02em", lineHeight: 1.25 }}>{title}</h2>
         <p aria-live="polite" style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: muted(theme) }}>{shownStep.body(layout, home)}</p>
         {waitingForAction && (
