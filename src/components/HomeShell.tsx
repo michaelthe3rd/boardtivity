@@ -188,13 +188,13 @@ export function HomeShell() {
             <div style={{ display: "flex", gap: 10, flexDirection: isMobile ? "column" : "row" }}>
               <button
                 onClick={() => openSignUp()}
-                style={{ flex: 1, height: 48, borderRadius: 10, border: "none", backgroundColor: theme === "dark" ? "#f7f8fb" : "#111315", color: theme === "dark" ? "#111315" : "#f7f8fb", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-.01em" }}
+                style={{ flex: isMobile ? undefined : 1, height: 48, borderRadius: 10, border: "none", backgroundColor: theme === "dark" ? "#f7f8fb" : "#111315", color: theme === "dark" ? "#111315" : "#f7f8fb", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-.01em" }}
               >
                 Sign up free
               </button>
               <button
                 onClick={() => document.getElementById("boardtivity-board")?.scrollIntoView({ behavior: "smooth", block: "start" })}
-                style={{ flex: 1, height: 48, borderRadius: 10, border: `1px solid ${border(theme)}`, backgroundColor: "transparent", color: pageText(theme), fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-.01em" }}
+                style={{ flex: isMobile ? undefined : 1, height: 48, borderRadius: 10, border: `1px solid ${border(theme)}`, backgroundColor: "transparent", color: pageText(theme), fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-.01em" }}
               >
                 Try the board
               </button>

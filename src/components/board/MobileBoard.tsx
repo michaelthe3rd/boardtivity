@@ -266,7 +266,9 @@ export default function MobileBoard() {
       </div>
 
       {/* Board switcher */}
-      <div data-tour="boards" style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 10, paddingTop: 8, paddingLeft: 16, paddingRight: 16, scrollbarWidth: "none" }}>
+      {/* Board tabs scroll; stats, theme and settings stay pinned on the right so they never scroll off-screen */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, paddingBottom: 10, paddingTop: 8, paddingLeft: 16, paddingRight: 16 }}>
+      <div data-tour="boards" style={{ display: "flex", gap: 6, flex: 1, minWidth: 0, overflowX: "auto", scrollbarWidth: "none" }}>
         {boards.map(b => {
           const isActive = b.id === activeBoardId;
           return (
@@ -288,6 +290,7 @@ export default function MobileBoard() {
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </button>
+      </div>
         {isSignedIn && (
           <button
             onClick={() => setProfileOpen(true)}
@@ -301,9 +304,9 @@ export default function MobileBoard() {
           </button>
         )}
         <ThemeToggle theme={theme} onToggle={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} size={38} />
-        {isSignedIn && (
-          <button
+        <button
             data-tour="settings"
+            aria-label="Settings"
             onClick={() => setMobileSettingsOpen(true)}
             style={{ flexShrink: 0, width: 38, height: 38, borderRadius: 999, border: `1px solid ${border(theme)}`, backgroundColor: theme === "dark" ? "#1e2126" : "#ffffff", color: muted(theme), cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
           >
@@ -311,7 +314,6 @@ export default function MobileBoard() {
               <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
             </svg>
           </button>
-        )}
       </div>
 
       {/* Board type picker sheet */}
