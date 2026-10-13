@@ -150,7 +150,7 @@ export function HomeShell() {
 
       {/* ── HERO ── */}
       <section ref={heroRef} style={{
-        maxWidth: 560, margin: "0 auto", padding: isMobile ? (isSignedIn ? "16px 0 0" : isSignedIn === false ? `48px 20px 48px` : "0") : `80px 24px ${isSignedIn && !showSyncPill ? "16px" : "72px"}`,
+        maxWidth: 760, margin: "0 auto", padding: isMobile ? (isSignedIn ? "16px 0 0" : isSignedIn === false ? `48px 20px 48px` : "0") : `80px 24px ${isSignedIn && !showSyncPill ? "16px" : "72px"}`,
         textAlign: "center",
         opacity: heroVisible ? 1 : 0,
         transform: heroVisible ? "none" : "translateY(20px)",
@@ -158,8 +158,13 @@ export function HomeShell() {
       }}>
         {!isSignedIn && (
           <>
-            <h1 style={{ margin: "0 0 24px", fontSize: "clamp(34px,4.8vw,64px)", lineHeight: 1.0, fontWeight: 900, letterSpacing: "-.055em", color: pageText(theme) }}>
-              The <span className="hue-rotate">Board</span> and the Produc<span className="hue-rotate">tivity</span><br/>in one.
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 24, padding: "6px 14px", borderRadius: 999, border: `1px solid ${border(theme)}`, backgroundColor: panel(theme), fontSize: 12, fontWeight: 600, color: muted(theme), letterSpacing: ".01em" }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: theme === "dark" ? "#6aa3f0" : "#2f6fd6" }} />
+              Tasks, ideas and focus in one workspace
+            </div>
+            <h1 style={{ margin: "0 0 24px", fontSize: "clamp(34px,5vw,64px)", lineHeight: 1.06, fontWeight: 700, letterSpacing: "-.04em", color: pageText(theme) }}>
+              <span style={{ whiteSpace: isMobile ? undefined : "nowrap" }}>The <span style={{ color: theme === "dark" ? "#6aa3f0" : "#2f6fd6" }}>Board</span> and the</span><br/>
+              Produc<span style={{ color: theme === "dark" ? "#6aa3f0" : "#2f6fd6" }}>tivity</span> in one.
             </h1>
             <p style={{ margin: "0 auto 36px", maxWidth: 480, fontSize: 17, color: muted(theme), lineHeight: 1.75, opacity: .75 }}>
               A freeform board for your tasks and ideas, with focus sessions built in. Break big tasks into steps, set due dates, and lock in with a timer. Synced on every device.
