@@ -22,6 +22,7 @@ Visual task + idea board with focus sessions and an AI assistant (BOB). Live at 
 - `src/components/board/`: MobileBoard (phone layout), SettingsPanel, TaskComposer, NoteDetailModal, StepModal, DraftPromptModal, RenameBoardModal.
 - `src/components/focus/`: DurationPicker, FocusOverlay, SessionReviewModal, ProfilePanel.
 - `src/components/landing/`: MarketingSections (focus showcase, features, pricing), FeedbackBoard.
+- `src/components/tutorial/Tutorial.tsx`: the onboarding tour (steps adapt to phone / desktop / touch). Auto-opens once for brand-new accounts (no saved board in Convex yet; key `boardtivity_tutorial_v2_seen`), and Settings → Help → "Replay the tutorial" calls `openTutorial()`. Update its steps when features change.
 - `src/components/modals/AccountModals.tsx`: Upgrade, LimitReached, Subscribed, WhatsNew, NamePrompt. All use `src/components/ui/Modal.tsx`.
 - `src/lib/`: `board.ts` (types), `ui.ts` (theme tokens + style builders like `buttonStyle`, `pageText`), `colors.ts` (note/task palettes), `dates.ts`, `boardLayout.ts` (canvas sizes, ids, subtask layout), `breakdown.ts` (offline subtask heuristics), `hooks.ts` (`useIsMobile`, `useRevealOnScroll`).
 - For new UI, reuse `src/lib/ui.ts` tokens and `Modal` instead of hand-writing colors and overlays.

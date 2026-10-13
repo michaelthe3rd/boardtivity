@@ -12,6 +12,9 @@ import { NOTE_PALETTE, TASK_PALETTE, hexToRgba, blendHex, clampCardBg, PRIORITY_
 import { pageBg, surface, border } from "@/lib/ui";
 import { BOARD_W, BOARD_H, NOTE_W, NOTE_H, STEP_W, STEP_H, INITIAL_BOARDS, genId, nextBoardName, layoutWeb, layoutChain, readLocal } from "@/lib/boardLayout";
 
+// Bump the version to show the tutorial again to everyone after a big redesign.
+const TUTORIAL_SEEN_KEY = "boardtivity_tutorial_v2_seen";
+
 // All HomeShell state, effects and handlers. Views read it through HomeContext (see HomeContext.tsx).
 export function useHomeState() {
   const [theme, setTheme] = useState<ThemeMode>(() => readLocal("theme", "light"));
@@ -74,6 +77,7 @@ export function useHomeState() {
   const [showSubscribedModal, setShowSubscribedModal] = useState(false);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [namePromptOpen, setNamePromptOpen] = useState(false);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   const focusNoteIdRef = useRef<number | null>(null);
@@ -469,14 +473,30 @@ export function useHomeState() {
     } catch {}
   }, []);
 
-  // Show one-time sync-overhaul update notice to signed-in users
+  // First visit after sign-in: brand-new accounts (no saved board in Convex yet) get the
+  // tutorial; existing accounts get the one-time sync-overhaul notice instead.
   useEffect(() => {
-    if (!clerkLoaded || !isSignedIn) return;
+    if (!clerkLoaded || !isSignedIn || savedBoard === undefined) return;
     try {
-      const seen = localStorage.getItem("boardtivity_update_sync_v1_seen");
-      if (!seen) setShowUpdateModal(true);
+      if (savedBoard === null) {
+        localStorage.setItem("boardtivity_update_sync_v1_seen", "1"); // nothing to apologize for
+        if (!localStorage.getItem(TUTORIAL_SEEN_KEY)) setTutorialOpen(true);
+      } else if (!localStorage.getItem("boardtivity_update_sync_v1_seen")) {
+        setShowUpdateModal(true);
+      }
     } catch {}
-  }, [clerkLoaded, isSignedIn]);
+  }, [clerkLoaded, isSignedIn, savedBoard === undefined, savedBoard === null]);
+
+  function openTutorial() {
+    setSettingsOpen(false);
+    setMobileSettingsOpen(false);
+    setTutorialOpen(true);
+  }
+
+  function closeTutorial() {
+    setTutorialOpen(false);
+    try { localStorage.setItem(TUTORIAL_SEEN_KEY, "1"); } catch {}
+  }
 
   // Prompt existing users without a name to set one
   useEffect(() => {
@@ -1731,6 +1751,7 @@ export function useHomeState() {
 
 
   return {
+    tutorialOpen, openTutorial, closeTutorial,
     boardStateWith, updateReminderTime, toggleEmailPref,
     toggleNoteLock, startLongPress, trackLongPress, cancelLongPress, lastPointerTypeRef, lockToast,
     theme, setTheme, boardTheme, setBoardTheme, boards, setBoards, activeBoardId, setActiveBoardId,

@@ -2,11 +2,11 @@
 "use client";
 
 import BobAgent from "@/components/BobAgent";
-import TourOverlay from "@/components/TourOverlay";
 import { useHomeState } from "@/components/home/useHomeState";
 import { HomeContext } from "@/components/home/HomeContext";
 import LockIcon from "@/components/ui/LockIcon";
 import OverlayLayer from "@/components/ui/OverlayLayer";
+import Tutorial from "@/components/tutorial/Tutorial";
 import RenameBoardModal from "@/components/board/RenameBoardModal";
 import DraftPromptModal from "@/components/board/DraftPromptModal";
 import StepModal from "@/components/board/StepModal";
@@ -53,7 +53,6 @@ export function HomeShell() {
   return (
     <HomeContext.Provider value={home}>
     <main style={{ minHeight: "100vh", fontFamily: "'Satoshi', Arial, sans-serif" }}>
-      <TourOverlay isSignedIn={!!isSignedIn} isMobile={isMobile} />
 
 
       <section style={{ padding: isMobile ? "10px 18px 0" : "24px 48px 0", display: isNativeApp ? "none" : undefined }}>
@@ -904,6 +903,7 @@ export function HomeShell() {
             onDismiss={() => { setNamePromptOpen(false); try { localStorage.setItem("boardtivity_name_prompt_dismissed", "1"); } catch {} }}
           />
         )}
+        <Tutorial />
       </OverlayLayer>
 
       {/* Footer */}

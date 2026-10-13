@@ -14,6 +14,7 @@ import { useHome } from "@/components/home/HomeContext";
 // Phone layout: list-style board with bottom bar, sheets for add/edit/settings, and BOB.
 export default function MobileBoard() {
   const {
+    openTutorial,
     boardStateWith, updateReminderTime, toggleEmailPref, theme, setTheme, boards, setBoards, activeBoardId,
     setActiveBoardId, notes, setNotes, focusOpen, setFocusOpen, focusNoteId, setFocusNoteId, focusStepId,
     setFocusStepId, focusSecondsLeft, setFocusSecondsLeft, focusCompleted, setFocusCompleted, focusPaused, setFocusPaused, breakSecondsLeft,
@@ -454,6 +455,17 @@ export default function MobileBoard() {
             </div>
 
             <div style={{ padding: "20px 20px 48px", display: "flex", flexDirection: "column", gap: 28 }}>
+
+              {/* Help */}
+              <div>
+                <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 10 }}>Help</div>
+                <button onClick={openTutorial} style={{ width: "100%", height: 48, borderRadius: 12, border: `1px solid ${border(theme)}`, backgroundColor: theme === "dark" ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.06)", color: pageText(theme), fontSize: 15, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9" /><path d="M9.6 9.3a2.5 2.5 0 1 1 3.6 2.3c-.8.4-1.2 1-1.2 1.9v.3" /><circle cx="12" cy="16.9" r=".6" fill="currentColor" />
+                  </svg>
+                  Replay the tutorial
+                </button>
+              </div>
 
               {/* Theme */}
               <div>
