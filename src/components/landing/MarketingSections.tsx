@@ -6,7 +6,8 @@ import { useRevealOnScroll } from "@/lib/hooks";
 import { hexToRgba } from "@/lib/colors";
 import BoardtivityLogo from "@/components/BoardtivityLogo";
 
-// Signed-out landing content below the demo board: focus mode showcase, features, pricing.
+// Landing content below the board. Signed out: focus showcase, features, pricing.
+// Signed in: only the upgrade (pricing) section, and nothing for Plus members, so the board stays the focus.
 export default function MarketingSections({ theme, isMobile, isSignedIn, isPlus, checkoutLoading, onSignUp, onCheckout }: {
   theme: ThemeMode;
   isMobile: boolean;
@@ -20,9 +21,12 @@ export default function MarketingSections({ theme, isMobile, isSignedIn, isPlus,
   const [featuresRef, featuresVisible] = useRevealOnScroll();
   const [pricingRef, pricingVisible] = useRevealOnScroll();
 
-  return (
-      <section style={{ maxWidth: 1100, margin: "0 auto", padding: isMobile ? "60px 20px 80px" : "100px 24px 140px" }}>
+  if (isSignedIn && isPlus) return null;
 
+  return (
+      <section style={{ maxWidth: 1100, margin: "0 auto", padding: isSignedIn ? (isMobile ? "32px 20px 48px" : "56px 24px 72px") : (isMobile ? "60px 20px 80px" : "100px 24px 140px") }}>
+
+        {!isSignedIn && <>
         {/* Section label */}
         <div style={{ textAlign: "center", marginBottom: 96 }}>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 28 }}>
@@ -94,10 +98,10 @@ export default function MarketingSections({ theme, isMobile, isSignedIn, isPlus,
               <div style={{ padding: isMobile ? "32px 24px 44px" : "56px 48px 52px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
                 <h3 style={{ margin: "0 0 18px", fontSize: "clamp(22px,2.2vw,32px)", fontWeight: 800, letterSpacing: "-.04em", color: "#f7f8fb", lineHeight: 1.08 }}>Lock in.<br/>Build the streak.</h3>
                 <p style={{ margin: "0 0 36px", fontSize: 15, color: "rgba(255,255,255,.42)", lineHeight: 1.9 }}>
-                  Commit to a session and go. Boardtivity counts down, chains through your subtasks, and logs every minute — so your streak and stats grow automatically.
+                  Pick a task and start a timer. Boardtivity counts down, moves through your steps one by one, and logs every minute, so your streak and stats build on their own.
                 </p>
                 <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                  {["Commit to a dedicated session — your call on how long", "Auto-chain through subtasks without losing focus", "Streak and total hours tracked across every session", "Session review screen after every finish"].map((f) => (
+                  {["15m, 30m, 1h, 2h, or any custom length", "Auto-chain through subtasks without losing focus", "Streak, total hours and daily activity tracked", "Review what you got done after every session"].map((f) => (
                     <div key={f} style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 14, color: "rgba(255,255,255,.55)" }}>
                       <div style={{ width: 4, height: 4, borderRadius: "50%", backgroundColor: "rgba(255,255,255,.22)", flexShrink: 0 }}/>
                       {f}
@@ -111,30 +115,40 @@ export default function MarketingSections({ theme, isMobile, isSignedIn, isPlus,
 
         {/* ── Features — 4-col editorial ── */}
         <div ref={featuresRef}>
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr 1fr", gap: isMobile ? 28 : 0, marginBottom: 88, opacity: featuresVisible ? 1 : 0, transform: featuresVisible ? "none" : "translateY(20px)", transition: "opacity .6s ease, transform .6s ease" }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", rowGap: isMobile ? 28 : 56, columnGap: 0, marginBottom: 88, opacity: featuresVisible ? 1 : 0, transform: featuresVisible ? "none" : "translateY(20px)", transition: "opacity .6s ease, transform .6s ease" }}>
             {([
               {
                 label: "Visual Boards",
                 heading: "Everything on\nyour board.",
-                body: "Drag tasks anywhere on your board. Arrange by project, urgency, or however your mind works — no rigid columns.",
+                body: "Drag tasks anywhere and arrange them however your mind works. Lock cards in place, switch between grid and dots, or go fullscreen.",
               },
               {
                 label: "Taskweb & Taskchain",
                 heading: "Break any task\ninto steps.",
-                body: "Expand tasks into a subtask web you can see at once, or a sequential chain you step through one at a time.",
+                body: "Expand a task into a web of subtasks you can see at once, or a chain you work through one step at a time.",
+              },
+              {
+                label: "Idea Boards",
+                heading: "Capture ideas,\nthen connect them.",
+                body: "Keep ideas on their own board, separate from your tasks. Link related ideas together to see how they fit.",
               },
               {
                 label: "Focus Sessions",
-                heading: "Timed sessions,\nyour way.",
-                body: "Pick 15m, 25m, 45m, 1hr, or a custom duration. Boardtivity counts down and auto-chains through subtasks.",
+                heading: "Lock in and\nbuild a streak.",
+                body: "Time a session on any task. Every minute counts toward your streak, total hours focused and tasks completed.",
               },
               {
-                label: "Streaks & Stats",
-                heading: "Track your\nmomentum.",
-                body: "Every session logs time and builds your streak. See total hours focused, tasks completed, and daily activity.",
+                label: "Due Dates & Reminders",
+                heading: "Never miss\na deadline.",
+                body: "Give a task a due date and time and get an email reminder before it's due. Pick what time reminders arrive in Settings.",
+              },
+              {
+                label: "BOB · AI Assistant",
+                heading: "Plan out loud\nwith BOB.",
+                body: "Tell BOB what's on your plate and it adds the tasks, breaks them into steps, and sets up your board. Included with Plus.",
               },
             ] as const).map((f, i) => (
-              <div key={i} style={{ borderTop: `1px solid ${border(theme)}`, paddingTop: 28, paddingRight: isMobile ? 0 : (i < 3 ? 40 : 0), paddingBottom: 0 }}>
+              <div key={i} style={{ borderTop: `1px solid ${border(theme)}`, paddingTop: 28, paddingRight: isMobile ? 0 : (i % 3 < 2 ? 40 : 0), paddingBottom: 0 }}>
                 <div style={{ fontSize: 10, letterSpacing: ".18em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 20, opacity: .5 }}>{f.label}</div>
                 <h3 style={{ margin: "0 0 16px", fontSize: 19, fontWeight: 800, letterSpacing: "-.03em", color: pageText(theme), lineHeight: 1.22 }}>{f.heading.split("\n").map((line, j) => <span key={j}>{line}{j === 0 ? <br/> : null}</span>)}</h3>
                 <p style={{ margin: 0, fontSize: 14, color: muted(theme), lineHeight: 1.85, opacity: .68 }}>{f.body}</p>
@@ -143,15 +157,21 @@ export default function MarketingSections({ theme, isMobile, isSignedIn, isPlus,
           </div>
         </div>
 
+        </>}
+
         {/* ── Pricing ── */}
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
+          <div style={{ fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 12, opacity: .5 }}>{isSignedIn ? "Boardtivity Plus" : "Pricing"}</div>
+          <h2 style={{ margin: 0, fontSize: "clamp(22px,2.4vw,32px)", fontWeight: 900, letterSpacing: "-.045em", color: pageText(theme), lineHeight: 1.1 }}>{isSignedIn ? "Need more room? Upgrade to Plus." : "Free to start. Plus when you need more."}</h2>
+        </div>
         <div ref={pricingRef} style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, maxWidth: 720, margin: "0 auto" }}>
           {/* Free */}
           <div style={{ position: "relative", overflow: "hidden", borderRadius: 18, border: `1px solid ${border(theme)}`, backgroundColor: panel(theme), padding: "36px 28px", display: "flex", flexDirection: "column", opacity: pricingVisible ? 1 : 0, transform: pricingVisible ? "none" : "translateY(28px)", transition: "opacity .65s ease 0s, transform .65s ease 0s" }}>
             <div style={{ fontSize: 10, letterSpacing: ".16em", textTransform: "uppercase", fontWeight: 700, color: muted(theme), marginBottom: 16 }}>Free</div>
             <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1.08, letterSpacing: "-.035em", color: pageText(theme), marginBottom: 14 }}>Free forever</div>
-            <div style={{ fontSize: 13, color: muted(theme), marginBottom: 18, lineHeight: 1.75, flexGrow: 1 }}>Full access to every feature — boards, tasks, subtasks, focus sessions, and idea notes. No credit card needed.</div>
+            <div style={{ fontSize: 13, color: muted(theme), marginBottom: 18, lineHeight: 1.75, flexGrow: 1 }}>Everything you need to plan and focus: tasks, subtasks, ideas, focus sessions and reminders. No credit card needed.</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 26 }}>
-              {["1 board per type", "1 idea per board", "Focus sessions & streak tracking", "Taskweb & Taskchain"].map((f) => (
+              {["1 task board + 1 idea board", "Taskweb & Taskchain", "Focus sessions & streaks", "Due dates & email reminders", "Syncs across your devices"].map((f) => (
                 <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: pageText(theme) }}>
                   <div style={{ width: 16, height: 16, borderRadius: "50%", backgroundColor: hexToRgba("#6fc46b", .15), border: "1px solid rgba(111,196,107,.35)", display: "grid", placeItems: "center", flexShrink: 0 }}>
                     <svg width="8" height="8" viewBox="0 0 10 10"><polyline points="2,5.5 4.2,7.5 8,3" stroke="#6fc46b" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -160,7 +180,7 @@ export default function MarketingSections({ theme, isMobile, isSignedIn, isPlus,
                 </div>
               ))}
             </div>
-            <button onClick={() => !isSignedIn && onSignUp()} style={{ ...buttonStyle(theme, false), width: "100%", fontSize: 14, height: 42, cursor: isSignedIn ? "default" : "pointer", opacity: isSignedIn ? .5 : 1 }}>{isSignedIn ? "Signed in" : "Get started free"}</button>
+            <button onClick={() => !isSignedIn && onSignUp()} style={{ ...buttonStyle(theme, false), width: "100%", fontSize: 14, height: 42, cursor: isSignedIn ? "default" : "pointer", opacity: isSignedIn ? .5 : 1 }}>{isSignedIn ? "Current plan" : "Get started free"}</button>
           </div>
           {/* Plus */}
           <div style={{ position: "relative", overflow: "hidden", borderRadius: 18, border: `1px solid ${theme === "dark" ? "rgba(255,255,255,.18)" : "rgba(0,0,0,.18)"}`, backgroundColor: theme === "dark" ? "#0d0f12" : "#111315", padding: "36px 28px", display: "flex", flexDirection: "column", opacity: pricingVisible ? 1 : 0, transform: pricingVisible ? "none" : "translateY(28px)", transition: "opacity .65s ease .1s, transform .65s ease .1s" }}>
@@ -175,7 +195,7 @@ export default function MarketingSections({ theme, isMobile, isSignedIn, isPlus,
               <span style={{ fontSize: 12, color: "rgba(255,255,255,.35)", marginLeft: 10 }}>or $60 / yr</span>
               <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", backgroundColor: "#6fc46b", color: "#fff", borderRadius: 99, padding: "2px 7px" }}>Save 17%</span>
             </div>
-            <div style={{ fontSize: 13, lineHeight: 1.75, color: "rgba(255,255,255,.42)", marginBottom: 18, flexGrow: 1 }}>More boards, BOB AI assistant, and everything we build next.</div>
+            <div style={{ fontSize: 13, lineHeight: 1.75, color: "rgba(255,255,255,.42)", marginBottom: 18, flexGrow: 1 }}>Everything in Free, plus more boards, BOB AI assistant, and everything we build next.</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 26 }}>
               {["Up to 10 task boards", "Up to 5 idea boards", "BOB AI assistant", "Early access to new features"].map((f) => (
                 <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "rgba(255,255,255,.72)" }}>

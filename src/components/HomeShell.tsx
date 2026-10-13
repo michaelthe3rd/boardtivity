@@ -161,8 +161,8 @@ export function HomeShell() {
             <h1 style={{ margin: "0 0 24px", fontSize: "clamp(34px,4.8vw,64px)", lineHeight: 1.0, fontWeight: 900, letterSpacing: "-.055em", color: pageText(theme) }}>
               The <span className="hue-rotate">Board</span> and the Produc<span className="hue-rotate">tivity</span><br/>in one.
             </h1>
-            <p style={{ margin: "0 auto 40px", maxWidth: 460, fontSize: 17, color: muted(theme), lineHeight: 1.82, opacity: .7 }}>
-              Boardtivity is a freeform visual board for your tasks, ideas, and focus. Drag tasks anywhere, let AI break them down into steps, link ideas, chain subtasks, and lock into focus mode — all in one place.
+            <p style={{ margin: "0 auto 36px", maxWidth: 480, fontSize: 17, color: muted(theme), lineHeight: 1.75, opacity: .75 }}>
+              A freeform board for your tasks and ideas, with focus sessions built in. Break big tasks into steps, set due dates, and lock in with a timer. Synced on every device.
             </p>
           </>
         )}
@@ -184,29 +184,25 @@ export function HomeShell() {
             </div>
           </div>
         ) : clerkLoaded ? (
-          <div style={{ maxWidth: 400, margin: "0 auto" }}>
-            <div style={{ marginBottom: 12, fontSize: 13, color: muted(theme), opacity: .6, letterSpacing: "-.01em" }}>
-              Sign up to sync your board across devices and access Boardtivity anywhere.
+          <div style={{ maxWidth: 420, margin: "0 auto" }}>
+            <div style={{ display: "flex", gap: 10, flexDirection: isMobile ? "column" : "row" }}>
+              <button
+                onClick={() => openSignUp()}
+                style={{ flex: 1, height: 48, borderRadius: 10, border: "none", backgroundColor: theme === "dark" ? "#f7f8fb" : "#111315", color: theme === "dark" ? "#111315" : "#f7f8fb", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-.01em" }}
+              >
+                Sign up free
+              </button>
+              <button
+                onClick={() => document.getElementById("boardtivity-board")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                style={{ flex: 1, height: 48, borderRadius: 10, border: `1px solid ${border(theme)}`, backgroundColor: "transparent", color: pageText(theme), fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-.01em" }}
+              >
+                Try the board
+              </button>
             </div>
-            <button
-              onClick={() => openSignUp()}
-              style={{ width: "100%", height: 48, borderRadius: 10, border: "none", backgroundColor: theme === "dark" ? "#f7f8fb" : "#111315", color: theme === "dark" ? "#111315" : "#f7f8fb", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-.01em" }}
-            >
-              Sign up free
-            </button>
-            <div style={{ marginTop: 10, fontSize: 12, color: muted(theme), opacity: .4 }}>Free · No credit card needed</div>
+            <div style={{ marginTop: 12, fontSize: 12, color: muted(theme), opacity: .5 }}>Free forever · No credit card needed</div>
           </div>
         ) : null}
         </section>
-
-      {!isSignedIn && (
-        <section style={{ maxWidth: 1440, margin: "0 auto", padding: "0 48px 16px", textAlign: "center" }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 700, letterSpacing: ".14em", textTransform: "uppercase", color: muted(theme), opacity: .55 }}>
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="7" y1="2" x2="7" y2="12"/><polyline points="3,8 7,12 11,8"/></svg>
-            {isMobile ? "See your work" : "Try the board"}
-          </div>
-        </section>
-      )}
 
       <section id="boardtivity-board" style={{ maxWidth: 1440, margin: "0 auto", padding: isMobile ? "0 0 24px" : "0 48px 24px" }}>
         <MobileBoard />
