@@ -163,7 +163,7 @@ export function HomeShell() {
               {/* "Board" and "tivity" sit on task cards, like notes on the board */}
               <span style={{ whiteSpace: isMobile ? undefined : "nowrap" }}>The<HeroCard theme={theme} tilt={-2.5}>Board</HeroCard>and the</span><br/>
               Produc<HeroCard theme={theme} tilt={2} attached>tivity</HeroCard><br/>
-              <span style={{ display: "inline-block", marginTop: ".08em", fontWeight: 500, color: muted(theme) }}>in one.</span>
+              <span style={{ display: "inline-block", marginTop: ".08em" }}>in one.</span>
             </h1>
             <p style={{ margin: "0 auto 36px", maxWidth: 480, fontSize: 17, color: muted(theme), lineHeight: 1.75, opacity: .75 }}>
               A freeform board for your tasks and ideas, with focus sessions built in. Break big tasks into steps, set due dates, and lock in with a timer. Synced on every device.
@@ -925,12 +925,13 @@ export function HomeShell() {
 }
 
 // A word in the landing headline drawn as a small tilted task card.
+// Right padding is .04em larger to make up for the headline's -.04em letter-spacing after the last letter.
 // Cards sit .1em from neighbouring words (no text spaces around them) so the gap is the same everywhere.
 // `attached` is for a card that ends its line ("Produc|tivity"), so it only needs the left gap.
 function HeroCard({ theme, tilt, attached, children }: { theme: ThemeMode; tilt: number; attached?: boolean; children: React.ReactNode }) {
   return (
     <span style={{
-      display: "inline-block", padding: ".04em .2em .1em", margin: attached ? "0 0 0 .1em" : "0 .1em",
+      display: "inline-block", padding: ".04em .24em .1em .2em", margin: attached ? "0 0 0 .1em" : "0 .1em",
       backgroundColor: panel(theme), border: `1px solid ${border(theme)}`, borderRadius: ".2em",
       transform: `rotate(${tilt}deg)`,
       boxShadow: theme === "dark" ? "0 .1em .35em rgba(0,0,0,.45)" : "0 .1em .35em rgba(89,72,48,.12)",
