@@ -27,9 +27,11 @@ type Step = {
   advance?: "next" | "action" | ((l: Layout) => "next" | "action");
   done?: (h: Home) => boolean;
   enter?: (h: Home) => void; // tidy up before showing this step (e.g. close dialogs)
+  reset?: (h: Home) => void; // undo this step's action when returning to it with Back, so it can be redone
 };
 
 const isComposing = (h: Home) => h.composerOpen || h.mobileAddMode !== null;
+const isFocusing = (h: Home) => h.focusPicker !== null || h.focusOpen || h.focusReview !== null;
 const taskWord = (h: Home) => (h.activeBoard?.type === "thought" ? "idea" : "task");
 const verb = (l: Layout) => (l === "desktop" ? "Click" : "Tap");
 
@@ -47,6 +49,7 @@ const STEPS: Step[] = [
   {
     id: "add", target: "add-task", advance: "action", title: (_, h) => `Add your first ${taskWord(h)}`,
     done: h => isComposing(h),
+    reset: h => { if (h.composerOpen) h.closeComposer(); if (h.mobileAddMode !== null) h.setMobileAddMode(null); },
     body: (l, h) => <>{verb(l)} <strong>Add {taskWord(h) === "idea" ? "Idea" : "Task"}</strong> to start.</>,
   },
   {
@@ -73,13 +76,15 @@ const STEPS: Step[] = [
     enter: h => { if (isComposing(h)) closeOpenPanels(h); },
     advance: l => (l === "phone" ? "next" : "action"),
     done: h => h.detailNoteId !== null,
+    reset: h => { if (h.detailNoteId !== null) { h.setDetailNoteId(null); h.setDetailEditing(false); } },
     body: l => l === "phone"
       ? <>Tap <strong>⋯</strong> on a card to edit it or add subtasks.</>
       : <>Drag it anywhere on the board. {l === "touch" ? "Press and hold" : "Right-click"} to lock it in place. <strong>{verb(l)} it</strong> to open the details.</>,
   },
   {
-    id: "focus", target: "focus-button", title: "Focus mode",
-    body: l => <>{verb(l)} <strong>{l === "phone" ? "Focus" : "Start focus"}</strong> to work on it with a timer. Every session builds your streak.</>,
+    id: "focus", target: "focus-button", title: "Focus mode", advance: "action",
+    done: h => isFocusing(h),
+    body: l => <>{verb(l)} <strong>{l === "phone" ? "Focus" : "Start focus"}</strong> to work on it with a timer. Every session builds your streak. Try it now (the tour picks up when you&apos;re done) or press Next.</>,
   },
   {
     id: "bob", target: "bob", icon: "bob", title: "Meet BOB",
@@ -146,6 +151,11 @@ export default function Tutorial() {
   const [tipPos, setTipPos] = useState<{ top: number; left: number } | null>(null);
   const targetRef = useRef<HTMLElement | null>(null);
   const targetIdRef = useRef<string | null>(null);
+  // An action step only completes when its action happens *while it's showing*. If it's already
+  // satisfied on arrival (e.g. Back onto a step whose dialog is still open), show Next instead.
+  const sawNotDoneRef = useRef(false);
+  // Set when the user's own click moved the tour forward: the next control may still be mounting.
+  const afterActionRef = useRef(false);
   const directionRef = useRef<1 | -1>(1);
   const tipRef = useRef<HTMLDivElement | null>(null);
   const primaryRef = useRef<HTMLButtonElement | null>(null);
@@ -171,12 +181,21 @@ export default function Tutorial() {
   }
 
   // (Re)start from the top whenever the tour opens.
-  useEffect(() => { if (tutorialOpen) { setIndex(0); setShown(0); directionRef.current = 1; } }, [tutorialOpen]);
+  // Reset on close (not on open) so a reopened tour never flashes the step it ended on.
+  useEffect(() => {
+    if (tutorialOpen) return;
+    setIndex(0); setShown(0); setRect(null); setTipPos(null); setSearching(false);
+    directionRef.current = 1; targetRef.current = null; targetIdRef.current = null;
+  }, [tutorialOpen]);
 
   // Enter a step: tidy up, then find its control. The previous spotlight stays on screen
   // while we look, so the ring glides to the new control instead of blinking out and back.
   useEffect(() => {
     if (!tutorialOpen) return;
+    sawNotDoneRef.current = false;
+    const justActed = afterActionRef.current; // consume the flag for this step only
+    afterActionRef.current = false;
+    if (directionRef.current === -1) step.reset?.(homeRef.current);
     step.enter?.(homeRef.current);
     if (!step.target) {
       targetRef.current = null; targetIdRef.current = null;
@@ -197,8 +216,19 @@ export default function Tutorial() {
     const now = findTarget(step.target);
     if (now) { attach(now); return; }
 
-    // Otherwise it's appearing (a dialog opening, a card being created): attach the moment it
-    // shows up in the DOM, and give up after ~1.5s.
+    // Not there yet. Unless the user just did something that's still rendering, it isn't coming
+    // (e.g. the composer is closed, or a desktop-only control on a phone): skip at once.
+    const skipOver = () => {
+      setSearching(false);
+      const next = index + directionRef.current;
+      if (next < 0) setIndex(0);
+      else if (next >= steps.length) finish();
+      else setIndex(next);
+    };
+    if (!(justActed && directionRef.current === 1)) { skipOver(); return; }
+
+    // Right after the user's own action it may still be appearing (a dialog opening, a card being
+    // created): attach the moment it shows up in the DOM, or skip after a short grace period.
     setSearching(true);
     let done = false;
     const observer = new MutationObserver(() => {
@@ -213,13 +243,8 @@ export default function Tutorial() {
       observer.disconnect();
       const el = findTarget(step.target!);
       if (el) { attach(el); return; }
-      // Not on screen in this layout/state: skip in the direction the user was going.
-      setSearching(false);
-      const next = index + directionRef.current;
-      if (next < 0) setIndex(0);
-      else if (next >= steps.length) finish();
-      else setIndex(next);
-    }, 1500);
+      skipOver();
+    }, 300);
     return () => { done = true; observer.disconnect(); clearTimeout(giveUp); };
   }, [tutorialOpen, index, layout]);
 
@@ -243,9 +268,14 @@ export default function Tutorial() {
   }, [tutorialOpen]);
 
   // Interactive steps finish themselves once the user does the thing.
-  const actionDone = tutorialOpen && shown === index && advance === "action" && !!shownStep.done?.(home) && !searching;
+  const stepDone = !!shownStep.done?.(home);
+  if (tutorialOpen && shown === index && advance === "action" && !stepDone && !searching) sawNotDoneRef.current = true;
+  const waitingForAction = advance === "action" && sawNotDoneRef.current;
+  const actionDone = tutorialOpen && shown === index && waitingForAction && stepDone && !searching;
+  // Focus mode takes over the screen; the tour steps aside and resumes when it's finished.
+  const paused = isFocusing(home);
   useEffect(() => {
-    if (actionDone) go(shown + 1); // runs after the UI has committed, so the next control is already there
+    if (actionDone) { afterActionRef.current = true; go(shown + 1); } // runs after the UI has committed
   }, [actionDone]);
 
   // Place the tooltip next to the spotlight, flipping/clamping to stay on screen.
@@ -274,9 +304,10 @@ export default function Tutorial() {
     function onKey(e: KeyboardEvent) {
       const t = e.target as HTMLElement | null;
       const typing = !!t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable);
+      if (paused) return;
       if (e.key === "Escape") { e.preventDefault(); finish(); }
       else if (typing) return;
-      else if (e.key === "ArrowRight" && advance === "next") go(shown + 1);
+      else if (e.key === "ArrowRight" && !waitingForAction) go(shown + 1);
       else if (e.key === "ArrowLeft" && shown > 0) go(shown - 1);
     }
     window.addEventListener("keydown", onKey, true);
@@ -286,7 +317,7 @@ export default function Tutorial() {
   // Centered cards take keyboard focus; spotlight steps leave focus where the user is working.
   useEffect(() => { if (tutorialOpen && !shownStep.target) primaryRef.current?.focus(); }, [tutorialOpen, shown, shownStep.target]);
 
-  if (!tutorialOpen) return null;
+  if (!tutorialOpen || paused) return null;
 
   const dark = theme === "dark";
   const dim = dark ? "rgba(6,8,12,.66)" : "rgba(12,12,14,.5)";
@@ -309,8 +340,8 @@ export default function Tutorial() {
       )}
       <div style={{ display: "flex", gap: 8 }}>
         {shown > 0 && !isLast && <button type="button" onClick={() => go(shown - 1)} style={secondaryBtn}>Back</button>}
-        {advance === "action"
-          ? <button type="button" onClick={() => go(shown + 1)} style={secondaryBtn}>Skip</button>
+        {waitingForAction
+          ? <button type="button" onClick={() => go(shown + 1)} style={secondaryBtn}>{shownStep.id === "focus" ? "Next" : "Skip"}</button>
           : <button ref={primaryRef} type="button" onClick={() => (isLast ? finish() : go(shown + 1))} style={primaryBtn}>{shown === 0 ? "Start the tour" : isLast ? "Finish" : "Next"}</button>}
       </div>
     </div>
@@ -320,10 +351,10 @@ export default function Tutorial() {
   const textLink: CSSProperties = { border: "none", background: "none", color: muted(theme), fontSize: 13, fontWeight: 600, cursor: "pointer", padding: "6px 8px", fontFamily: "inherit" };
   const centeredFooter = (
     <div style={{ marginTop: 22, display: "grid", gap: 8 }}>
-      {shown > 0 && !isLast ? (
+      {shown > 0 ? (
         <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 8 }}>
           <button type="button" onClick={() => go(shown - 1)} style={{ ...secondaryBtn, height: 46 }}>Back</button>
-          <button ref={primaryRef} type="button" onClick={() => go(shown + 1)} style={{ ...primaryBtn, height: 46 }}>Next</button>
+          <button ref={primaryRef} type="button" onClick={() => (isLast ? finish() : go(shown + 1))} style={{ ...primaryBtn, height: 46 }}>{isLast ? "Finish" : "Next"}</button>
         </div>
       ) : (
         <button ref={primaryRef} type="button" onClick={() => (isLast ? finish() : go(shown + 1))} style={{ ...primaryBtn, height: 46, width: "100%" }}>
@@ -402,7 +433,7 @@ export default function Tutorial() {
         </div>
         <h2 id="bt-tour-title" style={{ margin: "0 0 6px", fontSize: 17, fontWeight: 800, letterSpacing: "-.02em", lineHeight: 1.25 }}>{title}</h2>
         <p aria-live="polite" style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: muted(theme) }}>{shownStep.body(layout, home)}</p>
-        {advance === "action" && (
+        {waitingForAction && (
           <div style={{ marginTop: 10, fontSize: 12, fontWeight: 700, color: dark ? "#8ab4ff" : "#2563eb", display: "flex", alignItems: "center", gap: 6 }}>
             <span className="tour-dot" aria-hidden="true" style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: "currentColor", display: "inline-block" }} />
             {layout === "desktop" ? "Click" : "Tap"} the highlighted {shownStep.id === "card" ? "card" : "button"} to continue
