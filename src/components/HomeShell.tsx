@@ -2,11 +2,11 @@
 "use client";
 
 import BobAgent from "@/components/BobAgent";
-import TourOverlay from "@/components/TourOverlay";
 import { useHomeState } from "@/components/home/useHomeState";
 import { HomeContext } from "@/components/home/HomeContext";
 import LockIcon from "@/components/ui/LockIcon";
 import OverlayLayer from "@/components/ui/OverlayLayer";
+import Tutorial from "@/components/tutorial/Tutorial";
 import RenameBoardModal from "@/components/board/RenameBoardModal";
 import DraftPromptModal from "@/components/board/DraftPromptModal";
 import StepModal from "@/components/board/StepModal";
@@ -53,7 +53,6 @@ export function HomeShell() {
   return (
     <HomeContext.Provider value={home}>
     <main style={{ minHeight: "100vh", fontFamily: "'Satoshi', Arial, sans-serif" }}>
-      <TourOverlay isSignedIn={!!isSignedIn} isMobile={isMobile} />
 
 
       <section style={{ padding: isMobile ? "10px 18px 0" : "24px 48px 0", display: isNativeApp ? "none" : undefined }}>
@@ -413,10 +412,11 @@ export function HomeShell() {
                   ))
                 )}
 
-              {activeNotes.map((note) => (
+              {activeNotes.map((note, noteIndex) => (
                 <button
                   key={note.id}
                   data-note="true"
+                  data-tour={noteIndex === activeNotes.length - 1 ? "newest-card" : undefined}
                   onPointerDown={(e) => {
                     e.stopPropagation();
                     if (e.button === 2) return; // right-click is handled by onContextMenu
@@ -638,7 +638,7 @@ export function HomeShell() {
 
           <div style={{ position: "absolute", top: isNativeApp ? "env(safe-area-inset-top, 12px)" : 12, left: 16, right: 16, zIndex: 3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             {/* BOB — visible to all, admin-gated features */}
-            <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", top: 0 }}>
+            <div data-tour="bob" style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", top: 0 }}>
               <BobAgent
                 theme={boardTheme}
                 notes={notes}
@@ -713,7 +713,7 @@ export function HomeShell() {
               )}
 
               {/* Settings button — gear */}
-              <button ref={settingsButtonRef} onClick={() => { setSettingsOpen(v => !v); setBoardsOpen(false); }} style={{ ...circleButton(boardTheme), ...(settingsOpen ? { backgroundColor: boardTheme === "dark" ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.07)", border: `1px solid ${boardTheme === "dark" ? "rgba(255,255,255,.2)" : "rgba(0,0,0,.15)"}` } : {}) }} aria-label="Settings" title="Settings">
+              <button ref={settingsButtonRef} data-tour="settings" onClick={() => { setSettingsOpen(v => !v); setBoardsOpen(false); }} style={{ ...circleButton(boardTheme), ...(settingsOpen ? { backgroundColor: boardTheme === "dark" ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.07)", border: `1px solid ${boardTheme === "dark" ? "rgba(255,255,255,.2)" : "rgba(0,0,0,.15)"}` } : {}) }} aria-label="Settings" title="Settings">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
                   <path d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" stroke="currentColor" strokeWidth="1.5"/>
                   <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" stroke="currentColor" strokeWidth="1.5"/>
@@ -724,7 +724,7 @@ export function HomeShell() {
               <div style={{ width: 1, height: 18, backgroundColor: border(boardTheme), margin: "0 2px" }} />
 
               {/* Boards button */}
-              <button ref={boardButtonRef} onClick={() => { setBoardsOpen(v => !v); setSettingsOpen(false); }} style={{ ...buttonStyle(boardTheme, boardsOpen, true), minWidth: 80 }}>
+              <button ref={boardButtonRef} data-tour="boards" onClick={() => { setBoardsOpen(v => !v); setSettingsOpen(false); }} style={{ ...buttonStyle(boardTheme, boardsOpen, true), minWidth: 80 }}>
                 Boards
               </button>
 
@@ -809,6 +809,7 @@ export function HomeShell() {
           {/* Fullscreen button — bottom left */}
           <button
             onClick={toggleFullscreen}
+            data-tour="fullscreen"
             style={{ ...circleButton(boardTheme, 38), position: "absolute", left: 18, bottom: 18, zIndex: 3, boxShadow: "0 8px 16px rgba(89,72,48,.08)", display: isNativeApp ? "none" : undefined }}
             aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
           >
@@ -841,6 +842,7 @@ export function HomeShell() {
               boxShadow: "0 8px 16px rgba(89,72,48,.08)",
             }}
             aria-label={thoughtMode ? "Add idea" : "Add task"}
+            data-tour="add-task"
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
@@ -904,6 +906,7 @@ export function HomeShell() {
             onDismiss={() => { setNamePromptOpen(false); try { localStorage.setItem("boardtivity_name_prompt_dismissed", "1"); } catch {} }}
           />
         )}
+        <Tutorial />
       </OverlayLayer>
 
       {/* Footer */}

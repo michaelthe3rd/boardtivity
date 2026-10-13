@@ -106,16 +106,7 @@ export default function NoteDetailModal() {
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: (detailNote.type === "task" && !isMobile) ? "1fr 272px" : "1fr", gap: 14, padding: 18, maxHeight: "calc(90vh - 96px)", overflow: "hidden" }}>
-          {/* Left: focus card + subtasks */}
-          {/* Left panel — green when completed OR all steps done */}
-          {(() => {
-            const effectiveDone = detailNote.completed || (detailNote.steps.length > 0 && detailNote.steps.every(s => s.done));
-            // Auto-mark complete if all steps done
-            if (!detailNote.completed && effectiveDone) {
-              setNotes(ns => ns.map(n => n.id === detailNote.id ? { ...n, completed: true } : n));
-            }
-            return null;
-          })()}
+          {/* Left: focus card + subtasks (green when completed OR all steps done; auto-complete lives in useHomeState) */}
           <div style={{ borderRadius: 13, backgroundColor: (detailNote.completed || (detailNote.steps.length > 0 && detailNote.steps.every(s => s.done))) ? (boardTheme === "dark" ? "#0e2e18" : "#e6f9ee") : detailNote.type === "task" ? getBg(detailEditing ? (detailEditImportance === "none" ? undefined : detailEditImportance) : (detailNote.importance === "none" ? undefined : detailNote.importance)) : (() => { const ci = detailEditing ? detailEditColorIdx : detailNote.colorIdx; return ci !== undefined ? paletteBg(ci, boardTheme) : (boardTheme === "dark" ? "#2a2d32" : "#ebebeb"); })(), border: (detailNote.completed || (detailNote.steps.length > 0 && detailNote.steps.every(s => s.done))) ? `1px solid ${boardTheme === "dark" ? "rgba(60,180,90,.2)" : "rgba(60,180,90,.15)"}` : "1px solid rgba(0,0,0,.05)", padding: 20, display: "flex", flexDirection: "column", gap: 0, overflowY: "auto" }}>
             {/* Focus header */}
             <div style={{ paddingBottom: 16, borderBottom: `1px solid ${border(boardTheme)}`, marginBottom: 16 }}>
@@ -486,6 +477,7 @@ export default function NoteDetailModal() {
                             </div>
                           )}
                           <button
+                            data-tour="focus-button"
                             onClick={() => startFocus(detailNote.id, detailNote.steps.length > 0)}
                             style={{
                               width: "100%", height: 50, borderRadius: 999, border: "none",

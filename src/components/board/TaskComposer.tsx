@@ -74,6 +74,7 @@ export default function TaskComposer() {
         <div style={{ display: "grid", gridTemplateColumns: (thoughtMode || isMobile) ? "1fr" : "1fr 360px", gap: 16, padding: 18, alignItems: "start" }}>
           <div style={{ display: "grid", gap: 12 }}>
             <div
+              data-tour="composer-title"
               style={{
                 borderRadius: 14,
                 backgroundColor: thoughtMode
@@ -151,7 +152,7 @@ export default function TaskComposer() {
               </div>
             )}
             {!thoughtMode && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, alignItems: "start" }}>
+              <div data-tour="composer-details" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, alignItems: "start" }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   <div
                     style={{
@@ -279,6 +280,7 @@ export default function TaskComposer() {
                           setMinutes(next.reduce((s, st) => s + st.minutes, 0));
                         }}
                         disabled={!title.trim()}
+                        data-tour="composer-bob"
                         style={{ ...buttonStyle(boardTheme, true, true), fontSize: 12, height: 28, padding: "0 10px", opacity: !title.trim() ? 0.4 : 1, cursor: !title.trim() ? "not-allowed" : "pointer" }}
                       >
                         {aiSteps.length > 0 ? "Re-breakdown" : "BOB Breakdown"}
@@ -320,7 +322,7 @@ export default function TaskComposer() {
               )}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <button onClick={closeComposer} style={buttonStyle(boardTheme)}>Cancel</button>
-                <button onClick={createNote} style={buttonStyle(boardTheme, true)}>{thoughtMode ? "Create idea" : "Create task"}</button>
+                <button data-tour="composer-create" onClick={createNote} style={buttonStyle(boardTheme, true)}>{thoughtMode ? "Create idea" : "Create task"}</button>
               </div>
             </div>
           </div>
@@ -329,7 +331,7 @@ export default function TaskComposer() {
             <div style={{ display: "grid", gap: 10 }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <button onClick={closeComposer} style={buttonStyle(boardTheme)}>Cancel</button>
-                <button onClick={createNote} style={buttonStyle(boardTheme, true)}>Create idea</button>
+                <button data-tour="composer-create" onClick={createNote} style={buttonStyle(boardTheme, true)}>Create idea</button>
               </div>
             </div>
           )}

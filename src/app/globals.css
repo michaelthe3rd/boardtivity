@@ -95,3 +95,22 @@ textarea{resize:none}
   to   { opacity: 1; transform: translate(-50%, 0); }
 }
 .lock-toast { animation: lockToastIn .18s ease-out; }
+
+/* Interactive tutorial spotlight */
+@keyframes tourPulse {
+  0%, 100% { outline-color: rgba(99,160,255,.95); outline-offset: 0px; }
+  50%      { outline-color: rgba(99,160,255,.35); outline-offset: 5px; }
+}
+.tour-ring { outline: 2.5px solid rgba(99,160,255,.95); animation: tourPulse 1.6s ease-in-out infinite; }
+@keyframes tourDot { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+.tour-dot { animation: tourDot 1.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .tour-ring, .tour-dot { animation: none; } }
+
+/* Tutorial transitions: tooltip text cross-fades, cards ease in */
+@keyframes tourSwap { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.tour-swap { animation: tourSwap .22s cubic-bezier(.22,1,.36,1); }
+@keyframes tourCardIn { from { opacity: 0; transform: translateY(6px) scale(.985); } to { opacity: 1; transform: none; } }
+.tour-card-in { animation: tourCardIn .26s cubic-bezier(.22,1,.36,1); }
+@keyframes tourSheetIn { from { opacity: .6; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.tour-sheet-in { animation: tourSheetIn .26s cubic-bezier(.22,1,.36,1); }
+@media (prefers-reduced-motion: reduce) { .tour-swap, .tour-card-in, .tour-sheet-in { animation: none; } }

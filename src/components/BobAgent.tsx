@@ -127,7 +127,7 @@ function Spinner({ c, s = 13 }: { c: string; s?: number }) {
     </svg>
   );
 }
-function BobIcon({ size = 20, color }: { size?: number; color: string }) {
+export function BobIcon({ size = 20, color }: { size?: number; color: string }) {
   return (
     <svg width={size} height={Math.round(size * (78 / 110))} viewBox="0 0 110 78" fill="none" style={{ flexShrink: 0, display: "block" }}>
       <rect x="0"  y="23" width="12" height="27" rx="6"   fill={color}/>
