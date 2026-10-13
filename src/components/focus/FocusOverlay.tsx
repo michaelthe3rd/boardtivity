@@ -19,8 +19,6 @@ export default function FocusOverlay() {
   const completedLabel = focusStep ? focusStep.title : focusNote?.title;
   const isSubtask = !!focusStep;
   const isLastSubtask = isSubtask && !focusNextStep && focusChainMode;
-  const allSteps = focusNote?.steps ?? [];
-
 
   const focusBtn: CSSProperties = {
     height: 40, borderRadius: 999,
@@ -40,15 +38,6 @@ export default function FocusOverlay() {
 
 
 
-
-  // Shared progress bar sub-component (inline)
-  const progressBar = (dimmed = false) => {
-    const hasChain = focusChainMode && allSteps.length > 1;
-    return (
-      <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: hasChain ? 16 : 0 }}>
-      </div>
-    );
-  };
 
   return (
     <div
@@ -123,10 +112,7 @@ export default function FocusOverlay() {
           <div style={{ marginTop: 10, fontSize: 15, color: "rgba(247,248,251,.4)", letterSpacing: ".01em" }}>
             Resumes automatically
           </div>
-          <div style={{ marginTop: 48, width: "100%" }}>
-            {progressBar(true)}
-          </div>
-          <div style={{ marginTop: 44, display: "flex", gap: 10, alignItems: "center" }}>
+          <div style={{ marginTop: 92, display: "flex", gap: 10, alignItems: "center" }}>
             <button onClick={() => { focusTotalSecsRef.current = focusPausedSecsRef.current; focusStartedAtRef.current = Date.now(); setFocusPaused(false); setBreakSecondsLeft(0); }} style={focusBtnPrimary}>
               Resume now
             </button>
@@ -154,10 +140,7 @@ export default function FocusOverlay() {
           <div style={{ marginTop: 28, fontSize: 96, fontWeight: 700, letterSpacing: "-.04em", fontVariantNumeric: "tabular-nums", lineHeight: 1, color: "#f7f8fb" }}>
             {(() => { const tm = Math.floor(focusSecondsLeft / 60); const h = Math.floor(tm / 60); const m = tm % 60; const s = focusSecondsLeft % 60; return h > 0 ? `${h}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}` : `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`; })()}
           </div>
-          <div style={{ marginTop: 48, width: "100%" }}>
-            {progressBar(false)}
-          </div>
-          <div style={{ marginTop: 44, display: "flex", gap: 10, alignItems: "center" }}>
+          <div style={{ marginTop: 92, display: "flex", gap: 10, alignItems: "center" }}>
             {focusTotalSecsRef.current >= 30 * 60 && (
               <button onClick={() => { focusPausedSecsRef.current = focusSecondsLeft; setFocusPaused(true); setBreakSecondsLeft(300); }} style={focusBtnPrimary}>
                 5 min break

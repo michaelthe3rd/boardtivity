@@ -323,6 +323,12 @@ export function useHomeState() {
     return `1.5px solid ${hexToRgba(c, boardTheme === "dark" ? 0.28 : 0.42)}`;
   };
   const detailNote = notes.find((n) => n.id === detailNoteId) ?? null;
+  // A task whose subtasks are all checked off counts as complete — mark it when it's opened.
+  const detailAllStepsDone = !!detailNote && !detailNote.completed && detailNote.steps.length > 0 && detailNote.steps.every(s => s.done);
+  useEffect(() => {
+    if (!detailAllStepsDone || detailNoteId === null) return;
+    setNotes(ns => ns.map(n => n.id === detailNoteId ? { ...n, completed: true } : n));
+  }, [detailAllStepsDone, detailNoteId]);
   const stepModal = activeStep
     ? notes.find((n) => n.id === activeStep.noteId)?.steps.find((s) => s.id === activeStep.stepId) ?? null
     : null;
