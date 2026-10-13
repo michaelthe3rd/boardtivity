@@ -162,8 +162,8 @@ export function HomeShell() {
             <h1 style={{ margin: "0 0 28px", fontSize: "clamp(34px,5.4vw,70px)", lineHeight: 1.22, fontWeight: 800, letterSpacing: "-.04em", color: pageText(theme) }}>
               {/* "Board" and "tivity" sit on task cards, like notes on the board */}
               <span style={{ whiteSpace: isMobile ? undefined : "nowrap" }}>The<HeroCard theme={theme} tilt={-2.5}>Board</HeroCard>and the</span><br/>
-              Produc<HeroCard theme={theme} tilt={2} attached>tivity</HeroCard><br/>
-              <span style={{ display: "inline-block", marginTop: "-.12em", fontStyle: "italic", paddingRight: ".08em" }}>in one.</span>
+              Produc<HeroCard theme={theme} tilt={2} attached>tivity</HeroCard>
+              <span style={{ display: "block", lineHeight: 1, marginTop: "-.02em", fontStyle: "italic" }}>in one.</span>
             </h1>
             <p style={{ margin: "0 auto 36px", maxWidth: 480, fontSize: 17, color: muted(theme), lineHeight: 1.75, opacity: .75 }}>
               A freeform board for your tasks and ideas, with focus sessions built in. Break big tasks into steps, set due dates, and lock in with a timer. Synced on every device.
