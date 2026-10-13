@@ -86,8 +86,8 @@ const STEPS: Step[] = [
       : <>Pick a due date and a priority. Both are required for tasks, and the card&apos;s color shows how urgent it is.</>,
   },
   {
-    id: "breakdown", target: "composer-bob", icon: "bob", title: "Let BOB break it down",
-    body: () => <>Optional: <strong>BOB Breakdown</strong> splits a big task into smaller steps you can check off.</>,
+    id: "breakdown", target: "composer-bob", icon: "bob", title: "Let BOB break it down", interactive: true,
+    body: () => <>Optional: press <strong>BOB Breakdown</strong> to split your task into smaller steps you can check off.</>,
   },
   {
     id: "create", target: "composer-create", advance: "action", title: "Create it",
