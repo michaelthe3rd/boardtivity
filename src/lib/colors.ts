@@ -20,6 +20,8 @@ export const TASK_PALETTE = [
   { light: "#fdfae0", dark: "#352c12", halo: "rgba(210,190,40,.22)",  swatch: "#c8960a" },  // yellow (Low default)
   ...NOTE_PALETTE.slice(0, 7), // pink → lime only (no orange/yellow/red overlap)
 ];
+// How many TASK_PALETTE entries are the priority defaults (shown before a divider in Settings).
+export const TASK_DEFAULT_COUNT = 3;
 
 export function hexToRgba(hex: string, alpha: number): string {
   const r = parseInt(hex.slice(1, 3), 16);

@@ -32,6 +32,7 @@ type Step = {
   interactive?: boolean;
   done?: (h: Home) => boolean;
   enter?: (h: Home) => void; // tidy up before showing this step (e.g. close dialogs)
+  awaitTarget?: boolean; // the control appears only after `enter` (e.g. it opens a panel): wait briefly instead of skipping
   reset?: (h: Home) => void; // undo this step's action when returning to it with Back, so it can be redone
 };
 
@@ -60,6 +61,17 @@ function closeOpenPanels(h: Home) {
   if (h.draftPromptOpen) h.setDraftPromptOpen(false);
   if (h.mobileAddMode !== null) h.setMobileAddMode(null);
   if (h.detailNoteId !== null) { h.setDetailNoteId(null); h.setDetailEditing(false); }
+}
+
+// Opens Settings and spotlights the colors section, which only shows the current board type's colors.
+function colorsStep(kind: "task" | "idea"): Step {
+  return {
+    id: "colors", target: "settings-colors", title: kind === "task" ? "Task colors" : "Idea colors", interactive: true, awaitTarget: true,
+    enter: h => { if (h.isMobile && !h.isNativeApp) h.setMobileSettingsOpen(true); else h.setSettingsOpen(true); },
+    body: () => kind === "task"
+      ? <>Color tasks by priority, or give them all one color. Settings only shows colors for the board you&apos;re on, so switch to an idea board to change idea colors.</>
+      : <>Pick a default color for new ideas, or shuffle for a random one each time. Settings only shows colors for the board you&apos;re on, so switch to a task board to change task colors.</>,
+  };
 }
 
 // Steps every tour ends with: view controls and a wrap-up.
@@ -137,8 +149,9 @@ const TASK_STEPS: Step[] = [
   },
   {
     id: "settings", target: "settings", title: "Settings",
-    body: () => <>Themes, colors and email reminders. You can replay this tour anytime under <strong>Help</strong>.</>,
+    body: () => <>Themes, task colors and email reminders. You can replay this tour anytime under <strong>Help</strong>.</>,
   },
+  colorsStep("task"),
   CENTER_STEP,
   FULLSCREEN_STEP,
   DONE_STEP,
@@ -203,6 +216,7 @@ const IDEA_STEPS: Step[] = [
     id: "settings", target: "settings", title: "Settings",
     body: () => <>Themes, idea colors and email reminders. You can replay this tour anytime under <strong>Help</strong>.</>,
   },
+  colorsStep("idea"),
   CENTER_STEP,
   FULLSCREEN_STEP,
   DONE_STEP,
@@ -372,7 +386,7 @@ export default function Tutorial() {
       else if (next >= steps.length) finish();
       else setIndex(next);
     };
-    if (!(justActed && directionRef.current === 1)) { skipOver(); return; }
+    if (!(justActed && directionRef.current === 1) && !step.awaitTarget) { skipOver(); return; }
 
     // Right after the user's own action it may still be appearing (a dialog opening, a card being
     // created): attach the moment it shows up in the DOM, or skip after a short grace period.

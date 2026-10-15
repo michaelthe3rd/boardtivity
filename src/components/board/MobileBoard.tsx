@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import type { CSSProperties } from "react";
 import type { Importance, Note } from "@/lib/board";
 import BobAgent from "@/components/BobAgent";
 import ThemeToggle from "@/components/ThemeToggle";
-import { NOTE_PALETTE, TASK_PALETTE, hexToRgba, blendHex, clampCardBg, PRIORITY_COLORS, priorityColor } from "@/lib/colors";
-import { pageText, muted, surface, border, paper} from "@/lib/ui";
+import { NOTE_PALETTE, TASK_PALETTE, TASK_DEFAULT_COUNT, hexToRgba, blendHex, clampCardBg, PRIORITY_COLORS, priorityColor } from "@/lib/colors";
+import { pageText, muted, surface, border, paper, swatchStyle, RAINBOW } from "@/lib/ui";
 import { isoToMDY, todayStr, tomorrowStr, fmtTime, fmtFocusTime } from "@/lib/dates";
 import { BOARD_W, BOARD_H, NOTE_W, NOTE_H, genId, layoutWeb, layoutChain } from "@/lib/boardLayout";
 import { buildBreakdown } from "@/lib/breakdown";
@@ -524,24 +524,16 @@ export default function MobileBoard() {
 
             <div style={{ padding: "20px 20px 48px", display: "flex", flexDirection: "column", gap: 28 }}>
 
+              {/* Only the colors for the board you're on */}
               {/* Idea colors */}
-              <div>
+              {isThoughtBoard && (
+              <div data-tour="settings-colors">
                 <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 10 }}>Idea Colors</div>
-                <div style={{ display: "flex", gap: 6, flexWrap: "nowrap", overflowX: "auto", alignItems: "center", padding: 6, margin: -6 }}>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", padding: 6, margin: -6, maxWidth: 352 }}>
                   {/* Rainbow / randomize */}
-                  <button onClick={() => setThoughtColorMode("random")} style={{
-                    flexShrink: 0, width: 22, height: 22, borderRadius: 6, cursor: "pointer", padding: 0, border: "none",
-                    background: "conic-gradient(hsl(0,100%,55%), hsl(30,100%,55%), hsl(60,100%,55%), hsl(90,100%,55%), hsl(120,100%,55%), hsl(150,100%,55%), hsl(180,100%,55%), hsl(210,100%,55%), hsl(240,100%,55%), hsl(270,100%,55%), hsl(300,100%,55%), hsl(330,100%,55%), hsl(360,100%,55%))",
-                    boxShadow: thoughtColorMode === "random" ? `0 0 0 2.5px ${pageText(theme)}, 0 0 0 4.5px ${theme === "dark" ? "rgba(255,255,255,.25)" : "rgba(0,0,0,.2)"}` : "none",
-                    overflow: "hidden",
-                  }} title="Randomize color" />
+                  <button onClick={() => setThoughtColorMode("random")} style={swatchStyle(theme, RAINBOW, thoughtColorMode === "random", 22, true)} title="Randomize color" />
                   {NOTE_PALETTE.map((p, i) => (
-                    <button key={i} onClick={() => { setThoughtColorMode("fixed"); setThoughtFixedColorIdx(i); }} style={{
-                      flexShrink: 0, width: 22, height: 22, borderRadius: "50%",
-                      border: (thoughtColorMode === "fixed" && thoughtFixedColorIdx === i) ? `2.5px solid ${pageText(theme)}` : "2.5px solid transparent",
-                      outline: (thoughtColorMode === "fixed" && thoughtFixedColorIdx === i) ? `2px solid ${p.swatch}` : "none",
-                      outlineOffset: 2, backgroundColor: p.swatch, cursor: "pointer", padding: 0,
-                    }} title={p.name} />
+                    <button key={i} onClick={() => { setThoughtColorMode("fixed"); setThoughtFixedColorIdx(i); }} style={swatchStyle(theme, p.swatch, (thoughtColorMode === "fixed" && thoughtFixedColorIdx === i), 22)} title={p.name} />
                   ))}
                 </div>
                 <p style={{ margin: "8px 0 0", fontSize: 11, color: muted(theme), lineHeight: 1.5 }}>
@@ -549,8 +541,11 @@ export default function MobileBoard() {
                 </p>
               </div>
 
+              )}
+
               {/* Task colors */}
-              <div>
+              {!isThoughtBoard && (
+              <div data-tour="settings-colors">
                 <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 10 }}>Task Colors</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   <div style={{ display: "flex", gap: 6, padding: 3, backgroundColor: theme === "dark" ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", borderRadius: 10, border: `1px solid ${border(theme)}` }}>
@@ -570,22 +565,14 @@ export default function MobileBoard() {
                         return (
                           <div key={lvl}>
                             <div style={{ fontSize: 12, fontWeight: 600, color: pageText(theme), marginBottom: 6 }}>{lvl} priority</div>
-                            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", padding: 6, margin: -6 }}>
+                            <div style={{ display: "flex", gap: 4, flexWrap: "nowrap", justifyContent: "space-between", alignItems: "center", padding: 6, margin: -6, maxWidth: 352 }}>
                               {TASK_PALETTE.map((p, i) => (
-                                <button key={i} onClick={() => setter(i)} style={{
-                                  width: 22, height: 22, borderRadius: "50%",
-                                  border: (currentIdx === i && currentIdx < TASK_PALETTE.length) ? `2.5px solid ${pageText(theme)}` : "2.5px solid transparent",
-                                  outline: (currentIdx === i && currentIdx < TASK_PALETTE.length) ? `2px solid ${p.swatch}` : "none",
-                                  outlineOffset: 2, backgroundColor: p.swatch, cursor: "pointer", padding: 0,
-                                }} />
+                                <Fragment key={i}>
+                                {i === TASK_DEFAULT_COUNT && <span aria-hidden style={{ width: 1, height: 16, margin: "0 3px", flexShrink: 0, backgroundColor: border(theme) }} />}
+                                <button onClick={() => setter(i)} style={swatchStyle(theme, p.swatch, (currentIdx === i && currentIdx < TASK_PALETTE.length), 20)} /></Fragment>
                               ))}
-                              <label style={{ position: "relative", width: 22, height: 22, flexShrink: 0, cursor: "pointer", display: "flex" }}>
-                                <span style={{
-                                  width: 22, height: 22, borderRadius: 6, flexShrink: 0,
-                                  background: customVal ? customVal : "conic-gradient(hsl(0,100%,55%), hsl(30,100%,55%), hsl(60,100%,55%), hsl(90,100%,55%), hsl(120,100%,55%), hsl(150,100%,55%), hsl(180,100%,55%), hsl(210,100%,55%), hsl(240,100%,55%), hsl(270,100%,55%), hsl(300,100%,55%), hsl(330,100%,55%), hsl(360,100%,55%))",
-                                  boxShadow: currentIdx >= TASK_PALETTE.length ? `0 0 0 2.5px ${pageText(theme)}, 0 0 0 4.5px ${customVal || "#fff"}` : "none",
-                                  overflow: "hidden", pointerEvents: "none",
-                                }} />
+                              <label style={{ position: "relative", width: 20, height: 20, flexShrink: 0, cursor: "pointer", display: "flex" }}>
+                                <span style={{ ...swatchStyle(theme, customVal || RAINBOW, currentIdx >= TASK_PALETTE.length, 20, true), pointerEvents: "none" }} />
                                 <input type="color"
                                   value={customVal || "#ff6600"}
                                   onClick={() => setter(TASK_PALETTE.length)}
@@ -601,22 +588,14 @@ export default function MobileBoard() {
                   ) : (
                     <div>
                       <div style={{ fontSize: 12, color: muted(theme), marginBottom: 8 }}>One color for all tasks.</div>
-                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", padding: 6, margin: -6 }}>
+                      <div style={{ display: "flex", gap: 4, flexWrap: "nowrap", justifyContent: "space-between", alignItems: "center", padding: 6, margin: -6, maxWidth: 352 }}>
                         {TASK_PALETTE.map((p, i) => (
-                          <button key={i} onClick={() => setTaskSingleColorIdx(i)} style={{
-                            width: 22, height: 22, borderRadius: "50%",
-                            border: (taskSingleColorIdx === i && taskSingleColorIdx < TASK_PALETTE.length) ? `2.5px solid ${pageText(theme)}` : "2.5px solid transparent",
-                            outline: (taskSingleColorIdx === i && taskSingleColorIdx < TASK_PALETTE.length) ? `2px solid ${p.swatch}` : "none",
-                            outlineOffset: 2, backgroundColor: p.swatch, cursor: "pointer", padding: 0,
-                          }} />
+                          <Fragment key={i}>
+                          {i === TASK_DEFAULT_COUNT && <span aria-hidden style={{ width: 1, height: 16, margin: "0 3px", flexShrink: 0, backgroundColor: border(theme) }} />}
+                          <button onClick={() => setTaskSingleColorIdx(i)} style={swatchStyle(theme, p.swatch, (taskSingleColorIdx === i && taskSingleColorIdx < TASK_PALETTE.length), 20)} /></Fragment>
                         ))}
-                        <label style={{ position: "relative", width: 22, height: 22, flexShrink: 0, cursor: "pointer", display: "flex" }}>
-                          <span style={{
-                            width: 22, height: 22, borderRadius: 6, flexShrink: 0,
-                            background: taskSingleCustom ? taskSingleCustom : "conic-gradient(hsl(0,100%,55%), hsl(30,100%,55%), hsl(60,100%,55%), hsl(90,100%,55%), hsl(120,100%,55%), hsl(150,100%,55%), hsl(180,100%,55%), hsl(210,100%,55%), hsl(240,100%,55%), hsl(270,100%,55%), hsl(300,100%,55%), hsl(330,100%,55%), hsl(360,100%,55%))",
-                            boxShadow: taskSingleColorIdx >= TASK_PALETTE.length ? `0 0 0 2.5px ${pageText(theme)}, 0 0 0 4.5px ${taskSingleCustom || "#fff"}` : "none",
-                            overflow: "hidden", pointerEvents: "none",
-                          }} />
+                        <label style={{ position: "relative", width: 20, height: 20, flexShrink: 0, cursor: "pointer", display: "flex" }}>
+                          <span style={{ ...swatchStyle(theme, taskSingleCustom || RAINBOW, taskSingleColorIdx >= TASK_PALETTE.length, 20, true), pointerEvents: "none" }} />
                           <input type="color"
                             value={taskSingleCustom || "#ff6600"}
                             onClick={() => setTaskSingleColorIdx(TASK_PALETTE.length)}
@@ -629,6 +608,7 @@ export default function MobileBoard() {
                   )}
                 </div>
               </div>
+              )}
 
               {/* BOB */}
               <div style={{ borderTop: `1px solid ${border(theme)}`, paddingTop: 20 }}>
@@ -835,10 +815,10 @@ export default function MobileBoard() {
                 {/* Color picker */}
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   <span style={{ fontSize: 12, fontWeight: 700, color: muted(theme), letterSpacing: ".04em" }}>Color</span>
-                  <div style={{ display: "flex", gap: 6, overflowX: "auto", padding: 4, margin: -4 }}>
-                    <button onClick={() => setMobileAddColorIdx(undefined)} style={{ flexShrink: 0, width: 24, height: 24, borderRadius: "50%", padding: 0, cursor: "pointer", backgroundColor: theme === "dark" ? "#555" : "#ccc", border: mobileAddColorIdx === undefined ? `2.5px solid ${pageText(theme)}` : "2.5px solid transparent", outline: mobileAddColorIdx === undefined ? `2px solid ${theme === "dark" ? "rgba(255,255,255,.35)" : "rgba(0,0,0,.25)"}` : "none", outlineOffset: 2 }} title="Grey" />
+                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", maxWidth: 340 }}>
+                    <button onClick={() => setMobileAddColorIdx(undefined)} style={swatchStyle(theme, theme === "dark" ? "#555" : "#ccc", mobileAddColorIdx === undefined, 24)} title="Grey" />
                     {NOTE_PALETTE.map((p, i) => (
-                      <button key={i} onClick={() => setMobileAddColorIdx(i)} style={{ flexShrink: 0, width: 24, height: 24, borderRadius: "50%", padding: 0, cursor: "pointer", backgroundColor: p.swatch, border: mobileAddColorIdx === i ? `2.5px solid ${pageText(theme)}` : "2.5px solid transparent", outline: mobileAddColorIdx === i ? `2px solid ${p.swatch}` : "none", outlineOffset: 2 }} />
+                      <button key={i} onClick={() => setMobileAddColorIdx(i)} style={swatchStyle(theme, p.swatch, mobileAddColorIdx === i, 24)} />
                     ))}
                   </div>
                 </div>
