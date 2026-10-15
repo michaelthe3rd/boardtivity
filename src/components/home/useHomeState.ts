@@ -1104,6 +1104,16 @@ export function useHomeState() {
     return () => { document.body.style.overflow = prev; };
   }, [focusOpen, isMobile]);
 
+  // Lock page scroll while Settings is open so scrolling outside the panel doesn't move the page behind it
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const html = document.documentElement, body = document.body;
+    const prev = [html.style.overflow, body.style.overflow];
+    html.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    return () => { html.style.overflow = prev[0]; body.style.overflow = prev[1]; };
+  }, [settingsOpen]);
+
   function advanceToNext() {
     const next = focusNextStep;
     setFocusCompleted(false);

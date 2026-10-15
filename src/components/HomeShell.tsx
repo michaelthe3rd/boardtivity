@@ -844,6 +844,7 @@ export function HomeShell() {
               position: "fixed", inset: 0, zIndex: 30,
               backgroundColor: boardTheme === "dark" ? "rgba(5,7,10,.5)" : "rgba(0,0,0,.22)",
               backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
+              touchAction: "none",
             }} onClick={() => setSettingsOpen(false)} />
           )}
           <SettingsPanel />
