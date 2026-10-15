@@ -35,7 +35,7 @@ export default function SettingsPanel() {
       boxShadow: settingsOpen ? (boardTheme === "dark" ? "-12px 0 40px rgba(0,0,0,.5)" : "-12px 0 40px rgba(0,0,0,.12)") : "none",
       transform: settingsOpen ? "translateX(0)" : "translateX(100%)",
       transition: "transform .22s cubic-bezier(.4,0,.2,1)",
-      display: "flex", flexDirection: "column", overflowY: "auto",
+      display: "flex", flexDirection: "column", overflowY: "auto", overscrollBehavior: "contain",
     }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 24px 16px", borderBottom: `1px solid ${border(boardTheme)}`, flexShrink: 0 }}>
