@@ -21,11 +21,12 @@ export default defineSchema({
     weeklyDigest: v.boolean(),
     dueSoonReminder: v.optional(v.boolean()),
     bobUserInfo: v.optional(v.string()),
-    reminderTime: v.optional(v.string()), // "HH:MM" local time for due-date reminders and the daily/weekly emails, default "08:00"
+    reminderTime: v.optional(v.string()), // "HH:00" local hour for the daily/weekly emails (and untimed task reminders), default "08:00"
     timeZone: v.optional(v.string()),     // IANA zone from the browser, e.g. "America/Chicago"
     unsubscribeKey: v.optional(v.string()), // random key used in one-click unsubscribe links
     lastDailySent: v.optional(v.string()),  // local YYYY-MM-DD of the last daily email, so the hourly cron never double-sends
     lastWeeklySent: v.optional(v.string()),
+    lastPreviewSent: v.optional(v.number()), // ms; "Send me a preview" is limited to one a minute
   }).index("by_token", ["tokenIdentifier"])
     .index("by_unsubscribeKey", ["unsubscribeKey"]),
 

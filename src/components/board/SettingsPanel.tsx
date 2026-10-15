@@ -198,7 +198,7 @@ export default function SettingsPanel() {
         )}
 
         {/* Email */}
-        {isSignedIn && <EmailSettings theme={boardTheme} />}
+        <EmailSettings theme={boardTheme} />
 
         {/* BOB */}
         <div style={{ borderTop: `1px solid ${border(boardTheme)}`, paddingTop: 20, display: "grid", gap: 16 }}>

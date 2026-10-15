@@ -648,7 +648,7 @@ export default function MobileBoard() {
               </div>
 
               {/* Email */}
-              {isSignedIn && <EmailSettings theme={theme} large />}
+              <EmailSettings theme={theme} large />
 
               {/* Calendar */}
               <div style={{ borderTop: `1px solid ${border(theme)}`, paddingTop: 20 }}>

@@ -1,36 +1,86 @@
 "use client";
 
+import { useState } from "react";
+import { useAction } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 import type { ThemeMode } from "@/lib/board";
-import { pageText, muted, border, paper } from "@/lib/ui";
+import { pageText, muted, border, paper, buttonStyle } from "@/lib/ui";
 import { useHome } from "@/components/home/HomeContext";
 
 type Key = "dueSoonReminder" | "dailyDigest" | "weeklyDigest";
 
 const ROWS: { key: Key; label: string; hint: string }[] = [
-  { key: "dueSoonReminder", label: "Due-date reminders", hint: "An email before a task is due, with a link to add it to your calendar." },
-  { key: "dailyDigest", label: "Daily outline", hint: "What's overdue, due today, and due in the next 3 days. Only sent when something's due." },
-  { key: "weeklyDigest", label: "Weekly outline", hint: "Sundays: your coming week. Replaces that day's daily outline." },
+  { key: "dailyDigest", label: "Daily outline", hint: "What's overdue, due today and due in the next 3 days. Skipped on days nothing is due." },
+  { key: "weeklyDigest", label: "Weekly outline", hint: "Sundays: the week ahead, plus tasks with no due date. Sent in place of that day's daily outline." },
+  { key: "dueSoonReminder", label: "Task reminders", hint: "A separate email an hour before a task's due time. Tasks with no time are listed in your outline instead." },
 ];
+
+const HOURS = Array.from({ length: 24 }, (_, h) => ({ value: `${String(h).padStart(2, "0")}:00`, label: `${h % 12 || 12}:00 ${h < 12 ? "AM" : "PM"}` }));
+
+// "Central Time" for "America/Chicago"; falls back to the city name.
+function zoneLabel(zone: string): string {
+  for (const timeZoneName of ["longGeneric", "long"] as const) {
+    try {
+      const name = new Intl.DateTimeFormat("en-US", { timeZone: zone, timeZoneName }).formatToParts(new Date()).find((p) => p.type === "timeZoneName")?.value;
+      if (name && !name.startsWith("GMT")) return name;
+    } catch { /* unsupported option or zone */ }
+  }
+  return zone.split("/").pop()?.replace(/_/g, " ") ?? zone;
+}
 
 // The Email section of Settings, shared by the desktop panel and the phone sheet.
 export default function EmailSettings({ theme, large = false }: { theme: ThemeMode; large?: boolean }) {
-  const { emailPrefs, toggleEmailPref, updateReminderTime, user } = useHome();
+  const { emailPrefs, toggleEmailPref, updateReminderTime, user, isSignedIn, openSignIn } = useHome();
+  const sendPreview = useAction(api.emails.sendPreview);
+  const [preview, setPreview] = useState<"idle" | "sending" | "sent" | "wait" | "error">("idle");
   const labelSize = large ? 15 : 13;
   const hintSize = large ? 12 : 11;
   const rowPad = large ? 14 : 10;
-  const timeZone = emailPrefs?.timeZone?.split("/").pop()?.replace(/_/g, " ");
+  const heading = <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: large ? 4 : 2 }}>Email</div>;
+
+  if (!isSignedIn) {
+    return (
+      <div data-tour="settings-email" style={{ borderTop: `1px solid ${border(theme)}`, paddingTop: 20 }}>
+        {heading}
+        <div style={{ fontSize: labelSize, color: pageText(theme), fontWeight: 600, marginTop: 8 }}>Get reminded before things are due</div>
+        <p style={{ fontSize: hintSize, color: muted(theme), lineHeight: 1.5, margin: "4px 0 12px" }}>
+          Sign in for a daily outline of what&apos;s due, a weekly plan on Sundays, and a heads-up an hour before timed tasks. Your board syncs across devices too.
+        </p>
+        <button type="button" onClick={() => openSignIn()} style={{ ...buttonStyle(theme, theme === "light", !large), padding: "0 18px" }}>Sign in</button>
+      </div>
+    );
+  }
+
+  const zone = emailPrefs?.timeZone ? zoneLabel(emailPrefs.timeZone) : null;
+  const sendAt = emailPrefs?.reminderTime ?? "08:00";
+  const outlinesOff = emailPrefs ? !emailPrefs.dailyDigest && !emailPrefs.weeklyDigest : false;
+
+  async function onPreview() {
+    setPreview("sending");
+    try {
+      const result = await sendPreview({});
+      setPreview(result === "sent" ? "sent" : result === "wait" ? "wait" : "error");
+    } catch {
+      setPreview("error");
+    }
+    setTimeout(() => setPreview("idle"), 6000);
+  }
 
   return (
-    <div style={{ borderTop: `1px solid ${border(theme)}`, paddingTop: 20 }}>
-      <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: large ? 4 : 2 }}>Email</div>
+    <div data-tour="settings-email" style={{ borderTop: `1px solid ${border(theme)}`, paddingTop: 20 }}>
+      {heading}
 
       {ROWS.map(({ key, label, hint }) => {
         const enabled = emailPrefs ? emailPrefs[key] : true;
+        // With both outlines off, untimed tasks get their own reminder at the send time instead.
+        const text = key === "dueSoonReminder" && outlinesOff
+          ? "A separate email an hour before a task's due time, or at your send time on the due day if it has no time."
+          : hint;
         return (
           <div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, padding: `${rowPad}px 0`, borderBottom: large ? `1px solid ${border(theme)}` : "none" }}>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: labelSize, color: pageText(theme), fontWeight: 600 }}>{label}</div>
-              <div style={{ fontSize: hintSize, color: muted(theme), lineHeight: 1.45, marginTop: 2, opacity: .85 }}>{hint}</div>
+              <div style={{ fontSize: hintSize, color: muted(theme), lineHeight: 1.45, marginTop: 2, opacity: .85 }}>{text}</div>
             </div>
             <Toggle theme={theme} on={enabled} large={large} label={label} onClick={() => toggleEmailPref(key, enabled)} />
           </div>
@@ -39,23 +89,34 @@ export default function EmailSettings({ theme, large = false }: { theme: ThemeMo
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, padding: `${rowPad}px 0` }}>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: labelSize, color: pageText(theme), fontWeight: 600 }}>Send at</div>
+          <div style={{ fontSize: labelSize, color: pageText(theme), fontWeight: 600 }}>Outline time</div>
           <div style={{ fontSize: hintSize, color: muted(theme), lineHeight: 1.45, marginTop: 2, opacity: .85 }}>
-            Outlines arrive at this time{timeZone ? ` (${timeZone} time)` : ""}. Tasks with a due time are reminded an hour before if that&apos;s earlier.
+            {zone ? <>In {zone}, taken from this device.</> : <>In your local time.</>}
           </div>
         </div>
-        <input
-          type="time"
-          aria-label="Email time"
-          value={emailPrefs?.reminderTime ?? "08:00"}
+        <select
+          aria-label="Outline time"
+          value={sendAt}
           onChange={(e) => updateReminderTime(e.target.value)}
-          style={{ flexShrink: 0, fontSize: labelSize, fontWeight: 600, color: pageText(theme), backgroundColor: paper(theme), border: `1px solid ${border(theme)}`, borderRadius: 8, padding: large ? "5px 8px" : "4px 8px", cursor: "pointer", colorScheme: theme === "dark" ? "dark" : "light" }}
-        />
+          style={{ flexShrink: 0, fontSize: labelSize, fontWeight: 600, color: pageText(theme), backgroundColor: paper(theme), border: `1px solid ${border(theme)}`, borderRadius: 8, padding: large ? "6px 8px" : "4px 6px", cursor: "pointer", fontFamily: "inherit", colorScheme: theme === "dark" ? "dark" : "light" }}
+        >
+          {HOURS.map((h) => <option key={h.value} value={h.value}>{h.label}</option>)}
+        </select>
       </div>
 
-      <p style={{ fontSize: hintSize, color: muted(theme), margin: "4px 0 0", lineHeight: 1.5 }}>
-        Sent to {user?.emailAddresses?.[0]?.emailAddress ?? "your email"}. Every email has a one-click unsubscribe link.
-      </p>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 4 }}>
+        <p style={{ fontSize: hintSize, color: muted(theme), margin: 0, lineHeight: 1.5, minWidth: 0, overflowWrap: "anywhere" }}>
+          Sent to {user?.emailAddresses?.[0]?.emailAddress ?? "your email"}. Every email has a one-click unsubscribe link.
+        </p>
+        <button
+          type="button"
+          onClick={onPreview}
+          disabled={preview === "sending"}
+          style={{ flexShrink: 0, background: "none", border: `1px solid ${border(theme)}`, borderRadius: 8, padding: large ? "7px 11px" : "5px 9px", fontSize: hintSize + 1, fontWeight: 600, color: pageText(theme), cursor: preview === "sending" ? "default" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
+        >
+          {preview === "sending" ? "Sending…" : preview === "sent" ? "Sent, check your inbox" : preview === "wait" ? "Try again in a minute" : preview === "error" ? "Couldn't send" : "Send me a preview"}
+        </button>
+      </div>
     </div>
   );
 }

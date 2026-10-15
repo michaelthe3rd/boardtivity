@@ -4,11 +4,14 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { addToCalendarUrl } from "./calendarLinks";
+import { DEFAULT_PREFS } from "./emailPrefs";
 import { APP_URL, button, escapeHtml, formatDate, layout, localParts, relativeDue, sectionLabel, sendEmail, unsubscribeUrl } from "./emailTemplates";
 
-// One reminder per note. The client works out *when* (it knows the user's local time);
-// the server re-checks the task right before sending so finished, deleted or re-dated
-// tasks never get an email.
+// One reminder per note. The client works out *when* (it knows the user's local time):
+// an hour before a task's due time, or at the user's email hour on the due day when it has
+// no time. The server re-checks the task right before sending so finished, deleted or
+// re-dated tasks never get an email, and untimed tasks the morning outline already lists
+// don't get a second email at the same moment.
 
 async function removeExisting(ctx: MutationCtx, tokenIdentifier: string, noteId: number) {
   const existing = await ctx.db
@@ -115,6 +118,8 @@ export const loadForSend = internalQuery({
       note,
       boardName,
       remindersOn: prefs?.dueSoonReminder !== false,
+      dailyOn: prefs?.dailyDigest ?? DEFAULT_PREFS.dailyDigest,
+      weeklyOn: prefs?.weeklyDigest ?? DEFAULT_PREFS.weeklyDigest,
       timeZone: prefs?.timeZone,
     };
   },
@@ -136,10 +141,15 @@ export const send = internalAction({
     if (!data || data.reminder.sent) return null;
     const { reminder, note, hasBoard, boardName } = data;
     const kind = reminder.kind ?? "due";
+    const local = localParts(Date.now(), data.timeZone);
+    // A task with no due time is reminded at the email hour, the same moment as the outline.
+    // If an outline goes out today (daily, or the weekly on Sundays), it already lists the task.
+    const untimed = !(note ? note.dueTime : reminder.dueTime);
+    const outlineCovers = data.dailyOn || (local.weekday === 0 && data.weeklyOn);
 
     // Skip anything that no longer applies. If we can't see the board at all, trust the saved reminder.
     const skip = kind === "due"
-      ? !data.remindersOn || (hasBoard && (
+      ? !data.remindersOn || (untimed && outlineCovers) || (hasBoard && (
           !note || note.type !== "task" || note.completed ||
           (!!note.steps?.length && note.steps.every((s) => s.done)) ||
           (!!reminder.dueDate && note.dueDate !== reminder.dueDate)
@@ -153,7 +163,7 @@ export const send = internalAction({
     const key = await ctx.runMutation(internal.emailPrefs.ensureUnsubscribeKey, { tokenIdentifier: reminder.tokenIdentifier });
     const title = note?.title || reminder.noteTitle;
     const email = kind === "due"
-      ? dueEmail({ title, note, boardName, dueDate: note?.dueDate ?? reminder.dueDate, dueTime: note?.dueTime ?? reminder.dueTime, today: localParts(Date.now(), data.timeZone).date, unsubscribe: unsubscribeUrl(key, "reminders") })
+      ? dueEmail({ title, note, boardName, dueDate: note?.dueDate ?? reminder.dueDate, dueTime: note?.dueTime ?? reminder.dueTime, today: local.date, unsubscribe: unsubscribeUrl(key, "reminders") })
       : ideaEmail({ title, body: note?.body, boardName, unsubscribe: unsubscribeUrl(key, "all") });
 
     try {
@@ -202,8 +212,8 @@ export function dueEmail({ title, note, boardName, dueDate, dueTime, today, unsu
       title: `Due ${when}`,
       subtitle: dueDate && when.startsWith("tomorrow") ? formatDate(dueDate, { weekday: "long", month: "long", day: "numeric" }) : undefined,
       body,
-      footerNote: "You're getting this because this task has a due date.",
-      unsubscribe: { url: unsubscribe, label: "Turn off due-date reminders" },
+      footerNote: dueTime ? "A task reminder, sent an hour before it's due." : "A task reminder, sent on the day it's due.",
+      unsubscribe: { url: unsubscribe, label: "Turn off task reminders" },
     }),
   };
 }

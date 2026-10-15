@@ -959,7 +959,7 @@ export function useHomeState() {
     });
   }
 
-  // Save a new email time; due-date reminders move to it via the effect below.
+  // Save a new outline hour; untimed task reminders move to it via the effect below.
   function updateReminderTime(newTime: string) {
     if (!/^\d{2}:\d{2}$/.test(newTime)) return;
     updateEmailPrefs({ reminderTime: newTime }).catch(() => {});

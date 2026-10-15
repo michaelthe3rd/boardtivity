@@ -74,6 +74,19 @@ function colorsStep(kind: "task" | "idea"): Step {
   };
 }
 
+// The Email section of Settings. Signed out, it's a short pitch with a Sign in button.
+function emailStep(kind: "task" | "idea"): Step {
+  return {
+    id: "email", target: "settings-email", title: "Email reminders", awaitTarget: true,
+    enter: h => { if (h.isMobile && !h.isNativeApp) h.setMobileSettingsOpen(true); else h.setSettingsOpen(true); },
+    body: (_, h) => !h.isSignedIn
+      ? <>Sign in and Boardtivity emails you a daily outline of what&apos;s due{kind === "idea" ? ", plus any reminders you set on ideas" : " and a heads-up before deadlines"}.</>
+      : kind === "task"
+        ? <>On days something&apos;s due, you get an outline of it, and tasks with a time get a heads-up an hour before. Pick which emails you want and when they arrive.</>
+        : <>Reminders you set on ideas arrive by email. Your task boards also get a daily outline of what&apos;s due. Choose which emails you want here.</>,
+  };
+}
+
 // Steps every tour ends with: view controls and a wrap-up.
 const CENTER_STEP: Step = {
   id: "center", target: "center-board", only: ["desktop", "touch"], title: "Lost your board?",
@@ -152,6 +165,7 @@ const TASK_STEPS: Step[] = [
     body: () => <>Themes, task colors and email reminders. You can replay this tour anytime under <strong>Help</strong>.</>,
   },
   colorsStep("task"),
+  emailStep("task"),
   CENTER_STEP,
   FULLSCREEN_STEP,
   DONE_STEP,
@@ -217,6 +231,7 @@ const IDEA_STEPS: Step[] = [
     body: () => <>Themes, idea colors and email reminders. You can replay this tour anytime under <strong>Help</strong>.</>,
   },
   colorsStep("idea"),
+  emailStep("idea"),
   CENTER_STEP,
   FULLSCREEN_STEP,
   DONE_STEP,

@@ -1,11 +1,11 @@
-import { internalAction, internalQuery } from "./_generated/server";
+import { action, internalAction, internalQuery } from "./_generated/server";
 import type { QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { DEFAULT_PREFS } from "./emailPrefs";
 import { dueEmail, ideaEmail } from "./reminders";
 import { addToCalendarUrl } from "./calendarLinks";
-import { APP_URL, addDays, button, escapeHtml, formatDate, layout, localParts, relativeDue, sectionLabel, sendEmail, unsubscribeUrl } from "./emailTemplates";
+import { APP_URL, addDays, button, escapeHtml, formatDate, formatTime, layout, localParts, relativeDue, sectionLabel, sendEmail, unsubscribeUrl } from "./emailTemplates";
 
 // Daily and weekly outlines. A cron runs every hour; each user gets their email in the hour
 // that matches their chosen time ("HH:MM", default 08:00) in their own time zone.
@@ -246,6 +246,65 @@ function weeklyEmail(tasks: Task[], boardNames: Map<string, string>, focus: Focu
       body,
       footerNote: "Your weekly outline, every Sunday.",
       unsubscribe: { url: unsubscribe, label: "Turn off weekly emails" },
+    }),
+  };
+}
+
+// ── "Send me a preview" (Settings → Email) ───────────────────────────────────
+
+// What the user's next outline would look like today. Falls back to the weekly outline, then to
+// a short "you're all set" note, so the button always sends something.
+export const renderPreview = internalQuery({
+  args: { tokenIdentifier: v.string(), unsubscribeKey: v.string() },
+  handler: async (ctx, { tokenIdentifier, unsubscribeKey }) => {
+    const [board, prefs] = await Promise.all([
+      ctx.db.query("userBoards").withIndex("by_token", (q) => q.eq("tokenIdentifier", tokenIdentifier)).first(),
+      ctx.db.query("emailPrefs").withIndex("by_token", (q) => q.eq("tokenIdentifier", tokenIdentifier)).first(),
+    ]);
+    const today = localParts(Date.now(), prefs?.timeZone ?? FALLBACK_TIME_ZONE).date;
+    const { tasks, boardNames } = readBoard(board?.boardState ?? "{}");
+    const focus = await focusSummary(ctx, tokenIdentifier, today);
+    const email = dailyEmail(tasks, boardNames, focus, today, unsubscribeUrl(unsubscribeKey, "daily"))
+      ?? weeklyEmail(tasks, boardNames, focus, today, unsubscribeUrl(unsubscribeKey, "weekly"))
+      ?? allSetEmail(`${(prefs?.reminderTime ?? DEFAULT_PREFS.reminderTime).slice(0, 2)}:00`, unsubscribeUrl(unsubscribeKey, "all"));
+    return { ...email, subject: `Preview: ${email.subject}` };
+  },
+});
+
+export const sendPreview = action({
+  args: {},
+  handler: async (ctx): Promise<"sent" | "wait" | "signedOut"> => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.email) return "signedOut";
+    const allowed = await ctx.runMutation(internal.emailPrefs.claimPreview, { tokenIdentifier: identity.tokenIdentifier });
+    if (!allowed) return "wait";
+    const key = await ctx.runMutation(internal.emailPrefs.ensureUnsubscribeKey, { tokenIdentifier: identity.tokenIdentifier });
+    const email = await ctx.runQuery(internal.emails.renderPreview, { tokenIdentifier: identity.tokenIdentifier, unsubscribeKey: key });
+    await sendEmail({ to: identity.email, subject: email.subject, html: email.html, unsubscribe: email.unsubscribe });
+    return "sent";
+  },
+});
+
+// Sent as a preview when nothing on the board would trigger an outline yet.
+function allSetEmail(sendAt: string, unsubscribe: string) {
+  const row = (label: string, text: string) =>
+    `<div style="padding:10px 0;border-bottom:1px solid #f0eee8;"><div style="font-size:15px;font-weight:600;color:#171613;">${escapeHtml(label)}</div><div style="font-size:13px;color:#6b675f;margin-top:2px;line-height:1.5;">${escapeHtml(text)}</div></div>`;
+  const time = formatTime(sendAt);
+  const body = row("Daily outline", `At ${time} on days something's overdue, due today, or due in the next 3 days.`)
+    + row("Weekly outline", `Sundays at ${time}: the week ahead, in place of that day's daily outline.`)
+    + row("Task reminders", "An hour before a task's due time.")
+    + `<div style="margin-top:22px;">${button("Open my board", APP_URL)}</div>`;
+  return {
+    subject: "Your emails are set up",
+    unsubscribe,
+    html: layout({
+      preheader: "Nothing is due yet, so here's what to expect.",
+      eyebrow: "Preview",
+      title: "Nothing due yet",
+      subtitle: "Add a due date to a task and it'll show up here. This is what you'll get:",
+      body,
+      footerNote: "You asked for this preview from Settings.",
+      unsubscribe: { url: unsubscribe, label: "Unsubscribe from all emails" },
     }),
   };
 }
