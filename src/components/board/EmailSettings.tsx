@@ -72,9 +72,9 @@ export default function EmailSettings({ theme, large = false }: { theme: ThemeMo
 
       {ROWS.map(({ key, label, hint }) => {
         const enabled = emailPrefs ? emailPrefs[key] : true;
-        // With both outlines off, untimed tasks get their own reminder at the send time instead.
+        // With both outlines off, untimed tasks get their own reminder at the outline time instead.
         const text = key === "dueSoonReminder" && outlinesOff
-          ? "A separate email an hour before a task's due time, or at your send time on the due day if it has no time."
+          ? "A separate email an hour before a task's due time, or at your outline time on the due day if it has no time."
           : hint;
         return (
           <div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, padding: `${rowPad}px 0`, borderBottom: large ? `1px solid ${border(theme)}` : "none" }}>
@@ -104,19 +104,17 @@ export default function EmailSettings({ theme, large = false }: { theme: ThemeMo
         </select>
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 4 }}>
-        <p style={{ fontSize: hintSize, color: muted(theme), margin: 0, lineHeight: 1.5, minWidth: 0, overflowWrap: "anywhere" }}>
-          Sent to {user?.emailAddresses?.[0]?.emailAddress ?? "your email"}. Every email has a one-click unsubscribe link.
-        </p>
-        <button
-          type="button"
-          onClick={onPreview}
-          disabled={preview === "sending"}
-          style={{ flexShrink: 0, background: "none", border: `1px solid ${border(theme)}`, borderRadius: 8, padding: large ? "7px 11px" : "5px 9px", fontSize: hintSize + 1, fontWeight: 600, color: pageText(theme), cursor: preview === "sending" ? "default" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
-        >
-          {preview === "sending" ? "Sending…" : preview === "sent" ? "Sent, check your inbox" : preview === "wait" ? "Try again in a minute" : preview === "error" ? "Couldn't send" : "Send me a preview"}
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={onPreview}
+        disabled={preview === "sending"}
+        style={{ marginTop: 4, background: "none", border: `1px solid ${border(theme)}`, borderRadius: 8, padding: large ? "8px 12px" : "6px 10px", fontSize: hintSize + 1, fontWeight: 600, color: pageText(theme), cursor: preview === "sending" ? "default" : "pointer", fontFamily: "inherit" }}
+      >
+        {preview === "sending" ? "Sending…" : preview === "sent" ? "Sent, check your inbox" : preview === "wait" ? "Try again in a minute" : preview === "error" ? "Couldn't send" : "Send me a preview"}
+      </button>
+      <p style={{ fontSize: hintSize, color: muted(theme), margin: "10px 0 0", lineHeight: 1.5, overflowWrap: "anywhere" }}>
+        Sent to {user?.emailAddresses?.[0]?.emailAddress ?? "your email"}. Every email has a one-click unsubscribe link.
+      </p>
     </div>
   );
 }
