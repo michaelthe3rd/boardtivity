@@ -63,16 +63,52 @@ function closeOpenPanels(h: Home) {
   if (h.detailNoteId !== null) { h.setDetailNoteId(null); h.setDetailEditing(false); }
 }
 
+const openSettings = (h: Home) => { if (h.isMobile && !h.isNativeApp) h.setMobileSettingsOpen(true); else h.setSettingsOpen(true); };
+
+// A look-only stop on one section of Settings.
+function settingsStep(id: string, title: string, body: Step["body"], only?: Layout[]): Step {
+  return { id, target: `settings-${id}`, title, body, only, awaitTarget: true, enter: openSettings };
+}
+
 // Opens Settings and spotlights the colors section, which only shows the current board type's colors.
 function colorsStep(kind: "task" | "idea"): Step {
   return {
     id: "colors", target: "settings-colors", title: kind === "task" ? "Task colors" : "Idea colors", interactive: true, awaitTarget: true,
-    enter: h => { if (h.isMobile && !h.isNativeApp) h.setMobileSettingsOpen(true); else h.setSettingsOpen(true); },
+    enter: openSettings,
     body: () => kind === "task"
       ? <>Color tasks by priority, or give them all one color. Settings only shows colors for the board you&apos;re on, so switch to an idea board to change idea colors.</>
       : <>Pick a default color for new ideas, or shuffle for a random one each time. Settings only shows colors for the board you&apos;re on, so switch to a task board to change task colors.</>,
   };
 }
+
+// The Email section of Settings. Signed out, it's a short pitch with a Sign in button.
+function emailStep(kind: "task" | "idea"): Step {
+  return {
+    id: "email", target: "settings-email", title: "Email summaries", awaitTarget: true,
+    enter: openSettings,
+    body: (_, h) => !h.isSignedIn
+      ? <>Sign in to get a daily summary of what&apos;s due, a weekly plan on Sundays, and the reminders you set on {kind === "idea" ? "ideas" : "tasks"}.</>
+      : <>A daily summary of what&apos;s due and a weekly plan on Sundays. Choose which ones you want and what time they arrive.</>,
+  };
+}
+
+// Settings sections both tours point out.
+const LOOK_STEP = settingsStep("look", "Make it yours", () => <>Switch between light and dark, and pick a grid, dots or a blank background for your board.</>, ["desktop", "touch"]);
+const CALENDAR_STEP = settingsStep("calendar", "Add to your calendar", () => <>Export every task with a due date to Apple or Google Calendar in one go.</>);
+const APP_STEP = settingsStep("app", "Get the app", () => <>Install Boardtivity on your phone or computer so it opens like any other app.</>);
+
+// Toolbar and page features both tours point out.
+const SYNC_STEP: Step = {
+  id: "sync", target: "sync", title: "Saved everywhere",
+  body: (_, h) => h.isSignedIn
+    ? <>Your boards save to your account as you go. This shows when everything&apos;s synced, so you can pick up on any device.</>
+    : <>Your boards are saved on this device. Sign in here to back them up and use them on any device.</>,
+};
+const FEEDBACK_STEP: Step = {
+  id: "feedback", target: "feedback", title: "Tell us what to build",
+  enter: closeOpenPanels,
+  body: () => <>Down here you can suggest features, report problems and vote on what other people want.</>,
+};
 
 // Steps every tour ends with: view controls and a wrap-up.
 const CENTER_STEP: Step = {
@@ -113,13 +149,19 @@ const TASK_STEPS: Step[] = [
       : <>Pick a due date and a priority. Both are required for tasks, and the card&apos;s color shows how urgent it is.</>,
   },
   {
+    id: "remind", target: "composer-remind", title: "Remind me", interactive: true,
+    body: (_, h) => h.isSignedIn
+      ? <>Optional: pick when to get an email about this task. Use a preset, or <strong>Custom time</strong> for an exact date and time.</>
+      : <>Sign in to get an email about this task at a time you pick.</>,
+  },
+  {
     id: "breakdown", target: "composer-bob", icon: "bob", title: "Let BOB break it down", interactive: true,
     body: () => <>Optional: press <strong>BOB Breakdown</strong> to split your task into smaller steps you can check off.</>,
   },
   {
     id: "create", target: "composer-create", advance: "action", title: "Create it",
     done: h => !isComposing(h),
-    body: (l, h) => <>{verb(l)} <strong>{l === "phone" ? `Add ${taskWord(h) === "idea" ? "Idea" : "Task"}` : `Create ${taskWord(h)}`}</strong> when you&apos;re ready.</>,
+    body: (l, h) => <>{verb(l)} <strong>{l === "phone" ? `Add ${taskWord(h) === "idea" ? "Idea" : "Task"}` : `Create ${taskWord(h)}`}</strong> when you&apos;re ready. If you close it halfway, you can keep it as a draft.</>,
   },
   {
     id: "card", target: "newest-card", title: (_, h) => `Here's your ${taskWord(h)}`,
@@ -128,13 +170,18 @@ const TASK_STEPS: Step[] = [
     done: h => h.detailNoteId !== null,
     reset: h => { if (h.detailNoteId !== null) { h.setDetailNoteId(null); h.setDetailEditing(false); } },
     body: l => l === "phone"
-      ? <>Tap <strong>⋯</strong> on a card to edit it or add subtasks.</>
-      : <>Drag it anywhere on the board. {l === "touch" ? "Press and hold" : "Right-click"} to lock it in place. <strong>{verb(l)} it</strong> to open the details.</>,
+      ? <>Tap <strong>···</strong> on a card to edit it, set a reminder or add subtasks. Tap the dots under the title to check subtasks off.</>
+      : <>Drag it anywhere on the board. {l === "touch" ? "Press and hold" : "Right-click"} to lock it in place. <strong>{verb(l)} it</strong> to open the details, check off subtasks and edit it.</>,
   },
   {
     id: "focus", target: "focus-button", title: "Focus mode", advance: "action",
     done: h => isFocusing(h),
     body: l => <>{verb(l)} <strong>{l === "phone" ? "Focus" : "Start focus"}</strong> to work on it with a timer. Every session builds your streak. Try it now (the tour picks up when you&apos;re done) or press Next.</>,
+  },
+  {
+    id: "focus-stats", target: "focus-stats", title: "Your focus stats",
+    enter: closeOpenPanels,
+    body: () => <>Your streak, focus time this week and all-time totals live here.</>,
   },
   {
     id: "bob", target: "bob", icon: "bob", title: "Meet BOB",
@@ -145,15 +192,21 @@ const TASK_STEPS: Step[] = [
     id: "boards", target: "boards", title: "Your boards",
     body: l => l === "phone"
       ? <>Tap here to switch between your task and idea boards, or to add a new one.</>
-      : <>Switch between task boards and idea boards, or create new ones.</>,
+      : <>Switch between task boards and idea boards, or create, rename and delete them.</>,
   },
-  {
-    id: "settings", target: "settings", title: "Settings",
-    body: () => <>Themes, task colors and email reminders. You can replay this tour anytime under <strong>Help</strong>.</>,
-  },
-  colorsStep("task"),
   CENTER_STEP,
   FULLSCREEN_STEP,
+  SYNC_STEP,
+  {
+    id: "settings", target: "settings", title: "Settings",
+    body: () => <>Themes, colors, emails, BOB, your plan and help. You can replay this tour anytime under <strong>Help</strong>.</>,
+  },
+  LOOK_STEP,
+  colorsStep("task"),
+  emailStep("task"),
+  CALENDAR_STEP,
+  APP_STEP,
+  FEEDBACK_STEP,
   DONE_STEP,
 ];
 
@@ -179,7 +232,7 @@ const IDEA_STEPS: Step[] = [
   },
   {
     id: "idea-options", target: "composer-idea-options", title: "Color and reminder", interactive: true,
-    body: () => <>Give related ideas the same color so they&apos;re easy to spot together. Set a reminder if you want to come back to it later.</>,
+    body: (_, h) => <>Give related ideas the same color so they&apos;re easy to spot together. {h.isSignedIn ? <>Set a reminder with a preset or a <strong>Custom time</strong> if you want an email about it later.</> : <>Sign in to get an email reminder about it later.</>}</>,
   },
   {
     id: "create", target: "composer-create", advance: "action", title: "Save it",
@@ -210,15 +263,25 @@ const IDEA_STEPS: Step[] = [
     id: "boards", target: "boards", title: "Your boards",
     body: l => l === "phone"
       ? <>Tap here to switch between idea and task boards. When an idea turns into real work, make it a task on a task board.</>
-      : <>Switch between idea boards and task boards, or create new ones. When an idea turns into real work, make it a task.</>,
+      : <>Switch between idea boards and task boards, or create, rename and delete them. When an idea turns into real work, make it a task.</>,
   },
   {
-    id: "settings", target: "settings", title: "Settings",
-    body: () => <>Themes, idea colors and email reminders. You can replay this tour anytime under <strong>Help</strong>.</>,
+    id: "focus-stats", target: "focus-stats", title: "Focus mode",
+    body: () => <>On task boards, every task has a focus timer that builds a daily streak. Your stats live here.</>,
   },
-  colorsStep("idea"),
   CENTER_STEP,
   FULLSCREEN_STEP,
+  SYNC_STEP,
+  {
+    id: "settings", target: "settings", title: "Settings",
+    body: () => <>Themes, colors, emails, BOB, your plan and help. You can replay this tour anytime under <strong>Help</strong>.</>,
+  },
+  LOOK_STEP,
+  colorsStep("idea"),
+  emailStep("idea"),
+  CALENDAR_STEP,
+  APP_STEP,
+  FEEDBACK_STEP,
   DONE_STEP,
 ];
 

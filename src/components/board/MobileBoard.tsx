@@ -41,7 +41,7 @@ export default function MobileBoard() {
     isNativeApp, focusStatsData, setReminderMut, latestBoardStateRef, setBobUserInfoFn, bobUserInfo, activeBoard,
     taskPaletteEntry, startPortal, findFreeSpot, exportToIcs, pushToCloud, advanceToNext, addBoard, deleteBoard,
     deleteTask, handleBobSweep, handleBobEditNote, handleBobDeleteNotes, handleBobHighlightNotes, handleBobLaunchFocus, handleBobSaveUndo, handleBobUndo,
-    handleBobSetIdeaColor, handleBobConfigureTaskColors, handleBobConfigureBoard, handleBobAddNote, startFocus, closeFocusWithReview, scheduleDueDateReminder, scheduleIdeaReminder, emailPrefs, user,
+    handleBobSetIdeaColor, handleBobConfigureTaskColors, handleBobConfigureBoard, handleBobAddNote, startFocus, closeFocusWithReview, scheduleReminder, emailPrefs, user,
     isSignedIn, clerkLoaded, signOut,
   } = useHome();
   // Edit-sheet fields that only this component uses.
@@ -111,17 +111,11 @@ export default function MobileBoard() {
       colorIdx: mobileAddMode === "thought"
         ? (mobileAddColorIdx !== undefined ? mobileAddColorIdx : (thoughtColorMode === "random" ? Math.floor(Math.random() * NOTE_PALETTE.length) : thoughtFixedColorIdx))
         : undefined,
-      remindAt: mobileAddMode === "thought" && mobileAddRemindAt && mobileAddRemindAt > Date.now() ? mobileAddRemindAt : undefined,
+      remindAt: mobileAddRemindAt && mobileAddRemindAt > Date.now() ? mobileAddRemindAt : undefined,
     } as Note;
     const updatedNotes = [...notes, newNote];
     setNotes(updatedNotes);
-    // Ideas get the "remind me in…" email; tasks get a due-date reminder. (Calling the due-date
-    // scheduler for an idea used to cancel its reminder straight away.)
-    if (mobileAddMode === "thought") {
-      if (newNote.remindAt) scheduleIdeaReminder(id, newNote.title, newNote.remindAt);
-    } else if (mobileAddDueDate) {
-      scheduleDueDateReminder(id, mobileAddTitle.trim(), mobileAddDueDate, mobileAddDueTime || undefined);
-    }
+    if (newNote.remindAt) scheduleReminder(id, newNote.title, newNote.remindAt);
     setMobileAddTitle(""); setMobileAddBody(""); setMobileAddImportance("Low"); setMobileAddDueDate(""); setMobileAddDueTime(""); setMobileAddMode(null);
     setMobileAddColorIdx(undefined); setMobileAddRemindAt(null);
     // Build state with new note immediately and push — don't wait for debounce or effect timing
@@ -178,6 +172,9 @@ export default function MobileBoard() {
           </span>
           {!isDone && (
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              {note.remindAt && note.remindAt > Date.now() && (
+                <span title={`Email reminder ${formatReminder(note.remindAt)}`} aria-label={`Email reminder ${formatReminder(note.remindAt)}`} style={{ display: "inline-flex", color: muted(theme), opacity: .8 }}><BellIcon size={11} /></span>
+              )}
               {dueLabel && <span style={{ fontSize: 10, fontWeight: 600, color: dueColor, backgroundColor: theme === "dark" ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.06)", border: `1px solid ${dueColor}44`, borderRadius: 999, padding: "2px 7px", whiteSpace: "nowrap" }}>{dueLabel}</span>}
             </div>
           )}
@@ -347,6 +344,7 @@ export default function MobileBoard() {
         <FadeScroll style={{ flex: "0 1 auto" }}>
           <button
             type="button"
+            data-tour="sync"
             aria-label={syncLabel(isSignedIn ? cloudSyncState : "signedOut", "tap")}
             onClick={!isSignedIn ? () => openSignIn() : cloudSyncState === "error" ? () => { setCloudSyncState("loading"); pushToCloud(); } : undefined}
             style={{ flexShrink: 0, width: 38, height: 38, borderRadius: 999, border: `1px solid ${border(theme)}`, backgroundColor: theme === "dark" ? "#1e2126" : "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, cursor: !isSignedIn || cloudSyncState === "error" ? "pointer" : "default" }}
@@ -354,6 +352,7 @@ export default function MobileBoard() {
             <SyncCloud state={isSignedIn ? cloudSyncState : "signedOut"} size={17} />
           </button>
           <button
+            data-tour="focus-stats"
             onClick={() => setProfileOpen(true)}
             style={{ flexShrink: 0, width: 38, height: 38, borderRadius: 999, border: `1px solid ${border(theme)}`, backgroundColor: theme === "dark" ? "#1e2126" : "#ffffff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
             aria-label="Focus stats"
@@ -648,10 +647,10 @@ export default function MobileBoard() {
               </div>
 
               {/* Email */}
-              {isSignedIn && <EmailSettings theme={theme} large />}
+              <EmailSettings theme={theme} large />
 
               {/* Calendar */}
-              <div style={{ borderTop: `1px solid ${border(theme)}`, paddingTop: 20 }}>
+              <div data-tour="settings-calendar" style={{ borderTop: `1px solid ${border(theme)}`, paddingTop: 20 }}>
                 <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 10 }}>Calendar</div>
                 <button onClick={() => { exportToIcs(); setMobileSettingsOpen(false); }} disabled={!notes.some(n => n.dueDate && !n.completed)} style={{ width: "100%", height: 48, borderRadius: 12, border: `1px solid ${border(theme)}`, backgroundColor: theme === "dark" ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.06)", color: pageText(theme), fontSize: 15, fontWeight: 600, cursor: "pointer", opacity: notes.some(n => n.dueDate && !n.completed) ? 1 : 0.4 }}>Export tasks to calendar (.ics)</button>
                 <p style={{ fontSize: 12, color: muted(theme), margin: "10px 0 0", lineHeight: 1.5 }}>Exports tasks with due dates. Opens in Apple Calendar or import into Google Calendar.</p>
@@ -691,7 +690,7 @@ export default function MobileBoard() {
               </div>
 
               {/* Get the app */}
-              <div>
+              <div data-tour="settings-app">
                 <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 10 }}>Get the app</div>
                 <InstallAppGuide theme={theme} mobile />
               </div>
@@ -797,6 +796,10 @@ export default function MobileBoard() {
                     )}
                   </div>
                 )}
+                <div data-tour="composer-remind" style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 4 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: muted(theme), letterSpacing: ".04em" }}>Remind me</span>
+                  <ReminderPicker theme={theme} value={mobileAddRemindAt} onChange={setMobileAddRemindAt} morningTime={emailPrefs?.reminderTime} signedIn={!!isSignedIn} large />
+                </div>
               </>
             )}
             {mobileAddMode === "thought" && (
@@ -875,13 +878,6 @@ export default function MobileBoard() {
                 ))}
               </div>
             )}
-            {actionNote.type === "thought" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: muted(theme), letterSpacing: ".04em" }}>Remind me</span>
-                <ReminderPicker theme={theme} value={editRemindAt} onChange={setEditRemindAt} morningTime={emailPrefs?.reminderTime} signedIn={!!isSignedIn} large
-                  hint={editRemindAt !== (actionNote.remindAt && actionNote.remindAt > Date.now() ? actionNote.remindAt : null) ? "Press Save to confirm this change." : undefined} />
-              </div>
-            )}
             {actionNote.type === "task" && (
               <>
                 <div style={{ display: "flex", gap: 6 }}>
@@ -947,6 +943,11 @@ export default function MobileBoard() {
                 </div>
               </>
             )}
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: muted(theme), letterSpacing: ".04em" }}>Remind me</span>
+              <ReminderPicker theme={theme} value={editRemindAt} onChange={setEditRemindAt} morningTime={emailPrefs?.reminderTime} signedIn={!!isSignedIn} large
+                hint={editRemindAt !== (actionNote.remindAt && actionNote.remindAt > Date.now() ? actionNote.remindAt : null) ? "Press Save to confirm this change." : undefined} />
+            </div>
             <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
               <button
                 onClick={() => {
@@ -960,7 +961,8 @@ export default function MobileBoard() {
                     dueTime: mobileEditDueTime || undefined,
                     minutes: parsedMins && parsedMins > 0 ? parsedMins : undefined,
                     body: editBody.trim(),
-                    ...(actionNote.type === "thought" ? { colorIdx: mobileEditColorIdx, remindAt: editRemindAt ?? undefined } : {}),
+                    remindAt: editRemindAt ?? undefined,
+                    ...(actionNote.type === "thought" ? { colorIdx: mobileEditColorIdx } : {}),
                     steps: (() => {
                       // Keep existing steps' progress and board position; lay out new ones like the desktop editor does.
                       const kept = mobileEditSteps.filter(e => e.title.trim()).map(e => {
@@ -972,8 +974,7 @@ export default function MobileBoard() {
                     })(),
                   } : n);
                   setNotes(updatedNotes);
-                  if (actionNote.type === "task") scheduleDueDateReminder(actionNote.id, mobileEditTitle.trim() || actionNote.title, mobileEditDueDate || undefined, mobileEditDueTime || undefined);
-                  else if ((actionNote.remindAt && actionNote.remindAt > Date.now() ? actionNote.remindAt : null) !== editRemindAt) scheduleIdeaReminder(actionNote.id, mobileEditTitle.trim() || actionNote.title, editRemindAt);
+                  if ((actionNote.remindAt && actionNote.remindAt > Date.now() ? actionNote.remindAt : null) !== editRemindAt) scheduleReminder(actionNote.id, mobileEditTitle.trim() || actionNote.title, editRemindAt);
                   setMobileActionNoteId(null);
                   setMobileDeleteConfirm(false);
                   if (isSignedIn) {

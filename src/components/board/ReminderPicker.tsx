@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { ThemeMode } from "@/lib/board";
 import { pageText, muted, border, paper } from "@/lib/ui";
 
-// Picks when to be emailed about an idea. Value is a timestamp (ms) or null for no reminder.
+// Picks when to be emailed about a task or idea. Value is a timestamp (ms) or null for no reminder.
 // Shared by the desktop composer + idea detail and the phone add/edit sheets.
 
 function at(dayOffset: number, hhmm: string) {
@@ -58,7 +58,7 @@ export default function ReminderPicker({ theme, value, onChange, morningTime = "
   });
 
   if (!signedIn) {
-    return <div style={{ fontSize, color: muted(theme), opacity: .75 }}>Sign in to get reminder emails for ideas.</div>;
+    return <div style={{ fontSize, color: muted(theme), opacity: .75 }}>Sign in to get reminder emails.</div>;
   }
 
   return (
@@ -74,7 +74,7 @@ export default function ReminderPicker({ theme, value, onChange, morningTime = "
         {presets.map((p) => (
           <button key={p.label} type="button" onClick={() => { onChange(p.ms); setCustom(false); }} style={chip(false)}>{p.label}</button>
         ))}
-        <button type="button" onClick={() => setCustom((c) => !c)} style={chip(custom)}>Pick a time</button>
+        <button type="button" onClick={() => setCustom((c) => !c)} style={chip(custom)}>Custom time</button>
       </div>
       {custom && (
         <input

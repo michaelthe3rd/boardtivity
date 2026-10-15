@@ -50,7 +50,7 @@ export default function SettingsPanel() {
       <div style={{ flex: 1, padding: "20px 24px", display: "grid", gap: 28, alignContent: "start" }}>
 
         {/* Board Background */}
-        <div>
+        <div data-tour={settingsOpen ? "settings-look" : undefined}>
           <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), fontWeight: 700, marginBottom: 10 }}>Board Background</div>
           <div style={{ display: "flex", gap: 6, padding: 3, backgroundColor: boardTheme === "dark" ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", borderRadius: 10, border: `1px solid ${border(boardTheme)}` }}>
             {([
@@ -198,7 +198,7 @@ export default function SettingsPanel() {
         )}
 
         {/* Email */}
-        {isSignedIn && <EmailSettings theme={boardTheme} />}
+        <EmailSettings theme={boardTheme} />
 
         {/* BOB */}
         <div style={{ borderTop: `1px solid ${border(boardTheme)}`, paddingTop: 20, display: "grid", gap: 16 }}>
@@ -282,7 +282,7 @@ export default function SettingsPanel() {
         </div>
 
         {/* Calendar */}
-        <div style={{ borderTop: `1px solid ${border(boardTheme)}`, paddingTop: 20, display: "grid", gap: 10 }}>
+        <div data-tour={settingsOpen ? "settings-calendar" : undefined} style={{ borderTop: `1px solid ${border(boardTheme)}`, paddingTop: 20, display: "grid", gap: 10 }}>
           <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), fontWeight: 700, marginBottom: 2 }}>Calendar</div>
           <button
             onClick={exportToIcs}
@@ -370,7 +370,7 @@ export default function SettingsPanel() {
         </div>
 
         {/* Get the app */}
-        <div style={{ display: "grid", gap: 10 }}>
+        <div data-tour={settingsOpen ? "settings-app" : undefined} style={{ display: "grid", gap: 10 }}>
           <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), fontWeight: 700 }}>Get the app</div>
           <InstallAppGuide theme={boardTheme} />
         </div>

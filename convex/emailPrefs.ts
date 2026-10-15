@@ -2,7 +2,7 @@ import { mutation, query, internalMutation } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 
-// Everyone starts with all emails on; reminderTime is local "HH:MM".
+// Everyone starts with all emails on; reminderTime is a local hour, "HH:00".
 export const DEFAULT_PREFS = { dailyDigest: true, weeklyDigest: true, dueSoonReminder: true, reminderTime: "08:00" };
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -31,7 +31,8 @@ export const get = query({
       dailyDigest: prefs?.dailyDigest ?? DEFAULT_PREFS.dailyDigest,
       weeklyDigest: prefs?.weeklyDigest ?? DEFAULT_PREFS.weeklyDigest,
       dueSoonReminder: prefs?.dueSoonReminder ?? DEFAULT_PREFS.dueSoonReminder,
-      reminderTime: prefs?.reminderTime ?? DEFAULT_PREFS.reminderTime,
+      // Emails go out on the hour (the cron runs hourly), so older "HH:MM" values read as their hour.
+      reminderTime: `${(prefs?.reminderTime ?? DEFAULT_PREFS.reminderTime).slice(0, 2)}:00`,
       timeZone: prefs?.timeZone ?? null,
     };
   },
@@ -52,6 +53,7 @@ export const update = mutation({
     if (args.reminderTime !== undefined && !TIME_RE.test(args.reminderTime)) throw new Error("Invalid time");
     if (args.timeZone !== undefined && !isValidTimeZone(args.timeZone)) throw new Error("Invalid time zone");
 
+    if (args.reminderTime !== undefined) args.reminderTime = `${args.reminderTime.slice(0, 2)}:00`;
     const changes = Object.fromEntries(Object.entries(args).filter(([, value]) => value !== undefined));
     const existing = await prefsDoc(ctx, identity.tokenIdentifier);
     if (existing) {
@@ -102,6 +104,22 @@ export const markDigestSent = internalMutation({
       await ctx.db.insert("emailPrefs", { tokenIdentifier, dailyDigest: DEFAULT_PREFS.dailyDigest, weeklyDigest: DEFAULT_PREFS.weeklyDigest, ...stamps });
     }
     return null;
+  },
+});
+
+// Rate limit for "Send me a preview": true (and stamps the time) at most once a minute.
+export const claimPreview = internalMutation({
+  args: { tokenIdentifier: v.string() },
+  handler: async (ctx, { tokenIdentifier }) => {
+    const existing = await prefsDoc(ctx, tokenIdentifier);
+    const now = Date.now();
+    if (existing?.lastPreviewSent && now - existing.lastPreviewSent < 60_000) return false;
+    if (existing) {
+      await ctx.db.patch(existing._id, { lastPreviewSent: now });
+    } else {
+      await ctx.db.insert("emailPrefs", { tokenIdentifier, dailyDigest: DEFAULT_PREFS.dailyDigest, weeklyDigest: DEFAULT_PREFS.weeklyDigest, lastPreviewSent: now });
+    }
+    return true;
   },
 });
 
