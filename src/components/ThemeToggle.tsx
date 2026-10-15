@@ -4,7 +4,8 @@ import { useState } from "react";
 import type { ThemeMode } from "@/lib/board";
 import { border, circleButton } from "@/lib/ui";
 
-export default function ThemeToggle({ theme, onToggle, size = 40 }: { theme: ThemeMode; onToggle: () => void; size?: number }) {
+// hoverTip: show a "Switch to dark/light mode" label on mouse hover (off where the button sits in a clipped scroll row).
+export default function ThemeToggle({ theme, onToggle, size = 40, hoverTip = true }: { theme: ThemeMode; onToggle: () => void; size?: number; hoverTip?: boolean }) {
   const [flicker, setFlicker] = useState(false);
   function handleClick() {
     setFlicker(true);
@@ -16,6 +17,8 @@ export default function ThemeToggle({ theme, onToggle, size = 40 }: { theme: The
       onClick={handleClick}
       onAnimationEnd={() => setFlicker(false)}
       aria-label="Toggle theme"
+      className={hoverTip ? "hover-tip" : undefined}
+      data-tip={hoverTip ? (isOn ? "Switch to dark mode" : "Switch to light mode") : undefined}
       style={{
         ...circleButton(theme, size),
         boxShadow: isOn ? `0 0 0 1px ${border(theme)}, 0 0 10px rgba(255,200,40,.35)` : undefined,

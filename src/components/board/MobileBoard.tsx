@@ -16,6 +16,8 @@ import EmailSettings from "@/components/board/EmailSettings";
 import ReminderPicker, { BellIcon, formatReminder } from "@/components/board/ReminderPicker";
 import FadeScroll from "@/components/ui/FadeScroll";
 import { CheckIcon, CloseIcon, PencilIcon, PlusIcon } from "@/components/ui/Icons";
+import { SyncCloud, syncLabel } from "@/components/ui/SyncStatus";
+import InstallAppGuide from "@/components/board/InstallAppGuide";
 
 // Phone layout: list-style board with bottom bar, sheets for add/edit/settings, and BOB.
 export default function MobileBoard() {
@@ -31,7 +33,7 @@ export default function MobileBoard() {
     mobileEditMinutes, setMobileEditMinutes, mobileAddColorIdx, setMobileAddColorIdx, mobileEditColorIdx, setMobileEditColorIdx, mobileAddRemindAt, setMobileAddRemindAt,
     mobileEditSteps, setMobileEditSteps, mobileDeleteConfirm, setMobileDeleteConfirm, mobileBoardTypePicker, setMobileBoardTypePicker, mobileBoardActionId, setMobileBoardActionId,
     mobileBoardRename, setMobileBoardRename, mobileBoardRenaming, setMobileBoardRenaming, mobileFilterPriority, setMobileFilterPriority, mobileSortDate, setMobileSortDate,
-    bobAutoSend, setBobAutoSend, mobileSettingsOpen, setMobileSettingsOpen, boardGrid, setBoardGrid, thoughtColorMode, setThoughtColorMode,
+    bobAutoSend, setBobAutoSend, mobileSettingsOpen, setMobileSettingsOpen, boardGrid, thoughtColorMode, setThoughtColorMode,
     thoughtFixedColorIdx, setThoughtFixedColorIdx, taskColorMode, setTaskColorMode, taskHighColorIdx, setTaskHighColorIdx, taskMedColorIdx, setTaskMedColorIdx,
     taskLowColorIdx, setTaskLowColorIdx, taskSingleColorIdx, setTaskSingleColorIdx, taskSingleCustom, setTaskSingleCustom, taskHighCustom, setTaskHighCustom,
     taskMedCustom, setTaskMedCustom, taskLowCustom, setTaskLowCustom, cloudSyncState, setCloudSyncState, confirmSignOut, setConfirmSignOut, openSignIn, openSignUp, scale, pan, focusSessionStartRef,
@@ -234,7 +236,7 @@ export default function MobileBoard() {
     const bord = palette.halo.replace(/[\d.]+\)$/, theme === "dark" ? "0.45)" : "0.55)");
     const createdStr = note.createdAt ? new Date(note.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "";
     return (
-      <div key={note.id} style={{ borderRadius: 14, backgroundColor: bg, border: `1.5px solid ${bord}`, marginBottom: 9, padding: "11px 14px 14px" }}>
+      <div key={note.id} data-tour={note.id === newestNoteId ? "newest-card" : undefined} style={{ borderRadius: 14, backgroundColor: bg, border: `1.5px solid ${bord}`, marginBottom: 9, padding: "11px 14px 14px" }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
           <div style={{ flex: 1 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
@@ -300,7 +302,7 @@ export default function MobileBoard() {
           style={{ width: "100%", height: 38, borderRadius: 999, border: "none", backgroundColor: theme === "dark" ? "#f5f5f2" : "#171613", color: theme === "dark" ? "#171613" : "#f7f8fb", display: "flex", alignItems: "center", gap: 8, padding: "0 14px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
         >
           <span style={{ flex: 1, minWidth: 0, textAlign: "left", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{activeBoard?.name ?? "Boards"}</span>
-          <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, opacity: .6 }}>{boards.length} {boards.length === 1 ? "board" : "boards"}</span>
+          <span aria-label={`${boards.length} ${boards.length === 1 ? "board" : "boards"}`} style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, lineHeight: 1, borderRadius: 999, padding: "3px 7px", backgroundColor: theme === "dark" ? "rgba(0,0,0,.1)" : "rgba(255,255,255,.16)" }}>{boards.length}</span>
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ flexShrink: 0, transform: boardMenuOpen ? "rotate(180deg)" : "none", transition: "transform .15s" }}>
             <polyline points="2,3.5 5,6.5 8,3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
@@ -344,6 +346,14 @@ export default function MobileBoard() {
         <div aria-hidden style={{ flexShrink: 0, width: 1, height: 26, margin: "0 3px", background: `linear-gradient(180deg, transparent, ${theme === "dark" ? "rgba(255,255,255,.22)" : "rgba(0,0,0,.18)"}, transparent)` }} />
         <FadeScroll style={{ flex: "0 1 auto" }}>
           <button
+            type="button"
+            aria-label={syncLabel(isSignedIn ? cloudSyncState : "signedOut", "tap")}
+            onClick={!isSignedIn ? () => openSignIn() : cloudSyncState === "error" ? () => { setCloudSyncState("loading"); pushToCloud(); } : undefined}
+            style={{ flexShrink: 0, width: 38, height: 38, borderRadius: 999, border: `1px solid ${border(theme)}`, backgroundColor: theme === "dark" ? "#1e2126" : "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, cursor: !isSignedIn || cloudSyncState === "error" ? "pointer" : "default" }}
+          >
+            <SyncCloud state={isSignedIn ? cloudSyncState : "signedOut"} size={17} />
+          </button>
+          <button
             onClick={() => setProfileOpen(true)}
             style={{ flexShrink: 0, width: 38, height: 38, borderRadius: 999, border: `1px solid ${border(theme)}`, backgroundColor: theme === "dark" ? "#1e2126" : "#ffffff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
             aria-label="Focus stats"
@@ -353,7 +363,7 @@ export default function MobileBoard() {
               : <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke={muted(theme)} strokeWidth="1.4"/><path d="M7 4v3l2 1.5" stroke={muted(theme)} strokeWidth="1.3" strokeLinecap="round"/></svg>
             }
           </button>
-          <ThemeToggle theme={theme} onToggle={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} size={38} />
+          <ThemeToggle theme={theme} onToggle={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} size={38} hoverTip={false} />
           <button
               data-tour="settings"
               aria-label="Settings"
@@ -513,44 +523,6 @@ export default function MobileBoard() {
             </div>
 
             <div style={{ padding: "20px 20px 48px", display: "flex", flexDirection: "column", gap: 28 }}>
-
-              {/* Help */}
-              <div>
-                <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 10 }}>Help</div>
-                <button onClick={openTutorial} style={{ width: "100%", height: 48, borderRadius: 12, border: `1px solid ${border(theme)}`, backgroundColor: theme === "dark" ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.06)", color: pageText(theme), fontSize: 15, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <circle cx="12" cy="12" r="9" /><path d="M9.6 9.3a2.5 2.5 0 1 1 3.6 2.3c-.8.4-1.2 1-1.2 1.9v.3" /><circle cx="12" cy="16.9" r=".6" fill="currentColor" />
-                  </svg>
-                  Replay the tutorial
-                </button>
-              </div>
-
-              {/* Theme */}
-              <div>
-                <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 10 }}>Appearance</div>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span style={{ fontSize: 15, color: pageText(theme) }}>{theme === "dark" ? "Dark mode" : "Light mode"}</span>
-                  <button onClick={() => setTheme(t => t === "dark" ? "light" : "dark")} style={{ flexShrink: 0, width: 46, height: 26, borderRadius: 999, border: "none", cursor: "pointer", backgroundColor: theme === "dark" ? "#4a9eff" : "rgba(0,0,0,.12)", position: "relative", transition: "background-color .18s" }}>
-                    <span style={{ position: "absolute", top: 4, left: theme === "dark" ? 23 : 4, width: 18, height: 18, borderRadius: "50%", backgroundColor: "#fff", transition: "left .18s", boxShadow: "0 1px 3px rgba(0,0,0,.2)" }} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Board background */}
-              <div>
-                <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 10 }}>Board Background</div>
-                <div style={{ display: "flex", gap: 6, padding: 3, backgroundColor: theme === "dark" ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)", borderRadius: 10, border: `1px solid ${border(theme)}` }}>
-                  {(["grid", "dots", "blank"] as const).map(id => {
-                    const label = id === "grid" ? "Grid" : id === "dots" ? "Dots" : "Blank";
-                    const active = boardGrid === id;
-                    return (
-                      <button key={id} onClick={() => setBoardGrid(id)} style={{ flex: 1, height: 44, borderRadius: 8, border: "none", backgroundColor: active ? (theme === "dark" ? "rgba(255,255,255,.12)" : "#ffffff") : "transparent", boxShadow: active ? "0 1px 4px rgba(0,0,0,.12)" : "none", color: active ? pageText(theme) : muted(theme), cursor: "pointer", fontSize: 13, fontWeight: active ? 700 : 500, transition: "background-color .12s" }}>
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
 
               {/* Idea colors */}
               <div>
@@ -727,6 +699,23 @@ export default function MobileBoard() {
                 </div>
               )}
 
+              {/* Help */}
+              <div>
+                <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 10 }}>Help</div>
+                <button onClick={openTutorial} style={{ width: "100%", height: 48, borderRadius: 12, border: `1px solid ${border(theme)}`, backgroundColor: theme === "dark" ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.06)", color: pageText(theme), fontSize: 15, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9" /><path d="M9.6 9.3a2.5 2.5 0 1 1 3.6 2.3c-.8.4-1.2 1-1.2 1.9v.3" /><circle cx="12" cy="16.9" r=".6" fill="currentColor" />
+                  </svg>
+                  Replay the tutorial
+                </button>
+              </div>
+
+              {/* Get the app */}
+              <div>
+                <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 10 }}>Get the app</div>
+                <InstallAppGuide theme={theme} mobile />
+              </div>
+
               {/* Account */}
               <div style={{ borderTop: `1px solid ${border(theme)}`, paddingTop: 20 }}>
                 <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 12 }}>Account</div>
@@ -742,8 +731,8 @@ export default function MobileBoard() {
                       onClick={cloudSyncState === "error" ? () => { setCloudSyncState("loading"); pushToCloud(); } : undefined}
                       style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: muted(theme), background: "none", border: "none", padding: "0 0 12px", cursor: cloudSyncState === "error" ? "pointer" : "default", fontFamily: "inherit" }}
                     >
-                      <span style={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, backgroundColor: cloudSyncState === "synced" ? "#3db83d" : cloudSyncState === "error" ? "#c03030" : "#c8960a" }} />
-                      {cloudSyncState === "synced" ? "Synced" : cloudSyncState === "saving" ? "Saving…" : cloudSyncState === "error" ? "Sync error — tap to retry" : "Connecting…"}
+                      <SyncCloud state={cloudSyncState} />
+                      {syncLabel(cloudSyncState, "tap")}
                     </button>
                     {confirmSignOut === "settings" ? (
                       <div style={{ display: "flex", gap: 8 }}>
@@ -756,6 +745,10 @@ export default function MobileBoard() {
                   </>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: muted(theme), paddingBottom: 4 }}>
+                      <SyncCloud state="signedOut" />
+                      Not synced. Sign in to save your board across devices
+                    </div>
                     <button onClick={() => { setMobileSettingsOpen(false); openSignUp(); }} style={{ height: 44, borderRadius: 10, border: "none", backgroundColor: theme === "dark" ? "#f5f5f2" : "#171613", color: theme === "dark" ? "#171613" : "#f7f8fb", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Sign up</button>
                     <button onClick={() => { setMobileSettingsOpen(false); openSignIn(); }} style={{ height: 44, borderRadius: 10, border: `1px solid ${border(theme)}`, backgroundColor: "transparent", color: pageText(theme), fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Sign in</button>
                   </div>
@@ -838,7 +831,7 @@ export default function MobileBoard() {
               </>
             )}
             {mobileAddMode === "thought" && (
-              <>
+              <div data-tour="composer-idea-options" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {/* Color picker */}
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   <span style={{ fontSize: 12, fontWeight: 700, color: muted(theme), letterSpacing: ".04em" }}>Color</span>
@@ -854,7 +847,7 @@ export default function MobileBoard() {
                   <span style={{ fontSize: 12, fontWeight: 700, color: muted(theme), letterSpacing: ".04em" }}>Remind me</span>
                   <ReminderPicker theme={theme} value={mobileAddRemindAt} onChange={setMobileAddRemindAt} morningTime={emailPrefs?.reminderTime} signedIn={!!isSignedIn} large />
                 </div>
-              </>
+              </div>
             )}
             <button
               data-tour="composer-create"

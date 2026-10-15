@@ -28,7 +28,8 @@ export default function FadeScroll({ children, style, gap = 6 }: { children: Rea
   return (
     <div
       ref={ref}
-      style={{ display: "flex", alignItems: "center", gap, minWidth: 0, overflowX: "auto", scrollbarWidth: "none", WebkitMaskImage: mask, maskImage: mask, ...style }}
+      // Vertical padding (cancelled by negative margin) so glows and shadows on the items aren't clipped by the scroll box.
+      style={{ display: "flex", alignItems: "center", gap, minWidth: 0, padding: "12px 0", margin: "-12px 0", overflowX: "auto", scrollbarWidth: "none", WebkitMaskImage: mask, maskImage: mask, ...style }}
     >
       {children}
     </div>

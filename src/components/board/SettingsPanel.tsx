@@ -6,6 +6,8 @@ import { pageText, muted, border, panel, buttonStyle, circleButton } from "@/lib
 import { useHome } from "@/components/home/HomeContext";
 import EmailSettings from "@/components/board/EmailSettings";
 import { CloseIcon } from "@/components/ui/Icons";
+import { SyncCloud, syncLabel } from "@/components/ui/SyncStatus";
+import InstallAppGuide from "@/components/board/InstallAppGuide";
 
 // Slide-in board settings panel: theme, background, colors, account and data export.
 export default function SettingsPanel() {
@@ -41,20 +43,6 @@ export default function SettingsPanel() {
 
       {/* Body */}
       <div style={{ flex: 1, padding: "20px 24px", display: "grid", gap: 28, alignContent: "start" }}>
-
-        {/* Help */}
-        <div style={{ display: "grid", gap: 10 }}>
-          <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), fontWeight: 700 }}>Help</div>
-          <button
-            onClick={openTutorial}
-            style={{ ...buttonStyle(boardTheme, false), width: "100%", height: 40, fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <circle cx="12" cy="12" r="9" /><path d="M9.6 9.3a2.5 2.5 0 1 1 3.6 2.3c-.8.4-1.2 1-1.2 1.9v.3" /><circle cx="12" cy="16.9" r=".6" fill="currentColor" />
-            </svg>
-            Replay the tutorial
-          </button>
-        </div>
 
         {/* Board Background */}
         <div>
@@ -387,6 +375,26 @@ export default function SettingsPanel() {
           </div>
         )}
 
+        {/* Help */}
+        <div style={{ display: "grid", gap: 10 }}>
+          <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), fontWeight: 700 }}>Help</div>
+          <button
+            onClick={openTutorial}
+            style={{ ...buttonStyle(boardTheme, false), width: "100%", height: 40, fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" /><path d="M9.6 9.3a2.5 2.5 0 1 1 3.6 2.3c-.8.4-1.2 1-1.2 1.9v.3" /><circle cx="12" cy="16.9" r=".6" fill="currentColor" />
+            </svg>
+            Replay the tutorial
+          </button>
+        </div>
+
+        {/* Get the app */}
+        <div style={{ display: "grid", gap: 10 }}>
+          <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), fontWeight: 700 }}>Get the app</div>
+          <InstallAppGuide theme={boardTheme} />
+        </div>
+
         {/* Account */}
         <div style={{ borderTop: `1px solid ${border(boardTheme)}`, paddingTop: 20, display: "grid", gap: 8 }}>
           <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), fontWeight: 700, marginBottom: 2 }}>Account</div>
@@ -406,8 +414,8 @@ export default function SettingsPanel() {
                 onClick={cloudSyncState === "error" ? () => { setCloudSyncState("loading"); pushToCloud(); } : undefined}
                 style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: muted(boardTheme), cursor: cloudSyncState === "error" ? "pointer" : "default" }}
               >
-                <span style={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, backgroundColor: cloudSyncState === "synced" ? "#3db83d" : cloudSyncState === "error" ? "#c03030" : "#c8960a" }} />
-                {cloudSyncState === "synced" ? "Synced" : cloudSyncState === "saving" ? "Saving…" : cloudSyncState === "error" ? "Sync error — tap to retry" : "Connecting…"}
+                <SyncCloud state={cloudSyncState} />
+                {syncLabel(cloudSyncState, "click")}
               </div>
               {confirmSignOut === "settings" ? (
                 <div style={{ display: "flex", gap: 8 }}>
@@ -420,6 +428,10 @@ export default function SettingsPanel() {
             </>
           ) : (
             <>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: muted(boardTheme) }}>
+                <SyncCloud state="signedOut" />
+                Not synced. Sign in to save your board across devices
+              </div>
               <button onClick={() => { setSettingsOpen(false); openSignIn(); }} style={{ ...buttonStyle(boardTheme, false), width: "100%", fontSize: 14, height: 42 }}>Sign in</button>
               <button onClick={() => { setSettingsOpen(false); openSignUp(); }} style={{ ...buttonStyle(boardTheme, true), width: "100%", fontSize: 14, height: 42 }}>Sign up</button>
             </>
