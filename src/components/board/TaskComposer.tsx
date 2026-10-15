@@ -137,6 +137,7 @@ export default function TaskComposer() {
             </div>
 
             {thoughtMode && (
+              <div data-tour="composer-idea-options" style={{ display: "grid", gap: 12 }}>
               <div style={{ display: "flex", gap: 7, flexWrap: "wrap", alignItems: "center", padding: "4px 0" }}>
                 <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", color: muted(boardTheme), opacity: .6, marginRight: 2 }}>Color</span>
                 <button
@@ -152,11 +153,10 @@ export default function TaskComposer() {
                   />
                 ))}
               </div>
-            )}
-            {thoughtMode && (
               <div style={{ display: "grid", gap: 8, padding: "4px 0" }}>
                 <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", color: muted(boardTheme), opacity: .6 }}>Remind me</span>
                 <ReminderPicker theme={boardTheme} value={composerRemindAt} onChange={setComposerRemindAt} morningTime={emailPrefs?.reminderTime} signedIn={!!isSignedIn} />
+              </div>
               </div>
             )}
             {!thoughtMode && (

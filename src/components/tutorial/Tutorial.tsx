@@ -62,7 +62,22 @@ function closeOpenPanels(h: Home) {
   if (h.detailNoteId !== null) { h.setDetailNoteId(null); h.setDetailEditing(false); }
 }
 
-const STEPS: Step[] = [
+// Steps every tour ends with: view controls and a wrap-up.
+const CENTER_STEP: Step = {
+  id: "center", target: "center-board", only: ["desktop", "touch"], title: "Lost your board?",
+  body: () => <>Panned or zoomed too far? This button brings your board right back to the middle.</>,
+};
+const FULLSCREEN_STEP: Step = {
+  id: "fullscreen", target: "fullscreen", only: ["desktop", "touch"], title: "Go fullscreen",
+  body: () => <>Fill the screen with your board when you want zero distractions.</>,
+};
+const DONE_STEP: Step = {
+  id: "done", icon: "done", title: "You're all set",
+  enter: closeOpenPanels,
+  body: () => <>That&apos;s everything you need to get going. Replay this tour from <strong>Settings → Help</strong> anytime.</>,
+};
+
+const TASK_STEPS: Step[] = [
   {
     id: "welcome", icon: "logo", title: "Welcome to Boardtivity",
     enter: closeOpenPanels,
@@ -124,15 +139,73 @@ const STEPS: Step[] = [
     id: "settings", target: "settings", title: "Settings",
     body: () => <>Themes, colors and email reminders. You can replay this tour anytime under <strong>Help</strong>.</>,
   },
+  CENTER_STEP,
+  FULLSCREEN_STEP,
+  DONE_STEP,
+];
+
+// Idea boards: free-form notes you color, connect and get reminded about. No due dates or focus timer.
+const IDEA_STEPS: Step[] = [
   {
-    id: "fullscreen", target: "fullscreen", only: ["desktop", "touch"], title: "Go fullscreen",
-    body: () => <>Fill the screen with your board when you want zero distractions.</>,
-  },
-  {
-    id: "done", icon: "done", title: "You're all set",
+    id: "welcome", icon: "logo", title: "Your idea board",
     enter: closeOpenPanels,
-    body: () => <>That&apos;s everything you need to get going. Replay this tour from <strong>Settings → Help</strong> anytime.</>,
+    body: l => l === "phone"
+      ? <>A place to catch ideas before they slip away. Let&apos;s add your first one and take a quick look around.</>
+      : <>A free-form space to catch ideas and connect them. Let&apos;s add your first one and take a quick look around.</>,
   },
+  {
+    id: "add", target: "add-task", advance: "action", title: "Add your first idea",
+    enter: closeOpenPanels,
+    done: h => isComposing(h),
+    reset: closeOpenPanels,
+    body: l => <>{verb(l)} <strong>Add Idea</strong> to start.</>,
+  },
+  {
+    id: "name", target: "composer-title", title: "Write it down", interactive: true,
+    body: () => <>Type your idea, like <em>&ldquo;Podcast about study habits&rdquo;</em>. Add a note underneath if you want more detail. Nothing here is required but the idea itself.</>,
+  },
+  {
+    id: "idea-options", target: "composer-idea-options", title: "Color and reminder", interactive: true,
+    body: () => <>Give related ideas the same color so they&apos;re easy to spot together. Set a reminder if you want to come back to it later.</>,
+  },
+  {
+    id: "create", target: "composer-create", advance: "action", title: "Save it",
+    done: h => !isComposing(h),
+    body: l => <>{verb(l)} <strong>{l === "phone" ? "Add Idea" : "Create idea"}</strong> when you&apos;re ready.</>,
+  },
+  {
+    id: "card", target: "newest-card", title: "Here's your idea",
+    enter: h => { if (isComposing(h)) closeOpenPanels(h); },
+    advance: l => (l === "phone" ? "next" : "action"),
+    done: h => h.detailNoteId !== null,
+    reset: h => { if (h.detailNoteId !== null) { h.setDetailNoteId(null); h.setDetailEditing(false); } },
+    body: l => l === "phone"
+      ? <>Tap <strong>···</strong> on an idea to edit it, change its color or set a reminder.</>
+      : <>Drag it anywhere on the board. {l === "touch" ? "Press and hold" : "Right-click"} to lock it in place. <strong>{verb(l)} it</strong> to open it.</>,
+  },
+  {
+    id: "connect", only: ["desktop", "touch"], icon: "logo", title: "Connect your ideas",
+    enter: closeOpenPanels,
+    body: () => <>Drag one idea onto another and let go to <strong>link them</strong> with a line. To unlink, drag it over a linked idea and hold for a moment until it shakes.</>,
+  },
+  {
+    id: "bob", target: "bob", icon: "bob", title: "Brainstorm with BOB",
+    enter: closeOpenPanels,
+    body: () => <>Your AI assistant (Plus). Ask BOB to brainstorm with you, build on an idea, or add ideas to your board for you.</>,
+  },
+  {
+    id: "boards", target: "boards", title: "Your boards",
+    body: l => l === "phone"
+      ? <>Tap here to switch between idea and task boards. When an idea turns into real work, make it a task on a task board.</>
+      : <>Switch between idea boards and task boards, or create new ones. When an idea turns into real work, make it a task.</>,
+  },
+  {
+    id: "settings", target: "settings", title: "Settings",
+    body: () => <>Themes, idea colors and email reminders. You can replay this tour anytime under <strong>Help</strong>.</>,
+  },
+  CENTER_STEP,
+  FULLSCREEN_STEP,
+  DONE_STEP,
 ];
 
 function findTarget(id: string): HTMLElement | null {
@@ -203,7 +276,9 @@ export default function Tutorial() {
   const layout: Layout = isMobile && !isNativeApp
     ? "phone"
     : typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches ? "touch" : "desktop";
-  const steps = STEPS.filter(s => !s.only || s.only.includes(layout));
+  // The tour follows the board you're on: idea boards get their own walkthrough.
+  const allSteps = home.activeBoard?.type === "thought" ? IDEA_STEPS : TASK_STEPS;
+  const steps = allSteps.filter(s => !s.only || s.only.includes(layout));
   const step = steps[Math.min(index, steps.length - 1)];
   const shownStep = steps[Math.min(shown, steps.length - 1)];
   const advance = typeof shownStep.advance === "function" ? shownStep.advance(layout) : shownStep.advance ?? "next";

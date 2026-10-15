@@ -11,6 +11,8 @@ export const metadata: Metadata = {
     icon: "/favicon-square.png",
     apple: "/apple-touch-icon.png",
   },
+  // Lets "Add to Home Screen" on iPhone/iPad open full screen like an app.
+  appleWebApp: { capable: true, title: "Boardtivity", statusBarStyle: "default" },
 };
 
 export const viewport = {
