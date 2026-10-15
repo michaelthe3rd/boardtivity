@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { CSSProperties } from "react";
 import type { Importance, Note } from "@/lib/board";
 import BobAgent from "@/components/BobAgent";
@@ -7,35 +8,42 @@ import ThemeToggle from "@/components/ThemeToggle";
 import { NOTE_PALETTE, TASK_PALETTE, hexToRgba, blendHex, clampCardBg, PRIORITY_COLORS, priorityColor } from "@/lib/colors";
 import { pageText, muted, surface, border, paper} from "@/lib/ui";
 import { isoToMDY, todayStr, tomorrowStr, fmtTime, fmtFocusTime } from "@/lib/dates";
-import { BOARD_W, BOARD_H, NOTE_W, NOTE_H, genId} from "@/lib/boardLayout";
+import { BOARD_W, BOARD_H, NOTE_W, NOTE_H, genId, layoutWeb, layoutChain } from "@/lib/boardLayout";
+import { buildBreakdown } from "@/lib/breakdown";
 import DateField from "@/components/ui/DateField";
 import { useHome } from "@/components/home/HomeContext";
+import EmailSettings from "@/components/board/EmailSettings";
+import ReminderPicker, { BellIcon, formatReminder } from "@/components/board/ReminderPicker";
 
 // Phone layout: list-style board with bottom bar, sheets for add/edit/settings, and BOB.
 export default function MobileBoard() {
   const {
     openTutorial,
-    boardStateWith, updateReminderTime, toggleEmailPref, theme, setTheme, boards, setBoards, activeBoardId,
+    boardStateWith, theme, setTheme, boards, setBoards, activeBoardId,
     setActiveBoardId, notes, setNotes, focusOpen, setFocusOpen, focusNoteId, setFocusNoteId, focusStepId,
     setFocusStepId, focusSecondsLeft, setFocusSecondsLeft, focusCompleted, setFocusCompleted, focusPaused, setFocusPaused, breakSecondsLeft,
     setBreakSecondsLeft, focusChainMode, setFocusChainMode, focusNextStep, focusExitConfirm, setFocusExitConfirm, setProfileOpen, setUpgradeOpen,
     mobileExpandedIds, setMobileExpandedIds, mobileAddMode, setMobileAddMode, mobileAddTitle, setMobileAddTitle, mobileAddBody, setMobileAddBody,
     mobileAddImportance, setMobileAddImportance, mobileAddDueDate, setMobileAddDueDate, mobileAddDueTime, setMobileAddDueTime, mobileActionNoteId, setMobileActionNoteId,
     mobileEditTitle, setMobileEditTitle, mobileEditDueDate, setMobileEditDueDate, mobileEditDueTime, setMobileEditDueTime, mobileEditImportance, setMobileEditImportance,
-    mobileEditMinutes, setMobileEditMinutes, mobileAddColorIdx, setMobileAddColorIdx, mobileEditColorIdx, setMobileEditColorIdx, mobileAddRemindIn, setMobileAddRemindIn,
+    mobileEditMinutes, setMobileEditMinutes, mobileAddColorIdx, setMobileAddColorIdx, mobileEditColorIdx, setMobileEditColorIdx, mobileAddRemindAt, setMobileAddRemindAt,
     mobileEditSteps, setMobileEditSteps, mobileDeleteConfirm, setMobileDeleteConfirm, mobileBoardTypePicker, setMobileBoardTypePicker, mobileBoardActionId, setMobileBoardActionId,
     mobileBoardRename, setMobileBoardRename, mobileBoardRenaming, setMobileBoardRenaming, mobileFilterPriority, setMobileFilterPriority, mobileSortDate, setMobileSortDate,
     bobAutoSend, setBobAutoSend, mobileSettingsOpen, setMobileSettingsOpen, boardGrid, setBoardGrid, thoughtColorMode, setThoughtColorMode,
     thoughtFixedColorIdx, setThoughtFixedColorIdx, taskColorMode, setTaskColorMode, taskHighColorIdx, setTaskHighColorIdx, taskMedColorIdx, setTaskMedColorIdx,
     taskLowColorIdx, setTaskLowColorIdx, taskSingleColorIdx, setTaskSingleColorIdx, taskSingleCustom, setTaskSingleCustom, taskHighCustom, setTaskHighCustom,
-    taskMedCustom, setTaskMedCustom, taskLowCustom, setTaskLowCustom, cloudSyncState, scale, pan, focusSessionStartRef,
+    taskMedCustom, setTaskMedCustom, taskLowCustom, setTaskLowCustom, cloudSyncState, setCloudSyncState, confirmSignOut, setConfirmSignOut, openSignIn, openSignUp, scale, pan, focusSessionStartRef,
     focusStartedAtRef, focusTotalSecsRef, focusPausedSecsRef, viewportRef, isMobile, subscription, isPlus, isAdmin,
-    isNativeApp, focusStatsData, setReminderMut, emailPrefs, latestBoardStateRef, setBobUserInfoFn, bobUserInfo, activeBoard,
+    isNativeApp, focusStatsData, setReminderMut, latestBoardStateRef, setBobUserInfoFn, bobUserInfo, activeBoard,
     taskPaletteEntry, startPortal, findFreeSpot, exportToIcs, pushToCloud, advanceToNext, addBoard, deleteBoard,
     deleteTask, handleBobSweep, handleBobEditNote, handleBobDeleteNotes, handleBobHighlightNotes, handleBobLaunchFocus, handleBobSaveUndo, handleBobUndo,
-    handleBobSetIdeaColor, handleBobConfigureTaskColors, handleBobConfigureBoard, handleBobAddNote, startFocus, closeFocusWithReview, scheduleDueDateReminder, user,
+    handleBobSetIdeaColor, handleBobConfigureTaskColors, handleBobConfigureBoard, handleBobAddNote, startFocus, closeFocusWithReview, scheduleDueDateReminder, scheduleIdeaReminder, emailPrefs, user,
     isSignedIn, clerkLoaded, signOut,
   } = useHome();
+  // Edit-sheet fields that only this component uses.
+  const [editBody, setEditBody] = useState("");
+  const [editRemindAt, setEditRemindAt] = useState<number | null>(null);
+
   if (!(isMobile && !isNativeApp)) return null;
   const mobileBoardNotes = notes.filter(n => n.boardId === activeBoardId);
   const tasks = mobileBoardNotes.filter(n => n.type === "task");
@@ -98,15 +106,19 @@ export default function MobileBoard() {
       colorIdx: mobileAddMode === "thought"
         ? (mobileAddColorIdx !== undefined ? mobileAddColorIdx : (thoughtColorMode === "random" ? Math.floor(Math.random() * NOTE_PALETTE.length) : thoughtFixedColorIdx))
         : undefined,
+      remindAt: mobileAddMode === "thought" && mobileAddRemindAt && mobileAddRemindAt > Date.now() ? mobileAddRemindAt : undefined,
     } as Note;
     const updatedNotes = [...notes, newNote];
     setNotes(updatedNotes);
-    if (mobileAddMode === "thought" && mobileAddRemindIn !== null) {
-      setReminderMut({ noteId: id, noteTitle: mobileAddTitle.trim(), delayMs: mobileAddRemindIn }).catch(() => {});
+    // Ideas get the "remind me in…" email; tasks get a due-date reminder. (Calling the due-date
+    // scheduler for an idea used to cancel its reminder straight away.)
+    if (mobileAddMode === "thought") {
+      if (newNote.remindAt) scheduleIdeaReminder(id, newNote.title, newNote.remindAt);
+    } else if (mobileAddDueDate) {
+      scheduleDueDateReminder(id, mobileAddTitle.trim(), mobileAddDueDate, mobileAddDueTime || undefined);
     }
-    scheduleDueDateReminder(id, mobileAddTitle.trim(), mobileAddMode === "task" ? mobileAddDueDate : undefined, mobileAddMode === "task" ? mobileAddDueTime : undefined);
     setMobileAddTitle(""); setMobileAddBody(""); setMobileAddImportance("Low"); setMobileAddDueDate(""); setMobileAddDueTime(""); setMobileAddMode(null);
-    setMobileAddColorIdx(undefined); setMobileAddRemindIn(null);
+    setMobileAddColorIdx(undefined); setMobileAddRemindAt(null);
     // Build state with new note immediately and push — don't wait for debounce or effect timing
     if (isSignedIn) {
       latestBoardStateRef.current = boardStateWith(updatedNotes);
@@ -126,6 +138,8 @@ export default function MobileBoard() {
     setMobileEditMinutes(note.minutes != null ? String(note.minutes) : "");
     setMobileEditSteps(note.steps.map(s => ({ id: s.id, title: s.title, minutes: s.minutes ?? 25 })));
     setMobileEditColorIdx(note.colorIdx);
+    setEditBody(note.body ?? "");
+    setEditRemindAt(note.remindAt && note.remindAt > Date.now() ? note.remindAt : null);
   }
 
   // The tour points at the most recently created card on this board (ids are timestamps).
@@ -223,6 +237,11 @@ export default function MobileBoard() {
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
               <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: palette.swatch, opacity: .75 }}>Idea</div>
               {createdStr && <div style={{ fontSize: 10, color: muted(theme), opacity: .45 }}>· {createdStr}</div>}
+              {note.remindAt && note.remindAt > Date.now() && (
+                <button type="button" onClick={() => openEdit(note)} style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 700, color: pageText(theme), opacity: .75, background: theme === "dark" ? "rgba(255,255,255,.08)" : "rgba(255,255,255,.7)", border: `1px solid ${border(theme)}`, borderRadius: 999, padding: "2px 8px", cursor: "pointer", fontFamily: "inherit" }}>
+                  <BellIcon size={10} />{formatReminder(note.remindAt)}
+                </button>
+              )}
             </div>
             <div style={{ fontSize: 15, fontWeight: 700, color: pageText(theme), lineHeight: 1.35, wordBreak: "break-word" }}>{note.title}</div>
             {note.body && <div style={{ fontSize: 13, color: muted(theme), marginTop: 5, lineHeight: 1.5, opacity: .7 }}>{note.body}</div>}
@@ -644,36 +663,8 @@ export default function MobileBoard() {
                 )}
               </div>
 
-              {/* Email notifications */}
-              {isSignedIn && (
-                <div style={{ borderTop: `1px solid ${border(theme)}`, paddingTop: 20 }}>
-                  <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 12 }}>Email Notifications</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-                    {(["dailyDigest", "weeklyDigest"] as const).map((key) => {
-                      const labels: Record<string, string> = { dailyDigest: "Daily task outline", weeklyDigest: "Weekly task outline" };
-                      const enabled = emailPrefs ? emailPrefs[key] : true;
-                      return (
-                        <div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, paddingTop: 14, paddingBottom: 14, borderBottom: `1px solid ${border(theme)}` }}>
-                          <span style={{ fontSize: 15, color: pageText(theme) }}>{labels[key]}</span>
-                          <button type="button" onClick={() => toggleEmailPref(key, enabled)} style={{ flexShrink: 0, width: 46, height: 26, borderRadius: 999, border: "none", cursor: "pointer", backgroundColor: enabled ? (theme === "dark" ? "#4a9eff" : "#2563eb") : (theme === "dark" ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.12)"), position: "relative", transition: "background-color .18s" }}>
-                            <span style={{ position: "absolute", top: 4, left: enabled ? 23 : 4, width: 18, height: 18, borderRadius: "50%", backgroundColor: "#fff", transition: "left .18s", boxShadow: "0 1px 3px rgba(0,0,0,.2)" }} />
-                          </button>
-                        </div>
-                      );
-                    })}
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, paddingTop: 14, paddingBottom: 14, borderBottom: `1px solid ${border(theme)}` }}>
-                      <span style={{ fontSize: 15, color: pageText(theme) }}>Task reminder time</span>
-                      <input
-                        type="time"
-                        value={emailPrefs?.reminderTime ?? "08:00"}
-                        onChange={e => updateReminderTime(e.target.value)}
-                        style={{ fontSize: 15, fontWeight: 600, color: pageText(theme), backgroundColor: paper(theme), border: `1px solid ${border(theme)}`, borderRadius: 8, padding: "5px 8px", cursor: "pointer", colorScheme: theme === "dark" ? "dark" : "light" }}
-                      />
-                    </div>
-                  </div>
-                  <p style={{ fontSize: 12, color: muted(theme), margin: "12px 0 0", lineHeight: 1.5 }}>Sent to {user?.emailAddresses?.[0]?.emailAddress ?? "your email"}.</p>
-                </div>
-              )}
+              {/* Email */}
+              {isSignedIn && <EmailSettings theme={theme} large />}
 
               {/* Calendar */}
               <div style={{ borderTop: `1px solid ${border(theme)}`, paddingTop: 20 }}>
@@ -691,6 +682,7 @@ export default function MobileBoard() {
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 700, color: pageText(theme) }}>{isPlus ? "Boardtivity Plus" : "Free Plan"}</div>
                         {isPlus && subscription?.currentPeriodEnd && <div style={{ fontSize: 11.5, color: muted(theme), marginTop: 2 }}>Renews {new Date(subscription.currentPeriodEnd * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</div>}
+                        {isPlus && subscription?.status === "past_due" && <div style={{ fontSize: 11.5, color: "#e05555", marginTop: 2 }}>Payment past due</div>}
                       </div>
                       <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase", padding: "3px 10px", borderRadius: 999, background: isPlus ? (theme === "dark" ? "rgba(74,158,255,.15)" : "rgba(37,99,235,.1)") : (theme === "dark" ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.05)"), color: isPlus ? (theme === "dark" ? "#4a9eff" : "#2563eb") : muted(theme), border: `1px solid ${isPlus ? (theme === "dark" ? "rgba(74,158,255,.2)" : "rgba(37,99,235,.15)") : border(theme)}` }}>{isPlus ? "Active" : "Free"}</span>
                     </div>
@@ -704,16 +696,44 @@ export default function MobileBoard() {
               )}
 
               {/* Account */}
-              {isSignedIn && (
-                <div style={{ borderTop: `1px solid ${border(theme)}`, paddingTop: 20 }}>
-                  <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 12 }}>Account</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, overflow: "hidden" }}>
-                    <span style={{ fontSize: 13, color: muted(theme), overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.firstName ? `${user.firstName}${user.lastName ? ` ${user.lastName}` : ""}` : user?.emailAddresses?.[0]?.emailAddress}</span>
-                    {isPlus && <span style={{ flexShrink: 0, fontSize: 9, letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 700, color: theme === "dark" ? "rgba(255,255,255,.6)" : "rgba(0,0,0,.5)", background: theme === "dark" ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.05)", border: `1px solid ${border(theme)}`, borderRadius: 999, padding: "3px 9px" }}>Plus</span>}
+              <div style={{ borderTop: `1px solid ${border(theme)}`, paddingTop: 20 }}>
+                <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 12 }}>Account</div>
+                {isSignedIn ? (
+                  <>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, overflow: "hidden" }}>
+                      <span style={{ fontSize: 13, color: muted(theme), overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.firstName ? `${user.firstName}${user.lastName ? ` ${user.lastName}` : ""}` : user?.emailAddresses?.[0]?.emailAddress}</span>
+                      {isPlus && <span style={{ flexShrink: 0, fontSize: 9, letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 700, color: theme === "dark" ? "rgba(255,255,255,.6)" : "rgba(0,0,0,.5)", background: theme === "dark" ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.05)", border: `1px solid ${border(theme)}`, borderRadius: 999, padding: "2px 7px" }}>Plus</span>}
+                    </div>
+                    {/* Sync status, tap to retry on error (same as desktop) */}
+                    <button
+                      type="button"
+                      onClick={cloudSyncState === "error" ? () => { setCloudSyncState("loading"); pushToCloud(); } : undefined}
+                      style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: muted(theme), background: "none", border: "none", padding: "0 0 12px", cursor: cloudSyncState === "error" ? "pointer" : "default", fontFamily: "inherit" }}
+                    >
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, backgroundColor: cloudSyncState === "synced" ? "#3db83d" : cloudSyncState === "error" ? "#c03030" : "#c8960a" }} />
+                      {cloudSyncState === "synced" ? "Synced" : cloudSyncState === "saving" ? "Saving…" : cloudSyncState === "error" ? "Sync error — tap to retry" : "Connecting…"}
+                    </button>
+                    {confirmSignOut === "settings" ? (
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button onClick={() => { setConfirmSignOut(null); setMobileSettingsOpen(false); signOut({ redirectUrl: "/" }); }} style={{ flex: 1, height: 44, borderRadius: 10, border: `1px solid ${theme === "dark" ? "rgba(220,60,60,.4)" : "rgba(180,40,40,.3)"}`, backgroundColor: "transparent", color: theme === "dark" ? "#ff8080" : "#c03030", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Yes, sign out</button>
+                        <button onClick={() => setConfirmSignOut(null)} style={{ flex: 1, height: 44, borderRadius: 10, border: `1px solid ${border(theme)}`, backgroundColor: "transparent", color: pageText(theme), fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setConfirmSignOut("settings")} style={{ width: "100%", height: 44, borderRadius: 10, border: `1px solid ${border(theme)}`, backgroundColor: "transparent", color: theme === "dark" ? "#ff8080" : "#c03030", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Sign out</button>
+                    )}
+                  </>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <button onClick={() => { setMobileSettingsOpen(false); openSignUp(); }} style={{ height: 44, borderRadius: 10, border: "none", backgroundColor: theme === "dark" ? "#f5f5f2" : "#171613", color: theme === "dark" ? "#171613" : "#f7f8fb", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Sign up</button>
+                    <button onClick={() => { setMobileSettingsOpen(false); openSignIn(); }} style={{ height: 44, borderRadius: 10, border: `1px solid ${border(theme)}`, backgroundColor: "transparent", color: pageText(theme), fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Sign in</button>
                   </div>
-                  <button onClick={() => signOut()} style={{ width: "100%", height: 44, borderRadius: 10, border: `1px solid ${border(theme)}`, backgroundColor: "transparent", color: theme === "dark" ? "#ff8080" : "#c03030", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Sign out</button>
-                </div>
-              )}
+                )}
+              </div>
+              <div style={{ textAlign: "center", fontSize: 12, color: muted(theme) }}>
+                <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: muted(theme), textDecoration: "none" }}>Terms</a>
+                <span style={{ margin: "0 8px" }}>·</span>
+                <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: muted(theme), textDecoration: "none" }}>Privacy</a>
+              </div>
             </div>
           </div>
         </div>
@@ -721,7 +741,7 @@ export default function MobileBoard() {
 
       {mobileAddMode && (
         <div style={{ position: "fixed", inset: 0, zIndex: 800, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
-          <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,.4)" }} onClick={() => { setMobileAddMode(null); setMobileAddTitle(""); setMobileAddBody(""); setMobileAddColorIdx(undefined); setMobileAddRemindIn(null); }} />
+          <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,.4)" }} onClick={() => { setMobileAddMode(null); setMobileAddTitle(""); setMobileAddBody(""); setMobileAddColorIdx(undefined); setMobileAddRemindAt(null); }} />
           <div style={{ position: "relative", backgroundColor: surface(theme), borderRadius: "20px 20px 0 0", padding: "20px 20px 36px", display: "flex", flexDirection: "column", gap: 12 }}>
             <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: muted(theme), opacity: .6, marginBottom: 2 }}>
               {mobileAddMode === "task" ? "New Task" : "New Idea"}
@@ -732,7 +752,7 @@ export default function MobileBoard() {
               rows={1}
               value={mobileAddTitle}
               onChange={e => { setMobileAddTitle(e.target.value); e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }}
-              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey && mobileAddMode === "task") { e.preventDefault(); mobileCreateNote(); } if (e.key === "Escape") { setMobileAddMode(null); setMobileAddTitle(""); setMobileAddBody(""); setMobileAddColorIdx(undefined); setMobileAddRemindIn(null); } }}
+              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey && mobileAddMode === "task") { e.preventDefault(); mobileCreateNote(); } if (e.key === "Escape") { setMobileAddMode(null); setMobileAddTitle(""); setMobileAddBody(""); setMobileAddColorIdx(undefined); setMobileAddRemindAt(null); } }}
               placeholder={mobileAddMode === "task" ? "What needs to be done?" : "What's your idea?"}
               style={{ fontSize: 16, fontWeight: 600, color: pageText(theme), backgroundColor: paper(theme), border: `1.5px solid ${border(theme)}`, borderRadius: 12, padding: "13px 14px", outline: "none", width: "100%", boxSizing: "border-box", resize: "none", overflow: "hidden", lineHeight: 1.4 }}
             />
@@ -798,16 +818,9 @@ export default function MobileBoard() {
                   </div>
                 </div>
                 {/* Remind me */}
-                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: muted(theme), letterSpacing: ".04em", whiteSpace: "nowrap" }}>Remind me</span>
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    {([{ label: "1h", ms: 3_600_000 }, { label: "12h", ms: 43_200_000 }, { label: "1 day", ms: 86_400_000 }, { label: "1 week", ms: 604_800_000 }]).map(opt => (
-                      <button key={opt.label} onClick={() => setMobileAddRemindIn(mobileAddRemindIn === opt.ms ? null : opt.ms)}
-                        style={{ padding: "5px 12px", borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: "pointer", border: mobileAddRemindIn === opt.ms ? `1.5px solid ${pageText(theme)}` : `1px solid ${border(theme)}`, backgroundColor: mobileAddRemindIn === opt.ms ? (theme === "dark" ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.08)") : "transparent", color: mobileAddRemindIn === opt.ms ? pageText(theme) : muted(theme) }}>
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: muted(theme), letterSpacing: ".04em" }}>Remind me</span>
+                  <ReminderPicker theme={theme} value={mobileAddRemindAt} onChange={setMobileAddRemindAt} morningTime={emailPrefs?.reminderTime} signedIn={!!isSignedIn} large />
                 </div>
               </>
             )}
@@ -826,14 +839,21 @@ export default function MobileBoard() {
       {actionNote && (
         <div style={{ position: "fixed", inset: 0, zIndex: 810, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
           <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,.4)" }} onClick={() => { setMobileActionNoteId(null); setMobileDeleteConfirm(false); }} />
-          <div style={{ position: "relative", backgroundColor: surface(theme), borderRadius: "20px 20px 0 0", padding: "20px 20px 36px", display: "flex", flexDirection: "column", gap: 12 }}>
-            <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: muted(theme), opacity: .5, marginBottom: 2 }}>Edit</div>
+          <div style={{ position: "relative", backgroundColor: surface(theme), borderRadius: "20px 20px 0 0", padding: "20px 20px 36px", display: "flex", flexDirection: "column", gap: 12, maxHeight: "88vh", overflowY: "auto", overscrollBehavior: "contain" }}>
+            <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: muted(theme), opacity: .5, marginBottom: 2 }}>Edit {actionNote.type === "task" ? "task" : "idea"}</div>
             <textarea
               rows={1}
               value={mobileEditTitle}
               onChange={e => { setMobileEditTitle(e.target.value); e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }}
               placeholder="Title"
               style={{ fontSize: 16, fontWeight: 600, color: pageText(theme), backgroundColor: paper(theme), border: `1.5px solid ${border(theme)}`, borderRadius: 12, padding: "13px 14px", outline: "none", width: "100%", boxSizing: "border-box", resize: "none", overflow: "hidden", lineHeight: 1.4 }}
+            />
+            <textarea
+              rows={2}
+              value={editBody}
+              onChange={e => { setEditBody(e.target.value); e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }}
+              placeholder={actionNote.type === "task" ? "Notes… (optional)" : "Add a note… (optional)"}
+              style={{ fontSize: 14, color: pageText(theme), backgroundColor: paper(theme), border: `1.5px solid ${border(theme)}`, borderRadius: 12, padding: "12px 14px", outline: "none", width: "100%", boxSizing: "border-box", resize: "none", overflow: "hidden", lineHeight: 1.5, fontFamily: "inherit" }}
             />
             {actionNote.type === "thought" && (
               <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
@@ -848,6 +868,12 @@ export default function MobileBoard() {
                     style={{ width: 30, height: 30, borderRadius: 999, backgroundColor: col.swatch, border: mobileEditColorIdx === i ? `2.5px solid ${pageText(theme)}` : `1.5px solid transparent`, cursor: "pointer", flexShrink: 0 }}
                   />
                 ))}
+              </div>
+            )}
+            {actionNote.type === "thought" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: muted(theme), letterSpacing: ".04em" }}>Remind me</span>
+                <ReminderPicker theme={theme} value={editRemindAt} onChange={setEditRemindAt} morningTime={emailPrefs?.reminderTime} signedIn={!!isSignedIn} large />
               </div>
             )}
             {actionNote.type === "task" && (
@@ -888,6 +914,31 @@ export default function MobileBoard() {
                     )}
                   </div>
                 )}
+                {/* Steps */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 4 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: muted(theme), letterSpacing: ".04em" }}>Steps</span>
+                  {mobileEditSteps.map(step => {
+                    const done = actionNote.steps.find(s => s.id === step.id)?.done;
+                    return (
+                      <div key={step.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ width: 9, height: 9, borderRadius: "50%", flexShrink: 0, border: done ? "1px solid #3d8b40" : `1px solid ${theme === "dark" ? "rgba(255,255,255,.22)" : "rgba(0,0,0,.22)"}`, backgroundColor: done ? "#6fc46b" : "transparent" }} />
+                        <input
+                          value={step.title}
+                          placeholder="Step name"
+                          onChange={e => setMobileEditSteps(prev => prev.map(s => s.id === step.id ? { ...s, title: e.target.value } : s))}
+                          style={{ flex: 1, minWidth: 0, height: 38, fontSize: 15, fontWeight: 600, color: pageText(theme), backgroundColor: paper(theme), border: `1px solid ${border(theme)}`, borderRadius: 10, padding: "0 12px", outline: "none", fontFamily: "inherit" }}
+                        />
+                        <button type="button" aria-label="Remove step" onClick={() => setMobileEditSteps(prev => prev.filter(s => s.id !== step.id))} style={{ width: 34, height: 34, flexShrink: 0, background: "none", border: "none", color: muted(theme), fontSize: 15, cursor: "pointer", opacity: .6 }}>✕</button>
+                      </div>
+                    );
+                  })}
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button type="button" onClick={() => setMobileEditSteps(prev => [...prev, { id: genId(), title: "", minutes: 15 }])} style={{ flex: 1, height: 38, borderRadius: 10, border: `1.5px dashed ${theme === "dark" ? "rgba(255,255,255,.25)" : "rgba(0,0,0,.22)"}`, background: "transparent", color: muted(theme), fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>+ Add step</button>
+                    {mobileEditSteps.length === 0 && (
+                      <button type="button" onClick={() => setMobileEditSteps(buildBreakdown(mobileEditTitle || actionNote.title, editBody, actionNote.minutes ?? 60, 0).map(s => ({ id: s.id, title: s.title, minutes: s.minutes ?? 15 })))} disabled={!mobileEditTitle.trim()} style={{ height: 38, borderRadius: 10, border: `1px solid ${border(theme)}`, background: "transparent", color: pageText(theme), fontSize: 14, fontWeight: 600, cursor: "pointer", padding: "0 14px", fontFamily: "inherit", opacity: mobileEditTitle.trim() ? 1 : .4 }}>Suggest steps</button>
+                    )}
+                  </div>
+                </div>
               </>
             )}
             <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
@@ -902,14 +953,21 @@ export default function MobileBoard() {
                     dueDate: mobileEditDueDate || undefined,
                     dueTime: mobileEditDueTime || undefined,
                     minutes: parsedMins && parsedMins > 0 ? parsedMins : undefined,
-                    ...(actionNote.type === "thought" ? { colorIdx: mobileEditColorIdx } : {}),
-                    steps: n.steps.map(s => {
-                      const edited = mobileEditSteps.find(e => e.id === s.id);
-                      return edited ? { ...s, minutes: edited.minutes } : s;
-                    }),
+                    body: editBody.trim(),
+                    ...(actionNote.type === "thought" ? { colorIdx: mobileEditColorIdx, remindAt: editRemindAt ?? undefined } : {}),
+                    steps: (() => {
+                      // Keep existing steps' progress and board position; lay out new ones like the desktop editor does.
+                      const kept = mobileEditSteps.filter(e => e.title.trim()).map(e => {
+                        const old = n.steps.find(s => s.id === e.id);
+                        return old ? { ...old, title: e.title.trim(), minutes: e.minutes } : { id: e.id, title: e.title.trim(), minutes: e.minutes, done: false, x: 0, y: 0 };
+                      });
+                      const laid = n.flowMode === "chain" ? layoutChain(n.x, n.y, kept) : layoutWeb(n.x, n.y, kept);
+                      return kept.map((s, i) => (s.x === 0 && s.y === 0) ? laid[i] : s);
+                    })(),
                   } : n);
                   setNotes(updatedNotes);
-                  scheduleDueDateReminder(actionNote.id, mobileEditTitle.trim() || actionNote.title, mobileEditDueDate || undefined, mobileEditDueTime || undefined);
+                  if (actionNote.type === "task") scheduleDueDateReminder(actionNote.id, mobileEditTitle.trim() || actionNote.title, mobileEditDueDate || undefined, mobileEditDueTime || undefined);
+                  else if ((actionNote.remindAt ?? null) !== editRemindAt) scheduleIdeaReminder(actionNote.id, mobileEditTitle.trim() || actionNote.title, editRemindAt);
                   setMobileActionNoteId(null);
                   setMobileDeleteConfirm(false);
                   if (isSignedIn) {
@@ -1040,7 +1098,7 @@ export default function MobileBoard() {
       {/* FAB */}
       <button
         data-tour="add-task"
-        onClick={() => { setMobileAddMode(isThoughtBoard ? "thought" : "task"); setMobileAddTitle(""); setMobileAddBody(""); setMobileAddImportance("Low"); setMobileAddDueDate(""); setMobileAddColorIdx(undefined); setMobileAddRemindIn(null); }}
+        onClick={() => { setMobileAddMode(isThoughtBoard ? "thought" : "task"); setMobileAddTitle(""); setMobileAddBody(""); setMobileAddImportance("Low"); setMobileAddDueDate(""); setMobileAddColorIdx(undefined); setMobileAddRemindAt(null); }}
         style={{ position: "fixed", bottom: 24, right: 20, height: 42, borderRadius: 999, backgroundColor: theme === "dark" ? "#23262b" : "#ffffff", color: theme === "dark" ? "#f5f5f2" : "#433d35", border: `1px solid ${border(theme)}`, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, padding: "0 18px 0 14px", boxShadow: "0 4px 20px rgba(0,0,0,.22)", zIndex: 100, fontSize: 14, fontWeight: 600, fontFamily: "inherit" }}
       >
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>

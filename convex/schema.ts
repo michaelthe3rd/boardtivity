@@ -21,8 +21,13 @@ export default defineSchema({
     weeklyDigest: v.boolean(),
     dueSoonReminder: v.optional(v.boolean()),
     bobUserInfo: v.optional(v.string()),
-    reminderTime: v.optional(v.string()), // "HH:MM" in user's local time, default "06:00"
-  }).index("by_token", ["tokenIdentifier"]),
+    reminderTime: v.optional(v.string()), // "HH:MM" local time for due-date reminders and the daily/weekly emails, default "08:00"
+    timeZone: v.optional(v.string()),     // IANA zone from the browser, e.g. "America/Chicago"
+    unsubscribeKey: v.optional(v.string()), // random key used in one-click unsubscribe links
+    lastDailySent: v.optional(v.string()),  // local YYYY-MM-DD of the last daily email, so the hourly cron never double-sends
+    lastWeeklySent: v.optional(v.string()),
+  }).index("by_token", ["tokenIdentifier"])
+    .index("by_unsubscribeKey", ["unsubscribeKey"]),
 
   feedbackPosts: defineTable({
     tokenIdentifier: v.string(),
@@ -71,6 +76,9 @@ export default defineSchema({
     email: v.string(),
     noteId: v.number(),
     noteTitle: v.string(),
+    kind: v.optional(v.union(v.literal("due"), v.literal("idea"))), // missing = "due" (older rows)
+    dueDate: v.optional(v.string()), // the due date this reminder was scheduled for; skipped if the task's date changed
+    dueTime: v.optional(v.string()),
     remindAt: v.number(),       // unix ms when to fire
     schedulerJobId: v.string(), // Convex scheduler job ID (stored as string)
     sent: v.boolean(),

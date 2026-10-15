@@ -28,6 +28,7 @@ import type { ThemeMode } from "@/lib/board";
 import { pageText, muted, border, paper, grid, panel, buttonStyle, circleButton, pill } from "@/lib/ui";
 import { todayStr, formatDateShort, fmtTime} from "@/lib/dates";
 import { BOARD_W, BOARD_H, NOTE_W, NOTE_H, noteCardWidth, titleFontSize, STEP_W, STEP_H} from "@/lib/boardLayout";
+import { BellIcon, formatReminder } from "@/components/board/ReminderPicker";
 
 export function HomeShell() {
   const home = useHomeState();
@@ -163,7 +164,6 @@ export function HomeShell() {
               {/* "Board" and "tivity" sit on task cards, like notes on the board */}
               <span style={{ whiteSpace: isMobile ? undefined : "nowrap" }}>The<HeroCard theme={theme} tilt={-2.5}>Board</HeroCard>and the</span><br/>
               Produc<HeroCard theme={theme} tilt={2} attached>tivity</HeroCard>
-              <span style={{ display: "block", lineHeight: 1, marginTop: "-.02em", fontStyle: "italic" }}>in one.</span>
             </h1>
             <p style={{ margin: "0 auto 36px", maxWidth: 480, fontSize: 17, color: muted(theme), lineHeight: 1.75, opacity: .75 }}>
               One place for your tasks and ideas. Split big tasks into small steps, add due dates, and use a timer to stay focused. Works on all your devices.
@@ -526,6 +526,11 @@ export function HomeShell() {
                       )}
                     </div>
 
+                    {note.type === "thought" && note.remindAt && note.remindAt > Date.now() && (
+                      <div style={{ ...pill(boardTheme), display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 700 }} title="Email reminder">
+                        <BellIcon size={10} />{formatReminder(note.remindAt)}
+                      </div>
+                    )}
                     {note.type === "task" && (note.dueDate || note.completed || note.steps.every(s => s.done && s.id)) && (() => {
                       const done = note.completed || (note.steps.length > 0 && note.steps.every(s => s.done));
                       if (done) return (

@@ -1,339 +1,301 @@
 import { internalAction, internalQuery } from "./_generated/server";
+import type { QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import { DEFAULT_PREFS } from "./emailPrefs";
+import { dueEmail, ideaEmail } from "./reminders";
+import { addToCalendarUrl } from "./calendarLinks";
+import { APP_URL, addDays, button, escapeHtml, formatDate, layout, localParts, relativeDue, sectionLabel, sendEmail, unsubscribeUrl } from "./emailTemplates";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// Daily and weekly outlines. A cron runs every hour; each user gets their email in the hour
+// that matches their chosen time ("HH:MM", default 08:00) in their own time zone.
+// The weekly outline goes out on Sundays (to plan the coming week) and replaces that day's daily email.
 
-interface Step {
-  id: string;
-  title: string;
-  done: boolean;
-  minutes?: number;
-}
+// Users who haven't opened the app since time zones were saved keep the old 9am-Eastern timing.
+const FALLBACK_TIME_ZONE = "America/New_York";
 
-interface Task {
+type Task = {
   id: number;
-  boardId: number;
+  boardId: string | number;
   type: string;
   title: string;
   dueDate?: string;
-  completed: boolean;
-  steps: Step[];
-  importance: string;
-  totalTimeSpent?: number;
-}
+  dueTime?: string;
+  completed?: boolean;
+  importance?: string;
+  steps?: { title: string; done: boolean }[];
+};
 
-interface BoardState {
-  boards: { id: number; name: string }[];
-  notes: Task[];
-}
+type Focus = { currentStreak: number; weekMinutes: number; totalMinutes: number };
 
-interface FocusData {
-  currentStreak: number;
-  totalMinutes: number;
-  totalTasksCompleted: number;
-  weekMinutes: number;
-}
+// ── Who gets an email this hour ──────────────────────────────────────────────
 
-// ─── Query: get users eligible for a given digest ────────────────────────────
+export const recipientsForHour = internalQuery({
+  args: { nowMs: v.number() },
+  handler: async (ctx, { nowMs }) => {
+    const byEmail = new Map<string, {
+      tokenIdentifier: string; email: string; boardState: string; updatedAt: number;
+      localDate: string; daily: boolean; weekly: boolean;
+    }>();
 
-export const getUsersForDigest = internalQuery({
-  args: { digestType: v.union(v.literal("daily"), v.literal("weekly")) },
-  handler: async (ctx, { digestType }) => {
-    const users = await ctx.db.query("userBoards").take(2000);
-    const byEmail = new Map<string, { email: string; boardState: string; updatedAt: number; tokenIdentifier: string }>();
-
-    for (const user of users) {
+    for (const user of await ctx.db.query("userBoards").take(5000)) {
       if (!user.email) continue;
-
       const prefs = await ctx.db
         .query("emailPrefs")
         .withIndex("by_token", (q) => q.eq("tokenIdentifier", user.tokenIdentifier))
         .first();
+      const local = localParts(nowMs, prefs?.timeZone ?? FALLBACK_TIME_ZONE);
+      const sendHour = Number((prefs?.reminderTime ?? DEFAULT_PREFS.reminderTime).slice(0, 2));
+      if (local.hour !== sendHour) continue;
 
-      const enabled = digestType === "daily"
-        ? (prefs ? prefs.dailyDigest : true)
-        : (prefs ? prefs.weeklyDigest : true);
+      const weekly = (prefs?.weeklyDigest ?? DEFAULT_PREFS.weeklyDigest) && local.weekday === 0 && prefs?.lastWeeklySent !== local.date;
+      const daily = !weekly && (prefs?.dailyDigest ?? DEFAULT_PREFS.dailyDigest) && prefs?.lastDailySent !== local.date;
+      if (!daily && !weekly) continue;
 
-      if (!enabled) continue;
-
+      // One email per address, even if it's linked to more than one sign-in.
       const existing = byEmail.get(user.email);
       if (!existing || user.updatedAt > existing.updatedAt) {
-        byEmail.set(user.email, { email: user.email, boardState: user.boardState, updatedAt: user.updatedAt, tokenIdentifier: user.tokenIdentifier });
+        byEmail.set(user.email, { tokenIdentifier: user.tokenIdentifier, email: user.email, boardState: user.boardState, updatedAt: user.updatedAt, localDate: local.date, daily, weekly });
       }
     }
 
-    // Fetch focus stats for each user
     const results = [];
     for (const u of byEmail.values()) {
-      const today = new Date().toISOString().slice(0, 10);
-      const weekAgo = new Date();
-      weekAgo.setUTCDate(weekAgo.getUTCDate() - 6);
-      const weekAgoStr = weekAgo.toISOString().slice(0, 10);
-
-      const allRows = await ctx.db
-        .query("focusStats")
-        .withIndex("by_token", (q) => q.eq("tokenIdentifier", u.tokenIdentifier))
-        .take(10000);
-
-      let totalMinutes = 0;
-      let totalTasksCompleted = 0;
-      let weekMinutes = 0;
-      for (const row of allRows) {
-        totalMinutes += row.totalMinutes;
-        totalTasksCompleted += row.tasksCompleted;
-        if (row.date >= weekAgoStr) weekMinutes += row.totalMinutes;
-      }
-
-      // Streak: consecutive days ending today
-      const activeDates = new Set(allRows.filter(r => r.totalMinutes > 0).map(r => r.date));
-      let currentStreak = 0;
-      for (let i = 0; ; i++) {
-        const d = new Date();
-        d.setUTCDate(d.getUTCDate() - i);
-        const dateStr = d.toISOString().slice(0, 10);
-        if (activeDates.has(dateStr)) {
-          currentStreak++;
-        } else {
-          if (i === 0 && dateStr === today) continue;
-          break;
-        }
-      }
-
-      results.push({ email: u.email, boardState: u.boardState, focus: { currentStreak, totalMinutes, totalTasksCompleted, weekMinutes } });
+      results.push({ ...u, focus: await focusSummary(ctx, u.tokenIdentifier, u.localDate) });
     }
-
     return results;
   },
 });
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function todayUTC() {
-  return new Date().toISOString().slice(0, 10);
+// Streak, last-7-days and all-time focus minutes, counted in the user's local days.
+async function focusSummary(ctx: QueryCtx, tokenIdentifier: string, today: string): Promise<Focus> {
+  const rows = await ctx.db
+    .query("focusStats")
+    .withIndex("by_token", (q) => q.eq("tokenIdentifier", tokenIdentifier))
+    .take(2000);
+  const weekStart = addDays(today, -6);
+  let totalMinutes = 0, weekMinutes = 0;
+  const active = new Set<string>();
+  for (const row of rows) {
+    totalMinutes += row.totalMinutes;
+    if (row.date >= weekStart && row.date <= today) weekMinutes += row.totalMinutes;
+    if (row.totalMinutes > 0) active.add(row.date);
+  }
+  // A streak still counts if today hasn't been focused yet.
+  let day = active.has(today) ? today : addDays(today, -1);
+  let currentStreak = 0;
+  while (active.has(day)) { currentStreak++; day = addDays(day, -1); }
+  return { currentStreak, weekMinutes, totalMinutes };
 }
-function formatDate(date: string) {
-  const [y, m, d] = date.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
-}
 
-function pendingTasks(boardState: string): Task[] {
+// ── Sending ──────────────────────────────────────────────────────────────────
+
+export const sendScheduledDigests = internalAction({
+  args: {},
+  handler: async (ctx) => {
+    const users = await ctx.runQuery(internal.emails.recipientsForHour, { nowMs: Date.now() });
+    for (const user of users) {
+      const { tasks, boardNames } = readBoard(user.boardState);
+      const key = await ctx.runMutation(internal.emailPrefs.ensureUnsubscribeKey, { tokenIdentifier: user.tokenIdentifier });
+      const email = user.weekly
+        ? weeklyEmail(tasks, boardNames, user.focus, user.localDate, unsubscribeUrl(key, "weekly"))
+        : dailyEmail(tasks, boardNames, user.focus, user.localDate, unsubscribeUrl(key, "daily"));
+
+      if (email) {
+        try {
+          await sendEmail({ to: user.email, subject: email.subject, html: email.html, unsubscribe: email.unsubscribe });
+        } catch (e) {
+          console.error(`${user.weekly ? "Weekly" : "Daily"} email failed for ${user.email}:`, e);
+          continue; // not stamped; logged so a failed send can be looked into
+        }
+      }
+      // Stamp even when there was nothing to send, so we don't re-check this user again today.
+      await ctx.runMutation(internal.emailPrefs.markDigestSent, { tokenIdentifier: user.tokenIdentifier, date: user.localDate, daily: user.daily, weekly: user.weekly });
+    }
+    return null;
+  },
+});
+
+function readBoard(boardState: string): { tasks: Task[]; boardNames: Map<string, string> } {
   try {
-    const { notes } = JSON.parse(boardState) as BoardState;
-    if (!Array.isArray(notes)) return [];
-    return notes.filter(
-      (n) => n.type === "task" && !n.completed &&
-        !(Array.isArray(n.steps) && n.steps.length > 0 && n.steps.every((s) => s.done))
-    );
+    const { notes, boards } = JSON.parse(boardState) as { notes?: Task[]; boards?: { id: string | number; name: string }[] };
+    const tasks = (notes ?? []).filter((n) =>
+      n.type === "task" && !n.completed && !(n.steps?.length && n.steps.every((s) => s.done)));
+    return { tasks, boardNames: new Map((boards ?? []).map((b) => [String(b.id), b.name])) };
   } catch {
-    return [];
+    return { tasks: [], boardNames: new Map() };
   }
 }
 
-async function sendEmail(to: string, subject: string, html: string) {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM ?? "Boardtivity <hello@boardtivity.com>";
-  if (!apiKey) throw new Error("RESEND_API_KEY not set");
+// ── Email content ────────────────────────────────────────────────────────────
 
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ from, to, subject, html }),
-  });
+const PRIORITY_DOT: Record<string, string> = { High: "#c03030", Medium: "#d07030", Low: "#c8960a" };
+const PRIORITY_RANK: Record<string, number> = { High: 0, Medium: 1, Low: 2 };
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Resend error ${res.status}: ${text}`);
-  }
+function byDueThenPriority(a: Task, b: Task) {
+  const ad = `${a.dueDate ?? "9999"}T${a.dueTime ?? "99"}`, bd = `${b.dueDate ?? "9999"}T${b.dueTime ?? "99"}`;
+  if (ad !== bd) return ad < bd ? -1 : 1;
+  return (PRIORITY_RANK[a.importance ?? ""] ?? 3) - (PRIORITY_RANK[b.importance ?? ""] ?? 3);
 }
 
-// ─── Email HTML builders ──────────────────────────────────────────────────────
-
-function taskRow(task: Task, highlight?: string) {
-  const dueLabel = task.dueDate ? formatDate(task.dueDate) : "";
-  const impColor = task.importance === "High" ? "#c03030" : task.importance === "Medium" ? "#b07010" : "#4a7040";
-  const isHighlighted = !!highlight;
-  const timeLabel = (task.totalTimeSpent ?? 0) > 0
-    ? `<span style="font-size:11px;color:#aaa;margin-left:6px;">${task.totalTimeSpent! >= 60 ? `${Math.floor(task.totalTimeSpent! / 60)}h ${task.totalTimeSpent! % 60 > 0 ? `${task.totalTimeSpent! % 60}m` : ""}` : `${task.totalTimeSpent}m`} focused</span>`
-    : "";
+function taskRow(task: Task, boardNames: Map<string, string>, today: string, dueColor = "#8a8780") {
+  const steps = task.steps ?? [];
+  const meta = [
+    task.dueDate ? `<span style="color:${dueColor};">${escapeHtml(relativeDue(task.dueDate, task.dueTime, today).replace(/^./, (c) => c.toUpperCase()))}</span>` : "",
+    steps.length ? `${steps.filter((s) => s.done).length}/${steps.length} steps` : "",
+    boardNames.size > 1 ? escapeHtml(boardNames.get(String(task.boardId)) ?? "") : "",
+    task.dueDate ? `<a href="${escapeHtml(addToCalendarUrl({ title: task.title, date: task.dueDate, time: task.dueTime }))}" style="color:#8a8780;">Add to calendar</a>` : "",
+  ].filter(Boolean).join(" &nbsp;·&nbsp; ");
   return `
     <tr>
-      <td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0;">
-        <div style="display:flex;align-items:flex-start;gap:10px;">
-          <div style="width:6px;height:6px;border-radius:50%;background:${isHighlighted ? highlight : (task.importance !== "none" ? impColor : "#ccc")};margin-top:6px;flex-shrink:0;"></div>
-          <div style="flex:1;">
-            <div style="font-size:14px;font-weight:600;color:${isHighlighted ? "#111" : "#222"};">${task.title}${timeLabel}</div>
-            ${dueLabel ? `<div style="font-size:12px;color:${isHighlighted ? highlight : "#999"};margin-top:2px;">${dueLabel}</div>` : ""}
-          </div>
-        </div>
+      <td width="18" valign="top" style="padding:12px 0 0;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${PRIORITY_DOT[task.importance ?? ""] ?? "#d6d3cb"};"></span></td>
+      <td style="padding:8px 0;border-bottom:1px solid #f0eee8;">
+        <div style="font-size:15px;font-weight:600;color:#171613;line-height:1.4;">${escapeHtml(task.title)}</div>
+        ${meta ? `<div style="font-size:12px;color:#8a8780;margin-top:2px;">${meta}</div>` : ""}
       </td>
     </tr>`;
 }
 
-function focusSection(focus: FocusData, type: "daily" | "weekly") {
-  if (focus.totalMinutes === 0 && focus.currentStreak === 0) return "";
-
-  const streakBolt = focus.currentStreak > 0
-    ? `<span style="display:inline-block;background:#fef9c3;color:#854d0e;font-size:12px;font-weight:700;padding:2px 8px;border-radius:6px;margin-right:8px;">⚡ ${focus.currentStreak}d streak</span>`
-    : "";
-
-  const weekMins = focus.weekMinutes;
-  const weekLabel = weekMins < 60 ? `${weekMins}m` : `${Math.round(weekMins / 60 * 10) / 10}h`;
-  const totalMins = focus.totalMinutes;
-  const totalLabel = totalMins < 60 ? `${totalMins}m` : `${Math.round(totalMins / 60 * 10) / 10}h`;
-
-  const statLine = type === "daily"
-    ? `${weekLabel} focused this week · ${focus.totalTasksCompleted} tasks completed all time`
-    : `${weekLabel} focused this week · ${totalLabel} total`;
-
-  return `
-    <div style="background:#f9f9f7;border-radius:10px;padding:14px 16px;margin-bottom:20px;border:1px solid #ebebeb;">
-      <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:#999;margin-bottom:8px;">Focus</div>
-      <div>${streakBolt}<span style="font-size:13px;color:#555;">${statLine}</span></div>
-    </div>`;
-}
-
-function emailWrapper(title: string, subtitle: string, body: string) {
-  return `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f6f6f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f6f6f4;padding:32px 16px;">
-  <tr><td align="center">
-    <table width="100%" style="max-width:520px;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.07);">
-      <tr><td style="padding:28px 32px 20px;background:#111;">
-        <div style="font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.5);font-weight:700;margin-bottom:6px;">Boardtivity</div>
-        <div style="font-size:22px;font-weight:800;color:#fff;">${title}</div>
-        <div style="font-size:13px;color:rgba(255,255,255,.55);margin-top:4px;">${subtitle}</div>
-      </td></tr>
-      <tr><td style="padding:24px 32px 32px;">
-        ${body}
-      </td></tr>
-      <tr><td style="padding:16px 32px;border-top:1px solid #f0f0f0;text-align:center;">
-        <a href="https://boardtivity.com" style="font-size:12px;color:#aaa;text-decoration:none;">Open Boardtivity</a>
-        <span style="color:#ddd;margin:0 8px;">·</span>
-        <a href="https://boardtivity.com" style="font-size:12px;color:#aaa;text-decoration:none;">Manage email preferences</a>
-      </td></tr>
-    </table>
-  </td></tr>
-</table>
-</body></html>`;
-}
-
-function taskSection(label: string, tasks: Task[], highlightColor?: string) {
+function taskSection(label: string, tasks: Task[], boardNames: Map<string, string>, today: string, opts: { limit?: number; color?: string } = {}) {
   if (tasks.length === 0) return "";
+  const limit = opts.limit ?? 6;
+  const shown = tasks.slice(0, limit);
+  const more = tasks.length - shown.length;
   return `
-    <div style="margin-bottom:20px;">
-      <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:#999;margin-bottom:8px;">${label}</div>
-      <table width="100%" cellpadding="0" cellspacing="0">${tasks.map((t) => taskRow(t, highlightColor)).join("")}</table>
+    <div style="margin-bottom:22px;">
+      ${sectionLabel(`${label} · ${tasks.length}`, opts.color)}
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${shown.map((t) => taskRow(t, boardNames, today, opts.color)).join("")}</table>
+      ${more > 0 ? `<div style="font-size:13px;color:#8a8780;margin-top:8px;">+ ${more} more on your board</div>` : ""}
     </div>`;
 }
 
-// ─── Daily digest ─────────────────────────────────────────────────────────────
+function focusLine(focus: Focus) {
+  if (focus.weekMinutes === 0 && focus.currentStreak === 0) return "";
+  const hours = (m: number) => (m < 60 ? `${m} min` : `${Math.round((m / 60) * 10) / 10} h`);
+  const bits = [
+    focus.currentStreak > 0 ? `<strong style="color:#171613;">${focus.currentStreak}-day streak</strong>` : "",
+    focus.weekMinutes > 0 ? `${hours(focus.weekMinutes)} focused in the last 7 days` : "",
+  ].filter(Boolean).join(" &nbsp;·&nbsp; ");
+  return `<div style="font-size:13px;color:#6b675f;background:#faf9f6;border:1px solid #ece9e1;border-radius:10px;padding:10px 14px;margin-bottom:22px;">⚡ ${bits}</div>`;
+}
 
-export const sendDailyDigests = internalAction({
-  args: {},
-  handler: async (ctx) => {
-    const users = await ctx.runQuery(internal.emails.getUsersForDigest, { digestType: "daily" });
-    const today = todayUTC();
-    const dateLabel = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+function plural(n: number, word: string) { return `${n} ${word}${n === 1 ? "" : "s"}`; }
 
-    for (const user of users) {
-      const tasks = pendingTasks(user.boardState);
-      const focusBlock = focusSection(user.focus, "daily");
+// Daily: only sent when something is due today, due in the next 3 days, or went overdue in the
+// last week. Long-overdue tasks are still listed, but they don't trigger an email every day.
+function dailyEmail(tasks: Task[], boardNames: Map<string, string>, focus: Focus, today: string, unsubscribe: string) {
+  const dated = tasks.filter((t) => t.dueDate).sort(byDueThenPriority);
+  const overdue = dated.filter((t) => t.dueDate! < today);
+  const dueToday = dated.filter((t) => t.dueDate === today);
+  const soon = dated.filter((t) => t.dueDate! > today && t.dueDate! <= addDays(today, 3));
+  const recentlyOverdue = overdue.some((t) => t.dueDate! >= addDays(today, -7));
+  if (!recentlyOverdue && !dueToday.length && !soon.length) return null;
 
-      let body: string;
-      let subject: string;
+  const headline = dueToday.length ? `${plural(dueToday.length, "task")} due today`
+    : overdue.length ? `${plural(overdue.length, "task")} overdue`
+    : `${plural(soon.length, "task")} coming up`;
+  const extra = [dueToday.length && overdue.length ? `${overdue.length} overdue` : "", soon.length && (dueToday.length || overdue.length) ? `${soon.length} coming up` : ""].filter(Boolean).join(", ");
 
-      if (tasks.length === 0) {
-        subject = `No tasks for today — ${dateLabel}`;
-        body = focusBlock + `
-          <div style="text-align:center;padding:24px 0;">
-            <div style="font-size:32px;margin-bottom:12px;">✓</div>
-            <div style="font-size:18px;font-weight:700;color:#111;margin-bottom:8px;">You're all clear today!</div>
-            <p style="font-size:14px;color:#888;margin:0 0 24px;line-height:1.6;">No tasks on your plate right now. A great time to plan ahead.</p>
-            <a href="https://boardtivity.com" style="display:inline-block;background:#111;color:#fff;font-size:14px;font-weight:700;text-decoration:none;padding:12px 28px;border-radius:10px;">Add tasks for today →</a>
-          </div>`;
-      } else {
-        subject = `Your tasks for ${dateLabel}`;
-        const dueToday = tasks.filter((t) => t.dueDate === today);
-        const overdue = tasks.filter((t) => t.dueDate && t.dueDate < today);
-        const upcomingAll = tasks
-          .filter((t) => !t.dueDate || t.dueDate > today)
-          .filter((t) => t.dueDate !== today)
-          .sort((a, b) => {
-            if (a.dueDate && b.dueDate) return a.dueDate < b.dueDate ? -1 : 1;
-            if (a.dueDate) return -1;
-            if (b.dueDate) return 1;
-            return 0;
-          });
-        const upcoming3 = upcomingAll.slice(0, 3);
-        const remaining = upcomingAll.length - upcoming3.length;
-        body = focusBlock +
-          taskSection("Overdue", overdue, "#c03030") +
-          taskSection("Due Today", dueToday, "#cc1f1f") +
-          taskSection("Upcoming", upcoming3) +
-          (remaining > 0 ? `<p style="font-size:13px;color:#aaa;margin:4px 0 0;">+${remaining} more task${remaining !== 1 ? "s" : ""} — <a href="https://boardtivity.com" style="color:#aaa;">view all</a></p>` : "") +
-          `<p style="font-size:13px;color:#aaa;margin:16px 0 0;">${tasks.length} pending task${tasks.length !== 1 ? "s" : ""} total.</p>`;
-      }
+  const body = focusLine(focus)
+    + taskSection("Overdue", overdue, boardNames, today, { color: "#c03030" })
+    + taskSection("Due today", dueToday, boardNames, today, { color: "#b05a20" })
+    + taskSection("Next 3 days", soon, boardNames, today)
+    + `<div style="margin-top:6px;">${button("Open my board", APP_URL)}</div>`;
 
-      try {
-        await sendEmail(user.email, subject, emailWrapper("Daily Task Outline", dateLabel, body));
-      } catch (e) {
-        console.error(`Daily digest failed for ${user.email}:`, e);
-      }
-    }
+  return {
+    subject: extra ? `${headline} (${extra})` : headline,
+    unsubscribe,
+    html: layout({
+      preheader: [headline, extra].filter(Boolean).join(" · "),
+      eyebrow: formatDate(today, { weekday: "long", month: "long", day: "numeric" }),
+      title: headline.replace(/^./, (c) => c.toUpperCase()),
+      body,
+      footerNote: "Your daily outline. It only comes on days something is due.",
+      unsubscribe: { url: unsubscribe, label: "Turn off daily emails" },
+    }),
+  };
+}
+
+// Weekly (Sundays): sent whenever there are open tasks. "Coming week" is today through next Sunday.
+function weeklyEmail(tasks: Task[], boardNames: Map<string, string>, focus: Focus, today: string, unsubscribe: string) {
+  if (!tasks.length) return null;
+  const weekEnd = addDays(today, 7);
+  const sorted = [...tasks].sort(byDueThenPriority);
+  const overdue = sorted.filter((t) => t.dueDate && t.dueDate < today);
+  const thisWeek = sorted.filter((t) => t.dueDate && t.dueDate >= today && t.dueDate <= weekEnd);
+  const later = sorted.filter((t) => t.dueDate && t.dueDate > weekEnd);
+  const undated = sorted.filter((t) => !t.dueDate);
+
+  const headline = thisWeek.length ? `${plural(thisWeek.length, "task")} due this coming week`
+    : overdue.length ? `${plural(overdue.length, "task")} overdue`
+    : `${plural(tasks.length, "open task")} on your board`;
+  const body = focusLine(focus)
+    + taskSection("Overdue", overdue, boardNames, today, { color: "#c03030" })
+    + taskSection("Coming week", thisWeek, boardNames, today, { limit: 8 })
+    + taskSection("Later", later, boardNames, today, { limit: 4 })
+    + taskSection("No due date", undated, boardNames, today, { limit: 4 })
+    + `<div style="margin-top:6px;">${button("Plan my week", APP_URL)}</div>`;
+
+  return {
+    subject: thisWeek.length && overdue.length ? `Your week: ${headline}, ${overdue.length} overdue` : `Your week: ${headline}`,
+    unsubscribe,
+    html: layout({
+      preheader: `${headline}. ${plural(tasks.length, "open task")} in total.`,
+      eyebrow: `Week of ${formatDate(addDays(today, 1), { month: "long", day: "numeric" })}`,
+      title: headline.replace(/^./, (c) => c.toUpperCase()),
+      body,
+      footerNote: "Your weekly outline, every Sunday.",
+      unsubscribe: { url: unsubscribe, label: "Turn off weekly emails" },
+    }),
+  };
+}
+
+// Preview helper (run from the dashboard or `npx convex run`): renders one user's emails without sending.
+export const previewDigests = internalQuery({
+  args: { tokenIdentifier: v.string() },
+  handler: async (ctx, { tokenIdentifier }) => {
+    const board = await ctx.db.query("userBoards").withIndex("by_token", (q) => q.eq("tokenIdentifier", tokenIdentifier)).first();
+    if (!board) return null;
+    const prefs = await ctx.db.query("emailPrefs").withIndex("by_token", (q) => q.eq("tokenIdentifier", tokenIdentifier)).first();
+    const today = localParts(Date.now(), prefs?.timeZone ?? FALLBACK_TIME_ZONE).date;
+    const { tasks, boardNames } = readBoard(board.boardState);
+    const focus = await focusSummary(ctx, tokenIdentifier, today);
+    const nextDue = [...tasks].filter((t) => t.dueDate).sort(byDueThenPriority).pop();
+    return {
+      daily: dailyEmail(tasks, boardNames, focus, today, "#unsubscribe"),
+      weekly: weeklyEmail(tasks, boardNames, focus, today, "#unsubscribe"),
+      reminder: nextDue ? dueEmail({ title: nextDue.title, note: nextDue, boardName: boardNames.get(String(nextDue.boardId)) ?? null, dueDate: nextDue.dueDate, dueTime: nextDue.dueTime, today, unsubscribe: "#unsubscribe" }) : null,
+    };
   },
 });
 
-// ─── Weekly digest ────────────────────────────────────────────────────────────
-
-export const sendWeeklyDigests = internalAction({
+// Every email type rendered from a made-up board, for checking designs (`npx convex run emails:previewSamples`).
+export const previewSamples = internalQuery({
   args: {},
-  handler: async (ctx) => {
-    const users = await ctx.runQuery(internal.emails.getUsersForDigest, { digestType: "weekly" });
-    const today = todayUTC();
-    const now = new Date();
-    const dayOfWeek = now.getUTCDay();
-    const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-    const monday = new Date(now);
-    monday.setUTCDate(now.getUTCDate() - daysToMonday);
-    const sunday = new Date(monday);
-    sunday.setUTCDate(monday.getUTCDate() + 6);
-    const dateLabel = `${monday.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${sunday.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
-
-    for (const user of users) {
-      const tasks = pendingTasks(user.boardState);
-      const focusBlock = focusSection(user.focus, "weekly");
-
-      let body: string;
-      let subject: string;
-
-      if (tasks.length === 0) {
-        subject = "Clean slate this week — Boardtivity";
-        body = focusBlock + `
-          <div style="text-align:center;padding:24px 0;">
-            <div style="font-size:32px;margin-bottom:12px;">🗓</div>
-            <div style="font-size:18px;font-weight:700;color:#111;margin-bottom:8px;">Nothing on the books yet!</div>
-            <p style="font-size:14px;color:#888;margin:0 0 24px;line-height:1.6;">Your task list is empty this week. Head over to Boardtivity to plan out your week.</p>
-            <a href="https://boardtivity.com" style="display:inline-block;background:#111;color:#fff;font-size:14px;font-weight:700;text-decoration:none;padding:12px 28px;border-radius:10px;">Plan your week →</a>
-          </div>`;
-      } else {
-        subject = `Your week ahead — ${tasks.length} task${tasks.length !== 1 ? "s" : ""} pending`;
-        const overdue = tasks.filter((t) => t.dueDate && t.dueDate < today);
-        const withDue = tasks.filter((t) => t.dueDate && t.dueDate >= today).sort((a, b) => (a.dueDate! < b.dueDate! ? -1 : 1));
-        const noDue = tasks.filter((t) => !t.dueDate);
-        body = focusBlock +
-          (overdue.length > 0 ? taskSection("Overdue", overdue, "#c03030") : "") +
-          (withDue.length > 0 ? taskSection("Scheduled", withDue) : "") +
-          (noDue.length > 0 ? taskSection("No due date", noDue) : "") +
-          `<p style="font-size:13px;color:#aaa;margin:20px 0 0;">${tasks.length} pending task${tasks.length !== 1 ? "s" : ""} across all boards.</p>`;
-      }
-
-      try {
-        await sendEmail(user.email, subject, emailWrapper("Weekly Task Outline", `Week of ${dateLabel}`, body));
-      } catch (e) {
-        console.error(`Weekly digest failed for ${user.email}:`, e);
-      }
-    }
+  handler: async () => {
+    const today = localParts(Date.now(), FALLBACK_TIME_ZONE).date;
+    const d = (n: number) => addDays(today, n);
+    const step = (title: string, done = false) => ({ title, done });
+    const tasks: Task[] = [
+      { id: 1, boardId: "1", type: "task", title: "Submit lab report", dueDate: d(-2), importance: "High", steps: [step("Run analysis", true), step("Write discussion")] },
+      { id: 2, boardId: "1", type: "task", title: "Finish history essay", dueDate: d(0), dueTime: "17:00", importance: "High",
+        steps: [step("Pick a thesis", true), step("Outline", true), step("Write intro"), step("Write body paragraphs"), step("Cite sources")] },
+      { id: 3, boardId: "2", type: "task", title: "Pay rent", dueDate: d(0), importance: "Medium" },
+      { id: 4, boardId: "1", type: "task", title: "Study for chem exam", dueDate: d(2), importance: "Medium", steps: [step("Ch. 4 review", true), step("Practice problems"), step("Flashcards")] },
+      { id: 5, boardId: "2", type: "task", title: "Book dentist appointment", dueDate: d(3), importance: "Low" },
+      { id: 6, boardId: "1", type: "task", title: "Group project slides", dueDate: d(5), importance: "Medium" },
+      { id: 7, boardId: "2", type: "task", title: "Renew passport", dueDate: d(20), importance: "Low" },
+      { id: 8, boardId: "2", type: "task", title: "Clean out garage", importance: "none" },
+    ];
+    const boardNames = new Map([["1", "School"], ["2", "Home"]]);
+    const focus = { currentStreak: 5, weekMinutes: 412, totalMinutes: 3100 };
+    const essay = tasks[1];
+    return {
+      reminder: dueEmail({ title: essay.title, note: essay, boardName: "School", dueDate: essay.dueDate, dueTime: essay.dueTime, today, unsubscribe: "#unsubscribe" }),
+      reminderTomorrow: dueEmail({ title: tasks[3].title, note: tasks[3], boardName: "School", dueDate: d(1), today, unsubscribe: "#unsubscribe" }),
+      idea: ideaEmail({ title: "App idea: shared grocery list", body: "Sync with roommates, sort by store aisle, and show who's buying what.", boardName: "Ideas", unsubscribe: "#unsubscribe" }),
+      daily: dailyEmail(tasks, boardNames, focus, today, "#unsubscribe"),
+      weekly: weeklyEmail(tasks, boardNames, focus, today, "#unsubscribe"),
+    };
   },
 });
