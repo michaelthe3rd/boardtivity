@@ -28,8 +28,9 @@ export const setBobUserInfo = mutation({
     } else {
       await ctx.db.insert("emailPrefs", {
         tokenIdentifier: identity.tokenIdentifier,
-        dailyDigest: false,
-        weeklyDigest: false,
+        // Match the emailPrefs defaults so saving BOB info doesn't switch the emails off
+        dailyDigest: true,
+        weeklyDigest: true,
         bobUserInfo: userInfo,
       });
     }

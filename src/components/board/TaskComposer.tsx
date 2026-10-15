@@ -6,6 +6,7 @@ import { pageText, muted, border, panel, buttonStyle, fieldStyle, circleButton, 
 import { formatDate} from "@/lib/dates";
 import { estimateTime, buildBreakdown } from "@/lib/breakdown";
 import { useHome } from "@/components/home/HomeContext";
+import ReminderPicker from "@/components/board/ReminderPicker";
 
 // Add-task / add-idea dialog with drafts, priority, due date and BOB breakdown.
 export default function TaskComposer() {
@@ -14,7 +15,7 @@ export default function TaskComposer() {
     dueTime, setDueTime, minutes, setMinutes, importance, setImportance, aiSteps, setAiSteps,
     breakdownVariant, setBreakdownVariant, composerError, setComposerError, drafts, composerColorIdx, setComposerColorIdx, dateInputRef,
     isMobile, activeBoard, getBg, thoughtMode, recentTasks, createNote, closeComposer, loadDraft,
-    deleteDraft,
+    deleteDraft, composerRemindAt, setComposerRemindAt, emailPrefs, isSignedIn,
   } = useHome();
   if (!(composerOpen)) return null;
   return (
@@ -149,6 +150,12 @@ export default function TaskComposer() {
                     style={{ width: 24, height: 24, borderRadius: "50%", padding: 0, cursor: "pointer", backgroundColor: col.swatch, border: composerColorIdx === i ? `2.5px solid ${pageText(boardTheme)}` : "2.5px solid transparent", outline: composerColorIdx === i ? `2px solid ${col.swatch}` : "none", outlineOffset: 2 }}
                   />
                 ))}
+              </div>
+            )}
+            {thoughtMode && (
+              <div style={{ display: "grid", gap: 8, padding: "4px 0" }}>
+                <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", color: muted(boardTheme), opacity: .6 }}>Remind me</span>
+                <ReminderPicker theme={boardTheme} value={composerRemindAt} onChange={setComposerRemindAt} morningTime={emailPrefs?.reminderTime} signedIn={!!isSignedIn} />
               </div>
             )}
             {!thoughtMode && (

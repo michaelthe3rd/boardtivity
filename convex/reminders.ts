@@ -1,55 +1,73 @@
-import { mutation, query, internalAction, internalMutation, internalQuery } from "./_generated/server";
+import { mutation, internalAction, internalMutation, internalQuery } from "./_generated/server";
+import type { MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
+import { addToCalendarUrl } from "./calendarLinks";
+import { APP_URL, button, escapeHtml, formatDate, layout, localParts, relativeDue, sectionLabel, sendEmail, unsubscribeUrl } from "./emailTemplates";
 
-// ── Public mutations ──────────────────────────────────────────────────────────
+// One reminder per note. The client works out *when* (it knows the user's local time);
+// the server re-checks the task right before sending so finished, deleted or re-dated
+// tasks never get an email.
+
+async function removeExisting(ctx: MutationCtx, tokenIdentifier: string, noteId: number) {
+  const existing = await ctx.db
+    .query("reminders")
+    .withIndex("by_note_and_token", (q) => q.eq("tokenIdentifier", tokenIdentifier).eq("noteId", noteId))
+    .take(10);
+  for (const row of existing) {
+    if (!row.sent && row.schedulerJobId) {
+      try { await ctx.scheduler.cancel(row.schedulerJobId as Id<"_scheduled_functions">); } catch { /* already ran */ }
+    }
+    await ctx.db.delete(row._id);
+  }
+}
+
+// ── Public ───────────────────────────────────────────────────────────────────
 
 export const set = mutation({
   args: {
-    noteId:    v.number(),
+    noteId: v.number(),
     noteTitle: v.string(),
-    delayMs:   v.number(),  // ms from now; 0 = cancel
+    delayMs: v.number(), // ms from now; <= 0 cancels
+    at: v.optional(v.number()), // exact time (ms); ideas pass it so the server can match it against the note
+    kind: v.optional(v.union(v.literal("due"), v.literal("idea"))),
+    dueDate: v.optional(v.string()),
+    dueTime: v.optional(v.string()),
   },
-  handler: async (ctx, { noteId, noteTitle, delayMs }) => {
+  handler: async (ctx, { noteId, noteTitle, delayMs, at, kind = "due", dueDate, dueTime }) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity || !identity.email) return null;
 
-    // Cancel any existing reminder for this note
-    const existing = await ctx.db
-      .query("reminders")
-      .withIndex("by_note_and_token", q =>
-        q.eq("tokenIdentifier", identity.tokenIdentifier).eq("noteId", noteId)
-      )
-      .first();
-
-    if (existing) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      try { await ctx.scheduler.cancel(existing.schedulerJobId as any); } catch {}
-      await ctx.db.delete(existing._id);
-    }
-
+    await removeExisting(ctx, identity.tokenIdentifier, noteId);
     if (delayMs <= 0) return null;
 
-    const remindAt = Date.now() + delayMs;
+    if (kind === "due") {
+      const prefs = await ctx.db
+        .query("emailPrefs")
+        .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+        .first();
+      if (prefs?.dueSoonReminder === false) return null;
+    }
 
-    // Insert first to get the document ID, then patch with the scheduler job ID
+    const remindAt = at !== undefined
+      ? Math.max(at, Date.now() + 1000)
+      : Date.now() + Math.min(delayMs, 366 * 86_400_000);
+    if (remindAt > Date.now() + 366 * 86_400_000) return null;
     const reminderId = await ctx.db.insert("reminders", {
       tokenIdentifier: identity.tokenIdentifier,
       email: identity.email,
       noteId,
       noteTitle: noteTitle.slice(0, 300),
+      kind,
+      dueDate,
+      dueTime,
       remindAt,
       schedulerJobId: "",
       sent: false,
     });
-
-    const jobId = await ctx.scheduler.runAt(
-      remindAt,
-      internal.reminders.send,
-      { reminderId }
-    );
-
-    await ctx.db.patch(reminderId, { schedulerJobId: jobId as unknown as string });
+    const jobId = await ctx.scheduler.runAt(remindAt, internal.reminders.send, { reminderId });
+    await ctx.db.patch(reminderId, { schedulerJobId: jobId });
     return reminderId;
   },
 });
@@ -58,102 +76,159 @@ export const cancel = mutation({
   args: { noteId: v.number() },
   handler: async (ctx, { noteId }) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return;
-    const existing = await ctx.db
-      .query("reminders")
-      .withIndex("by_note_and_token", q =>
-        q.eq("tokenIdentifier", identity.tokenIdentifier).eq("noteId", noteId)
-      )
-      .first();
-    if (existing) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      try { await ctx.scheduler.cancel(existing.schedulerJobId as any); } catch {}
-      await ctx.db.delete(existing._id);
-    }
-  },
-});
-
-export const getForNote = query({
-  args: { noteId: v.number() },
-  handler: async (ctx, { noteId }) => {
-    const identity = await ctx.auth.getUserIdentity();
     if (!identity) return null;
-    return await ctx.db
-      .query("reminders")
-      .withIndex("by_note_and_token", q =>
-        q.eq("tokenIdentifier", identity.tokenIdentifier).eq("noteId", noteId)
-      )
-      .first();
+    await removeExisting(ctx, identity.tokenIdentifier, noteId);
+    return null;
   },
 });
 
-// ── Internal ──────────────────────────────────────────────────────────────────
+// ── Internal ─────────────────────────────────────────────────────────────────
 
-export const getById = internalQuery({
-  args: { reminderId: v.id("reminders") },
-  handler: async (ctx, { reminderId }) => ctx.db.get(reminderId),
-});
+export type BoardNote = {
+  id: number; boardId: string | number; type: string; title: string; body?: string;
+  dueDate?: string; dueTime?: string; remindAt?: number; importance?: string; completed?: boolean;
+  steps?: { title: string; done: boolean }[];
+};
 
-export const markSent = internalMutation({
+// Everything the sender needs, read in one transaction: the reminder, the note as it is now, and prefs.
+export const loadForSend = internalQuery({
   args: { reminderId: v.id("reminders") },
   handler: async (ctx, { reminderId }) => {
-    await ctx.db.patch(reminderId, { sent: true });
+    const reminder = await ctx.db.get(reminderId);
+    if (!reminder) return null;
+    const [board, prefs] = await Promise.all([
+      ctx.db.query("userBoards").withIndex("by_token", (q) => q.eq("tokenIdentifier", reminder.tokenIdentifier)).first(),
+      ctx.db.query("emailPrefs").withIndex("by_token", (q) => q.eq("tokenIdentifier", reminder.tokenIdentifier)).first(),
+    ]);
+    let note: BoardNote | null = null;
+    let boardName: string | null = null;
+    if (board) {
+      try {
+        const state = JSON.parse(board.boardState) as { notes?: BoardNote[]; boards?: { id: string | number; name: string }[] };
+        note = state.notes?.find((n) => n.id === reminder.noteId) ?? null;
+        boardName = note ? state.boards?.find((b) => String(b.id) === String(note!.boardId))?.name ?? null : null;
+      } catch { /* unreadable board: fall back to the saved title */ }
+    }
+    return {
+      reminder,
+      hasBoard: !!board,
+      note,
+      boardName,
+      remindersOn: prefs?.dueSoonReminder !== false,
+      timeZone: prefs?.timeZone,
+    };
+  },
+});
+
+export const finish = internalMutation({
+  args: { reminderId: v.id("reminders") },
+  handler: async (ctx, { reminderId }) => {
+    const row = await ctx.db.get(reminderId);
+    if (row) await ctx.db.delete(reminderId);
+    return null;
   },
 });
 
 export const send = internalAction({
   args: { reminderId: v.id("reminders") },
   handler: async (ctx, { reminderId }) => {
-    const reminder = await ctx.runQuery(internal.reminders.getById, { reminderId });
-    if (!reminder || reminder.sent) return;
+    const data = await ctx.runQuery(internal.reminders.loadForSend, { reminderId });
+    if (!data || data.reminder.sent) return null;
+    const { reminder, note, hasBoard, boardName } = data;
+    const kind = reminder.kind ?? "due";
 
-    const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey) { console.error("RESEND_API_KEY not set"); return; }
-    const from = process.env.EMAIL_FROM ?? "Boardtivity <hello@boardtivity.com>";
-
-    try {
-      const res = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-        body: JSON.stringify({
-          from,
-          to: reminder.email,
-          subject: `⏰ Reminder: ${reminder.noteTitle}`,
-          html: buildReminderHtml(reminder.noteTitle),
-        }),
-      });
-      if (!res.ok) throw new Error(`Resend ${res.status}: ${await res.text()}`);
-    } catch (e) {
-      console.error("Reminder email failed:", e);
-      return;
+    // Skip anything that no longer applies. If we can't see the board at all, trust the saved reminder.
+    const skip = kind === "due"
+      ? !data.remindersOn || (hasBoard && (
+          !note || note.type !== "task" || note.completed ||
+          (!!note.steps?.length && note.steps.every((s) => s.done)) ||
+          (!!reminder.dueDate && note.dueDate !== reminder.dueDate)
+        ))
+      : hasBoard && (!note || note.remindAt !== reminder.remindAt); // deleted, or the reminder was changed/removed
+    if (skip) {
+      await ctx.runMutation(internal.reminders.finish, { reminderId });
+      return null;
     }
 
-    await ctx.runMutation(internal.reminders.markSent, { reminderId });
+    const key = await ctx.runMutation(internal.emailPrefs.ensureUnsubscribeKey, { tokenIdentifier: reminder.tokenIdentifier });
+    const title = note?.title || reminder.noteTitle;
+    const email = kind === "due"
+      ? dueEmail({ title, note, boardName, dueDate: note?.dueDate ?? reminder.dueDate, dueTime: note?.dueTime ?? reminder.dueTime, today: localParts(Date.now(), data.timeZone).date, unsubscribe: unsubscribeUrl(key, "reminders") })
+      : ideaEmail({ title, body: note?.body, boardName, unsubscribe: unsubscribeUrl(key, "all") });
+
+    try {
+      await sendEmail({ to: reminder.email, subject: email.subject, html: email.html, unsubscribe: email.unsubscribe });
+    } catch (e) {
+      console.error("Reminder email failed:", e);
+      return null; // keep the row so it can be inspected; it won't be retried automatically
+    }
+    await ctx.runMutation(internal.reminders.finish, { reminderId });
+    return null;
   },
 });
 
-function buildReminderHtml(title: string): string {
-  const safe = title.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  return `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f6f6f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f6f6f4;padding:32px 16px;">
-  <tr><td align="center">
-    <table width="100%" style="max-width:520px;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.07);">
-      <tr><td style="padding:28px 32px 20px;background:#111;">
-        <div style="font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.5);font-weight:700;margin-bottom:6px;">Boardtivity</div>
-        <div style="font-size:22px;font-weight:800;color:#fff;">Task Reminder</div>
-      </td></tr>
-      <tr><td style="padding:28px 32px 32px;">
-        <div style="font-size:18px;font-weight:700;color:#111;margin-bottom:8px;">⏰ ${safe}</div>
-        <p style="font-size:14px;color:#888;margin:0 0 24px;line-height:1.6;">This task is due today. Head to Boardtivity to stay on track.</p>
-        <a href="https://boardtivity.com" style="display:inline-block;background:#111;color:#fff;font-size:14px;font-weight:700;text-decoration:none;padding:12px 28px;border-radius:10px;">Open Boardtivity →</a>
-      </td></tr>
-      <tr><td style="padding:16px 32px;border-top:1px solid #f0f0f0;text-align:center;">
-        <a href="https://boardtivity.com" style="font-size:12px;color:#aaa;text-decoration:none;">Open Boardtivity</a>
+// ── Email content ────────────────────────────────────────────────────────────
+
+export function dueEmail({ title, note, boardName, dueDate, dueTime, today, unsubscribe }: {
+  title: string; note: BoardNote | null; boardName: string | null;
+  dueDate?: string; dueTime?: string; today: string; unsubscribe: string;
+}) {
+  const when = dueDate ? relativeDue(dueDate, dueTime, today) : "soon";
+  const steps = note?.steps ?? [];
+  const done = steps.filter((s) => s.done).length;
+  const nextSteps = steps.filter((s) => !s.done).slice(0, 4);
+  const priority = note?.importance && note.importance !== "none" ? `${note.importance} priority` : null;
+  const meta = [boardName, priority, steps.length ? `${done} of ${steps.length} steps done` : null].filter(Boolean).join(" · ");
+
+  const body = `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#faf9f6;border:1px solid #ece9e1;border-radius:12px;">
+      <tr><td style="padding:16px 18px;">
+        <div style="font-size:17px;font-weight:700;color:#171613;line-height:1.35;">${escapeHtml(title)}</div>
+        ${meta ? `<div style="font-size:13px;color:#8a8780;margin-top:4px;">${escapeHtml(meta)}</div>` : ""}
+        ${nextSteps.length ? `<div style="margin-top:14px;">${sectionLabel("Next steps")}${nextSteps.map((s) => `<div style="font-size:14px;color:#3d3a34;line-height:1.5;padding:3px 0;">○&nbsp; ${escapeHtml(s.title)}</div>`).join("")}</div>` : ""}
       </td></tr>
     </table>
-  </td></tr>
-</table>
-</body></html>`;
+    <div style="margin-top:22px;">
+      ${button("Open my board", APP_URL)}
+      ${dueDate ? `&nbsp;&nbsp;<a href="${escapeHtml(addToCalendarUrl({ title, date: dueDate, time: dueTime }))}" style="display:inline-block;font-size:14px;font-weight:700;color:#171613;text-decoration:none;padding:11px 18px;border:1px solid #dcd8ce;border-radius:10px;">Add to calendar</a>` : ""}
+    </div>`;
+
+  return {
+    subject: `Due ${when}: ${title}`,
+    unsubscribe,
+    html: layout({
+      preheader: `${title} is due ${when}.`,
+      eyebrow: "Reminder",
+      title: `Due ${when}`,
+      subtitle: dueDate && when.startsWith("tomorrow") ? formatDate(dueDate, { weekday: "long", month: "long", day: "numeric" }) : undefined,
+      body,
+      footerNote: "You're getting this because this task has a due date.",
+      unsubscribe: { url: unsubscribe, label: "Turn off due-date reminders" },
+    }),
+  };
+}
+
+export function ideaEmail({ title, body, boardName, unsubscribe }: { title: string; body?: string; boardName: string | null; unsubscribe: string }) {
+  const excerpt = body && body.length > 280 ? `${body.slice(0, 280)}…` : body;
+  const html = `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#faf9f6;border:1px solid #ece9e1;border-radius:12px;">
+      <tr><td style="padding:16px 18px;">
+        <div style="font-size:17px;font-weight:700;color:#171613;line-height:1.35;">${escapeHtml(title)}</div>
+        ${boardName ? `<div style="font-size:13px;color:#8a8780;margin-top:4px;">${escapeHtml(boardName)}</div>` : ""}
+        ${excerpt ? `<div style="font-size:14px;color:#3d3a34;line-height:1.6;margin-top:10px;white-space:pre-wrap;">${escapeHtml(excerpt)}</div>` : ""}
+      </td></tr>
+    </table>
+    <div style="margin-top:22px;">${button("Open my board", APP_URL)}</div>`;
+  return {
+    subject: `Reminder: ${title}`,
+    unsubscribe,
+    html: layout({
+      preheader: `You asked to be reminded about "${title}".`,
+      eyebrow: "Reminder",
+      title: "You asked us to remind you",
+      body: html,
+      footerNote: "You set this reminder on one of your ideas.",
+      unsubscribe: { url: unsubscribe, label: "Unsubscribe from all emails" },
+    }),
+  };
 }

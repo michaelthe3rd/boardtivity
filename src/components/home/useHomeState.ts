@@ -8,6 +8,7 @@ import { useMutation, useQuery } from "convex/react";
 import { useUser, useClerk } from "@clerk/nextjs";
 import { api } from "../../../convex/_generated/api";
 import { useIsMobile, useRevealOnScroll } from "@/lib/hooks";
+import { dueReminderDelay, browserTimeZone } from "@/lib/reminders";
 import { NOTE_PALETTE, TASK_PALETTE, hexToRgba, blendHex, clampCardBg, PRIORITY_COLORS } from "@/lib/colors";
 import { pageBg, surface, border } from "@/lib/ui";
 import { BOARD_W, BOARD_H, NOTE_W, NOTE_H, STEP_W, STEP_H, INITIAL_BOARDS, genId, nextBoardName, layoutWeb, layoutChain, readLocal } from "@/lib/boardLayout";
@@ -93,6 +94,7 @@ export function useHomeState() {
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [draftPromptOpen, setDraftPromptOpen] = useState(false);
   const [composerColorIdx, setComposerColorIdx] = useState<number | undefined>(0);
+  const [composerRemindAt, setComposerRemindAt] = useState<number | null>(null);
   const [thoughtUnlinkTarget, setThoughtUnlinkTarget] = useState<number | null>(null);
   const thoughtUnlinkTargetRef = useRef<number | null>(null);
   const thoughtHoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -122,7 +124,7 @@ export function useHomeState() {
   const [mobileEditMinutes, setMobileEditMinutes] = useState("");
   const [mobileAddColorIdx, setMobileAddColorIdx] = useState<number | undefined>(undefined);
   const [mobileEditColorIdx, setMobileEditColorIdx] = useState<number | undefined>(undefined);
-  const [mobileAddRemindIn, setMobileAddRemindIn] = useState<number | null>(null);
+  const [mobileAddRemindAt, setMobileAddRemindAt] = useState<number | null>(null);
   const [mobileEditSteps, setMobileEditSteps] = useState<{ id: number; title: string; minutes: number }[]>([]);
   const [mobileDeleteConfirm, setMobileDeleteConfirm] = useState(false);
   const [mobileBoardTypePicker, setMobileBoardTypePicker] = useState(false);
@@ -937,40 +939,51 @@ export function useHomeState() {
   useEffect(() => { focusStepIdRef.current = focusStepId; }, [focusStepId]);
   useEffect(() => { notesRef.current = notes; }, [notes]);
 
-  // Reschedule every dated task's reminder at the given time (or cancel it if that moment has passed).
-  function rescheduleAllReminders(timeStr: string) {
+  // Re-queue every open dated task's reminder (or cancel it when it no longer applies),
+  // plus any upcoming idea reminders (e.g. set on another device).
+  function rescheduleAllReminders(timeStr: string, remindersOn: boolean) {
     notes.forEach(note => {
-      if (!note.dueDate) return;
-      const delayMs = new Date(`${note.dueDate}T${timeStr}:00`).getTime() - Date.now();
-      if (delayMs > 0) {
-        setReminderMut({ noteId: note.id, noteTitle: note.title, delayMs }).catch(() => {});
+      if (note.type === "thought") {
+        if (note.remindAt && note.remindAt > Date.now()) scheduleIdeaReminder(note.id, note.title, note.remindAt);
+        return;
+      }
+      if (note.type !== "task" || !note.dueDate) return;
+      const delayMs = remindersOn && !note.completed ? dueReminderDelay(note.dueDate, note.dueTime, timeStr) : null;
+      if (delayMs !== null) {
+        setReminderMut({ noteId: note.id, noteTitle: note.title, delayMs, kind: "due", dueDate: note.dueDate, dueTime: note.dueTime }).catch(() => {});
       } else {
         cancelReminderMut({ noteId: note.id }).catch(() => {});
       }
     });
   }
 
-  // Save a new reminder time and move already-queued reminders to it.
+  // Save a new email time; due-date reminders move to it via the effect below.
   function updateReminderTime(newTime: string) {
-    const current = emailPrefs ?? { dailyDigest: true, weeklyDigest: true };
-    updateEmailPrefs({ dailyDigest: current.dailyDigest ?? true, weeklyDigest: current.weeklyDigest ?? true, reminderTime: newTime });
-    rescheduleAllReminders(newTime);
+    if (!/^\d{2}:\d{2}$/.test(newTime)) return;
+    updateEmailPrefs({ reminderTime: newTime }).catch(() => {});
   }
 
-  // Toggle one email digest without dropping the other prefs.
-  function toggleEmailPref(key: "dailyDigest" | "weeklyDigest", enabled: boolean) {
-    const current = emailPrefs ?? { dailyDigest: true, weeklyDigest: true };
-    updateEmailPrefs({ dailyDigest: current.dailyDigest ?? true, weeklyDigest: current.weeklyDigest ?? true, reminderTime: emailPrefs?.reminderTime, [key]: !enabled });
+  // Flip one email setting. Only that field is sent, so quick toggles can't undo each other.
+  function toggleEmailPref(key: "dailyDigest" | "weeklyDigest" | "dueSoonReminder", enabled: boolean) {
+    updateEmailPrefs({ [key]: !enabled }).catch(() => {});
   }
 
-  // Reschedule all task reminders whenever the reminder time preference changes
-  // (covers cross-device changes and jobs already queued at the old time)
+  // Re-queue reminders when the email time or the reminders switch changes, including from
+  // another device, and once per load so reminders stay in step with the board.
   useEffect(() => {
-    const timeStr = emailPrefs?.reminderTime ?? "08:00";
-    if (!isSignedIn || emailPrefs === undefined || lastSyncedReminderTimeRef.current === timeStr) return;
-    lastSyncedReminderTimeRef.current = timeStr;
-    rescheduleAllReminders(timeStr);
-  }, [emailPrefs?.reminderTime, isSignedIn, emailPrefs]);
+    if (!isSignedIn || !emailPrefs || savedBoard === undefined) return;
+    const signature = `${emailPrefs.reminderTime}|${emailPrefs.dueSoonReminder}`;
+    if (lastSyncedReminderTimeRef.current === signature) return;
+    lastSyncedReminderTimeRef.current = signature;
+    rescheduleAllReminders(emailPrefs.reminderTime, emailPrefs.dueSoonReminder);
+  }, [emailPrefs?.reminderTime, emailPrefs?.dueSoonReminder, isSignedIn, emailPrefs, savedBoard === undefined]);
+
+  // Save the browser's time zone so daily/weekly emails arrive at the chosen local time.
+  useEffect(() => {
+    if (!isSignedIn || !emailPrefs) return;
+    const zone = browserTimeZone();
+    if (zone && emailPrefs.timeZone !== zone) updateEmailPrefs({ timeZone: zone }).catch(() => {});
+  }, [isSignedIn, emailPrefs?.timeZone, emailPrefs]);
 
   // Warn on refresh/close while in focus mode
   useEffect(() => {
@@ -1366,11 +1379,14 @@ export function useHomeState() {
       flowMode: "web",
       linkedNoteIds: [],
       colorIdx: composerColorIdx !== undefined ? composerColorIdx : (thoughtColorMode === "random" ? Math.floor(Math.random() * NOTE_PALETTE.length) : thoughtFixedColorIdx),
+      remindAt: thoughtMode && composerRemindAt && composerRemindAt > Date.now() ? composerRemindAt : undefined,
     };
 
     setNotes((prev) => [...prev, note]);
     if (note.type === "task") {
       scheduleDueDateReminder(note.id, note.title, note.dueDate, note.dueTime);
+    } else if (note.remindAt) {
+      scheduleIdeaReminder(note.id, note.title, note.remindAt);
     }
     resetComposer();
     setComposerOpen(false);
@@ -1390,6 +1406,7 @@ export function useHomeState() {
     setAiSteps([]);
     setBreakdownVariant(0);
     setComposerError({});
+    setComposerRemindAt(null);
   }
 
   function closeComposer() {
@@ -1650,6 +1667,7 @@ export function useHomeState() {
       };
       return [...prev, newNote];
     });
+    if (note.type === "task" && note.dueDate) scheduleDueDateReminder(id, note.title, note.dueDate);
   }
 
   function startFocus(noteId: number, chain = false) {
@@ -1736,17 +1754,36 @@ export function useHomeState() {
   }
 
 
-  // Reminders fire on the due date at the user's chosen reminder time (default 08:00).
-  function scheduleDueDateReminder(noteId: number, noteTitle: string, dueDate: string | undefined, _dueTimeVal?: string | undefined) {
-    if (!isSignedIn || !dueDate) {
+  // Queue (or clear) an idea's reminder email. The caller saves remindAt on the note itself,
+  // which is what makes the reminder show up on every device and lets the server skip stale ones.
+  function scheduleIdeaReminder(noteId: number, noteTitle: string, remindAt: number | null | undefined) {
+    if (!isSignedIn) return;
+    if (remindAt && remindAt > Date.now()) {
+      setReminderMut({ noteId, noteTitle, delayMs: remindAt - Date.now(), at: remindAt, kind: "idea" }).catch(() => {});
+    } else {
+      cancelReminderMut({ noteId }).catch(() => {});
+    }
+  }
+
+  // Set or clear an idea's reminder from a detail view: updates the note and the email together.
+  function setIdeaReminder(noteId: number, remindAt: number | null) {
+    const note = notesRef.current.find(n => n.id === noteId);
+    setNotes(ns => ns.map(n => n.id === noteId ? { ...n, remindAt: remindAt ?? undefined } : n));
+    scheduleIdeaReminder(noteId, note?.title ?? "", remindAt);
+  }
+
+  // Queue (or clear) a task's due-date reminder email. Timing rules live in dueReminderDelay.
+  // Only call this for tasks: ideas have their own "remind me" reminders it would cancel.
+  function scheduleDueDateReminder(noteId: number, noteTitle: string, dueDate: string | undefined, dueTime?: string | undefined) {
+    if (!isSignedIn) return;
+    const delayMs = dueDate && emailPrefs?.dueSoonReminder !== false
+      ? dueReminderDelay(dueDate, dueTime, emailPrefs?.reminderTime ?? "08:00")
+      : null;
+    if (delayMs === null) {
       cancelReminderMut({ noteId }).catch(() => {});
       return;
     }
-    const timeStr = emailPrefs?.reminderTime ?? "08:00";
-    const remindAt = new Date(`${dueDate}T${timeStr}:00`).getTime();
-    const delayMs = remindAt - Date.now();
-    if (delayMs <= 0) return;
-    setReminderMut({ noteId, noteTitle, delayMs }).catch(() => {});
+    setReminderMut({ noteId, noteTitle, delayMs, kind: "due", dueDate, dueTime }).catch(() => {});
   }
 
 
@@ -1766,12 +1803,12 @@ export function useHomeState() {
     breakSecondsLeft, setBreakSecondsLeft, focusChainMode, setFocusChainMode, focusNextStep, focusExitConfirm, setFocusExitConfirm, focusPicker,
     setFocusPicker, focusReview, setFocusReview, profileOpen, setProfileOpen, upgradeOpen, setUpgradeOpen, limitReachedOpen,
     setLimitReachedOpen, showSubscribedModal, setShowSubscribedModal, showUpdateModal, setShowUpdateModal, namePromptOpen, setNamePromptOpen, userMenuOpen,
-    setUserMenuOpen, drafts, draftPromptOpen, setDraftPromptOpen, composerColorIdx, setComposerColorIdx, thoughtUnlinkTarget, setThoughtUnlinkTarget,
+    setUserMenuOpen, drafts, draftPromptOpen, setDraftPromptOpen, composerColorIdx, setComposerColorIdx, composerRemindAt, setComposerRemindAt, thoughtUnlinkTarget, setThoughtUnlinkTarget,
     heroRef, heroVisible, mobileExpandedIds, setMobileExpandedIds, mobileAddMode, setMobileAddMode, mobileAddTitle, setMobileAddTitle,
     mobileAddBody, setMobileAddBody, mobileAddImportance, setMobileAddImportance, mobileAddDueDate, setMobileAddDueDate, mobileAddDueTime, setMobileAddDueTime,
     mobileActionNoteId, setMobileActionNoteId, mobileEditTitle, setMobileEditTitle, mobileEditDueDate, setMobileEditDueDate, mobileEditDueTime, setMobileEditDueTime,
     mobileEditImportance, setMobileEditImportance, mobileEditMinutes, setMobileEditMinutes, mobileAddColorIdx, setMobileAddColorIdx, mobileEditColorIdx, setMobileEditColorIdx,
-    mobileAddRemindIn, setMobileAddRemindIn, mobileEditSteps, setMobileEditSteps, mobileDeleteConfirm, setMobileDeleteConfirm, mobileBoardTypePicker, setMobileBoardTypePicker,
+    mobileAddRemindAt, setMobileAddRemindAt, mobileEditSteps, setMobileEditSteps, mobileDeleteConfirm, setMobileDeleteConfirm, mobileBoardTypePicker, setMobileBoardTypePicker,
     mobileBoardActionId, setMobileBoardActionId, mobileBoardRename, setMobileBoardRename, mobileBoardRenaming, setMobileBoardRenaming, mobileFilterPriority, setMobileFilterPriority,
     mobileSortDate, setMobileSortDate, confirmSignOut, setConfirmSignOut, checkoutLoading, checkoutError, showSyncPill, titleMounted,
     settingsOpen, setSettingsOpen, bobAutoSend, setBobAutoSend, mobileSettingsOpen, setMobileSettingsOpen, confirmDeleteId, setConfirmDeleteId,
@@ -1790,7 +1827,7 @@ export function useHomeState() {
     onViewportPointerUp, createNote, resetComposer, closeComposer, saveDraft, loadDraft, deleteDraft, setFlowMode,
     toggleFlow, toggleThoughtLink, deleteTask, handleBobSweep, handleBobEditNote, handleBobDeleteNotes, handleBobHighlightNotes, handleBobLaunchFocus,
     handleBobSaveUndo, handleBobUndo, handleBobSetIdeaColor, handleBobConfigureTaskColors, handleBobConfigureBoard, handleBobAddNote, startFocus, commitFocus,
-    closeFocusWithReview, handleFocusReviewDone, scheduleDueDateReminder, user, isSignedIn, clerkLoaded, openSignIn, openSignUp,
+    closeFocusWithReview, handleFocusReviewDone, scheduleDueDateReminder, scheduleIdeaReminder, setIdeaReminder, user, isSignedIn, clerkLoaded, openSignIn, openSignUp,
     signOut,
   };
 }

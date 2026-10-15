@@ -10,6 +10,7 @@ import { buildBreakdown } from "@/lib/breakdown";
 import DateField from "@/components/ui/DateField";
 import LockIcon from "@/components/ui/LockIcon";
 import { useHome } from "@/components/home/HomeContext";
+import ReminderPicker from "@/components/board/ReminderPicker";
 
 // Task/idea detail: view and edit fields, subtasks, focus launch and actions.
 export default function NoteDetailModal() {
@@ -19,7 +20,7 @@ export default function NoteDetailModal() {
     setDetailEditBody, detailEditDueDate, setDetailEditDueDate, detailEditDueTime, setDetailEditDueTime, detailEditImportance, setDetailEditImportance, detailEditMinutes,
     setDetailEditMinutes, detailEditSteps, setDetailEditSteps, detailEditColorIdx, setDetailEditColorIdx, detailBreakdownVariant, setDetailBreakdownVariant, confirmDeleteId,
     setConfirmDeleteId, isMobile, activeNotes, getBg, detailNote, setFlowMode, toggleFlow, deleteTask,
-    startFocus, scheduleDueDateReminder,
+    startFocus, scheduleDueDateReminder, setIdeaReminder, emailPrefs, isSignedIn,
   } = useHome();
   if (!(detailNote)) return null;
   // Shared look for the editable due date, time and priority fields so they all read as inputs.
@@ -374,7 +375,7 @@ export default function NoteDetailModal() {
                             return newSteps.map((s, i) => (s.x === 0 && s.y === 0) ? laid[i] : s);
                           })(),
                         } : n));
-                        scheduleDueDateReminder(detailNote.id, detailEditTitle.trim() || detailNote.title, detailEditDueDate || undefined, detailEditDueTime || undefined);
+                        if (detailNote.type === "task") scheduleDueDateReminder(detailNote.id, detailEditTitle.trim() || detailNote.title, detailEditDueDate || undefined, detailEditDueTime || undefined);
                         setDetailEditing(false);
                       }}
                       style={buttonStyle(boardTheme, true)}
@@ -415,6 +416,15 @@ export default function NoteDetailModal() {
                     })}
                   </div>
                 )}
+                {/* Reminder: applies straight away, like the lock and flow toggles */}
+                <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), margin: "20px 0 10px" }}>Reminder</div>
+                <ReminderPicker
+                  theme={boardTheme}
+                  value={detailNote.remindAt ?? null}
+                  onChange={(v) => setIdeaReminder(detailNote.id, v)}
+                  morningTime={emailPrefs?.reminderTime}
+                  signedIn={!!isSignedIn}
+                />
                 {/* Delete idea */}
                 <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${border(boardTheme)}` }}>
                   {confirmDeleteId === detailNote.id ? (

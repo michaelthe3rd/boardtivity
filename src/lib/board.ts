@@ -41,6 +41,7 @@ export type Note = {
   body: string;
   dueDate?: string;
   dueTime?: string;
+  remindAt?: number; // ideas: when to send a reminder email (ms timestamp)
   minutes?: number;
   importance?: Importance;
   createdAt: string;

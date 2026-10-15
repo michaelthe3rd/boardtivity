@@ -2,18 +2,19 @@
 
 import BoardtivityLogo from "@/components/BoardtivityLogo";
 import { NOTE_PALETTE, TASK_PALETTE} from "@/lib/colors";
-import { pageText, muted, border, panel, paper, buttonStyle, circleButton } from "@/lib/ui";
+import { pageText, muted, border, panel, buttonStyle, circleButton } from "@/lib/ui";
 import { useHome } from "@/components/home/HomeContext";
+import EmailSettings from "@/components/board/EmailSettings";
 
 // Slide-in board settings panel: theme, background, colors, account and data export.
 export default function SettingsPanel() {
   const {
     openTutorial,
-    updateReminderTime, toggleEmailPref, boardTheme, notes, setUpgradeOpen, confirmSignOut, setConfirmSignOut, settingsOpen,
+    boardTheme, notes, setUpgradeOpen, confirmSignOut, setConfirmSignOut, settingsOpen,
     setSettingsOpen, bobAutoSend, setBobAutoSend, boardGrid, setBoardGrid, thoughtColorMode, setThoughtColorMode, thoughtFixedColorIdx,
     setThoughtFixedColorIdx, taskColorMode, setTaskColorMode, taskHighColorIdx, setTaskHighColorIdx, taskMedColorIdx, setTaskMedColorIdx, taskLowColorIdx,
     setTaskLowColorIdx, taskSingleColorIdx, setTaskSingleColorIdx, taskSingleCustom, setTaskSingleCustom, taskHighCustom, setTaskHighCustom, taskMedCustom,
-    setTaskMedCustom, taskLowCustom, setTaskLowCustom, cloudSyncState, setCloudSyncState, subscription, isPlus, emailPrefs,
+    setTaskMedCustom, taskLowCustom, setTaskLowCustom, cloudSyncState, setCloudSyncState, subscription, isPlus,
     setBobUserInfoFn, bobUserInfo, colorWheelSingleRef, colorWheelHighRef, colorWheelMedRef, colorWheelLowRef, settingsRef, startPortal,
     exportToIcs, pushToCloud, user, isSignedIn, openSignIn, openSignUp, signOut,
   } = useHome();
@@ -227,53 +228,8 @@ export default function SettingsPanel() {
             </div>
         </div>
 
-        {/* Email Notifications */}
-        {isSignedIn && (
-          <div style={{ borderTop: `1px solid ${border(boardTheme)}`, paddingTop: 20, display: "grid", gap: 10 }}>
-            <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), fontWeight: 700, marginBottom: 2 }}>Email Notifications</div>
-            {(["dailyDigest", "weeklyDigest"] as const).map((key) => {
-              const labels: Record<string, string> = {
-                dailyDigest: "Daily task outline",
-                weeklyDigest: "Weekly task outline",
-              };
-              const enabled = emailPrefs ? emailPrefs[key] : true;
-              return (
-                <div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                  <span style={{ fontSize: 13, color: pageText(boardTheme) }}>{labels[key]}</span>
-                  <button
-                    type="button"
-                    onClick={() => toggleEmailPref(key, enabled)}
-                    style={{
-                      flexShrink: 0,
-                      width: 42, height: 24, borderRadius: 999, border: "none", cursor: "pointer",
-                      backgroundColor: enabled ? (boardTheme === "dark" ? "#4a9eff" : "#2563eb") : (boardTheme === "dark" ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.12)"),
-                      position: "relative", transition: "background-color .18s",
-                    }}
-                    aria-label={`${enabled ? "Disable" : "Enable"} ${labels[key]}`}
-                  >
-                    <span style={{
-                      position: "absolute", top: 3, left: enabled ? 21 : 3,
-                      width: 18, height: 18, borderRadius: "50%", backgroundColor: "#fff",
-                      transition: "left .18s", boxShadow: "0 1px 3px rgba(0,0,0,.2)",
-                    }} />
-                  </button>
-                </div>
-              );
-            })}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-              <span style={{ fontSize: 13, color: pageText(boardTheme) }}>Task reminder time</span>
-              <input
-                type="time"
-                value={emailPrefs?.reminderTime ?? "08:00"}
-                onChange={e => updateReminderTime(e.target.value)}
-                style={{ fontSize: 13, fontWeight: 600, color: pageText(boardTheme), backgroundColor: paper(boardTheme), border: `1px solid ${border(boardTheme)}`, borderRadius: 8, padding: "4px 8px", cursor: "pointer", colorScheme: boardTheme === "dark" ? "dark" : "light" }}
-              />
-            </div>
-            <p style={{ fontSize: 11, color: muted(boardTheme), margin: 0, lineHeight: 1.5 }}>
-              Sent to {user?.emailAddresses?.[0]?.emailAddress ?? "your email"}.
-            </p>
-          </div>
-        )}
+        {/* Email */}
+        {isSignedIn && <EmailSettings theme={boardTheme} />}
 
         {/* BOB */}
         <div style={{ borderTop: `1px solid ${border(boardTheme)}`, paddingTop: 20, display: "grid", gap: 16 }}>
