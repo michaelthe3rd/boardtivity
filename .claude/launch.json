@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 3000
+    },
+    {
+      "name": "web-3456",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["next", "dev", "-p", "3456"],
+      "port": 3456
     }
   ]
 }
