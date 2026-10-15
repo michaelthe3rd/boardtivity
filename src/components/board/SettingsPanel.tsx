@@ -5,6 +5,7 @@ import { NOTE_PALETTE, TASK_PALETTE} from "@/lib/colors";
 import { pageText, muted, border, panel, buttonStyle, circleButton } from "@/lib/ui";
 import { useHome } from "@/components/home/HomeContext";
 import EmailSettings from "@/components/board/EmailSettings";
+import { CloseIcon } from "@/components/ui/Icons";
 
 // Slide-in board settings panel: theme, background, colors, account and data export.
 export default function SettingsPanel() {
@@ -35,7 +36,7 @@ export default function SettingsPanel() {
           <BoardtivityLogo size={26} dark={boardTheme === "dark"} />
           <span style={{ fontSize: 16, fontWeight: 700, color: pageText(boardTheme) }}>Settings</span>
         </div>
-        <button onClick={() => setSettingsOpen(false)} style={{ ...circleButton(boardTheme, 32), fontSize: 14 }}>✕</button>
+        <button onClick={() => setSettingsOpen(false)} style={{ ...circleButton(boardTheme, 32), fontSize: 14 }}><CloseIcon size={14} /></button>
       </div>
 
       {/* Body */}

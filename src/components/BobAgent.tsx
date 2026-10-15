@@ -387,8 +387,8 @@ export default function BobAgent({
               toolsFired++;
             } else if (data.type === "done") {
               const DONE_PHRASES = [
-                "Done ✓", "All set ✓", "Consider it done ✓",
-                "Handled ✓", "Done and dusted ✓", "Boom. Done ✓",
+                "Done.", "All set.", "Consider it done.",
+                "Handled.", "Done and dusted.", "Boom. Done."
               ];
               const doneLine = toolsFired > 0 && bobText.trim().length < 8
                 ? DONE_PHRASES[Math.floor(Math.random() * DONE_PHRASES.length)]

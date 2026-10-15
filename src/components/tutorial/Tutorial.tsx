@@ -117,7 +117,7 @@ const STEPS: Step[] = [
   {
     id: "boards", target: "boards", title: "Your boards",
     body: l => l === "phone"
-      ? <>Switch between your task and idea boards here, and tap <strong>+</strong> to add one.</>
+      ? <>Tap here to switch between your task and idea boards, or to add a new one.</>
       : <>Switch between task boards and idea boards, or create new ones.</>,
   },
   {

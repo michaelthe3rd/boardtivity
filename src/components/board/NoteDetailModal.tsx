@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { CSSProperties } from "react";
 import type { Importance } from "@/lib/board";
 import { NOTE_PALETTE, paletteBg} from "@/lib/colors";
@@ -10,7 +11,8 @@ import { buildBreakdown } from "@/lib/breakdown";
 import DateField from "@/components/ui/DateField";
 import LockIcon from "@/components/ui/LockIcon";
 import { useHome } from "@/components/home/HomeContext";
-import ReminderPicker from "@/components/board/ReminderPicker";
+import ReminderPicker, { BellIcon, formatReminder } from "@/components/board/ReminderPicker";
+import { CloseIcon, PencilIcon } from "@/components/ui/Icons";
 
 // Task/idea detail: view and edit fields, subtasks, focus launch and actions.
 export default function NoteDetailModal() {
@@ -20,9 +22,12 @@ export default function NoteDetailModal() {
     setDetailEditBody, detailEditDueDate, setDetailEditDueDate, detailEditDueTime, setDetailEditDueTime, detailEditImportance, setDetailEditImportance, detailEditMinutes,
     setDetailEditMinutes, detailEditSteps, setDetailEditSteps, detailEditColorIdx, setDetailEditColorIdx, detailBreakdownVariant, setDetailBreakdownVariant, confirmDeleteId,
     setConfirmDeleteId, isMobile, activeNotes, getBg, detailNote, setFlowMode, toggleFlow, deleteTask,
-    startFocus, scheduleDueDateReminder, setIdeaReminder, emailPrefs, isSignedIn,
+    startFocus, scheduleDueDateReminder, scheduleIdeaReminder, emailPrefs, isSignedIn,
   } = useHome();
+  // Idea reminder being edited; only saved (and the email re-queued) when Save is pressed.
+  const [editRemindAt, setEditRemindAt] = useState<number | null>(null);
   if (!(detailNote)) return null;
+  const savedRemindAt = detailNote.remindAt && detailNote.remindAt > Date.now() ? detailNote.remindAt : null;
   // Shared look for the editable due date, time and priority fields so they all read as inputs.
   const editField: CSSProperties = {
     width: "100%", minHeight: 34, background: panel(boardTheme), border: `1px solid ${border(boardTheme)}`, borderRadius: 8,
@@ -82,11 +87,12 @@ export default function NoteDetailModal() {
                   setDetailEditMinutes(detailNote.minutes ?? 60);
                   setDetailEditSteps(detailNote.steps.map(s => ({ ...s })));
                   setDetailEditColorIdx(detailNote.colorIdx);
+                  setEditRemindAt(detailNote.remindAt && detailNote.remindAt > Date.now() ? detailNote.remindAt : null);
                   setDetailEditing(true);
                 }}
                 style={{ ...circleButton(boardTheme, 36), fontSize: 14 }}
                 title={detailNote.type === "task" ? "Edit task" : "Edit idea"}
-              >✎</button>
+              ><PencilIcon size={15} /></button>
             )}
             {!detailEditing && (
               <button
@@ -102,7 +108,7 @@ export default function NoteDetailModal() {
                 <LockIcon locked={!!detailNote.locked} size={15} />
               </button>
             )}
-            <button onClick={() => { setDetailNoteId(null); setDetailEditing(false); }} style={circleButton(boardTheme, 36)}>✕</button>
+            <button onClick={() => { setDetailNoteId(null); setDetailEditing(false); }} style={circleButton(boardTheme, 36)}><CloseIcon size={14} /></button>
           </div>
         </div>
 
@@ -153,7 +159,7 @@ export default function NoteDetailModal() {
                             style={{ ...editField, flex: 1, color: detailEditDueTime ? pageText(boardTheme) : muted(boardTheme), cursor: "pointer", colorScheme: boardTheme === "dark" ? "dark" : "light" }}
                           />
                           {detailEditDueTime && (
-                            <button type="button" onClick={() => setDetailEditDueTime("")} style={{ background: "none", border: "none", color: muted(boardTheme), fontSize: 14, opacity: .6, cursor: "pointer", padding: "0 2px", lineHeight: 1 }}>✕</button>
+                            <button type="button" onClick={() => setDetailEditDueTime("")} style={{ background: "none", border: "none", color: muted(boardTheme), fontSize: 14, opacity: .6, cursor: "pointer", padding: "0 2px", lineHeight: 1 }}><CloseIcon size={14} /></button>
                           )}
                         </div>
                       )}
@@ -219,6 +225,17 @@ export default function NoteDetailModal() {
                             style={{ width: 20, height: 20, borderRadius: "50%", padding: 0, cursor: "pointer", backgroundColor: col.swatch, border: detailEditColorIdx === i ? `2.5px solid ${pageText(boardTheme)}` : "2.5px solid transparent", outline: detailEditColorIdx === i ? `2px solid ${col.swatch}` : "none", outlineOffset: 2 }}
                           />
                         ))}
+                      </div>
+                      <div style={{ marginTop: 16 }}>
+                        <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), marginBottom: 8 }}>Reminder</div>
+                        <ReminderPicker
+                          theme={boardTheme}
+                          value={editRemindAt}
+                          onChange={setEditRemindAt}
+                          morningTime={emailPrefs?.reminderTime}
+                          signedIn={!!isSignedIn}
+                          hint={editRemindAt !== savedRemindAt ? "Press Save to confirm this change." : undefined}
+                        />
                       </div>
                     </>
                   ) : detailNote.body ? (
@@ -287,7 +304,7 @@ export default function NoteDetailModal() {
                         <button
                           onClick={() => setDetailEditSteps(prev => prev.filter(s => s.id !== step.id))}
                           style={{ background: "none", border: "none", cursor: "pointer", color: muted(boardTheme), fontSize: 14, padding: "0 4px", lineHeight: 1, opacity: .6 }}
-                        >✕</button>
+                        ><CloseIcon size={14} /></button>
                       </div>
                     ))}
                     {detailEditSteps.length > 0 && (
@@ -394,7 +411,8 @@ export default function NoteDetailModal() {
                     <button
                       onClick={() => {
                         if (!detailEditTitle.trim()) return;
-                        setNotes(ns => ns.map(n => n.id === detailNote.id ? { ...n, title: detailEditTitle.trim(), body: detailEditBody.trim(), colorIdx: detailEditColorIdx } : n));
+                        setNotes(ns => ns.map(n => n.id === detailNote.id ? { ...n, title: detailEditTitle.trim(), body: detailEditBody.trim(), colorIdx: detailEditColorIdx, remindAt: editRemindAt ?? undefined } : n));
+                        if (editRemindAt !== savedRemindAt) scheduleIdeaReminder(detailNote.id, detailEditTitle.trim(), editRemindAt);
                         setDetailEditing(false);
                       }}
                       style={buttonStyle(boardTheme, true)}
@@ -416,15 +434,12 @@ export default function NoteDetailModal() {
                     })}
                   </div>
                 )}
-                {/* Reminder: applies straight away, like the lock and flow toggles */}
-                <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), margin: "20px 0 10px" }}>Reminder</div>
-                <ReminderPicker
-                  theme={boardTheme}
-                  value={detailNote.remindAt ?? null}
-                  onChange={(v) => setIdeaReminder(detailNote.id, v)}
-                  morningTime={emailPrefs?.reminderTime}
-                  signedIn={!!isSignedIn}
-                />
+                {/* Reminder: read-only here; change it with Edit */}
+                {savedRemindAt !== null && !detailEditing && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 20, fontSize: 13, fontWeight: 600, color: pageText(boardTheme) }}>
+                    <BellIcon size={13} />Email reminder {formatReminder(savedRemindAt)}
+                  </div>
+                )}
                 {/* Delete idea */}
                 <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${border(boardTheme)}` }}>
                   {confirmDeleteId === detailNote.id ? (

@@ -29,6 +29,7 @@ import { pageText, muted, border, paper, grid, panel, buttonStyle, circleButton,
 import { todayStr, formatDateShort, fmtTime} from "@/lib/dates";
 import { BOARD_W, BOARD_H, NOTE_W, NOTE_H, noteCardWidth, titleFontSize, STEP_W, STEP_H} from "@/lib/boardLayout";
 import { BellIcon, formatReminder } from "@/components/board/ReminderPicker";
+import { LinkIcon, ListIcon, PencilIcon, PlusIcon, TimerIcon, UnlinkIcon } from "@/components/ui/Icons";
 
 export function HomeShell() {
   const home = useHomeState();
@@ -615,14 +616,14 @@ export function HomeShell() {
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%", textAlign: "left" }}>
                   {(thoughtMode ? [
-                    { icon: "✦", text: "Click + to add an idea" },
-                    { icon: "⇄", text: "Drag one idea onto another to connect them" },
-                    { icon: "⊙", text: "Hold an idea over a connected one to disconnect them" },
-                    { icon: "✎", text: "Click an idea to see it, change it, or add a note" },
+                    { icon: <PlusIcon size={13} />, text: "Click + to add an idea" },
+                    { icon: <LinkIcon size={13} />, text: "Drag one idea onto another to connect them" },
+                    { icon: <UnlinkIcon size={13} />, text: "Hold an idea over a connected one to disconnect them" },
+                    { icon: <PencilIcon size={13} />, text: "Click an idea to see it, change it, or add a note" },
                   ] : [
-                    { icon: "✦", text: "Click + to add a task. Give it a name, a priority, and a due date" },
-                    { icon: "≡", text: "Open a task to split it into smaller steps" },
-                    { icon: "◎", text: "Click Start focus to work on it with a timer" },
+                    { icon: <PlusIcon size={13} />, text: "Click + to add a task. Give it a name, a priority, and a due date" },
+                    { icon: <ListIcon size={13} />, text: "Open a task to split it into smaller steps" },
+                    { icon: <TimerIcon size={13} />, text: "Click Start focus to work on it with a timer" },
                   ]).map(({ icon, text }) => (
                     <div key={text} style={{ display: "flex", alignItems: "flex-start", gap: 10, backgroundColor: boardTheme === "dark" ? "rgba(255,255,255,.04)" : "rgba(0,0,0,.04)", borderRadius: 10, padding: "10px 14px" }}>
                       <span style={{ fontSize: 13, color: boardTheme === "dark" ? "rgba(255,255,255,.35)" : "rgba(0,0,0,.3)", flexShrink: 0, marginTop: 1 }}>{icon}</span>
@@ -685,17 +686,15 @@ export function HomeShell() {
             </div>
 
             <div style={{ position: "relative", display: "flex", gap: 5, alignItems: "center" }}>
-              {/* Focus stats */}
-              {isSignedIn && (
-                <button onClick={() => setProfileOpen(true)} style={circleButton(boardTheme)} aria-label="Focus stats" title="Focus stats">
-                  {(focusStatsData?.currentStreak ?? 0) > 0
-                    ? <svg width="11" height="15" viewBox="0 0 11 15" fill="none" overflow="visible" style={{ display: "block", animation: "boltSpark 1.4s ease-in-out infinite" }}>
-                        <path d="M7 1L1 8.5h4L3.5 14 10 6H6L7 1Z" fill="#facc15"/>
-                      </svg>
-                    : <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.4"/><path d="M7 4v3l2 1.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
-                  }
-                </button>
-              )}
+              {/* Focus stats (signed out, it explains that signing in tracks focus time) */}
+              <button onClick={() => setProfileOpen(true)} style={circleButton(boardTheme)} aria-label="Focus stats" title="Focus stats">
+                {(focusStatsData?.currentStreak ?? 0) > 0
+                  ? <svg width="11" height="15" viewBox="0 0 11 15" fill="none" overflow="visible" style={{ display: "block", animation: "boltSpark 1.4s ease-in-out infinite" }}>
+                      <path d="M7 1L1 8.5h4L3.5 14 10 6H6L7 1Z" fill="#facc15"/>
+                    </svg>
+                  : <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.4"/><path d="M7 4v3l2 1.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+                }
+              </button>
 
               {/* Theme toggle — lightbulb */}
               <ThemeToggle theme={boardTheme} onToggle={() => setBoardTheme((t) => (t === "dark" ? "light" : "dark"))} />
@@ -763,7 +762,7 @@ export function HomeShell() {
                       {board.name}
                       <span style={{ marginLeft: 6, fontSize: 10, color: muted(boardTheme), fontWeight: 400 }}>{board.type === "task" ? "Task" : "Idea"}</span>
                     </button>
-                    <button onClick={() => { setRenameBoardId(board.id); setRenameValue(board.name); }} style={{ background: "none", border: "none", padding: "4px 6px", cursor: "pointer", color: muted(boardTheme), fontSize: 11 }} title="Rename">✎</button>
+                    <button onClick={() => { setRenameBoardId(board.id); setRenameValue(board.name); }} style={{ background: "none", border: "none", padding: "4px 6px", cursor: "pointer", color: muted(boardTheme), fontSize: 11 }} title="Rename"><PencilIcon size={12} /></button>
                     {confirmDeleteId === board.id ? (
                       <>
                         <button onClick={() => setConfirmDeleteId(null)} style={{ background: "none", border: "none", padding: "3px 5px", cursor: "pointer", color: muted(boardTheme), fontSize: 11, fontWeight: 600 }}>Cancel</button>
