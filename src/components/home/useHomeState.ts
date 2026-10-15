@@ -1765,13 +1765,6 @@ export function useHomeState() {
     }
   }
 
-  // Set or clear an idea's reminder from a detail view: updates the note and the email together.
-  function setIdeaReminder(noteId: number, remindAt: number | null) {
-    const note = notesRef.current.find(n => n.id === noteId);
-    setNotes(ns => ns.map(n => n.id === noteId ? { ...n, remindAt: remindAt ?? undefined } : n));
-    scheduleIdeaReminder(noteId, note?.title ?? "", remindAt);
-  }
-
   // Queue (or clear) a task's due-date reminder email. Timing rules live in dueReminderDelay.
   // Only call this for tasks: ideas have their own "remind me" reminders it would cancel.
   function scheduleDueDateReminder(noteId: number, noteTitle: string, dueDate: string | undefined, dueTime?: string | undefined) {
@@ -1827,7 +1820,7 @@ export function useHomeState() {
     onViewportPointerUp, createNote, resetComposer, closeComposer, saveDraft, loadDraft, deleteDraft, setFlowMode,
     toggleFlow, toggleThoughtLink, deleteTask, handleBobSweep, handleBobEditNote, handleBobDeleteNotes, handleBobHighlightNotes, handleBobLaunchFocus,
     handleBobSaveUndo, handleBobUndo, handleBobSetIdeaColor, handleBobConfigureTaskColors, handleBobConfigureBoard, handleBobAddNote, startFocus, commitFocus,
-    closeFocusWithReview, handleFocusReviewDone, scheduleDueDateReminder, scheduleIdeaReminder, setIdeaReminder, user, isSignedIn, clerkLoaded, openSignIn, openSignUp,
+    closeFocusWithReview, handleFocusReviewDone, scheduleDueDateReminder, scheduleIdeaReminder, user, isSignedIn, clerkLoaded, openSignIn, openSignUp,
     signOut,
   };
 }

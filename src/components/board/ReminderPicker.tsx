@@ -31,13 +31,14 @@ export function formatReminder(ms: number) {
   return `${d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}, ${time}`;
 }
 
-export default function ReminderPicker({ theme, value, onChange, morningTime = "08:00", signedIn, large = false }: {
+export default function ReminderPicker({ theme, value, onChange, morningTime = "08:00", signedIn, large = false, hint }: {
   theme: ThemeMode;
   value: number | null;
   onChange: (value: number | null) => void;
   morningTime?: string; // the user's email time, used for "Tomorrow" and "Next week"
   signedIn: boolean;
   large?: boolean;
+  hint?: string; // shown under the picker, e.g. that changes apply on Save
 }) {
   const [custom, setCustom] = useState(false);
   const active = value !== null && value > Date.now() ? value : null;
@@ -88,6 +89,7 @@ export default function ReminderPicker({ theme, value, onChange, morningTime = "
           style={{ height: large ? 42 : 36, borderRadius: 10, border: `1px solid ${border(theme)}`, backgroundColor: paper(theme), color: pageText(theme), fontSize: large ? 15 : 13, padding: "0 10px", fontFamily: "inherit", colorScheme: theme === "dark" ? "dark" : "light", maxWidth: 260 }}
         />
       )}
+      {hint && <div style={{ fontSize: large ? 12 : 11, color: muted(theme), opacity: .8 }}>{hint}</div>}
     </div>
   );
 }

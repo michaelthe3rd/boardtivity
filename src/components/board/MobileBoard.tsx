@@ -43,6 +43,7 @@ export default function MobileBoard() {
   // Edit-sheet fields that only this component uses.
   const [editBody, setEditBody] = useState("");
   const [editRemindAt, setEditRemindAt] = useState<number | null>(null);
+  const [boardMenuOpen, setBoardMenuOpen] = useState(false);
 
   if (!(isMobile && !isNativeApp)) return null;
   const mobileBoardNotes = notes.filter(n => n.boardId === activeBoardId);
@@ -285,43 +286,72 @@ export default function MobileBoard() {
       </div>
 
       {/* Board switcher */}
-      {/* Board tabs scroll; stats, theme and settings stay pinned on the right so they never scroll off-screen */}
+      {/* Board picker on the left; stats, theme and settings on the right */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, paddingBottom: 10, paddingTop: 8, paddingLeft: 16, paddingRight: 16 }}>
-      <div data-tour="boards" style={{ display: "flex", gap: 6, flex: 1, minWidth: 0, overflowX: "auto", scrollbarWidth: "none" }}>
-        {boards.map(b => {
-          const isActive = b.id === activeBoardId;
-          return (
-            <button
-              key={b.id}
-              onClick={() => {
-                if (isActive) { setMobileBoardActionId(b.id); setMobileBoardRename(b.name); setMobileBoardRenaming(false); }
-                else setActiveBoardId(b.id);
-              }}
-              style={{ flexShrink: 0, height: 38, borderRadius: 999, border: isActive ? "none" : `1px solid ${border(theme)}`, backgroundColor: isActive ? (theme === "dark" ? "#f5f5f2" : "#171613") : (theme === "dark" ? "#1e2126" : "#ffffff"), color: isActive ? (theme === "dark" ? "#171613" : "#f7f8fb") : pageText(theme), padding: "0 18px", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}
-            >
-              {b.name}
-            </button>
-          );
-        })}
+      {/* One pill for the current board; it opens a dropdown with every board, so the row never overflows */}
+      <div style={{ position: "relative", flex: 1, minWidth: 0 }}>
         <button
-          onClick={() => setMobileBoardTypePicker(true)}
-          style={{ flexShrink: 0, width: 38, height: 38, borderRadius: 999, border: `1px solid ${border(theme)}`, backgroundColor: theme === "dark" ? "#1e2126" : "#ffffff", color: pageText(theme), cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+          data-tour="boards"
+          aria-haspopup="menu"
+          aria-expanded={boardMenuOpen}
+          onClick={() => setBoardMenuOpen(o => !o)}
+          style={{ width: "100%", height: 38, borderRadius: 999, border: "none", backgroundColor: theme === "dark" ? "#f5f5f2" : "#171613", color: theme === "dark" ? "#171613" : "#f7f8fb", display: "flex", alignItems: "center", gap: 8, padding: "0 14px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span style={{ flex: 1, minWidth: 0, textAlign: "left", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{activeBoard?.name ?? "Boards"}</span>
+          {isSignedIn && (focusStatsData?.currentStreak ?? 0) > 0 && (
+            <span style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 700, opacity: .8 }}><svg width="8" height="11" viewBox="0 0 11 15" fill="none" aria-hidden style={{ flexShrink: 0 }}><path d="M7 1L1 8.5h4L3.5 14 10 6H6L7 1Z" fill="#facc15"/></svg>{focusStatsData?.currentStreak}</span>
+          )}
+          <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, opacity: .6 }}>{boards.length} {boards.length === 1 ? "board" : "boards"}</span>
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ flexShrink: 0, transform: boardMenuOpen ? "rotate(180deg)" : "none", transition: "transform .15s" }}>
+            <polyline points="2,3.5 5,6.5 8,3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </button>
-      </div>
-        {isSignedIn && (
-          <button
-            onClick={() => setProfileOpen(true)}
-            style={{ flexShrink: 0, width: 38, height: 38, borderRadius: 999, border: `1px solid ${border(theme)}`, backgroundColor: theme === "dark" ? "#1e2126" : "#ffffff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
-            aria-label="Focus stats"
-          >
-            {(focusStatsData?.currentStreak ?? 0) > 0
-              ? <svg width="10" height="13" viewBox="0 0 11 15" fill="none" overflow="visible" style={{ animation: "boltSpark 1.4s ease-in-out infinite" }}><path d="M7 1L1 8.5h4L3.5 14 10 6H6L7 1Z" fill="#facc15"/></svg>
-              : <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke={muted(theme)} strokeWidth="1.4"/><path d="M7 4v3l2 1.5" stroke={muted(theme)} strokeWidth="1.3" strokeLinecap="round"/></svg>
-            }
-          </button>
+        {boardMenuOpen && (
+          <>
+            {/* Tap anywhere else to close */}
+            <div style={{ position: "fixed", inset: 0, zIndex: 40 }} onClick={() => setBoardMenuOpen(false)} />
+            <div role="menu" style={{ position: "absolute", top: 44, left: 0, zIndex: 41, width: "min(260px, calc(100vw - 32px))", maxHeight: "60vh", overflowY: "auto", backgroundColor: theme === "dark" ? "#1e2126" : "#ffffff", borderRadius: 16, padding: 6, boxShadow: theme === "dark" ? "0 18px 40px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.08)" : "0 18px 40px rgba(0,0,0,.18), 0 0 0 1px rgba(0,0,0,.06)" }}>
+              {boards.map(b => {
+                const isActive = b.id === activeBoardId;
+                return (
+                  <button
+                    key={b.id}
+                    role="menuitem"
+                    onClick={() => { setActiveBoardId(b.id); setBoardMenuOpen(false); }}
+                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, height: 44, borderRadius: 10, border: "none", padding: "0 10px", backgroundColor: isActive ? (theme === "dark" ? "rgba(255,255,255,.08)" : "#f1efe9") : "transparent", color: pageText(theme), fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}
+                  >
+                    <span style={{ width: 16, flexShrink: 0, textAlign: "center" }}>{isActive ? "✓" : ""}</span>
+                    <span style={{ flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{b.name}</span>
+                    <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 600, color: muted(theme), opacity: .8 }}>{b.type === "task" ? "Tasks" : "Ideas"}</span>
+                  </button>
+                );
+              })}
+              <div style={{ height: 1, backgroundColor: border(theme), margin: "4px 6px" }} />
+              <button
+                role="menuitem"
+                onClick={() => { setBoardMenuOpen(false); setMobileBoardTypePicker(true); }}
+                style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, height: 44, borderRadius: 10, border: "none", padding: "0 10px", background: "transparent", color: muted(theme), fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+              ><span style={{ width: 16, textAlign: "center" }}>+</span>New board</button>
+              <button
+                role="menuitem"
+                onClick={() => { setBoardMenuOpen(false); setMobileBoardActionId(activeBoardId); setMobileBoardRename(activeBoard?.name ?? ""); setMobileBoardRenaming(false); }}
+                style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, height: 44, borderRadius: 10, border: "none", padding: "0 10px", background: "transparent", color: muted(theme), fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+              ><span style={{ width: 16, textAlign: "center" }}>✎</span>Rename or delete “{activeBoard?.name}”</button>
+              {isSignedIn && (
+                <button
+                  role="menuitem"
+                  onClick={() => { setBoardMenuOpen(false); setProfileOpen(true); }}
+                  style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, height: 44, borderRadius: 10, border: "none", padding: "0 10px", background: "transparent", color: muted(theme), fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+                >
+                  <span style={{ width: 16, display: "flex", justifyContent: "center" }}><svg width="8" height="11" viewBox="0 0 11 15" fill="none" aria-hidden style={{ flexShrink: 0 }}><path d="M7 1L1 8.5h4L3.5 14 10 6H6L7 1Z" fill="#facc15"/></svg></span>
+                  Focus stats
+                  <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 600, opacity: .8 }}>{(focusStatsData?.currentStreak ?? 0) > 0 ? `${focusStatsData?.currentStreak}-day streak` : "Time focused"}</span>
+                </button>
+              )}
+            </div>
+          </>
         )}
+      </div>
         <ThemeToggle theme={theme} onToggle={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} size={38} />
         <button
             data-tour="settings"
@@ -873,7 +903,8 @@ export default function MobileBoard() {
             {actionNote.type === "thought" && (
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: muted(theme), letterSpacing: ".04em" }}>Remind me</span>
-                <ReminderPicker theme={theme} value={editRemindAt} onChange={setEditRemindAt} morningTime={emailPrefs?.reminderTime} signedIn={!!isSignedIn} large />
+                <ReminderPicker theme={theme} value={editRemindAt} onChange={setEditRemindAt} morningTime={emailPrefs?.reminderTime} signedIn={!!isSignedIn} large
+                  hint={editRemindAt !== (actionNote.remindAt && actionNote.remindAt > Date.now() ? actionNote.remindAt : null) ? "Press Save to confirm this change." : undefined} />
               </div>
             )}
             {actionNote.type === "task" && (
@@ -967,7 +998,7 @@ export default function MobileBoard() {
                   } : n);
                   setNotes(updatedNotes);
                   if (actionNote.type === "task") scheduleDueDateReminder(actionNote.id, mobileEditTitle.trim() || actionNote.title, mobileEditDueDate || undefined, mobileEditDueTime || undefined);
-                  else if ((actionNote.remindAt ?? null) !== editRemindAt) scheduleIdeaReminder(actionNote.id, mobileEditTitle.trim() || actionNote.title, editRemindAt);
+                  else if ((actionNote.remindAt && actionNote.remindAt > Date.now() ? actionNote.remindAt : null) !== editRemindAt) scheduleIdeaReminder(actionNote.id, mobileEditTitle.trim() || actionNote.title, editRemindAt);
                   setMobileActionNoteId(null);
                   setMobileDeleteConfirm(false);
                   if (isSignedIn) {

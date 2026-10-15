@@ -685,18 +685,6 @@ export function HomeShell() {
             </div>
 
             <div style={{ position: "relative", display: "flex", gap: 5, alignItems: "center" }}>
-              {/* Focus stats */}
-              {isSignedIn && (
-                <button onClick={() => setProfileOpen(true)} style={circleButton(boardTheme)} aria-label="Focus stats" title="Focus stats">
-                  {(focusStatsData?.currentStreak ?? 0) > 0
-                    ? <svg width="11" height="15" viewBox="0 0 11 15" fill="none" overflow="visible" style={{ display: "block", animation: "boltSpark 1.4s ease-in-out infinite" }}>
-                        <path d="M7 1L1 8.5h4L3.5 14 10 6H6L7 1Z" fill="#facc15"/>
-                      </svg>
-                    : <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.4"/><path d="M7 4v3l2 1.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
-                  }
-                </button>
-              )}
-
               {/* Theme toggle — lightbulb */}
               <ThemeToggle theme={boardTheme} onToggle={() => setBoardTheme((t) => (t === "dark" ? "light" : "dark"))} />
 
@@ -729,8 +717,12 @@ export function HomeShell() {
               <div style={{ width: 1, height: 18, backgroundColor: border(boardTheme), margin: "0 2px" }} />
 
               {/* Boards button */}
-              <button ref={boardButtonRef} data-tour="boards" onClick={() => { setBoardsOpen(v => !v); setSettingsOpen(false); }} style={{ ...buttonStyle(boardTheme, boardsOpen, true), minWidth: 80 }}>
+              <button ref={boardButtonRef} data-tour="boards" onClick={() => { setBoardsOpen(v => !v); setSettingsOpen(false); }} style={{ ...buttonStyle(boardTheme, boardsOpen, true), minWidth: 80, display: "inline-flex", alignItems: "center", gap: 6 }}>
                 Boards
+                {/* Small streak marker; the full stats live in this menu */}
+                {isSignedIn && (focusStatsData?.currentStreak ?? 0) > 0 && (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 700, opacity: .75 }}><svg width="8" height="11" viewBox="0 0 11 15" fill="none" aria-hidden style={{ flexShrink: 0 }}><path d="M7 1L1 8.5h4L3.5 14 10 6H6L7 1Z" fill="#facc15"/></svg>{focusStatsData?.currentStreak}</span>
+                )}
               </button>
 
               {/* Boards menu — compact dropdown */}
@@ -779,6 +771,18 @@ export function HomeShell() {
                   <button onClick={() => addBoard("task")} style={{ ...buttonStyle(boardTheme, false, true), flex: 1, fontSize: 12 }}>+ Task Board</button>
                   <button onClick={() => addBoard("thought")} style={{ ...buttonStyle(boardTheme, false, true), flex: 1, fontSize: 12 }}>+ Idea Board</button>
                 </div>
+                {isSignedIn && (
+                  <>
+                    <div style={{ height: 1, backgroundColor: border(boardTheme), margin: "2px 10px 4px" }} />
+                    <button onClick={() => { setBoardsOpen(false); setProfileOpen(true); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "calc(100% - 8px)", margin: "0 4px", padding: "8px 10px", border: "none", borderRadius: 7, background: "none", cursor: "pointer", fontSize: 13, fontWeight: 600, color: pageText(boardTheme), textAlign: "left", fontFamily: "inherit" }}>
+                      <svg width="8" height="11" viewBox="0 0 11 15" fill="none" aria-hidden style={{ flexShrink: 0 }}><path d="M7 1L1 8.5h4L3.5 14 10 6H6L7 1Z" fill="#facc15"/></svg>
+                      Focus stats
+                      <span style={{ marginLeft: "auto", fontSize: 11, color: muted(boardTheme), fontWeight: 500 }}>
+                        {(focusStatsData?.currentStreak ?? 0) > 0 ? `${focusStatsData?.currentStreak}-day streak` : "Time focused"}
+                      </span>
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
