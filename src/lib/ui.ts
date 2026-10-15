@@ -98,3 +98,20 @@ export function pill(theme: ThemeMode): CSSProperties {
     whiteSpace: "nowrap",
   };
 }
+
+// Rainbow fill for the "random" and "custom color" swatches.
+export const RAINBOW = "conic-gradient(hsl(0,100%,55%), hsl(30,100%,55%), hsl(60,100%,55%), hsl(90,100%,55%), hsl(120,100%,55%), hsl(150,100%,55%), hsl(180,100%,55%), hsl(210,100%,55%), hsl(240,100%,55%), hsl(270,100%,55%), hsl(300,100%,55%), hsl(330,100%,55%), hsl(360,100%,55%))";
+
+// A color swatch button. The selected ring is drawn *inside* the swatch (a 2px band of the
+// color, then a ring), so it never grows past the swatch and can't touch its neighbours.
+export function swatchStyle(theme: ThemeMode, fill: string, selected: boolean, size = 22, square = false): CSSProperties {
+  return {
+    flexShrink: 0, width: size, height: size, padding: 0, cursor: "pointer",
+    borderRadius: square ? 6 : "50%",
+    border: "2px solid transparent",
+    background: fill,
+    // Paint the fill under the transparent border too, so gradients don't tile at the edges.
+    backgroundOrigin: "border-box",
+    boxShadow: selected ? `inset 0 0 0 2px ${pageText(theme)}` : "none",
+  };
+}

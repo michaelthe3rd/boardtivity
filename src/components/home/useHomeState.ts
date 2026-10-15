@@ -909,6 +909,8 @@ export function useHomeState() {
     function onDocPointerDown(e: PointerEvent) {
       const target = e.target as Node | null;
       if (!boardsOpen && !settingsOpen && !userMenuOpen) return;
+      // The tour opens Settings itself and closes it when it moves on; clicks on the tour card shouldn't.
+      if (tutorialOpen) return;
       if (boardMenuRef.current?.contains(target)) return;
       if (boardButtonRef.current?.contains(target)) return;
       if (settingsRef.current?.contains(target)) return;
@@ -920,7 +922,7 @@ export function useHomeState() {
     }
     document.addEventListener("pointerdown", onDocPointerDown);
     return () => document.removeEventListener("pointerdown", onDocPointerDown);
-  }, [boardsOpen, settingsOpen, userMenuOpen]);
+  }, [boardsOpen, settingsOpen, userMenuOpen, tutorialOpen]);
 
   useEffect(() => {
     const el = viewportRef.current;

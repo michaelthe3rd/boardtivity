@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { CSSProperties } from "react";
 import type { Importance } from "@/lib/board";
 import { NOTE_PALETTE, paletteBg} from "@/lib/colors";
-import { pageText, muted, border, panel, buttonStyle, circleButton, pill } from "@/lib/ui";
+import { pageText, muted, border, panel, buttonStyle, circleButton, pill, swatchStyle } from "@/lib/ui";
 import { isoToMDY, formatDate, todayStr, fmtTime} from "@/lib/dates";
 import { genId, layoutWeb, layoutChain } from "@/lib/boardLayout";
 import { buildBreakdown } from "@/lib/breakdown";
@@ -215,14 +215,14 @@ export default function NoteDetailModal() {
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginTop: 8 }}>
                         <button
                           onClick={() => setDetailEditColorIdx(undefined)}
-                          style={{ width: 20, height: 20, borderRadius: "50%", padding: 0, cursor: "pointer", backgroundColor: boardTheme === "dark" ? "#555" : "#ccc", border: detailEditColorIdx === undefined ? `2.5px solid ${pageText(boardTheme)}` : "2.5px solid transparent", outline: detailEditColorIdx === undefined ? `2px solid ${boardTheme === "dark" ? "rgba(255,255,255,.35)" : "rgba(0,0,0,.25)"}` : "none", outlineOffset: 2 }}
+                          style={swatchStyle(boardTheme, boardTheme === "dark" ? "#555" : "#ccc", detailEditColorIdx === undefined, 20)}
                           title="Grey"
                         />
                         {NOTE_PALETTE.map((col, i) => (
                           <button
                             key={i}
                             onClick={() => setDetailEditColorIdx(i)}
-                            style={{ width: 20, height: 20, borderRadius: "50%", padding: 0, cursor: "pointer", backgroundColor: col.swatch, border: detailEditColorIdx === i ? `2.5px solid ${pageText(boardTheme)}` : "2.5px solid transparent", outline: detailEditColorIdx === i ? `2px solid ${col.swatch}` : "none", outlineOffset: 2 }}
+                            style={swatchStyle(boardTheme, col.swatch, detailEditColorIdx === i, 20)}
                           />
                         ))}
                       </div>

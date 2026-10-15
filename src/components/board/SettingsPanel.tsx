@@ -1,8 +1,9 @@
 "use client";
 
+import { Fragment } from "react";
 import BoardtivityLogo from "@/components/BoardtivityLogo";
-import { NOTE_PALETTE, TASK_PALETTE} from "@/lib/colors";
-import { pageText, muted, border, panel, buttonStyle, circleButton } from "@/lib/ui";
+import { NOTE_PALETTE, TASK_PALETTE, TASK_DEFAULT_COUNT } from "@/lib/colors";
+import { pageText, muted, border, panel, buttonStyle, circleButton, swatchStyle, RAINBOW } from "@/lib/ui";
 import { useHome } from "@/components/home/HomeContext";
 import EmailSettings from "@/components/board/EmailSettings";
 import { CloseIcon } from "@/components/ui/Icons";
@@ -12,7 +13,7 @@ import InstallAppGuide from "@/components/board/InstallAppGuide";
 // Slide-in board settings panel: theme, background, colors, account and data export.
 export default function SettingsPanel() {
   const {
-    openTutorial,
+    openTutorial, activeBoard,
     boardTheme, notes, setUpgradeOpen, confirmSignOut, setConfirmSignOut, settingsOpen,
     setSettingsOpen, bobAutoSend, setBobAutoSend, boardGrid, setBoardGrid, thoughtColorMode, setThoughtColorMode, thoughtFixedColorIdx,
     setThoughtFixedColorIdx, taskColorMode, setTaskColorMode, taskHighColorIdx, setTaskHighColorIdx, taskMedColorIdx, setTaskMedColorIdx, taskLowColorIdx,
@@ -21,6 +22,10 @@ export default function SettingsPanel() {
     setBobUserInfoFn, bobUserInfo, colorWheelSingleRef, colorWheelHighRef, colorWheelMedRef, colorWheelLowRef, settingsRef, startPortal,
     exportToIcs, pushToCloud, user, isSignedIn, openSignIn, openSignUp, signOut,
   } = useHome();
+  // Only the colors for the board you're on: idea colors on idea boards, task colors on task boards.
+  const isIdeaBoard = activeBoard?.type === "thought";
+  // Tagged only while open, so the tour never spotlights the panel while it's slid off-screen.
+  const colorsTour = settingsOpen ? "settings-colors" : undefined;
   return (
     <div ref={settingsRef} style={{
       position: "fixed", top: 0, right: 0, bottom: 0, width: "min(360px, 100vw)",
@@ -86,27 +91,18 @@ export default function SettingsPanel() {
         </div>
 
         {/* Idea Colors */}
-        <div style={{ display: "grid", gap: 12 }}>
+        {isIdeaBoard && (
+        <div data-tour={colorsTour} style={{ display: "grid", gap: 12 }}>
           <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), fontWeight: 700 }}>Idea Colors</div>
           <div style={{ display: "grid", gap: 10 }}>
             <div style={{ fontSize: 12, color: muted(boardTheme), lineHeight: 1.5 }}>
               Pick a color for new ideas, or use the shuffle for a random color. You can change any idea&apos;s color later with the circle in its corner.
             </div>
-            <div style={{ display: "flex", gap: 6, flexWrap: "nowrap", overflowX: "auto", alignItems: "center", padding: 6, margin: -6 }}>
+            <div style={{ display: "flex", gap: 5, flexWrap: "wrap", alignItems: "center", padding: 6, margin: -6 }}>
               {/* Shuffle / randomize */}
-              <button onClick={() => setThoughtColorMode("random")} style={{
-                flexShrink: 0, width: 22, height: 22, borderRadius: 6, cursor: "pointer", padding: 0, border: "none",
-                background: "conic-gradient(hsl(0,100%,55%), hsl(30,100%,55%), hsl(60,100%,55%), hsl(90,100%,55%), hsl(120,100%,55%), hsl(150,100%,55%), hsl(180,100%,55%), hsl(210,100%,55%), hsl(240,100%,55%), hsl(270,100%,55%), hsl(300,100%,55%), hsl(330,100%,55%), hsl(360,100%,55%))",
-                boxShadow: thoughtColorMode === "random" ? `0 0 0 2.5px ${pageText(boardTheme)}, 0 0 0 4.5px ${boardTheme === "dark" ? "rgba(255,255,255,.25)" : "rgba(0,0,0,.2)"}` : "none",
-              }} title="Randomize color" />
+              <button onClick={() => setThoughtColorMode("random")} style={swatchStyle(boardTheme, RAINBOW, thoughtColorMode === "random", 22, true)} title="Randomize color" />
               {NOTE_PALETTE.map((p, i) => (
-                <button key={i} onClick={() => { setThoughtColorMode("fixed"); setThoughtFixedColorIdx(i); }} style={{
-                  flexShrink: 0, width: 22, height: 22, borderRadius: "50%",
-                  border: (thoughtColorMode === "fixed" && thoughtFixedColorIdx === i) ? `2.5px solid ${pageText(boardTheme)}` : "2.5px solid transparent",
-                  outline: (thoughtColorMode === "fixed" && thoughtFixedColorIdx === i) ? `2px solid ${p.swatch}` : "none",
-                  outlineOffset: 2,
-                  backgroundColor: p.swatch, cursor: "pointer", padding: 0,
-                }} title={p.name} />
+                <button key={i} onClick={() => { setThoughtColorMode("fixed"); setThoughtFixedColorIdx(i); }} style={swatchStyle(boardTheme, p.swatch, (thoughtColorMode === "fixed" && thoughtFixedColorIdx === i), 22)} title={p.name} />
               ))}
             </div>
             <p style={{ margin: 0, fontSize: 11, color: muted(boardTheme), lineHeight: 1.5 }}>
@@ -115,8 +111,11 @@ export default function SettingsPanel() {
           </div>
         </div>
 
+        )}
+
         {/* Task Colors */}
-        <div style={{ display: "grid", gap: 12 }}>
+        {!isIdeaBoard && (
+        <div data-tour={colorsTour} style={{ display: "grid", gap: 12 }}>
           <div style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: muted(boardTheme), fontWeight: 700 }}>Task Colors</div>
           <div style={{ display: "grid", gap: 14 }}>
               {/* Mode toggle */}
@@ -146,27 +145,17 @@ export default function SettingsPanel() {
                     return (
                       <div key={lvl}>
                         <div style={{ fontSize: 12, fontWeight: 600, color: pageText(boardTheme), marginBottom: 6 }}>{lvl} priority</div>
-                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", padding: 6, margin: -6 }}>
+                        <div style={{ display: "flex", gap: 4, flexWrap: "nowrap", alignItems: "center", padding: 6, margin: -6 }}>
                           {TASK_PALETTE.map((p, i) => (
-                            <button key={i} onClick={() => setter(i)} style={{
-                              width: 22, height: 22, borderRadius: "50%",
-                              border: (currentIdx === i && currentIdx < TASK_PALETTE.length) ? `2.5px solid ${pageText(boardTheme)}` : "2.5px solid transparent",
-                              outline: (currentIdx === i && currentIdx < TASK_PALETTE.length) ? `2px solid ${p.swatch}` : "none",
-                              outlineOffset: 2,
-                              backgroundColor: p.swatch, cursor: "pointer", padding: 0,
-                            }} />
+                            <Fragment key={i}>
+                            {i === TASK_DEFAULT_COUNT && <span aria-hidden style={{ width: 1, height: 16, margin: "0 3px", flexShrink: 0, backgroundColor: border(boardTheme) }} />}
+                            <button onClick={() => setter(i)} style={swatchStyle(boardTheme, p.swatch, (currentIdx === i && currentIdx < TASK_PALETTE.length), 20)} /></Fragment>
                           ))}
                           <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                             <button
                               onClick={() => { setter(TASK_PALETTE.length); wheelRef.current?.click(); }}
                               title="Pick custom color"
-                              style={{
-                                position: "relative", width: 22, height: 22, borderRadius: 6, cursor: "pointer", padding: 0, border: "none", flexShrink: 0,
-                                background: customVal
-                                  ? customVal
-                                  : "conic-gradient(hsl(0,100%,55%), hsl(30,100%,55%), hsl(60,100%,55%), hsl(90,100%,55%), hsl(120,100%,55%), hsl(150,100%,55%), hsl(180,100%,55%), hsl(210,100%,55%), hsl(240,100%,55%), hsl(270,100%,55%), hsl(300,100%,55%), hsl(330,100%,55%), hsl(360,100%,55%))",
-                                boxShadow: currentIdx >= TASK_PALETTE.length ? `0 0 0 2.5px ${pageText(boardTheme)}, 0 0 0 4.5px ${customVal || "#fff"}` : "none",
-                              }}
+                              style={swatchStyle(boardTheme, customVal || RAINBOW, currentIdx >= TASK_PALETTE.length, 20, true)}
                             />
                             <input ref={wheelRef} type="color"
                               value={customVal || "#ff6600"}
@@ -182,28 +171,18 @@ export default function SettingsPanel() {
               ) : (
                 <div>
                   <div style={{ fontSize: 12, color: muted(boardTheme), marginBottom: 8 }}>Apply one color to all tasks regardless of priority.</div>
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", padding: 6, margin: -6 }}>
+                  <div style={{ display: "flex", gap: 4, flexWrap: "nowrap", alignItems: "center", padding: 6, margin: -6 }}>
                     {TASK_PALETTE.map((p, i) => (
-                      <button key={i} onClick={() => setTaskSingleColorIdx(i)} style={{
-                        width: 22, height: 22, borderRadius: "50%",
-                        border: (taskSingleColorIdx === i && taskSingleColorIdx < TASK_PALETTE.length) ? `2.5px solid ${pageText(boardTheme)}` : "2.5px solid transparent",
-                        outline: (taskSingleColorIdx === i && taskSingleColorIdx < TASK_PALETTE.length) ? `2px solid ${p.swatch}` : "none",
-                        outlineOffset: 2,
-                        backgroundColor: p.swatch, cursor: "pointer", padding: 0,
-                      }} />
+                      <Fragment key={i}>
+                      {i === TASK_DEFAULT_COUNT && <span aria-hidden style={{ width: 1, height: 16, margin: "0 3px", flexShrink: 0, backgroundColor: border(boardTheme) }} />}
+                      <button onClick={() => setTaskSingleColorIdx(i)} style={swatchStyle(boardTheme, p.swatch, (taskSingleColorIdx === i && taskSingleColorIdx < TASK_PALETTE.length), 20)} /></Fragment>
                     ))}
                     {/* Custom color — solid when picked, rainbow when not */}
                     <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                       <button
                         onClick={() => { setTaskSingleColorIdx(TASK_PALETTE.length); colorWheelSingleRef.current?.click(); }}
                         title="Pick custom color"
-                        style={{
-                          position: "relative", width: 22, height: 22, borderRadius: 6, cursor: "pointer", padding: 0, border: "none", flexShrink: 0,
-                          background: taskSingleCustom
-                            ? taskSingleCustom
-                            : "conic-gradient(hsl(0,100%,55%), hsl(30,100%,55%), hsl(60,100%,55%), hsl(90,100%,55%), hsl(120,100%,55%), hsl(150,100%,55%), hsl(180,100%,55%), hsl(210,100%,55%), hsl(240,100%,55%), hsl(270,100%,55%), hsl(300,100%,55%), hsl(330,100%,55%), hsl(360,100%,55%))",
-                          boxShadow: taskSingleColorIdx >= TASK_PALETTE.length ? `0 0 0 2.5px ${pageText(boardTheme)}, 0 0 0 4.5px ${taskSingleCustom || "#fff"}` : "none",
-                        }}
+                        style={swatchStyle(boardTheme, taskSingleCustom || RAINBOW, taskSingleColorIdx >= TASK_PALETTE.length, 20, true)}
                       />
                       <input ref={colorWheelSingleRef} type="color"
                         value={taskSingleCustom || "#ff6600"}
@@ -216,6 +195,7 @@ export default function SettingsPanel() {
               )}
             </div>
         </div>
+        )}
 
         {/* Email */}
         {isSignedIn && <EmailSettings theme={boardTheme} />}

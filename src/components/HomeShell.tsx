@@ -19,6 +19,9 @@ import SessionReviewModal from "@/components/focus/SessionReviewModal";
 import ProfilePanel from "@/components/focus/ProfilePanel";
 import BoardtivityLogo from "@/components/BoardtivityLogo";
 import ThemeToggle from "@/components/ThemeToggle";
+import ToolbarOverflow from "@/components/board/ToolbarOverflow";
+import { useLayoutEffect, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import DurationPicker from "@/components/focus/DurationPicker";
 import FeedbackBoard from "@/components/landing/FeedbackBoard";
 import MarketingSections from "@/components/landing/MarketingSections";
@@ -34,6 +37,41 @@ import { SyncCloud, syncLabel } from "@/components/ui/SyncStatus";
 
 export function HomeShell() {
   const home = useHomeState();
+  // Board toolbar: fold Focus stats / Center / Theme into a "More" menu when the right-hand
+  // buttons would otherwise run into BOB (centered) on narrower boards.
+  const toolbarRef = useRef<HTMLDivElement | null>(null);
+  const toolbarLeftRef = useRef<HTMLDivElement | null>(null);
+  const toolbarRightRef = useRef<HTMLDivElement | null>(null);
+  const fullRightWidthRef = useRef(0);
+  const toolbarCompactRef = useRef(false);
+  const [toolbarCompact, setToolbarCompact] = useState(false);
+  const [bobOpenWidth, setBobOpenWidth] = useState(480);
+  const [bobCrowded, setBobCrowded] = useState(false); // open BOB won't fit between the two sides
+  const [bobOpen, setBobOpen] = useState(false);
+  // While a crowded BOB is open, the side controls step aside so nothing peeks out from under it.
+  const hideToolbarSides: CSSProperties = { opacity: bobOpen && bobCrowded ? 0 : 1, pointerEvents: bobOpen && bobCrowded ? "none" : undefined, transition: "opacity .2s ease" };
+  useLayoutEffect(() => {
+    const BOB_PILL_W = 90; // BOB's closed width; its open size must not change the toolbar layout
+    const bar = toolbarRef.current, left = toolbarLeftRef.current, right = toolbarRightRef.current;
+    if (!bar || !left || !right) return;
+    const update = () => {
+      if (bar.clientWidth === 0) return; // hidden (phone layout)
+      if (!toolbarCompactRef.current) fullRightWidthRef.current = right.offsetWidth;
+      const fullRight = fullRightWidthRef.current || right.offsetWidth + 90;
+      // BOB sits in the middle, so each side gets half of what's left (plus a little breathing room).
+      const next = bar.clientWidth < 2 * Math.max(left.offsetWidth, fullRight) + BOB_PILL_W + 32;
+      if (next !== toolbarCompactRef.current) { toolbarCompactRef.current = next; setToolbarCompact(next); }
+      // Open BOB fills the gap between the two sides. If that gap is too tight, it spans the
+      // toolbar and sits on top of it instead of half-covering the buttons.
+      const gap = bar.clientWidth - 2 * (Math.max(left.offsetWidth, right.offsetWidth) + 12);
+      setBobCrowded(gap < 360);
+      setBobOpenWidth(Math.round(Math.min(480, gap >= 360 ? gap : bar.clientWidth)));
+    };
+    const ro = new ResizeObserver(update);
+    [bar, left, right].forEach(el => ro.observe(el));
+    update();
+    return () => ro.disconnect();
+  }, []);
   const {
     toggleNoteLock, startLongPress, trackLongPress, cancelLongPress, lastPointerTypeRef, lockToast,
     theme, setTheme, boardTheme, setBoardTheme, boards, activeBoardId, setActiveBoardId, boardsOpen,
@@ -643,11 +681,13 @@ export function HomeShell() {
             </div>
           )}
 
-          <div style={{ position: "absolute", top: isNativeApp ? "env(safe-area-inset-top, 12px)" : 12, left: 16, right: 16, zIndex: 3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div ref={toolbarRef} style={{ position: "absolute", top: isNativeApp ? "env(safe-area-inset-top, 12px)" : 12, left: 16, right: 16, zIndex: 3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             {/* BOB — visible to all, admin-gated features */}
-            <div data-tour="bob" style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", top: 0 }}>
+            <div data-tour="bob" style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", top: 0, zIndex: 4 }}>
               <BobAgent
                 theme={boardTheme}
+                openWidth={bobOpenWidth}
+                onOpenChange={setBobOpen}
                 notes={notes}
                 activeBoardId={activeBoardId}
                 onSweep={handleBobSweep}
@@ -669,7 +709,8 @@ export function HomeShell() {
                 focusStats={focusStatsData ?? undefined}
               />
             </div>
-            <div style={{
+            <div ref={toolbarLeftRef} style={{
+                ...hideToolbarSides,
                 display: "flex", alignItems: "center", gap: 8,
                 fontSize: 14,
                 fontWeight: 700,
@@ -686,7 +727,8 @@ export function HomeShell() {
               {activeBoard.name}
             </div>
 
-            <div style={{ position: "relative", display: "flex", gap: 5, alignItems: "center" }}>
+            <div ref={toolbarRightRef} style={{ ...hideToolbarSides, position: "relative", display: "flex", gap: 5, alignItems: "center" }}>
+              <ToolbarOverflow theme={boardTheme} compact={toolbarCompact}>
               {/* Focus stats (signed out, it explains that signing in tracks focus time) */}
               <button onClick={() => setProfileOpen(true)} className="hover-tip" data-tip="Focus stats" style={circleButton(boardTheme)} aria-label="Focus stats">
                 {(focusStatsData?.currentStreak ?? 0) > 0
@@ -704,6 +746,7 @@ export function HomeShell() {
 
               {/* Theme toggle — lightbulb */}
               <ThemeToggle theme={boardTheme} onToggle={() => setBoardTheme((t) => (t === "dark" ? "light" : "dark"))} />
+              </ToolbarOverflow>
 
               {/* Divider */}
               <div style={{ width: 1, height: 18, backgroundColor: border(boardTheme), margin: "0 2px" }} />

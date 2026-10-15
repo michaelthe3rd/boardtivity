@@ -52,6 +52,8 @@ interface Props {
   autoSend?: boolean;
   settings?: BobSettings;
   mobile?: boolean;
+  openWidth?: number; // desktop: width of the open panel (the board toolbar fits it to the free space)
+  onOpenChange?: (open: boolean) => void; // fires when BOB starts opening or starts closing
   onUpgrade?: () => void;
   focusStats?: { currentStreak: number; totalMinutes: number; totalTasksCompleted: number; days: { date: string; totalMinutes: number; tasksCompleted: number }[] };
 }
@@ -150,7 +152,7 @@ export default function BobAgent({
   onHighlightNotes, onLaunchFocus, onSaveUndo, onUndo, isAdmin = true,
   userInfo = "", autoSend = false,
   onSetIdeaColor, onConfigureTaskColors, onConfigureBoard, settings,
-  mobile = false, focusStats, onUpgrade,
+  mobile = false, focusStats, onUpgrade, openWidth = 480, onOpenChange,
 }: Props) {
   const [open,    setOpen]    = useState(false);
   const [closing, setClosing] = useState(false);
@@ -201,9 +203,10 @@ export default function BobAgent({
     return () => document.removeEventListener("mousedown", onDown);
   }, [open, closing, mobile]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function doOpen()  { setOpen(true); setClosing(false); }
+  function doOpen()  { setOpen(true); setClosing(false); onOpenChange?.(true); }
   function doClose() {
     setClosing(true);
+    onOpenChange?.(false);
     setTimeout(() => {
       setOpen(false);
       setClosing(false);
@@ -499,7 +502,7 @@ export default function BobAgent({
   const ic = T.text(t);
   const mu = T.muted(t);
 
-  const PILL_W = mobile ? "100%" : 90, OPEN_W = mobile ? "100%" : 480, PILL_H = 44;
+  const PILL_W = mobile ? "100%" : 90, OPEN_W = mobile ? "100%" : openWidth, PILL_H = 44;
   const DI  = "cubic-bezier(0.22, 1, 0.36, 1)";  // spring-like ease-out
   const DI2 = "cubic-bezier(0.4, 0, 0.2, 1)";    // material ease for collapse
   const transition = mobile

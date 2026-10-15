@@ -2,7 +2,7 @@
 
 import type { Importance} from "@/lib/board";
 import { NOTE_PALETTE, paletteBg} from "@/lib/colors";
-import { pageText, muted, border, panel, buttonStyle, fieldStyle, circleButton, pill } from "@/lib/ui";
+import { pageText, muted, border, panel, buttonStyle, fieldStyle, circleButton, pill, swatchStyle } from "@/lib/ui";
 import { formatDate} from "@/lib/dates";
 import { estimateTime, buildBreakdown } from "@/lib/breakdown";
 import { useHome } from "@/components/home/HomeContext";
@@ -142,14 +142,14 @@ export default function TaskComposer() {
                 <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", color: muted(boardTheme), opacity: .6, marginRight: 2 }}>Color</span>
                 <button
                   onClick={() => setComposerColorIdx(undefined)}
-                  style={{ width: 24, height: 24, borderRadius: "50%", padding: 0, cursor: "pointer", backgroundColor: boardTheme === "dark" ? "#555" : "#ccc", border: composerColorIdx === undefined ? `2.5px solid ${pageText(boardTheme)}` : "2.5px solid transparent", outline: composerColorIdx === undefined ? `2px solid ${boardTheme === "dark" ? "rgba(255,255,255,.35)" : "rgba(0,0,0,.25)"}` : "none", outlineOffset: 2 }}
+                  style={swatchStyle(boardTheme, boardTheme === "dark" ? "#555" : "#ccc", composerColorIdx === undefined, 24)}
                   title="Grey"
                 />
                 {NOTE_PALETTE.map((col, i) => (
                   <button
                     key={i}
                     onClick={() => setComposerColorIdx(i)}
-                    style={{ width: 24, height: 24, borderRadius: "50%", padding: 0, cursor: "pointer", backgroundColor: col.swatch, border: composerColorIdx === i ? `2.5px solid ${pageText(boardTheme)}` : "2.5px solid transparent", outline: composerColorIdx === i ? `2px solid ${col.swatch}` : "none", outlineOffset: 2 }}
+                    style={swatchStyle(boardTheme, col.swatch, composerColorIdx === i, 24)}
                   />
                 ))}
               </div>
