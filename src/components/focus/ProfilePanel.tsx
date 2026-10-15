@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import { pageText, muted, border} from "@/lib/ui";
 import { fmtFocusTime } from "@/lib/dates";
 import { useHome } from "@/components/home/HomeContext";
+import { CloseIcon } from "@/components/ui/Icons";
 
 // Account panel with focus streak, totals and the last-14-days chart.
 export default function ProfilePanel() {
@@ -27,7 +28,7 @@ export default function ProfilePanel() {
       <div style={card} onClick={e => e.stopPropagation()}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ fontSize: 16, fontWeight: 700, color: pageText(theme), letterSpacing: "-.01em" }}>Focus Stats</div>
-          <button onClick={() => setProfileOpen(false)} style={{ width: 28, height: 28, borderRadius: 8, border: "none", background: "transparent", color: muted(theme), fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+          <button onClick={() => setProfileOpen(false)} style={{ width: 28, height: 28, borderRadius: 8, border: "none", background: "transparent", color: muted(theme), fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><CloseIcon size={16} /></button>
         </div>
         <div style={{ display: "flex", gap: 12 }}>
           {[

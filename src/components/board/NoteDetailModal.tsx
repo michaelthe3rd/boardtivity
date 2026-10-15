@@ -12,6 +12,7 @@ import DateField from "@/components/ui/DateField";
 import LockIcon from "@/components/ui/LockIcon";
 import { useHome } from "@/components/home/HomeContext";
 import ReminderPicker, { BellIcon, formatReminder } from "@/components/board/ReminderPicker";
+import { CloseIcon, PencilIcon } from "@/components/ui/Icons";
 
 // Task/idea detail: view and edit fields, subtasks, focus launch and actions.
 export default function NoteDetailModal() {
@@ -91,7 +92,7 @@ export default function NoteDetailModal() {
                 }}
                 style={{ ...circleButton(boardTheme, 36), fontSize: 14 }}
                 title={detailNote.type === "task" ? "Edit task" : "Edit idea"}
-              >✎</button>
+              ><PencilIcon size={15} /></button>
             )}
             {!detailEditing && (
               <button
@@ -107,7 +108,7 @@ export default function NoteDetailModal() {
                 <LockIcon locked={!!detailNote.locked} size={15} />
               </button>
             )}
-            <button onClick={() => { setDetailNoteId(null); setDetailEditing(false); }} style={circleButton(boardTheme, 36)}>✕</button>
+            <button onClick={() => { setDetailNoteId(null); setDetailEditing(false); }} style={circleButton(boardTheme, 36)}><CloseIcon size={14} /></button>
           </div>
         </div>
 
@@ -158,7 +159,7 @@ export default function NoteDetailModal() {
                             style={{ ...editField, flex: 1, color: detailEditDueTime ? pageText(boardTheme) : muted(boardTheme), cursor: "pointer", colorScheme: boardTheme === "dark" ? "dark" : "light" }}
                           />
                           {detailEditDueTime && (
-                            <button type="button" onClick={() => setDetailEditDueTime("")} style={{ background: "none", border: "none", color: muted(boardTheme), fontSize: 14, opacity: .6, cursor: "pointer", padding: "0 2px", lineHeight: 1 }}>✕</button>
+                            <button type="button" onClick={() => setDetailEditDueTime("")} style={{ background: "none", border: "none", color: muted(boardTheme), fontSize: 14, opacity: .6, cursor: "pointer", padding: "0 2px", lineHeight: 1 }}><CloseIcon size={14} /></button>
                           )}
                         </div>
                       )}
@@ -303,7 +304,7 @@ export default function NoteDetailModal() {
                         <button
                           onClick={() => setDetailEditSteps(prev => prev.filter(s => s.id !== step.id))}
                           style={{ background: "none", border: "none", cursor: "pointer", color: muted(boardTheme), fontSize: 14, padding: "0 4px", lineHeight: 1, opacity: .6 }}
-                        >✕</button>
+                        ><CloseIcon size={14} /></button>
                       </div>
                     ))}
                     {detailEditSteps.length > 0 && (
@@ -433,7 +434,7 @@ export default function NoteDetailModal() {
                     })}
                   </div>
                 )}
-                {/* Reminder: read-only here; change it with ✎ Edit */}
+                {/* Reminder: read-only here; change it with Edit */}
                 {savedRemindAt !== null && !detailEditing && (
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 20, fontSize: 13, fontWeight: 600, color: pageText(boardTheme) }}>
                     <BellIcon size={13} />Email reminder {formatReminder(savedRemindAt)}

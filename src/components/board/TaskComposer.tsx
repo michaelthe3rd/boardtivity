@@ -7,6 +7,7 @@ import { formatDate} from "@/lib/dates";
 import { estimateTime, buildBreakdown } from "@/lib/breakdown";
 import { useHome } from "@/components/home/HomeContext";
 import ReminderPicker from "@/components/board/ReminderPicker";
+import { CloseIcon } from "@/components/ui/Icons";
 
 // Add-task / add-idea dialog with drafts, priority, due date and BOB breakdown.
 export default function TaskComposer() {
@@ -55,7 +56,7 @@ export default function TaskComposer() {
               {thoughtMode ? "Add an idea" : "Add a task"}
             </div>
           </div>
-          <button onClick={closeComposer} style={circleButton(boardTheme, 42)}>✕</button>
+          <button onClick={closeComposer} style={circleButton(boardTheme, 42)}><CloseIcon size={14} /></button>
         </div>
 
         {drafts.length > 0 && (
@@ -203,7 +204,7 @@ export default function TaskComposer() {
                         placeholder="Time (optional)"
                       />
                       {dueTime && (
-                        <button type="button" onClick={() => setDueTime("")} style={{ background: "none", border: "none", color: muted(boardTheme), fontSize: 14, opacity: .6, cursor: "pointer", padding: "0 2px", lineHeight: 1 }}>✕</button>
+                        <button type="button" onClick={() => setDueTime("")} style={{ background: "none", border: "none", color: muted(boardTheme), fontSize: 14, opacity: .6, cursor: "pointer", padding: "0 2px", lineHeight: 1 }}><CloseIcon size={14} /></button>
                       )}
                     </div>
                   )}

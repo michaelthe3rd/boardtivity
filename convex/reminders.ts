@@ -185,7 +185,7 @@ export function dueEmail({ title, note, boardName, dueDate, dueTime, today, unsu
       <tr><td style="padding:16px 18px;">
         <div style="font-size:17px;font-weight:700;color:#171613;line-height:1.35;">${escapeHtml(title)}</div>
         ${meta ? `<div style="font-size:13px;color:#8a8780;margin-top:4px;">${escapeHtml(meta)}</div>` : ""}
-        ${nextSteps.length ? `<div style="margin-top:14px;">${sectionLabel("Next steps")}${nextSteps.map((s) => `<div style="font-size:14px;color:#3d3a34;line-height:1.5;padding:3px 0;">○&nbsp; ${escapeHtml(s.title)}</div>`).join("")}</div>` : ""}
+        ${nextSteps.length ? `<div style="margin-top:14px;">${sectionLabel("Next steps")}${nextSteps.map((s) => `<div style="font-size:14px;color:#3d3a34;line-height:1.5;padding:3px 0;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;border:1.5px solid #b9b5ab;margin-right:9px;vertical-align:0;"></span>${escapeHtml(s.title)}</div>`).join("")}</div>` : ""}
       </td></tr>
     </table>
     <div style="margin-top:22px;">

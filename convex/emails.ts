@@ -176,7 +176,7 @@ function focusLine(focus: Focus) {
     focus.currentStreak > 0 ? `<strong style="color:#171613;">${focus.currentStreak}-day streak</strong>` : "",
     focus.weekMinutes > 0 ? `${hours(focus.weekMinutes)} focused in the last 7 days` : "",
   ].filter(Boolean).join(" &nbsp;·&nbsp; ");
-  return `<div style="font-size:13px;color:#6b675f;background:#faf9f6;border:1px solid #ece9e1;border-radius:10px;padding:10px 14px;margin-bottom:22px;">⚡ ${bits}</div>`;
+  return `<div style="font-size:13px;color:#6b675f;background:#faf9f6;border:1px solid #ece9e1;border-radius:10px;padding:10px 14px;margin-bottom:22px;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#facc15;margin-right:8px;vertical-align:1px;"></span>${bits}</div>`;
 }
 
 function plural(n: number, word: string) { return `${n} ${word}${n === 1 ? "" : "s"}`; }

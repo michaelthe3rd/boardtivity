@@ -6,6 +6,7 @@ import { pageText, muted, border, panel, pill, buttonStyle } from "@/lib/ui";
 import { useRevealOnScroll, useIsMobile } from "@/lib/hooks";
 import { hexToRgba } from "@/lib/colors";
 import BoardtivityLogo from "@/components/BoardtivityLogo";
+import { CheckIcon } from "@/components/ui/Icons";
 
 // Landing content below the board. Signed out: focus showcase, features, pricing.
 // Signed in: only the upgrade (pricing) section, and nothing for Plus members, so the board stays the focus.
@@ -170,7 +171,7 @@ export default function MarketingSections({ theme, isMobile, isSignedIn, isPlus,
               ))}
             </div>
             {isPlus ? (
-              <button disabled style={{ width: "100%", height: 42, borderRadius: 999, border: "1px solid rgba(255,255,255,.18)", backgroundColor: "transparent", color: "rgba(255,255,255,.55)", fontSize: 14, fontWeight: 700, cursor: "default" }}>✓ Current plan</button>
+              <button disabled style={{ width: "100%", height: 42, borderRadius: 999, border: "1px solid rgba(255,255,255,.18)", backgroundColor: "transparent", color: "rgba(255,255,255,.55)", fontSize: 14, fontWeight: 700, cursor: "default", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8 }}><CheckIcon size={15} strokeWidth={2.4} />Current plan</button>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <button onClick={() => onCheckout("annual")} disabled={checkoutLoading} style={{ width: "100%", height: 42, borderRadius: 999, border: "none", backgroundColor: "#f7f8fb", color: "#111315", fontSize: 14, fontWeight: 700, cursor: "pointer", opacity: checkoutLoading ? 0.6 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>

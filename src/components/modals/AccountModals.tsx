@@ -124,7 +124,7 @@ export function WhatsNewModal({ theme, onClose }: Base) {
         </span>
       </div>
       <div style={{ fontSize: 24, fontWeight: 900, letterSpacing: "-.04em", color: pageText(theme), marginBottom: 8, lineHeight: 1.2 }}>
-        Boardtivity just got a major upgrade ✦
+        Boardtivity just got a major upgrade
       </div>
       <div style={{ fontSize: 14, color: muted(theme), lineHeight: 1.75, marginBottom: 24, textAlign: "left" }}>
         <div style={{ marginBottom: 10 }}>We&apos;ve been heads down building — here&apos;s what&apos;s new:</div>

@@ -2,6 +2,7 @@
 
 import { pageText, muted, border, buttonStyle, circleButton, pill } from "@/lib/ui";
 import { useHome } from "@/components/home/HomeContext";
+import { CloseIcon } from "@/components/ui/Icons";
 
 // Subtask detail dialog.
 export default function StepModal() {
@@ -42,7 +43,7 @@ export default function StepModal() {
             <div style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: muted(boardTheme) }}>Subtask</div>
             <div style={{ marginTop: 6, fontSize: 22, fontWeight: 700 }}>{stepModal.title}</div>
           </div>
-          <button onClick={() => setActiveStep(null)} style={circleButton(boardTheme, 40)}>✕</button>
+          <button onClick={() => setActiveStep(null)} style={circleButton(boardTheme, 40)}><CloseIcon size={16} /></button>
         </div>
         <div style={{ padding: 18, display: "grid", gap: 12 }}>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>

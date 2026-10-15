@@ -3,6 +3,7 @@
 import type { CSSProperties } from "react";
 import { fmtFocusTime } from "@/lib/dates";
 import { useHome } from "@/components/home/HomeContext";
+import { CheckIcon } from "@/components/ui/Icons";
 
 // Shown when a focus session ends: log time and mark the task or subtask done.
 export default function SessionReviewModal() {
@@ -55,7 +56,7 @@ export default function SessionReviewModal() {
             onClick={() => handleFocusReviewDone(true)}
             style={{ height: 48, borderRadius: 14, border: "none", backgroundColor: "#6fc46b", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
           >
-            Mark task done ✓
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>Mark task done <CheckIcon size={16} strokeWidth={2.6} /></span>
           </button>
           <button
             onClick={() => handleFocusReviewDone(false)}
