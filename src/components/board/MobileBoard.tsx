@@ -343,18 +343,16 @@ export default function MobileBoard() {
         {/* Soft fade divider, then the stats/theme/settings strip, which scrolls (with a fade) if the screen is too narrow */}
         <div aria-hidden style={{ flexShrink: 0, width: 1, height: 26, margin: "0 3px", background: `linear-gradient(180deg, transparent, ${theme === "dark" ? "rgba(255,255,255,.22)" : "rgba(0,0,0,.18)"}, transparent)` }} />
         <FadeScroll style={{ flex: "0 1 auto" }}>
-          {isSignedIn && (
-            <button
-              onClick={() => setProfileOpen(true)}
-              style={{ flexShrink: 0, width: 38, height: 38, borderRadius: 999, border: `1px solid ${border(theme)}`, backgroundColor: theme === "dark" ? "#1e2126" : "#ffffff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
-              aria-label="Focus stats"
-            >
-              {(focusStatsData?.currentStreak ?? 0) > 0
-                ? <svg width="10" height="13" viewBox="0 0 11 15" fill="none" overflow="visible" style={{ animation: "boltSpark 1.4s ease-in-out infinite" }}><path d="M7 1L1 8.5h4L3.5 14 10 6H6L7 1Z" fill="#facc15"/></svg>
-                : <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke={muted(theme)} strokeWidth="1.4"/><path d="M7 4v3l2 1.5" stroke={muted(theme)} strokeWidth="1.3" strokeLinecap="round"/></svg>
-              }
-            </button>
-          )}
+          <button
+            onClick={() => setProfileOpen(true)}
+            style={{ flexShrink: 0, width: 38, height: 38, borderRadius: 999, border: `1px solid ${border(theme)}`, backgroundColor: theme === "dark" ? "#1e2126" : "#ffffff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+            aria-label="Focus stats"
+          >
+            {(focusStatsData?.currentStreak ?? 0) > 0
+              ? <svg width="10" height="13" viewBox="0 0 11 15" fill="none" overflow="visible" style={{ animation: "boltSpark 1.4s ease-in-out infinite" }}><path d="M7 1L1 8.5h4L3.5 14 10 6H6L7 1Z" fill="#facc15"/></svg>
+              : <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke={muted(theme)} strokeWidth="1.4"/><path d="M7 4v3l2 1.5" stroke={muted(theme)} strokeWidth="1.3" strokeLinecap="round"/></svg>
+            }
+          </button>
           <ThemeToggle theme={theme} onToggle={() => setTheme((t) => (t === "dark" ? "light" : "dark"))} size={38} />
           <button
               data-tour="settings"

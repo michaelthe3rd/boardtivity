@@ -9,7 +9,7 @@ import { CloseIcon } from "@/components/ui/Icons";
 // Account panel with focus streak, totals and the last-14-days chart.
 export default function ProfilePanel() {
   const {
-    theme, profileOpen, setProfileOpen, localToday, focusStatsData,
+    theme, profileOpen, setProfileOpen, localToday, focusStatsData, isSignedIn, openSignIn, openSignUp,
   } = useHome();
   if (!(profileOpen)) return null;
   const stats = focusStatsData;
@@ -17,7 +17,12 @@ export default function ProfilePanel() {
   const totalMins = stats?.totalMinutes ?? 0;
   const totalHoursDisplay = fmtFocusTime(totalMins);
   const totalTasks = stats?.totalTasksCompleted ?? 0;
-  const days = stats?.days ?? [];
+  // Signed out: show an empty week so the panel previews what gets tracked.
+  const days = stats?.days ?? Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(localToday + "T12:00:00");
+    d.setDate(d.getDate() - (6 - i));
+    return { date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`, totalMinutes: 0 };
+  });
   const maxMin = Math.max(...days.map(d => d.totalMinutes), 1);
   const today = localToday;
   const overlay: CSSProperties = { position: "fixed", inset: 0, zIndex: 800, backgroundColor: theme === "dark" ? "rgba(6,8,12,.7)" : "rgba(10,10,12,.36)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 };
@@ -60,9 +65,22 @@ export default function ProfilePanel() {
             })}
           </div>
         </div>
-        <div style={{ fontSize: 13, color: muted(theme), textAlign: "center" }}>
-          {fmtFocusTime(days.reduce((s, d) => s + d.totalMinutes, 0))} this week · {days.filter(d => d.totalMinutes > 0).length} active days
-        </div>
+        {isSignedIn ? (
+          <div style={{ fontSize: 13, color: muted(theme), textAlign: "center" }}>
+            {fmtFocusTime(days.reduce((s, d) => s + d.totalMinutes, 0))} this week · {days.filter(d => d.totalMinutes > 0).length} active days
+          </div>
+        ) : (
+          <div style={{ background: theme === "dark" ? "rgba(255,255,255,.04)" : "rgba(0,0,0,.03)", border: `1px solid ${border(theme)}`, borderRadius: 14, padding: "14px 14px 12px", display: "grid", gap: 10, textAlign: "center" }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: pageText(theme) }}>Track how long you focus</div>
+            <div style={{ fontSize: 12.5, color: muted(theme), lineHeight: 1.55 }}>
+              Sign in and every focus session adds to your streak, total time and weekly chart, on your computer and your phone.
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => { setProfileOpen(false); openSignUp(); }} style={{ flex: 1, height: 40, borderRadius: 10, border: "none", backgroundColor: theme === "dark" ? "#f5f5f2" : "#171613", color: theme === "dark" ? "#171613" : "#f7f8fb", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Sign up free</button>
+              <button onClick={() => { setProfileOpen(false); openSignIn(); }} style={{ flex: 1, height: 40, borderRadius: 10, border: `1px solid ${border(theme)}`, backgroundColor: "transparent", color: pageText(theme), fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Sign in</button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
