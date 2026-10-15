@@ -192,8 +192,11 @@ const TASK_STEPS: Step[] = [
     id: "boards", target: "boards", title: "Your boards",
     body: l => l === "phone"
       ? <>Tap here to switch between your task and idea boards, or to add a new one.</>
-      : <>Switch between task boards and idea boards, or create new ones.</>,
+      : <>Switch between task boards and idea boards, or create, rename and delete them.</>,
   },
+  CENTER_STEP,
+  FULLSCREEN_STEP,
+  SYNC_STEP,
   {
     id: "settings", target: "settings", title: "Settings",
     body: () => <>Themes, colors, emails, BOB, your plan and help. You can replay this tour anytime under <strong>Help</strong>.</>,
@@ -203,9 +206,6 @@ const TASK_STEPS: Step[] = [
   emailStep("task"),
   CALENDAR_STEP,
   APP_STEP,
-  SYNC_STEP,
-  CENTER_STEP,
-  FULLSCREEN_STEP,
   FEEDBACK_STEP,
   DONE_STEP,
 ];
@@ -263,8 +263,15 @@ const IDEA_STEPS: Step[] = [
     id: "boards", target: "boards", title: "Your boards",
     body: l => l === "phone"
       ? <>Tap here to switch between idea and task boards. When an idea turns into real work, make it a task on a task board.</>
-      : <>Switch between idea boards and task boards, or create new ones. When an idea turns into real work, make it a task.</>,
+      : <>Switch between idea boards and task boards, or create, rename and delete them. When an idea turns into real work, make it a task.</>,
   },
+  {
+    id: "focus-stats", target: "focus-stats", title: "Focus mode",
+    body: () => <>On task boards, every task has a focus timer that builds a daily streak. Your stats live here.</>,
+  },
+  CENTER_STEP,
+  FULLSCREEN_STEP,
+  SYNC_STEP,
   {
     id: "settings", target: "settings", title: "Settings",
     body: () => <>Themes, colors, emails, BOB, your plan and help. You can replay this tour anytime under <strong>Help</strong>.</>,
@@ -274,13 +281,6 @@ const IDEA_STEPS: Step[] = [
   emailStep("idea"),
   CALENDAR_STEP,
   APP_STEP,
-  SYNC_STEP,
-  {
-    id: "focus-stats", target: "focus-stats", title: "Focus mode",
-    body: () => <>On task boards, every task has a focus timer that builds a daily streak. Your stats live here.</>,
-  },
-  CENTER_STEP,
-  FULLSCREEN_STEP,
   FEEDBACK_STEP,
   DONE_STEP,
 ];
