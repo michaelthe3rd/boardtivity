@@ -238,6 +238,12 @@ export default function TaskComposer() {
 
               </div>
             )}
+            {!thoughtMode && (
+              <div data-tour="composer-remind" style={{ display: "grid", gap: 8, padding: "4px 0" }}>
+                <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", color: muted(boardTheme), opacity: .6 }}>Remind me</span>
+                <ReminderPicker theme={boardTheme} value={composerRemindAt} onChange={setComposerRemindAt} morningTime={emailPrefs?.reminderTime} signedIn={!!isSignedIn} />
+              </div>
+            )}
           </div>
 
           <div style={{ display: thoughtMode ? "none" : "grid", gap: 12, alignContent: "start" }}>

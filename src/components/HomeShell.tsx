@@ -564,6 +564,11 @@ export function HomeShell() {
                           <LockIcon locked size={11} />
                         </div>
                       )}
+                      {note.type === "task" && note.remindAt && note.remindAt > Date.now() && !note.completed && (
+                        <div style={{ ...pill(boardTheme), padding: "4px 6px", display: "grid", placeItems: "center" }} title={`Email reminder ${formatReminder(note.remindAt)}`} aria-label={`Email reminder ${formatReminder(note.remindAt)}`}>
+                          <BellIcon size={11} />
+                        </div>
+                      )}
                     </div>
 
                     {note.type === "thought" && note.remindAt && note.remindAt > Date.now() && (
@@ -730,7 +735,7 @@ export function HomeShell() {
             <div ref={toolbarRightRef} style={{ ...hideToolbarSides, position: "relative", display: "flex", gap: 5, alignItems: "center" }}>
               <ToolbarOverflow theme={boardTheme} compact={toolbarCompact}>
               {/* Focus stats (signed out, it explains that signing in tracks focus time) */}
-              <button onClick={() => setProfileOpen(true)} className="hover-tip" data-tip="Focus stats" style={circleButton(boardTheme)} aria-label="Focus stats">
+              <button data-tour="focus-stats" onClick={() => setProfileOpen(true)} className="hover-tip" data-tip="Focus stats" style={circleButton(boardTheme)} aria-label="Focus stats">
                 {(focusStatsData?.currentStreak ?? 0) > 0
                   ? <svg width="11" height="15" viewBox="0 0 11 15" fill="none" overflow="visible" style={{ display: "block", animation: "boltSpark 1.4s ease-in-out infinite" }}>
                       <path d="M7 1L1 8.5h4L3.5 14 10 6H6L7 1Z" fill="#facc15"/>
@@ -758,6 +763,7 @@ export function HomeShell() {
                 return (
                   <button
                     type="button"
+                    data-tour="sync"
                     className="hover-tip"
                     data-tip={syncLabel(syncState, "click")}
                     aria-label={syncLabel(syncState, "click")}

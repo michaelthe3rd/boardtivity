@@ -7,16 +7,13 @@ import type { ThemeMode } from "@/lib/board";
 import { pageText, muted, border, paper, buttonStyle } from "@/lib/ui";
 import { useHome } from "@/components/home/HomeContext";
 
-type Key = "dueSoonReminder" | "dailyDigest" | "weeklyDigest";
+type Key = "dailyDigest" | "weeklyDigest";
 
 // Each description names the real time, so it's clear when each email arrives.
-function rows(time: string, summariesOff: boolean): { key: Key; label: string; hint: string }[] {
+function rows(time: string): { key: Key; label: string; hint: string }[] {
   return [
-    { key: "dailyDigest", label: "Daily summary", hint: `Every day at ${time}: what's overdue, due today and due in the next 3 days. No email on days nothing is due.` },
-    { key: "weeklyDigest", label: "Weekly summary", hint: `Sundays at ${time}: your whole week ahead. Sent instead of Sunday's daily summary.` },
-    { key: "dueSoonReminder", label: "Task reminders", hint: summariesOff
-      ? `An email 1 hour before a task's due time. Tasks with no time are emailed at ${time} on their due date.`
-      : "An email 1 hour before a task's due time, for tasks that have one." },
+    { key: "dailyDigest", label: "Daily summary", hint: `Every day at ${time}: what's due today, anything overdue, and a look at the next 3 days. No email on days nothing is due.` },
+    { key: "weeklyDigest", label: "Weekly summary", hint: `Sundays at ${time}: what's due this week, and a look at the week after. Sent instead of Sunday's daily summary.` },
   ];
 }
 
@@ -49,7 +46,7 @@ export default function EmailSettings({ theme, large = false }: { theme: ThemeMo
         {heading}
         <div style={{ fontSize: labelSize, color: pageText(theme), fontWeight: 600, marginTop: 8 }}>Get reminded before things are due</div>
         <p style={{ fontSize: hintSize, color: muted(theme), lineHeight: 1.5, margin: "4px 0 12px" }}>
-          Sign in for a daily summary of what&apos;s due, a weekly plan on Sundays, and an email an hour before tasks are due. Your board syncs across devices too.
+          Sign in for a daily summary of what&apos;s due, a weekly plan on Sundays, and reminder emails at times you pick for any task or idea. Your board syncs across devices too.
         </p>
         <button type="button" onClick={() => openSignIn()} style={{ ...buttonStyle(theme, theme === "light", !large), padding: "0 18px" }}>Sign in</button>
       </div>
@@ -58,7 +55,6 @@ export default function EmailSettings({ theme, large = false }: { theme: ThemeMo
 
   const zone = emailPrefs?.timeZone ? zoneLabel(emailPrefs.timeZone) : null;
   const sendAt = emailPrefs?.reminderTime ?? "08:00";
-  const summariesOff = emailPrefs ? !emailPrefs.dailyDigest && !emailPrefs.weeklyDigest : false;
 
   async function onPreview() {
     setPreview("sending");
@@ -93,7 +89,7 @@ export default function EmailSettings({ theme, large = false }: { theme: ThemeMo
       </div>
 
 
-      {rows(HOURS.find((h) => h.value === sendAt)?.label ?? "8:00 AM", summariesOff).map(({ key, label, hint }) => {
+      {rows(HOURS.find((h) => h.value === sendAt)?.label ?? "8:00 AM").map(({ key, label, hint }) => {
         const enabled = emailPrefs ? emailPrefs[key] : true;
         return (
           <div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, padding: `${rowPad}px 0`, borderBottom: large ? `1px solid ${border(theme)}` : "none" }}>
@@ -106,11 +102,14 @@ export default function EmailSettings({ theme, large = false }: { theme: ThemeMo
         );
       })}
 
+      <p style={{ fontSize: hintSize, color: muted(theme), margin: "10px 0 12px", lineHeight: 1.5 }}>
+        Want an email at a specific time? Open any task or idea, press Edit, and pick a time under <strong style={{ color: pageText(theme), fontWeight: 600 }}>Remind me</strong>.
+      </p>
       <button
         type="button"
         onClick={onPreview}
         disabled={preview === "sending"}
-        style={{ marginTop: 4, background: "none", border: `1px solid ${border(theme)}`, borderRadius: 8, padding: large ? "8px 12px" : "6px 10px", fontSize: hintSize + 1, fontWeight: 600, color: pageText(theme), cursor: preview === "sending" ? "default" : "pointer", fontFamily: "inherit" }}
+        style={{ background: "none", border: `1px solid ${border(theme)}`, borderRadius: 8, padding: large ? "8px 12px" : "6px 10px", fontSize: hintSize + 1, fontWeight: 600, color: pageText(theme), cursor: preview === "sending" ? "default" : "pointer", fontFamily: "inherit" }}
       >
         {preview === "sending" ? "Sending…" : preview === "sent" ? "Sent, check your inbox" : preview === "wait" ? "Try again in a minute" : preview === "error" ? "Couldn't send" : "Send me a preview"}
       </button>

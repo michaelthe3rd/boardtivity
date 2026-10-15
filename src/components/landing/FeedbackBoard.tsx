@@ -31,7 +31,7 @@ export default function FeedbackBoard({ theme, isMobile, isSignedIn, onSignIn, s
 
   return (
       <section ref={sectionRef} id="feedback" style={{ maxWidth: 720, margin: "0 auto", padding: isMobile ? "60px 20px 80px" : "100px 32px 120px" }}>
-        <div style={{ marginBottom: 40 }}>
+        <div data-tour="feedback" style={{ marginBottom: 40 }}>
           <div style={{ fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase", color: muted(theme), fontWeight: 700, marginBottom: 10, opacity: .5 }}>Community</div>
           <h2 style={{ margin: "0 0 8px", fontSize: "clamp(26px,3vw,38px)", fontWeight: 900, letterSpacing: "-.04em", color: pageText(theme), lineHeight: 1.1 }}>Ideas and feedback</h2>
           <p style={{ margin: 0, fontSize: 15, color: muted(theme), opacity: .6, lineHeight: 1.7 }}>Tell us what you'd like to see. Vote for the ideas you like.</p>

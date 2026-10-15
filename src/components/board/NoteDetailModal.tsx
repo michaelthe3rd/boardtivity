@@ -22,9 +22,9 @@ export default function NoteDetailModal() {
     setDetailEditBody, detailEditDueDate, setDetailEditDueDate, detailEditDueTime, setDetailEditDueTime, detailEditImportance, setDetailEditImportance, detailEditMinutes,
     setDetailEditMinutes, detailEditSteps, setDetailEditSteps, detailEditColorIdx, setDetailEditColorIdx, detailBreakdownVariant, setDetailBreakdownVariant, confirmDeleteId,
     setConfirmDeleteId, isMobile, activeNotes, getBg, detailNote, setFlowMode, toggleFlow, deleteTask,
-    startFocus, scheduleDueDateReminder, scheduleIdeaReminder, emailPrefs, isSignedIn,
+    startFocus, scheduleReminder, emailPrefs, isSignedIn,
   } = useHome();
-  // Idea reminder being edited; only saved (and the email re-queued) when Save is pressed.
+  // Reminder being edited; only saved (and the email re-queued) when Save is pressed.
   const [editRemindAt, setEditRemindAt] = useState<number | null>(null);
   if (!(detailNote)) return null;
   const savedRemindAt = detailNote.remindAt && detailNote.remindAt > Date.now() ? detailNote.remindAt : null;
@@ -178,6 +178,17 @@ export default function NoteDetailModal() {
                       </select>
                     </div>
                   </div>
+                  <div style={{ marginTop: 4 }}>
+                    <div style={{ fontSize: 11, letterSpacing: ".1em", textTransform: "uppercase", color: muted(boardTheme), marginBottom: 8 }}>Remind me</div>
+                    <ReminderPicker
+                      theme={boardTheme}
+                      value={editRemindAt}
+                      onChange={setEditRemindAt}
+                      morningTime={emailPrefs?.reminderTime}
+                      signedIn={!!isSignedIn}
+                      hint={editRemindAt !== savedRemindAt ? "Press Save to confirm this change." : undefined}
+                    />
+                  </div>
                 </div>
               ) : (
                 <>
@@ -189,6 +200,11 @@ export default function NoteDetailModal() {
                       color: (() => { const d = detailNote.dueDate; const done = detailNote.completed || detailNote.steps.every(s => s.done); if (!d || done) return pageText(boardTheme); if (d < todayStr()) return boardTheme === "dark" ? "#ff6666" : "#c03030"; if (d === todayStr()) return boardTheme === "dark" ? "#ffb347" : "#b86800"; return pageText(boardTheme); })(),
                     }}>
                       Due {formatDate(detailNote.dueDate)}{fmtTime(detailNote.dueTime)}
+                    </div>
+                  )}
+                  {detailNote.type === "task" && savedRemindAt !== null && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 600, color: pageText(boardTheme), opacity: .8, marginBottom: 6 }}>
+                      <BellIcon size={13} />Email reminder {formatReminder(savedRemindAt)}
                     </div>
                   )}
                   {detailNote.type === "task" && detailNote.body && !detailEditing && (
@@ -387,12 +403,13 @@ export default function NoteDetailModal() {
                           dueTime: detailEditDueTime || undefined,
                           importance: detailEditImportance,
                           minutes: newMinutes,
+                          remindAt: editRemindAt ?? undefined,
                           steps: (() => {
                             const laid = n.flowMode === "chain" ? layoutChain(n.x, n.y, newSteps) : layoutWeb(n.x, n.y, newSteps);
                             return newSteps.map((s, i) => (s.x === 0 && s.y === 0) ? laid[i] : s);
                           })(),
                         } : n));
-                        if (detailNote.type === "task") scheduleDueDateReminder(detailNote.id, detailEditTitle.trim() || detailNote.title, detailEditDueDate || undefined, detailEditDueTime || undefined);
+                        if (editRemindAt !== savedRemindAt) scheduleReminder(detailNote.id, detailEditTitle.trim() || detailNote.title, editRemindAt);
                         setDetailEditing(false);
                       }}
                       style={buttonStyle(boardTheme, true)}
@@ -412,7 +429,7 @@ export default function NoteDetailModal() {
                       onClick={() => {
                         if (!detailEditTitle.trim()) return;
                         setNotes(ns => ns.map(n => n.id === detailNote.id ? { ...n, title: detailEditTitle.trim(), body: detailEditBody.trim(), colorIdx: detailEditColorIdx, remindAt: editRemindAt ?? undefined } : n));
-                        if (editRemindAt !== savedRemindAt) scheduleIdeaReminder(detailNote.id, detailEditTitle.trim(), editRemindAt);
+                        if (editRemindAt !== savedRemindAt) scheduleReminder(detailNote.id, detailEditTitle.trim(), editRemindAt);
                         setDetailEditing(false);
                       }}
                       style={buttonStyle(boardTheme, true)}
