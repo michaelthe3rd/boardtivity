@@ -38,8 +38,17 @@ export const recipientsForHour = internalQuery({
       localDate: string; daily: boolean; weekly: boolean;
     }>();
 
+    // One board per address, even if it's linked to more than one sign-in. Pick the most recently
+    // used one first, so its settings decide the time (an older sign-in with the default 8:00
+    // must not send a second email at 8).
+    const latestByEmail = new Map<string, { tokenIdentifier: string; email: string; boardState: string; updatedAt: number }>();
     for (const user of await ctx.db.query("userBoards").take(5000)) {
       if (!user.email) continue;
+      const existing = latestByEmail.get(user.email);
+      if (!existing || user.updatedAt > existing.updatedAt) latestByEmail.set(user.email, { ...user, email: user.email });
+    }
+
+    for (const user of latestByEmail.values()) {
       const prefs = await ctx.db
         .query("emailPrefs")
         .withIndex("by_token", (q) => q.eq("tokenIdentifier", user.tokenIdentifier))
@@ -51,12 +60,7 @@ export const recipientsForHour = internalQuery({
       const weekly = (prefs?.weeklyDigest ?? DEFAULT_PREFS.weeklyDigest) && local.weekday === 0 && prefs?.lastWeeklySent !== local.date;
       const daily = !weekly && (prefs?.dailyDigest ?? DEFAULT_PREFS.dailyDigest) && prefs?.lastDailySent !== local.date;
       if (!daily && !weekly) continue;
-
-      // One email per address, even if it's linked to more than one sign-in.
-      const existing = byEmail.get(user.email);
-      if (!existing || user.updatedAt > existing.updatedAt) {
-        byEmail.set(user.email, { tokenIdentifier: user.tokenIdentifier, email: user.email, boardState: user.boardState, updatedAt: user.updatedAt, localDate: local.date, daily, weekly });
-      }
+      byEmail.set(user.email, { tokenIdentifier: user.tokenIdentifier, email: user.email, boardState: user.boardState, updatedAt: user.updatedAt, localDate: local.date, daily, weekly });
     }
 
     const results = [];
@@ -210,7 +214,7 @@ function dailyEmail(tasks: Task[], boardNames: Map<string, string>, focus: Focus
       eyebrow: formatDate(today, { weekday: "long", month: "long", day: "numeric" }),
       title: headline.replace(/^./, (c) => c.toUpperCase()),
       body,
-      footerNote: "Your daily outline. It only comes on days something is due.",
+      footerNote: "Your daily summary. It only comes on days something is due.",
       unsubscribe: { url: unsubscribe, label: "Turn off daily emails" },
     }),
   };
@@ -244,7 +248,7 @@ function weeklyEmail(tasks: Task[], boardNames: Map<string, string>, focus: Focu
       eyebrow: `Week of ${formatDate(addDays(today, 1), { month: "long", day: "numeric" })}`,
       title: headline.replace(/^./, (c) => c.toUpperCase()),
       body,
-      footerNote: "Your weekly outline, every Sunday.",
+      footerNote: "Your weekly summary, every Sunday.",
       unsubscribe: { url: unsubscribe, label: "Turn off weekly emails" },
     }),
   };
@@ -290,8 +294,8 @@ function allSetEmail(sendAt: string, unsubscribe: string) {
   const row = (label: string, text: string) =>
     `<div style="padding:10px 0;border-bottom:1px solid #f0eee8;"><div style="font-size:15px;font-weight:600;color:#171613;">${escapeHtml(label)}</div><div style="font-size:13px;color:#6b675f;margin-top:2px;line-height:1.5;">${escapeHtml(text)}</div></div>`;
   const time = formatTime(sendAt);
-  const body = row("Daily outline", `At ${time} on days something's overdue, due today, or due in the next 3 days.`)
-    + row("Weekly outline", `Sundays at ${time}: the week ahead, in place of that day's daily outline.`)
+  const body = row("Daily summary", `Every day at ${time}, when something's overdue, due today, or due in the next 3 days.`)
+    + row("Weekly summary", `Sundays at ${time}: your whole week ahead, instead of that day's daily summary.`)
     + row("Task reminders", "An hour before a task's due time.")
     + `<div style="margin-top:22px;">${button("Open my board", APP_URL)}</div>`;
   return {

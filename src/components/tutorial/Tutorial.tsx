@@ -80,10 +80,10 @@ function emailStep(kind: "task" | "idea"): Step {
     id: "email", target: "settings-email", title: "Email reminders", awaitTarget: true,
     enter: h => { if (h.isMobile && !h.isNativeApp) h.setMobileSettingsOpen(true); else h.setSettingsOpen(true); },
     body: (_, h) => !h.isSignedIn
-      ? <>Sign in and Boardtivity emails you a daily outline of what&apos;s due{kind === "idea" ? ", plus any reminders you set on ideas" : " and a heads-up before deadlines"}.</>
+      ? <>Sign in and Boardtivity emails you a daily summary of what&apos;s due{kind === "idea" ? ", plus any reminders you set on ideas" : " and a heads-up before deadlines"}.</>
       : kind === "task"
-        ? <>On days something&apos;s due, you get an outline of it, and tasks with a time get a heads-up an hour before. Pick which emails you want and when they arrive.</>
-        : <>Reminders you set on ideas arrive by email. Your task boards also get a daily outline of what&apos;s due. Choose which emails you want here.</>,
+        ? <>Get a daily summary of what&apos;s due, and an email an hour before a task&apos;s due time. Pick which emails you want and what time they arrive.</>
+        : <>Reminders you set on ideas arrive by email. Your task boards also get a daily summary of what&apos;s due. Choose which emails you want here.</>,
   };
 }
 

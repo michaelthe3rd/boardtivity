@@ -9,11 +9,16 @@ import { useHome } from "@/components/home/HomeContext";
 
 type Key = "dueSoonReminder" | "dailyDigest" | "weeklyDigest";
 
-const ROWS: { key: Key; label: string; hint: string }[] = [
-  { key: "dailyDigest", label: "Daily outline", hint: "What's overdue, due today and due in the next 3 days. Skipped on days nothing is due." },
-  { key: "weeklyDigest", label: "Weekly outline", hint: "Sundays: the week ahead, plus tasks with no due date. Sent in place of that day's daily outline." },
-  { key: "dueSoonReminder", label: "Task reminders", hint: "A separate email an hour before a task's due time. Tasks with no time are listed in your outline instead." },
-];
+// Each description names the real time, so it's clear when each email arrives.
+function rows(time: string, summariesOff: boolean): { key: Key; label: string; hint: string }[] {
+  return [
+    { key: "dailyDigest", label: "Daily summary", hint: `Every day at ${time}: what's overdue, due today and due in the next 3 days. No email on days nothing is due.` },
+    { key: "weeklyDigest", label: "Weekly summary", hint: `Sundays at ${time}: your whole week ahead. Sent instead of Sunday's daily summary.` },
+    { key: "dueSoonReminder", label: "Task reminders", hint: summariesOff
+      ? `An email 1 hour before a task's due time. Tasks with no time are emailed at ${time} on their due date.`
+      : "An email 1 hour before a task's due time, for tasks that have one." },
+  ];
+}
 
 const HOURS = Array.from({ length: 24 }, (_, h) => ({ value: `${String(h).padStart(2, "0")}:00`, label: `${h % 12 || 12}:00 ${h < 12 ? "AM" : "PM"}` }));
 
@@ -44,7 +49,7 @@ export default function EmailSettings({ theme, large = false }: { theme: ThemeMo
         {heading}
         <div style={{ fontSize: labelSize, color: pageText(theme), fontWeight: 600, marginTop: 8 }}>Get reminded before things are due</div>
         <p style={{ fontSize: hintSize, color: muted(theme), lineHeight: 1.5, margin: "4px 0 12px" }}>
-          Sign in for a daily outline of what&apos;s due, a weekly plan on Sundays, and a heads-up an hour before timed tasks. Your board syncs across devices too.
+          Sign in for a daily summary of what&apos;s due, a weekly plan on Sundays, and an email an hour before tasks are due. Your board syncs across devices too.
         </p>
         <button type="button" onClick={() => openSignIn()} style={{ ...buttonStyle(theme, theme === "light", !large), padding: "0 18px" }}>Sign in</button>
       </div>
@@ -53,7 +58,7 @@ export default function EmailSettings({ theme, large = false }: { theme: ThemeMo
 
   const zone = emailPrefs?.timeZone ? zoneLabel(emailPrefs.timeZone) : null;
   const sendAt = emailPrefs?.reminderTime ?? "08:00";
-  const outlinesOff = emailPrefs ? !emailPrefs.dailyDigest && !emailPrefs.weeklyDigest : false;
+  const summariesOff = emailPrefs ? !emailPrefs.dailyDigest && !emailPrefs.weeklyDigest : false;
 
   async function onPreview() {
     setPreview("sending");
@@ -70,32 +75,15 @@ export default function EmailSettings({ theme, large = false }: { theme: ThemeMo
     <div data-tour="settings-email" style={{ borderTop: `1px solid ${border(theme)}`, paddingTop: 20 }}>
       {heading}
 
-      {ROWS.map(({ key, label, hint }) => {
-        const enabled = emailPrefs ? emailPrefs[key] : true;
-        // With both outlines off, untimed tasks get their own reminder at the outline time instead.
-        const text = key === "dueSoonReminder" && outlinesOff
-          ? "A separate email an hour before a task's due time, or at your outline time on the due day if it has no time."
-          : hint;
-        return (
-          <div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, padding: `${rowPad}px 0`, borderBottom: large ? `1px solid ${border(theme)}` : "none" }}>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: labelSize, color: pageText(theme), fontWeight: 600 }}>{label}</div>
-              <div style={{ fontSize: hintSize, color: muted(theme), lineHeight: 1.45, marginTop: 2, opacity: .85 }}>{text}</div>
-            </div>
-            <Toggle theme={theme} on={enabled} large={large} label={label} onClick={() => toggleEmailPref(key, enabled)} />
-          </div>
-        );
-      })}
-
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, padding: `${rowPad}px 0` }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, padding: `${rowPad}px 0`, borderBottom: `1px solid ${border(theme)}` }}>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: labelSize, color: pageText(theme), fontWeight: 600 }}>Outline time</div>
+          <div style={{ fontSize: labelSize, color: pageText(theme), fontWeight: 600 }}>Send emails at</div>
           <div style={{ fontSize: hintSize, color: muted(theme), lineHeight: 1.45, marginTop: 2, opacity: .85 }}>
-            {zone ? <>In {zone}, taken from this device.</> : <>In your local time.</>}
+            {zone ? <>{zone}, from this device</> : <>Your local time</>}
           </div>
         </div>
         <select
-          aria-label="Outline time"
+          aria-label="Send emails at"
           value={sendAt}
           onChange={(e) => updateReminderTime(e.target.value)}
           style={{ flexShrink: 0, fontSize: labelSize, fontWeight: 600, color: pageText(theme), backgroundColor: paper(theme), border: `1px solid ${border(theme)}`, borderRadius: 8, padding: large ? "6px 8px" : "4px 6px", cursor: "pointer", fontFamily: "inherit", colorScheme: theme === "dark" ? "dark" : "light" }}
@@ -103,6 +91,20 @@ export default function EmailSettings({ theme, large = false }: { theme: ThemeMo
           {HOURS.map((h) => <option key={h.value} value={h.value}>{h.label}</option>)}
         </select>
       </div>
+
+
+      {rows(HOURS.find((h) => h.value === sendAt)?.label ?? "8:00 AM", summariesOff).map(({ key, label, hint }) => {
+        const enabled = emailPrefs ? emailPrefs[key] : true;
+        return (
+          <div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, padding: `${rowPad}px 0`, borderBottom: large ? `1px solid ${border(theme)}` : "none" }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: labelSize, color: pageText(theme), fontWeight: 600 }}>{label}</div>
+              <div style={{ fontSize: hintSize, color: muted(theme), lineHeight: 1.45, marginTop: 2, opacity: .85 }}>{hint}</div>
+            </div>
+            <Toggle theme={theme} on={enabled} large={large} label={label} onClick={() => toggleEmailPref(key, enabled)} />
+          </div>
+        );
+      })}
 
       <button
         type="button"

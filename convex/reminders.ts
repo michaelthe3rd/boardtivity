@@ -120,6 +120,7 @@ export const loadForSend = internalQuery({
       remindersOn: prefs?.dueSoonReminder !== false,
       dailyOn: prefs?.dailyDigest ?? DEFAULT_PREFS.dailyDigest,
       weeklyOn: prefs?.weeklyDigest ?? DEFAULT_PREFS.weeklyDigest,
+      sendHour: Number((prefs?.reminderTime ?? DEFAULT_PREFS.reminderTime).slice(0, 2)),
       timeZone: prefs?.timeZone,
     };
   },
@@ -130,6 +131,16 @@ export const finish = internalMutation({
   handler: async (ctx, { reminderId }) => {
     const row = await ctx.db.get(reminderId);
     if (row) await ctx.db.delete(reminderId);
+    return null;
+  },
+});
+
+export const reschedule = internalMutation({
+  args: { reminderId: v.id("reminders"), delayMs: v.number() },
+  handler: async (ctx, { reminderId, delayMs }) => {
+    if (!(await ctx.db.get(reminderId))) return null;
+    const jobId = await ctx.scheduler.runAfter(delayMs, internal.reminders.send, { reminderId });
+    await ctx.db.patch(reminderId, { schedulerJobId: jobId, remindAt: Date.now() + delayMs });
     return null;
   },
 });
@@ -157,6 +168,15 @@ export const send = internalAction({
       : hasBoard && (!note || note.remindAt !== reminder.remindAt); // deleted, or the reminder was changed/removed
     if (skip) {
       await ctx.runMutation(internal.reminders.finish, { reminderId });
+      return null;
+    }
+
+    // An untimed reminder goes out at the user's email hour. If they changed that hour after it
+    // was queued (and no device has re-queued it since), move it to the new hour today, or send
+    // it now if the new hour has already passed.
+    if (kind === "due" && untimed && local.hour < data.sendHour) {
+      const delayMs = ((data.sendHour - local.hour) * 60 - new Date().getUTCMinutes()) * 60_000;
+      await ctx.runMutation(internal.reminders.reschedule, { reminderId, delayMs: Math.max(delayMs, 1000) });
       return null;
     }
 
