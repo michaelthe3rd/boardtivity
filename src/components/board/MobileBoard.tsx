@@ -1061,11 +1061,11 @@ export default function MobileBoard() {
             ) : focusCompleted ? (
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
                 <div style={{ width: 60, height: 60, borderRadius: "50%", backgroundColor: "rgba(80,180,100,.15)", border: "1.5px solid rgba(100,210,120,.35)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><polyline points="5,14 10,19 21,8" stroke="#6fc46b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#6fc46b" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2.5 2.5M9.5 2.5h5" /></svg>
                 </div>
-                <div style={{ marginTop: 20, fontSize: 13, letterSpacing: ".16em", textTransform: "uppercase", color: "rgba(247,248,251,.35)", fontWeight: 500 }}>Complete</div>
+                <div style={{ marginTop: 20, fontSize: 13, letterSpacing: ".16em", textTransform: "uppercase", color: "rgba(247,248,251,.35)", fontWeight: 500 }}>Time&apos;s up</div>
                 <div style={{ marginTop: 10, fontSize: 24, fontWeight: 700, letterSpacing: "-.02em", lineHeight: 1.25, maxWidth: 280 }}>{step ? step.title : fn.title}</div>
-                <div style={{ marginTop: 10, fontSize: 14, color: "rgba(120,210,130,.7)" }}>Great work!</div>
+                <div style={{ marginTop: 10, fontSize: 14, color: "rgba(120,210,130,.7)" }}>{focusNextStep ? "Nice session." : "Nice session. Next, tell us if it's finished."}</div>
                 {focusNextStep && (
                   <div style={{ marginTop: 8, fontSize: 13, color: "rgba(247,248,251,.4)" }}>Up next — <span style={{ color: "rgba(247,248,251,.7)", fontWeight: 600 }}>{focusNextStep.title}</span></div>
                 )}
@@ -1076,7 +1076,7 @@ export default function MobileBoard() {
                       <button type="button" onClick={() => { if (focusNoteId) closeFocusWithReview(focusNoteId); }} style={btn}>Done</button>
                     </>
                   ) : (
-                    <button type="button" onClick={() => { if (focusNoteId) closeFocusWithReview(focusNoteId); }} style={btnGreen}>Done</button>
+                    <button type="button" onClick={() => { if (focusNoteId) closeFocusWithReview(focusNoteId); }} style={btnGreen}>Continue</button>
                   )}
                 </div>
               </div>
