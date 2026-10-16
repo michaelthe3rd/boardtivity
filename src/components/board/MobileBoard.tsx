@@ -630,8 +630,8 @@ export default function MobileBoard() {
                     </div>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: pageText(theme) }}>Send on silence</div>
-                        <div style={{ fontSize: 11.5, color: muted(theme), marginTop: 2 }}>Auto-send after a pause in speech</div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: pageText(theme) }}>Auto-send voice messages</div>
+                        <div style={{ fontSize: 11.5, color: muted(theme), marginTop: 2 }}>When you talk to BOB with the mic, your message sends once you stop speaking. Off: review it, then press send.</div>
                       </div>
                       <button onClick={() => { const v = !bobAutoSend; setBobAutoSend(v); try { localStorage.setItem("bob_auto_send", String(v)); } catch {} }} style={{ flexShrink: 0, width: 46, height: 26, borderRadius: 999, border: "none", cursor: "pointer", backgroundColor: bobAutoSend ? (theme === "dark" ? "#4a9eff" : "#2563eb") : (theme === "dark" ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.12)"), position: "relative", transition: "background-color .18s" }}>
                         <span style={{ position: "absolute", top: 4, left: bobAutoSend ? 23 : 4, width: 18, height: 18, borderRadius: "50%", backgroundColor: "#fff", transition: "left .18s", boxShadow: "0 1px 3px rgba(0,0,0,.2)" }} />
