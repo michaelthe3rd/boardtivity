@@ -62,12 +62,12 @@ export default function FocusOverlay() {
             border: "1.5px solid rgba(100,210,120,.35)",
             display: "flex", alignItems: "center", justifyContent: "center",
           }}>
-            <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-              <polyline points="5,12 9,16 17,7" stroke="#6fc46b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6fc46b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="13" r="8" /><path d="M12 9v4l2.5 2.5M9.5 2.5h5" />
             </svg>
           </div>
           <div style={{ marginTop: 20, fontSize: 12, letterSpacing: ".18em", textTransform: "uppercase", color: "rgba(247,248,251,.35)", fontWeight: 500 }}>
-            {isLastSubtask ? "task complete" : isSubtask ? "subtask complete" : "task complete"}
+            Time&apos;s up
           </div>
           <div style={{ marginTop: 10, fontSize: 26, fontWeight: 700, color: "#f7f8fb", letterSpacing: "-.02em", lineHeight: 1.2 }}>
             {isLastSubtask ? (focusNote?.title ?? completedLabel) : completedLabel}
@@ -78,7 +78,7 @@ export default function FocusOverlay() {
             </div>
           ) : (
             <div style={{ marginTop: 8, fontSize: 13, color: "rgba(120,210,130,.65)" }}>
-              All done — great work!
+              Nice session. Next, tell us if it&apos;s finished.
             </div>
           )}
           <div style={{ marginTop: 28, display: "flex", gap: 10 }}>
@@ -96,7 +96,7 @@ export default function FocusOverlay() {
               </>
             ) : (
               <button onClick={() => focusNoteId ? closeFocusWithReview(focusNoteId) : undefined} style={focusBtnPrimary}>
-                Done
+                Continue
               </button>
             )}
           </div>
