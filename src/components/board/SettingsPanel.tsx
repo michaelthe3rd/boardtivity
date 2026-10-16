@@ -242,8 +242,8 @@ export default function SettingsPanel() {
               {/* Auto-send toggle */}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: pageText(boardTheme) }}>Send on silence</div>
-                  <div style={{ fontSize: 11.5, color: muted(boardTheme), marginTop: 2 }}>Auto-send after a pause in speech</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: pageText(boardTheme) }}>Auto-send voice messages</div>
+                  <div style={{ fontSize: 11.5, color: muted(boardTheme), marginTop: 2 }}>When you talk to BOB with the mic, your message sends once you stop speaking. Off: review it, then press send.</div>
                 </div>
                 <button
                   onClick={() => { const v = !bobAutoSend; setBobAutoSend(v); try { localStorage.setItem("bob_auto_send", String(v)); } catch {} }}
