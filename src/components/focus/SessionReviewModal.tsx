@@ -56,7 +56,7 @@ export default function SessionReviewModal() {
             onClick={() => handleFocusReviewDone(true)}
             style={{ height: 48, borderRadius: 14, border: "none", backgroundColor: "#6fc46b", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
           >
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>Mark task done <CheckIcon size={16} strokeWidth={2.6} /></span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>{focusReview.stepId ? "Mark subtask done" : "Mark task done"} <CheckIcon size={16} strokeWidth={2.6} /></span>
           </button>
           <button
             onClick={() => handleFocusReviewDone(false)}

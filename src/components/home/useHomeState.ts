@@ -1010,18 +1010,8 @@ export function useHomeState() {
       const elapsed = (Date.now() - focusStartedAtRef.current) / 1000;
       const remaining = Math.max(0, focusTotalSecsRef.current - elapsed);
       setFocusSecondsLeft(Math.round(remaining));
+      // Time's up. Nothing is marked done here: the review screen asks whether it's finished.
       if (remaining <= 0) {
-        const nId = focusNoteIdRef.current;
-        const sId = focusStepIdRef.current;
-        if (sId && nId) {
-          setNotes((ns) => ns.map((n) =>
-            n.id === nId
-              ? { ...n, steps: n.steps.map((s) => s.id === sId ? { ...s, done: true } : s) }
-              : n
-          ));
-        } else if (nId) {
-          setNotes((ns) => ns.map((n) => n.id === nId ? { ...n, completed: true, steps: n.steps.map((s) => ({ ...s, done: true })) } : n));
-        }
         setFocusCompleted(true);
         clearInterval(id);
       }
@@ -1039,20 +1029,7 @@ export function useHomeState() {
       const elapsed = (Date.now() - focusStartedAtRef.current) / 1000;
       const remaining = Math.max(0, focusTotalSecsRef.current - elapsed);
       setFocusSecondsLeft(Math.round(remaining));
-      if (remaining <= 0) {
-        const nId = focusNoteIdRef.current;
-        const sId = focusStepIdRef.current;
-        if (sId && nId) {
-          setNotes((ns) => ns.map((n) =>
-            n.id === nId
-              ? { ...n, steps: n.steps.map((s) => s.id === sId ? { ...s, done: true } : s) }
-              : n
-          ));
-        } else if (nId) {
-          setNotes((ns) => ns.map((n) => n.id === nId ? { ...n, completed: true, steps: n.steps.map((s) => ({ ...s, done: true })) } : n));
-        }
-        setFocusCompleted(true);
-      }
+      if (remaining <= 0) setFocusCompleted(true);
     }
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
@@ -1075,13 +1052,10 @@ export function useHomeState() {
 
   useEffect(() => {
     if (!focusCompleted) return;
+    // In a chain, offer the next unfinished subtask after the one just focused on.
     const note = notesRef.current.find(n => n.id === focusNoteIdRef.current);
-    const next = focusChainMode ? (note?.steps.find(s => !s.done) ?? null) : null;
+    const next = focusChainMode ? (note?.steps.find(s => !s.done && s.id !== focusStepIdRef.current) ?? null) : null;
     setFocusNextStep(next ? { id: next.id, title: next.title, minutes: next.minutes ?? 25 } : null);
-    // All subtasks done in chain mode — mark the parent task complete
-    if (!next && focusChainMode && note) {
-      setNotes(ns => ns.map(n => n.id === note.id ? { ...n, completed: true, steps: n.steps.map(s => ({ ...s, done: true })) } : n));
-    }
   }, [focusCompleted, focusChainMode]);
 
   // Lock body scroll when focus overlay is open on mobile
@@ -1102,8 +1076,11 @@ export function useHomeState() {
     return () => { html.style.overflow = prev[0]; body.style.overflow = prev[1]; };
   }, [settingsOpen]);
 
+  // "Start next" in a chain: the subtask just finished counts as done.
   function advanceToNext() {
     const next = focusNextStep;
+    const nId = focusNoteIdRef.current, sId = focusStepIdRef.current;
+    if (nId && sId) setNotes(ns => ns.map(n => n.id === nId ? { ...n, steps: n.steps.map(s => s.id === sId ? { ...s, done: true } : s) } : n));
     setFocusCompleted(false);
     setFocusNextStep(null);
     if (next) {
@@ -1712,6 +1689,17 @@ export function useHomeState() {
     setFocusStepId(null);
   }
 
+  // Mark a task done, or reopen it. A task whose subtasks are all checked counts as done, so
+  // reopening one also unchecks its last subtask to leave something to do.
+  function setTaskDone(noteId: number, done: boolean) {
+    setNotes(ns => ns.map(n => {
+      if (n.id !== noteId) return n;
+      if (done) return { ...n, completed: true };
+      const allDone = n.steps.length > 0 && n.steps.every(s => s.done);
+      return { ...n, completed: false, steps: allDone ? n.steps.map((s, i) => i === n.steps.length - 1 ? { ...s, done: false } : s) : n.steps };
+    }));
+  }
+
   async function handleFocusReviewDone(markFinished: boolean) {
     if (!focusReview) return;
     const { elapsedMin, noteId, stepId } = focusReview;
@@ -1720,11 +1708,9 @@ export function useHomeState() {
     // Compute updated notes immediately so we can push to cloud right away
     const updatedNotes = notes.map(n => {
       if (n.id !== noteId) return n;
+      // Done: the focused subtask, or with no subtask focused, the whole task and all its subtasks.
       let updatedSteps = n.steps;
-      if (markFinished && stepId) {
-        // Mark the focused subtask done
-        updatedSteps = n.steps.map(s => s.id === stepId ? { ...s, done: true } : s);
-      }
+      if (markFinished) updatedSteps = stepId ? n.steps.map(s => s.id === stepId ? { ...s, done: true } : s) : n.steps.map(s => ({ ...s, done: true }));
       const allStepsDone = updatedSteps.length > 0 && updatedSteps.every(s => s.done);
       return {
         ...n,
@@ -1801,7 +1787,7 @@ export function useHomeState() {
     onViewportPointerUp, createNote, resetComposer, closeComposer, saveDraft, loadDraft, deleteDraft, setFlowMode,
     toggleFlow, toggleThoughtLink, deleteTask, handleBobSweep, handleBobEditNote, handleBobDeleteNotes, handleBobHighlightNotes, handleBobLaunchFocus,
     handleBobSaveUndo, handleBobUndo, handleBobSetIdeaColor, handleBobConfigureTaskColors, handleBobConfigureBoard, handleBobAddNote, startFocus, commitFocus,
-    closeFocusWithReview, handleFocusReviewDone, scheduleReminder, user, isSignedIn, clerkLoaded, openSignIn, openSignUp,
+    closeFocusWithReview, handleFocusReviewDone, setTaskDone, scheduleReminder, user, isSignedIn, clerkLoaded, openSignIn, openSignUp,
     signOut,
   };
 }

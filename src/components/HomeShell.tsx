@@ -29,7 +29,7 @@ import { UpgradeModal, LimitReachedModal, SubscribedModal, WhatsNewModal, NamePr
 import { NOTE_PALETTE, paletteBg, paletteHalo, noteText, noteSub} from "@/lib/colors";
 import type { ThemeMode } from "@/lib/board";
 import { pageText, muted, border, paper, grid, panel, buttonStyle, circleButton, pill } from "@/lib/ui";
-import { todayStr, formatDateShort, fmtTime} from "@/lib/dates";
+import { todayStr, formatDateShort, fmtTime, fmtFocusTime } from "@/lib/dates";
 import { BOARD_W, BOARD_H, NOTE_W, NOTE_H, noteCardWidth, titleFontSize, STEP_W, STEP_H} from "@/lib/boardLayout";
 import { BellIcon, formatReminder } from "@/components/board/ReminderPicker";
 import { CenterIcon, LinkIcon, ListIcon, PencilIcon, PlusIcon, TimerIcon, UnlinkIcon } from "@/components/ui/Icons";
@@ -633,8 +633,11 @@ export function HomeShell() {
                               }}
                             />
                           ))}
+                          {(note.totalTimeSpent ?? 0) > 0 && <span style={{ fontSize: 11, fontWeight: 600, color: noteSub(boardTheme), whiteSpace: "nowrap", marginLeft: 2 }}>{fmtFocusTime(note.totalTimeSpent ?? 0)}</span>}
                         </div>
-                      ) : <div />}
+                      ) : (note.totalTimeSpent ?? 0) > 0
+                        ? <span style={{ fontSize: 12, fontWeight: 600, color: noteSub(boardTheme), whiteSpace: "nowrap" }}>{fmtFocusTime(note.totalTimeSpent ?? 0)} focused</span>
+                        : <div />}
                       <span style={pill(boardTheme)}>
                         {note.importance && note.importance !== "none" ? `${note.importance} priority` : "No priority"}
                       </span>

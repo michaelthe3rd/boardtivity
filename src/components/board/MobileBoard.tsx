@@ -41,7 +41,7 @@ export default function MobileBoard() {
     isNativeApp, focusStatsData, setReminderMut, latestBoardStateRef, setBobUserInfoFn, bobUserInfo, activeBoard,
     taskPaletteEntry, startPortal, findFreeSpot, exportToIcs, pushToCloud, advanceToNext, addBoard, deleteBoard,
     deleteTask, handleBobSweep, handleBobEditNote, handleBobDeleteNotes, handleBobHighlightNotes, handleBobLaunchFocus, handleBobSaveUndo, handleBobUndo,
-    handleBobSetIdeaColor, handleBobConfigureTaskColors, handleBobConfigureBoard, handleBobAddNote, startFocus, closeFocusWithReview, scheduleReminder, emailPrefs, user,
+    handleBobSetIdeaColor, handleBobConfigureTaskColors, handleBobConfigureBoard, handleBobAddNote, startFocus, closeFocusWithReview, setTaskDone, scheduleReminder, emailPrefs, user,
     isSignedIn, clerkLoaded, signOut,
   } = useHome();
   // Edit-sheet fields that only this component uses.
@@ -184,6 +184,7 @@ export default function MobileBoard() {
         <div style={{ padding: "4px 14px 13px", display: "flex", alignItems: "flex-start", gap: 10 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 16, fontWeight: 700, color: isDone ? muted(theme) : pageText(theme), textDecoration: isDone ? "line-through" : "none", lineHeight: 1.3, wordBreak: "break-word", opacity: isDone ? .5 : 1 }}>{note.title}</div>
+            {(note.totalTimeSpent ?? 0) > 0 && <div style={{ fontSize: 11, color: muted(theme), opacity: .7, marginTop: 3 }}>{fmtFocusTime(note.totalTimeSpent ?? 0)} focused</div>}
             {hasSteps && (
               <button
                 type="button"
@@ -849,6 +850,18 @@ export default function MobileBoard() {
           <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,.4)" }} onClick={() => { setMobileActionNoteId(null); setMobileDeleteConfirm(false); }} />
           <div style={{ position: "relative", backgroundColor: surface(theme), borderRadius: "20px 20px 0 0", padding: "20px 20px 36px", display: "flex", flexDirection: "column", gap: 12, maxHeight: "88vh", overflowY: "auto", overscrollBehavior: "contain" }}>
             <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: muted(theme), opacity: .5, marginBottom: 2 }}>Edit {actionNote.type === "task" ? "task" : "idea"}</div>
+            {actionNote.type === "task" && (() => {
+              const done = actionNote.completed || (actionNote.steps.length > 0 && actionNote.steps.every(s => s.done));
+              return (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "10px 14px", borderRadius: 12, border: `1px solid ${border(theme)}`, backgroundColor: paper(theme) }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: done ? (theme === "dark" ? "rgba(100,220,120,.95)" : "rgba(30,120,60,.9)") : pageText(theme) }}>{done ? "Completed" : "Not done yet"}</div>
+                    <div style={{ fontSize: 12, color: muted(theme), marginTop: 1 }}>{(actionNote.totalTimeSpent ?? 0) > 0 ? `${fmtFocusTime(actionNote.totalTimeSpent ?? 0)} focused so far` : "No focus time yet"}</div>
+                  </div>
+                  <button type="button" onClick={() => setTaskDone(actionNote.id, !done)} style={{ flexShrink: 0, height: 36, padding: "0 14px", borderRadius: 999, border: `1px solid ${border(theme)}`, background: "transparent", color: pageText(theme), fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{done ? "Mark not done" : "Mark done"}</button>
+                </div>
+              );
+            })()}
             <textarea
               rows={1}
               value={mobileEditTitle}

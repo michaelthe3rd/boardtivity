@@ -11,6 +11,7 @@ import { buildBreakdown } from "@/lib/breakdown";
 import DateField from "@/components/ui/DateField";
 import LockIcon from "@/components/ui/LockIcon";
 import { useHome } from "@/components/home/HomeContext";
+import { fmtFocusTime } from "@/lib/dates";
 import ReminderPicker, { BellIcon, formatReminder } from "@/components/board/ReminderPicker";
 import { CloseIcon, PencilIcon } from "@/components/ui/Icons";
 
@@ -22,7 +23,7 @@ export default function NoteDetailModal() {
     setDetailEditBody, detailEditDueDate, setDetailEditDueDate, detailEditDueTime, setDetailEditDueTime, detailEditImportance, setDetailEditImportance, detailEditMinutes,
     setDetailEditMinutes, detailEditSteps, setDetailEditSteps, detailEditColorIdx, setDetailEditColorIdx, detailBreakdownVariant, setDetailBreakdownVariant, confirmDeleteId,
     setConfirmDeleteId, isMobile, activeNotes, getBg, detailNote, setFlowMode, toggleFlow, deleteTask,
-    startFocus, scheduleReminder, emailPrefs, isSignedIn,
+    startFocus, setTaskDone, scheduleReminder, emailPrefs, isSignedIn,
   } = useHome();
   // Reminder being edited; only saved (and the email re-queued) when Save is pressed.
   const [editRemindAt, setEditRemindAt] = useState<number | null>(null);
@@ -533,6 +534,14 @@ export default function NoteDetailModal() {
                           </button>
                         </>
                       )}
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 12, fontSize: 12, color: muted(boardTheme) }}>
+                        <span>{(detailNote.totalTimeSpent ?? 0) > 0 ? `${fmtFocusTime(detailNote.totalTimeSpent ?? 0)} focused so far` : "No focus time yet"}</span>
+                        <button
+                          type="button"
+                          onClick={() => setTaskDone(detailNote.id, !(taskDone || allSubtasksDone))}
+                          style={{ background: "none", border: "none", padding: 0, fontSize: 12, fontWeight: 700, color: pageText(boardTheme), cursor: "pointer", fontFamily: "inherit", textDecoration: "underline", textUnderlineOffset: 3 }}
+                        >{taskDone || allSubtasksDone ? "Mark not done" : "Mark done"}</button>
+                      </div>
                     </div>
                   );
                 })()}
