@@ -80,7 +80,7 @@ export function HomeShell() {
     showSubscribedModal, setShowSubscribedModal, showUpdateModal, setShowUpdateModal, namePromptOpen, setNamePromptOpen, userMenuOpen, setUserMenuOpen,
     setComposerColorIdx, thoughtUnlinkTarget, setThoughtUnlinkTarget, heroRef, heroVisible, confirmSignOut, setConfirmSignOut, checkoutLoading,
     checkoutError, showSyncPill, titleMounted, settingsOpen, setSettingsOpen, bobAutoSend, confirmDeleteId, setConfirmDeleteId,
-    isFullscreen, boardGrid, thoughtColorMode, thoughtFixedColorIdx, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx,
+    isFullscreen, inPageFullscreen, boardGrid, thoughtColorMode, thoughtFixedColorIdx, taskColorMode, taskHighColorIdx, taskMedColorIdx, taskLowColorIdx,
     taskSingleColorIdx, cloudSyncState, setCloudSyncState, thoughtDropTarget, setThoughtDropTarget, scale, pan, thoughtUnlinkTargetRef,
     thoughtHoverTimerRef, viewportRef, boardContainerRef, boardMenuRef, boardButtonRef, settingsButtonRef, userMenuRef, feedbackRef,
     isMobile, isPlus, isAdmin, isNativeApp, focusStatsData, bobUserInfo, boardDragRef, noteDragRef,
@@ -689,7 +689,7 @@ export function HomeShell() {
             </div>
           )}
 
-          <div ref={toolbarRef} style={{ position: "absolute", top: isNativeApp ? "env(safe-area-inset-top, 12px)" : 12, left: 16, right: 16, zIndex: 3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div ref={toolbarRef} style={{ position: "absolute", top: isNativeApp ? "env(safe-area-inset-top, 12px)" : inPageFullscreen ? "max(12px, env(safe-area-inset-top, 12px))" : 12, left: 16, right: 16, zIndex: 3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             {/* BOB — visible to all, admin-gated features */}
             <div data-tour="bob" style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", top: 0, zIndex: 4 }}>
               <BobAgent

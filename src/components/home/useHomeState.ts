@@ -191,6 +191,7 @@ export function useHomeState() {
     if (typeof document !== "undefined" && document.fullscreenElement) {
       document.exitFullscreen().catch(() => {}).finally(fn);
     } else {
+      if (inPageFullscreen) exitInPageFullscreen();
       fn();
     }
   }
@@ -255,6 +256,9 @@ export function useHomeState() {
   const [bobAutoSend, setBobAutoSend] = useState(() => { try { return localStorage.getItem("bob_auto_send") === "true"; } catch { return false; } });
   const [mobileSettingsOpen, setMobileSettingsOpen] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | string | null>(null);
+  // Home-screen web apps on iPad/iPhone have no browser fullscreen, so the board fills the
+  // window with CSS instead ("in-page" fullscreen). isFullscreen is true in both cases.
+  const [inPageFullscreen, setInPageFullscreen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false); // noteId (number) or boardId (string)
   const [boardGrid, setBoardGrid] = useState<"grid" | "dots" | "blank">(() => readLocal("boardGrid", "grid"));
   const [thoughtColorMode, setThoughtColorMode] = useState<"random" | "fixed">(() => readLocal("thoughtColorMode", "random"));
@@ -355,9 +359,11 @@ export function useHomeState() {
   );
 
   // Fullscreen board: square edges, full height, and no clipping of overlays portaled into it (see OverlayLayer)
-  const fullscreenOverride: CSSProperties = isFullscreen
-    ? { borderRadius: 0, border: "none", minHeight: "100vh", overflow: "visible" }
-    : {};
+  const fullscreenOverride: CSSProperties = inPageFullscreen
+    ? { position: "fixed", inset: 0, width: "100%", height: "100%", borderRadius: 0, border: "none", minHeight: "unset", overflow: "visible", zIndex: 1000 }
+    : isFullscreen
+      ? { borderRadius: 0, border: "none", minHeight: "100vh", overflow: "visible" }
+      : {};
 
   // In native app, board always fills the screen (no fullscreen button needed)
   const nativeAppOverride: CSSProperties = isNativeApp
@@ -992,12 +998,27 @@ export function useHomeState() {
     return () => document.removeEventListener("fullscreenchange", handler);
   }, []);
 
+  // In-page fullscreen: stop the page behind from scrolling, and let Escape leave it.
+  useEffect(() => {
+    if (!inPageFullscreen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") exitInPageFullscreen(); };
+    window.addEventListener("keydown", onKey);
+    return () => { document.body.style.overflow = prev; window.removeEventListener("keydown", onKey); };
+  }, [inPageFullscreen]);
+
+  function enterInPageFullscreen() { setInPageFullscreen(true); setIsFullscreen(true); }
+  function exitInPageFullscreen() { setInPageFullscreen(false); setIsFullscreen(false); }
+
   function toggleFullscreen() {
-    if (!document.fullscreenElement) {
-      boardContainerRef.current?.requestFullscreen();
-    } else {
-      document.exitFullscreen();
-    }
+    if (inPageFullscreen) { exitInPageFullscreen(); return; }
+    if (document.fullscreenElement) { document.exitFullscreen(); return; }
+    const el = boardContainerRef.current;
+    if (!el) return;
+    // No browser fullscreen (home-screen web apps on iPad/iPhone), or it was refused: fill the window instead.
+    if (!document.fullscreenEnabled || typeof el.requestFullscreen !== "function") { enterInPageFullscreen(); return; }
+    el.requestFullscreen().catch(enterInPageFullscreen);
   }
 
   // Wall-clock timer: tick every second, compute remaining from start time
@@ -1772,7 +1793,7 @@ export function useHomeState() {
     mobileBoardActionId, setMobileBoardActionId, mobileBoardRename, setMobileBoardRename, mobileBoardRenaming, setMobileBoardRenaming, mobileFilterPriority, setMobileFilterPriority,
     mobileSortDate, setMobileSortDate, confirmSignOut, setConfirmSignOut, checkoutLoading, checkoutError, showSyncPill, titleMounted,
     settingsOpen, setSettingsOpen, bobAutoSend, setBobAutoSend, mobileSettingsOpen, setMobileSettingsOpen, confirmDeleteId, setConfirmDeleteId,
-    isFullscreen, boardGrid, setBoardGrid, thoughtColorMode, setThoughtColorMode, thoughtFixedColorIdx, setThoughtFixedColorIdx, taskColorMode,
+    isFullscreen, inPageFullscreen, boardGrid, setBoardGrid, thoughtColorMode, setThoughtColorMode, thoughtFixedColorIdx, setThoughtFixedColorIdx, taskColorMode,
     setTaskColorMode, taskHighColorIdx, setTaskHighColorIdx, taskMedColorIdx, setTaskMedColorIdx, taskLowColorIdx, setTaskLowColorIdx, taskSingleColorIdx,
     setTaskSingleColorIdx, taskSingleCustom, setTaskSingleCustom, taskHighCustom, setTaskHighCustom, taskMedCustom, setTaskMedCustom, taskLowCustom,
     setTaskLowCustom, cloudSyncState, setCloudSyncState, thoughtDropTarget, setThoughtDropTarget, scale, pan, focusSessionStartRef,
