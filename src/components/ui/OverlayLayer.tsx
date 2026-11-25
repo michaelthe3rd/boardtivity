@@ -14,6 +14,8 @@ export default function OverlayLayer({ children }: { children: ReactNode }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   if (!mounted) return null;
-  const target = (isFullscreen && document.fullscreenElement) || document.body;
+  // In-page fullscreen (no browser fullscreen, e.g. iPad home-screen app) puts the board above
+  // the page, so overlays go inside it there too.
+  const target = (isFullscreen && (document.fullscreenElement || document.getElementById("board-shell"))) || document.body;
   return createPortal(children, target);
 }
